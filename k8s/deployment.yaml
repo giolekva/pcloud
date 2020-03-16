@@ -1,0 +1,78 @@
+---
+kind: Service 
+apiVersion: v1
+metadata:
+  name: pcloud-master-service
+spec:
+  type: ClusterIP
+  selector:
+    app: pcloud-master 
+  ports:
+    - nodePort: 
+      port: 111
+      targetPort: 123
+---
+kind: Deployment
+apiVersion: apps/v1
+metadata:
+  name: pcloud-master
+spec:
+  selector:
+    matchLabels:
+      app: pcloud-master
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: pcloud-master
+    spec:
+      containers:
+      - name: pcloud-master
+        image: pcloud:latest
+        imagePullPolicy: Never
+        ports:
+        - containerPort: 123
+        volumeMounts:
+        - name: code
+          mountPath: /src/go/src/pcloud
+        command: ["/bin/sh"]
+        args: ["-c", "protoc pfs.proto --go_out=plugins=grpc:. && cd master && go install master.go && master --port=123"]
+      volumes:
+      - name: code
+        hostPath:
+          path: "/Users/lekva/dev/src/pcloud"
+---
+kind: Deployment
+apiVersion: apps/v1
+metadata:
+  name: pcloud-chunk
+spec:
+  selector:
+    matchLabels:
+      app: pcloud-chunk
+  replicas: 3
+  template:
+    metadata:
+      labels:
+        app: pcloud-chunk
+    spec:
+      containers:
+      - name: pcloud-chunk
+        image: pcloud:latest
+        imagePullPolicy: Never
+        ports:
+        - containerPort: 234
+        env:
+        - name: SELF_IP
+          valueFrom:
+            fieldRef:
+              fieldPath: status.podIP
+        volumeMounts:
+        - name: code
+          mountPath: /src/go/src/pcloud
+        command: ["/bin/sh"]
+        args: ["-c", "protoc pfs.proto --go_out=plugins=grpc:. && cd chunk && go install chunk.go && chunk --master=pcloud-master-service:111 --self=$(SELF_IP):234"]
+      volumes:
+      - name: code
+        hostPath:
+          path: "/Users/lekva/dev/src/pcloud"
