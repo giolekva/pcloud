@@ -1,6 +1,8 @@
 syntax = "proto3";
 
-package pcloud;
+package pcloud.api;
+
+option go_package = "api";
 
 message Chunk {
 	string chunk_id = 1;

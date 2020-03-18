@@ -15,8 +15,6 @@ ENV GOPATH=/src/go
 ENV GOBIN=$GOPATH/bin
 ENV PATH=$GOBIN:$GOROOT/bin:$PATH
 
-RUN go version
-
 RUN go get -u google.golang.org/grpc
 
 WORKDIR /src/protoc
@@ -27,5 +25,6 @@ ENV PATH=/src/protoc/bin:$PATH
 
 RUN go get -u github.com/golang/protobuf/protoc-gen-go
 RUN go get -u google.golang.org/protobuf/encoding/prototext
+RUN go get -u github.com/google/uuid
 
 WORKDIR /src/go/src/pcloud
