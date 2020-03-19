@@ -40,7 +40,7 @@ spec:
       volumes:
       - name: code
         hostPath:
-          path: "/Users/lekva/dev/src/pcloud"
+          path: "/Users/lekva/dev/go/src/pcloud"
 ---
 kind: Deployment
 apiVersion: apps/v1
@@ -75,4 +75,4 @@ spec:
       volumes:
       - name: code
         hostPath:
-          path: "/Users/lekva/dev/src/pcloud"
+          path: "/Users/lekva/dev/go/src/pcloud"
