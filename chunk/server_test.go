@@ -7,7 +7,7 @@ import "testing"
 import "pcloud/api"
 
 func TestStoreChunk(t *testing.T) {
-	s := NewChunkServer()
+	s := ChunkServer{factory: &InMemoryChunkFactory{}}
 	_, err := s.StoreChunk(context.Background(), &api.StoreChunkRequest{
 		ChunkId: "foo",
 		Data:    []byte("hello world")})
@@ -17,7 +17,7 @@ func TestStoreChunk(t *testing.T) {
 }
 
 func TestStoreAndReadChunk(t *testing.T) {
-	s := NewChunkServer()
+	s := ChunkServer{factory: &InMemoryChunkFactory{}}
 	_, err := s.StoreChunk(context.Background(), &api.StoreChunkRequest{
 		ChunkId: "foo",
 		Data:    []byte("hello world")})
@@ -35,7 +35,7 @@ func TestStoreAndReadChunk(t *testing.T) {
 }
 
 func TestReadWithOffsets(t *testing.T) {
-	s := NewChunkServer()
+	s := ChunkServer{factory: &InMemoryChunkFactory{}}
 	_, err := s.StoreChunk(context.Background(), &api.StoreChunkRequest{
 		ChunkId: "foo",
 		Data:    []byte("hello world")})

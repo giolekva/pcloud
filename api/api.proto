@@ -18,6 +18,10 @@ service ChunkStorage {
 	rpc ReadChunk(ReadChunkRequest) returns (ReadChunkResponse) {}
 
 	rpc StoreChunk(StoreChunkRequest) returns (StoreChunkResponse) {}
+
+	rpc RemoveChunk(RemoveChunkRequest) returns (RemoveChunkResponse) {}
+
+	rpc ReplicateChunk(ReplicateChunkRequest) returns (ReplicateChunkResponse) {}
 }
 
 message ListChunksRequest {
@@ -43,6 +47,21 @@ message StoreChunkRequest {
 }
 
 message StoreChunkResponse {
+}
+
+message RemoveChunkRequest {
+	string chunk_id = 1;
+}
+
+message RemoveChunkResponse {
+}
+
+message ReplicateChunkRequest {
+	string chunk_id = 1;
+	string primary_chunk_server = 2;
+}
+
+message ReplicateChunkResponse {
 }
 
 // MetadataStorage
