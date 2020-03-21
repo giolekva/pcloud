@@ -1,11 +1,14 @@
 package chunk
 
-import "bytes"
-import "context"
-import "io"
-import "sync"
+import (
+	"bytes"
+	"context"
+	"io"
 
-import "pcloud/api"
+	"sync"
+
+	"pcloud/api"
+)
 
 type ChunkServer struct {
 	factory          ChunkFactory

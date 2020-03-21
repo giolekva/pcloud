@@ -1,10 +1,12 @@
 package chunk
 
-import "context"
-import "bytes"
-import "testing"
+import (
+	"bytes"
+	"context"
+	"testing"
 
-import "pcloud/api"
+	"pcloud/api"
+)
 
 func TestStoreChunk(t *testing.T) {
 	s := ChunkServer{factory: &InMemoryChunkFactory{}}

@@ -1,12 +1,14 @@
 package master
 
-import "context"
-import "log"
-import "math/rand"
+import (
+	"context"
+	"log"
+	"math/rand"
 
-import "github.com/google/uuid"
+	"github.com/google/uuid"
 
-import "pcloud/api"
+	"pcloud/api"
+)
 
 type chunkServers struct {
 	address string

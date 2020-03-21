@@ -1,10 +1,12 @@
 package chunk
 
-import "context"
-import "errors"
-import "io"
+import (
+	"context"
+	"errors"
+	"io"
 
-import "pcloud/api"
+	"pcloud/api"
+)
 
 type RemoteChunk struct {
 	chunkId string

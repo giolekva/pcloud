@@ -1,14 +1,16 @@
 package main
 
-import "flag"
-import "fmt"
-import "log"
-import "net"
+import (
+	"flag"
+	"fmt"
+	"log"
+	"net"
 
-import "google.golang.org/grpc"
+	"google.golang.org/grpc"
 
-import "pcloud/api"
-import "pcloud/master"
+	"pcloud/api"
+	"pcloud/master"
+)
 
 var port = flag.Int("port", 123, "Port to listen on.")
 

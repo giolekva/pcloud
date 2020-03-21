@@ -1,11 +1,13 @@
 package chunk
 
-import "context"
-import "io"
+import (
+	"context"
+	"io"
 
-import "google.golang.org/grpc"
+	"google.golang.org/grpc"
 
-import "pcloud/api"
+	"pcloud/api"
+)
 
 type PrimaryReplicaChangeListener interface {
 	ChunkId() string

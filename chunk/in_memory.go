@@ -1,7 +1,9 @@
 package chunk
 
-import "bytes"
-import "io"
+import (
+	"bytes"
+	"io"
+)
 
 type InMemoryChunk struct {
 	payload bytes.Buffer

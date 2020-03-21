@@ -1,7 +1,9 @@
 package chunk
 
-import "bytes"
-import "testing"
+import (
+	"bytes"
+	"testing"
+)
 
 func TestConcurrentReads(t *testing.T) {
 	c := InMemoryChunkFactory{}.New()

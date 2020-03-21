@@ -1,16 +1,18 @@
 package main
 
-import "context"
-import "flag"
-import "fmt"
-import "log"
-import "net"
-import "time"
+import (
+	"context"
+	"flag"
+	"fmt"
+	"log"
+	"net"
+	"time"
 
-import "google.golang.org/grpc"
+	"google.golang.org/grpc"
 
-import "pcloud/api"
-import "pcloud/chunk"
+	"pcloud/api"
+	"pcloud/chunk"
+)
 
 var masterAddress = flag.String("master", "localhost:123", "Metadata storage address.")
 var selfAddress = flag.String("self", "", "Metadata storage address.")
