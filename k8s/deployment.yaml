@@ -36,7 +36,7 @@ spec:
         - name: code
           mountPath: /src/go/src/pcloud
         command: ["/bin/sh"]
-        args: ["-c", "protoc api/api.proto --go_out=plugins=grpc:. && go install master.go && master --port=123"]
+        args: ["-c", "protoc api/api.proto --go_out=plugins=grpc:. && go run master.go --port=123"]
       volumes:
       - name: code
         hostPath:
@@ -71,7 +71,7 @@ spec:
         - name: code
           mountPath: /src/go/src/pcloud
         command: ["/bin/sh"]
-        args: ["-c", "protoc api/api.proto --go_out=plugins=grpc:. && go install chunk.go && chunk --master=pcloud-master-service:111 --self=$(SELF_IP):234"]
+        args: ["-c", "protoc api/api.proto --go_out=plugins=grpc:. && go run chunk.go --master=pcloud-master-service:111 --self=$(SELF_IP):234"]
       volumes:
       - name: code
         hostPath:
