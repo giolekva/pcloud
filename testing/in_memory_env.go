@@ -50,7 +50,9 @@ func NewInMemoryEnv(numChunkServers int) (*InMemoryEnv, error) {
 			return nil, err
 		}
 		server := grpc.NewServer()
-		api.RegisterChunkStorageServer(server, chunk.NewChunkServer(&chunk.InMemoryChunkFactory{}))
+		api.RegisterChunkStorageServer(server, chunk.NewChunkServer(
+			&chunk.InMemoryChunkFactory{},
+			&chunk.NonChangingReplicaAssignment{}))
 		go server.Serve(lis)
 		env.c[i] = server
 	}

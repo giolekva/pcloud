@@ -48,6 +48,8 @@ func main() {
 		log.Fatalf("failed to listen: %v", err)
 	}
 	server := grpc.NewServer()
-	api.RegisterChunkStorageServer(server, chunk.NewChunkServer())
+	api.RegisterChunkStorageServer(server, chunk.NewChunkServer(
+		&chunk.InMemoryChunkFactory{},
+		&chunk.NonChangingReplicaAssignment{}))
 	server.Serve(lis)
 }

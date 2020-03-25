@@ -11,13 +11,17 @@ import (
 )
 
 type ChunkServer struct {
-	factory          ChunkFactory
-	chunks           sync.Map
-	replicatorCancel sync.Map
+	factory             ChunkFactory
+	assignmentChangeLis ReplicaAssignmentChangeListener
+	chunks              sync.Map
+	replicatorCancel    sync.Map
 }
 
-func NewChunkServer(factory ChunkFactory) *ChunkServer {
-	return &ChunkServer{factory: factory}
+func NewChunkServer(factory ChunkFactory,
+	assignmentChangeLis ReplicaAssignmentChangeListener) *ChunkServer {
+	return &ChunkServer{
+		factory:             factory,
+		assignmentChangeLis: assignmentChangeLis}
 }
 
 func (s *ChunkServer) ListChunks(
@@ -40,10 +44,9 @@ func (s *ChunkServer) CreateChunk(
 	case api.ReplicaRole_SECONDARY:
 		ctx, cancel := context.WithCancel(context.Background())
 		s.replicatorCancel.Store(req.ChunkId, cancel)
-		primaryListener := NewNonChangingPrimaryReplicaChangeListener(
-			req.ChunkId,
-			req.PrimaryAddress)
-		go ReplicateFromPrimary(ctx, chunk, primaryListener)
+		primaryAddressCh := s.assignmentChangeLis.Primary(
+			req.ChunkId, req.PrimaryAddress)
+		go ReplicateFromPrimary(ctx, req.ChunkId, chunk, primaryAddressCh)
 	case api.ReplicaRole_PRIMARY:
 		{
 		}

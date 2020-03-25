@@ -31,11 +31,13 @@ func (fu *FileUploader) Upload(f *os.File, numReplicas int) {
 	if len(resp.Chunk) != 1 {
 		panic(resp)
 	}
-	primaryListener := chunk.NewNonChangingPrimaryReplicaChangeListener(
+	lis := &chunk.NonChangingReplicaAssignment{}
+	primaryAddressCh := lis.Primary(
 		resp.Chunk[0].ChunkId,
 		resp.Chunk[0].Server[0])
 	chunk.WriteToPrimary(
 		context.Background(),
+		resp.Chunk[0].ChunkId,
 		chunk.NewReadOnlyFileChunk(f, 0, int(info.Size())),
-		primaryListener)
+		primaryAddressCh)
 }
