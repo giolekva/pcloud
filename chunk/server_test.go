@@ -10,8 +10,16 @@ import (
 
 func TestStoreChunk(t *testing.T) {
 	s := ChunkServer{factory: &InMemoryChunkFactory{}}
-	_, err := s.StoreChunk(context.Background(), &api.StoreChunkRequest{
+	_, err := s.CreateChunk(context.Background(), &api.CreateChunkRequest{
 		ChunkId: "foo",
+		Size:    11,
+		Role:    api.ReplicaRole_PRIMARY})
+	if err != nil {
+		t.Error(err)
+	}
+	_, err = s.WriteChunk(context.Background(), &api.WriteChunkRequest{
+		ChunkId: "foo",
+		Offset:  0,
 		Data:    []byte("hello world")})
 	if err != nil {
 		t.Error(err)
@@ -20,8 +28,16 @@ func TestStoreChunk(t *testing.T) {
 
 func TestStoreAndReadChunk(t *testing.T) {
 	s := ChunkServer{factory: &InMemoryChunkFactory{}}
-	_, err := s.StoreChunk(context.Background(), &api.StoreChunkRequest{
+	_, err := s.CreateChunk(context.Background(), &api.CreateChunkRequest{
 		ChunkId: "foo",
+		Size:    11,
+		Role:    api.ReplicaRole_PRIMARY})
+	if err != nil {
+		t.Error(err)
+	}
+	_, err = s.WriteChunk(context.Background(), &api.WriteChunkRequest{
+		ChunkId: "foo",
+		Offset:  0,
 		Data:    []byte("hello world")})
 	if err != nil {
 		t.Error(err)
@@ -39,8 +55,16 @@ func TestStoreAndReadChunk(t *testing.T) {
 
 func TestReadWithOffsets(t *testing.T) {
 	s := ChunkServer{factory: &InMemoryChunkFactory{}}
-	_, err := s.StoreChunk(context.Background(), &api.StoreChunkRequest{
+	_, err := s.CreateChunk(context.Background(), &api.CreateChunkRequest{
 		ChunkId: "foo",
+		Size:    11,
+		Role:    api.ReplicaRole_PRIMARY})
+	if err != nil {
+		t.Error(err)
+	}
+	_, err = s.WriteChunk(context.Background(), &api.WriteChunkRequest{
+		ChunkId: "foo",
+		Offset:  0,
 		Data:    []byte("hello world")})
 	if err != nil {
 		t.Error(err)

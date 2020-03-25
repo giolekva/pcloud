@@ -108,18 +108,6 @@ func (s *ChunkServer) WriteChunk(
 	}
 }
 
-func (s *ChunkServer) StoreChunk(
-	ctx context.Context,
-	req *api.StoreChunkRequest) (resp *api.StoreChunkResponse, err error) {
-	chunk := s.factory.New(len(req.Data))
-	s.chunks.Store(req.ChunkId, chunk)
-	_, err = chunk.WriterAt().WriteAt(req.Data, 0)
-	if err == nil {
-		resp = &api.StoreChunkResponse{}
-	}
-	return
-}
-
 func (s *ChunkServer) RemoveChunk(
 	ctx context.Context,
 	req *api.RemoveChunkRequest) (resp *api.RemoveChunkResponse, err error) {

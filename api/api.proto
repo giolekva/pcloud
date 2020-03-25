@@ -30,8 +30,6 @@ service ChunkStorage {
 
 	rpc WriteChunk(WriteChunkRequest) returns (WriteChunkResponse) {}
 
-	rpc StoreChunk(StoreChunkRequest) returns (StoreChunkResponse) {}
-
 	rpc RemoveChunk(RemoveChunkRequest) returns (RemoveChunkResponse) {}
 }
 
@@ -80,14 +78,6 @@ message WriteChunkRequest {
 
 message WriteChunkResponse {
 	int32 bytes_written = 1;
-}
-
-message StoreChunkRequest {
-	string chunk_id = 1;
-	bytes data = 2;
-}
-
-message StoreChunkResponse {
 }
 
 message RemoveChunkRequest {
