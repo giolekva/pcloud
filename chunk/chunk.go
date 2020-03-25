@@ -1,13 +1,23 @@
 package chunk
 
-import "io"
+import (
+	"io"
+
+	"pcloud/api"
+)
+
+type ChunkInfo struct {
+	Status    api.ChunkStatus
+	Size      int
+	Committed int
+}
 
 type Chunk interface {
-	SizeBytes() int
-	ReadSeeker() io.ReadSeeker
-	Writer() io.Writer
+	Stats() (ChunkInfo, error)
+	ReaderAt() io.ReaderAt
+	WriterAt() io.WriterAt
 }
 
 type ChunkFactory interface {
-	New() Chunk
+	New(size int) Chunk
 }

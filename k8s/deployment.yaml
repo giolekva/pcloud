@@ -76,3 +76,31 @@ spec:
       - name: code
         hostPath:
           path: "/Users/lekva/dev/go/src/pcloud"
+---
+kind: Deployment
+apiVersion: apps/v1
+metadata:
+  name: pcloud-client
+spec:
+  selector:
+    matchLabels:
+      app: pcloud-client
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: pcloud-client
+    spec:
+      containers:
+      - name: pcloud-client
+        image: pcloud:latest
+        imagePullPolicy: Never
+        volumeMounts:
+        - name: code
+          mountPath: /src/go/src/pcloud
+        command: ["/bin/sh"]
+        args: ["-c", "protoc api/api.proto --go_out=plugins=grpc:. && go run client.go --master=pcloud-master-service:111 --file=data/foo"]
+      volumes:
+      - name: code
+        hostPath:
+          path: "/Users/lekva/dev/go/src/pcloud"

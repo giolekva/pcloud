@@ -27,7 +27,8 @@ func TestStoreAndReadChunk(t *testing.T) {
 		t.Error(err)
 	}
 	resp, err := s.ReadChunk(context.Background(), &api.ReadChunkRequest{
-		ChunkId: "foo"})
+		ChunkId:  "foo",
+		NumBytes: 100})
 	if err != nil {
 		t.Error(err)
 	}
@@ -65,8 +66,9 @@ func TestReadWithOffsets(t *testing.T) {
 		t.Errorf("Expected: %s\nGot: %s\n", "ll", resp.Data)
 	}
 	resp, err = s.ReadChunk(context.Background(), &api.ReadChunkRequest{
-		ChunkId: "foo",
-		Offset:  4})
+		ChunkId:  "foo",
+		Offset:   4,
+		NumBytes: 100})
 	if err != nil {
 		t.Error(err)
 	}

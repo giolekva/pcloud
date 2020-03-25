@@ -2,7 +2,6 @@ package chunk
 
 import (
 	"context"
-	"errors"
 	"io"
 
 	"pcloud/api"
@@ -13,48 +12,63 @@ type RemoteChunk struct {
 	client  api.ChunkStorageClient
 }
 
-func (r *RemoteChunk) SizeBytes() int {
-	return 0
+func (r *RemoteChunk) Stats() (info ChunkInfo, err error) {
+	resp, err := r.client.GetChunkStatus(
+		context.Background(),
+		&api.GetChunkStatusRequest{ChunkId: r.chunkId})
+	if err != nil {
+		return
+	}
+	info = ChunkInfo{
+		resp.Status,
+		int(resp.TotalBytes),
+		int(resp.CommittedBytes)}
+	return
 }
 
-func (r *RemoteChunk) ReadSeeker() io.ReadSeeker {
-	return &remoteChunkReadSeeker{
+func (r *RemoteChunk) ReaderAt() io.ReaderAt {
+	return &remoteChunkReaderAt{
 		chunkId: r.chunkId,
 		client:  r.client}
 }
 
-func (r *RemoteChunk) Writer() io.Writer {
-	return nil
+func (r *RemoteChunk) WriterAt() io.WriterAt {
+	return &remoteChunkWriterAt{
+		chunkId: r.chunkId,
+		client:  r.client}
 }
 
-type remoteChunkReadSeeker struct {
+type remoteChunkReaderAt struct {
 	chunkId string
 	client  api.ChunkStorageClient
-	offset  int64
 }
 
-func (c *remoteChunkReadSeeker) Seek(offset int64, whence int) (int64, error) {
-	if whence != io.SeekStart {
-		return 0, errors.New("Seek: RemoteChunk only supports SeekStart whence")
-	}
-	c.offset = offset
-	return offset, nil
-}
-
-func (c *remoteChunkReadSeeker) Read(p []byte) (n int, err error) {
+func (c *remoteChunkReaderAt) ReadAt(p []byte, offset int64) (n int, err error) {
 	req := api.ReadChunkRequest{
 		ChunkId:  c.chunkId,
-		Offset:   int32(c.offset), // TODO(lekva): must be int64
+		Offset:   int32(offset),
 		NumBytes: int32(len(p))}
 	resp, err := c.client.ReadChunk(context.Background(), &req)
 	if err != nil {
 		return
 	}
 	n = copy(p, resp.Data)
-	c.offset += int64(n)
 	return
 }
 
-type PrimaryReplicaChunk struct {
+type remoteChunkWriterAt struct {
 	chunkId string
+	client  api.ChunkStorageClient
+}
+
+func (c *remoteChunkWriterAt) WriteAt(p []byte, offset int64) (n int, err error) {
+	req := api.WriteChunkRequest{
+		ChunkId: c.chunkId,
+		Offset:  int32(offset),
+		Data:    p}
+	resp, err := c.client.WriteChunk(context.Background(), &req)
+	if resp != nil {
+		n = int(resp.BytesWritten)
+	}
+	return
 }

@@ -1,21 +1,41 @@
 package client
 
-import "os"
+import (
+	"context"
+	"os"
 
-import "pcloud/api"
+	"pcloud/api"
+	"pcloud/chunk"
+)
 
 type FileUploader struct {
-	client api.MetadataStorageServerClient
+	client api.MetadataStorageClient
 }
 
-func NewFileUploader(client api.MetadataStorageServerClient) *FileUploader {
-	return FileUploader{client}
+func NewFileUploader(client api.MetadataStorageClient) *FileUploader {
+	return &FileUploader{client}
 }
 
-func (fu *FileUploader) Upload(f *os.File) (n int64, err error) {
-
-	buf := make([]byte, 1000)
-	for {
-		n, err := f.Read(buf)
+func (fu *FileUploader) Upload(f *os.File) {
+	info, err := f.Stat()
+	if err != nil {
+		return
 	}
+	resp, err := fu.client.CreateBlob(
+		context.Background(), &api.CreateBlobRequest{
+			SizeBytes:   int32(info.Size()),
+			NumReplicas: 1})
+	if len(resp.Chunk) != 1 {
+		panic(resp)
+	}
+	if err != nil {
+		panic(err)
+	}
+	primaryListener := chunk.NewNonChangingPrimaryReplicaChangeListener(
+		resp.Chunk[0].ChunkId,
+		resp.Chunk[0].Server[0])
+	chunk.WriteToPrimary(
+		context.Background(),
+		chunk.NewReadOnlyFileChunk(f, 0, int(info.Size())),
+		primaryListener)
 }
