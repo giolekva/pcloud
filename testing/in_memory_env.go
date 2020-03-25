@@ -11,34 +11,34 @@ import (
 
 	"github.com/giolekva/pcloud/api"
 	"github.com/giolekva/pcloud/chunk"
-	"github.com/giolekva/pcloud/master"
+	"github.com/giolekva/pcloud/controller"
 )
 
 type InMemoryEnv struct {
 	m          *grpc.Server
 	c          []*grpc.Server
-	masterConn *grpc.ClientConn
+	controllerConn *grpc.ClientConn
 }
 
 func NewInMemoryEnv(numChunkServers int) (*InMemoryEnv, error) {
 	env := new(InMemoryEnv)
-	syscall.Unlink("/tmp/pcloud/master")
-	lis, err := net.Listen("unix", "/tmp/pcloud/master")
+	syscall.Unlink("/tmp/pcloud/controller")
+	lis, err := net.Listen("unix", "/tmp/pcloud/controller")
 	if err != nil {
 		return nil, err
 	}
 	server := grpc.NewServer()
-	api.RegisterMetadataStorageServer(server, master.NewMasterServer())
+	api.RegisterMetadataStorageServer(server, controller.NewMasterServer())
 	go server.Serve(lis)
 
 	var opts []grpc.DialOption
 	opts = append(opts, grpc.WithInsecure())
 	opts = append(opts, grpc.WithBlock())
-	conn, err := grpc.Dial("unix:/tmp/pcloud/master", opts...)
+	conn, err := grpc.Dial("unix:/tmp/pcloud/controller", opts...)
 	if err != nil {
 		return nil, err
 	}
-	env.masterConn = conn
+	env.controllerConn = conn
 	client := api.NewMetadataStorageClient(conn)
 
 	env.c = make([]*grpc.Server, numChunkServers)
@@ -70,8 +70,8 @@ func NewInMemoryEnv(numChunkServers int) (*InMemoryEnv, error) {
 }
 
 func (e *InMemoryEnv) Stop() {
-	if e.masterConn != nil {
-		e.masterConn.Close()
+	if e.controllerConn != nil {
+		e.controllerConn.Close()
 	}
 	for _, s := range e.c {
 		if s != nil {

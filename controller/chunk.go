@@ -1,4 +1,4 @@
-package master
+package controller
 
 import (
 	"github.com/giolekva/pcloud/api"

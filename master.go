@@ -9,7 +9,7 @@ import (
 	"google.golang.org/grpc"
 
 	"github.com/giolekva/pcloud/api"
-	"github.com/giolekva/pcloud/master"
+	"github.com/giolekva/pcloud/controller"
 )
 
 var port = flag.Int("port", 123, "Port to listen on.")
@@ -23,7 +23,7 @@ func main() {
 	}
 	log.Printf("Listening on port: %d", *port)
 	server := grpc.NewServer()
-	api.RegisterMetadataStorageServer(server, master.NewMasterServer())
+	api.RegisterMetadataStorageServer(server, controller.NewMasterServer())
 	log.Print("Master serving")
 	server.Serve(lis)
 }

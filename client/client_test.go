@@ -20,7 +20,7 @@ func TestUploadSmallFile(t *testing.T) {
 	var opts []grpc.DialOption
 	opts = append(opts, grpc.WithInsecure())
 	opts = append(opts, grpc.WithBlock())
-	conn, err := grpc.Dial("unix:///tmp/pcloud/master", opts...)
+	conn, err := grpc.Dial("unix:///tmp/pcloud/controller", opts...)
 	if err != nil {
 		t.Error(err)
 	}
@@ -46,7 +46,7 @@ func TestUploadSmallFileWithReplication(t *testing.T) {
 	var opts []grpc.DialOption
 	opts = append(opts, grpc.WithInsecure())
 	opts = append(opts, grpc.WithBlock())
-	conn, err := grpc.Dial("unix:///tmp/pcloud/master", opts...)
+	conn, err := grpc.Dial("unix:///tmp/pcloud/controller", opts...)
 	if err != nil {
 		t.Error(err)
 	}

@@ -14,7 +14,7 @@ import (
 	"github.com/giolekva/pcloud/chunk"
 )
 
-var masterAddress = flag.String("master", "localhost:123", "Metadata storage address.")
+var controllerAddress = flag.String("controller", "localhost:123", "Metadata storage address.")
 var selfAddress = flag.String("self", "", "Metadata storage address.")
 
 func main() {
@@ -25,9 +25,9 @@ func main() {
 	var opts []grpc.DialOption
 	opts = append(opts, grpc.WithInsecure())
 	opts = append(opts, grpc.WithBlock())
-	conn, err := grpc.Dial(*masterAddress, opts...)
+	conn, err := grpc.Dial(*controllerAddress, opts...)
 	if err != nil {
-		log.Fatalf("Failed to dial %s: %v", *masterAddress, err)
+		log.Fatalf("Failed to dial %s: %v", *controllerAddress, err)
 	}
 	defer conn.Close()
 	client := api.NewMetadataStorageClient(conn)
