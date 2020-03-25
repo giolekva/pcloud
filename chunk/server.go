@@ -7,7 +7,7 @@ import (
 
 	"sync"
 
-	"pcloud/api"
+	"github.com/giolekva/pcloud/api"
 )
 
 type ChunkServer struct {

@@ -3,7 +3,7 @@ package chunk
 import (
 	"io"
 
-	"pcloud/api"
+	"github.com/giolekva/pcloud/api"
 )
 
 type ChunkInfo struct {

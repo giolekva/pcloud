@@ -8,8 +8,8 @@ import (
 
 	"google.golang.org/grpc"
 
-	"pcloud/api"
-	"pcloud/master"
+	"github.com/giolekva/pcloud/api"
+	"github.com/giolekva/pcloud/master"
 )
 
 var port = flag.Int("port", 123, "Port to listen on.")

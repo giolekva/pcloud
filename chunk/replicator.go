@@ -6,7 +6,7 @@ import (
 
 	"google.golang.org/grpc"
 
-	"pcloud/api"
+	"github.com/giolekva/pcloud/api"
 )
 
 type PrimaryReplicaChangeListener interface {

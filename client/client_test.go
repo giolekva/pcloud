@@ -6,8 +6,8 @@ import (
 
 	"google.golang.org/grpc"
 
-	"pcloud/api"
-	pt "pcloud/testing"
+	"github.com/giolekva/pcloud/api"
+	pt "github.com/giolekva/pcloud/testing"
 )
 
 func TestUploadSmallFile(t *testing.T) {

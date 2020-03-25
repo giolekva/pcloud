@@ -4,8 +4,8 @@ import (
 	"context"
 	"os"
 
-	"pcloud/api"
-	"pcloud/chunk"
+	"github.com/giolekva/pcloud/api"
+	"github.com/giolekva/pcloud/chunk"
 )
 
 type FileUploader struct {

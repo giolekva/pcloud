@@ -4,7 +4,7 @@ import (
 	"context"
 	"io"
 
-	"pcloud/api"
+	"github.com/giolekva/pcloud/api"
 )
 
 type RemoteChunk struct {

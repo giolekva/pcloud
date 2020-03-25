@@ -1,7 +1,7 @@
 package master
 
 import (
-	"pcloud/api"
+	"github.com/giolekva/pcloud/api"
 )
 
 type chunkServerStatus int

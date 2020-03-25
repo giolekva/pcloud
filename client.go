@@ -7,8 +7,8 @@ import (
 
 	"google.golang.org/grpc"
 
-	"pcloud/api"
-	"pcloud/client"
+	"github.com/giolekva/pcloud/api"
+	"github.com/giolekva/pcloud/client"
 )
 
 var masterAddress = flag.String("master", "localhost:123", "Metadata storage address.")

@@ -8,7 +8,7 @@ import (
 	"github.com/google/uuid"
 	"google.golang.org/grpc"
 
-	"pcloud/api"
+	"github.com/giolekva/pcloud/api"
 )
 
 type chunkServers struct {
