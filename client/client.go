@@ -16,7 +16,7 @@ func NewFileUploader(client api.MetadataStorageClient) *FileUploader {
 	return &FileUploader{client}
 }
 
-func (fu *FileUploader) Upload(f *os.File) {
+func (fu *FileUploader) Upload(f *os.File, numReplicas int) {
 	info, err := f.Stat()
 	if err != nil {
 		return
@@ -24,12 +24,12 @@ func (fu *FileUploader) Upload(f *os.File) {
 	resp, err := fu.client.CreateBlob(
 		context.Background(), &api.CreateBlobRequest{
 			SizeBytes:   int32(info.Size()),
-			NumReplicas: 1})
-	if len(resp.Chunk) != 1 {
-		panic(resp)
-	}
+			NumReplicas: int32(numReplicas)})
 	if err != nil {
 		panic(err)
+	}
+	if len(resp.Chunk) != 1 {
+		panic(resp)
 	}
 	primaryListener := chunk.NewNonChangingPrimaryReplicaChangeListener(
 		resp.Chunk[0].ChunkId,
