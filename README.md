@@ -7,10 +7,11 @@ Goal of the project is to provide:
 * Search infrastructure: to index Blob metadata and provide search API
 * App infrastructure: to easily set up and run third party applications such as custom in picture object detection models
 
-To prove viability of the project first milestone will be to build fully functional image storage and indexing infrustructure. User experience setting it up will look somethink like:
+To prove viability of the project first milestone will be to build fully functional image storage and indexing infrustructure. User experience setting it up will look something like:
 * Set up PCloud on 3 or more servers and pair mobile device with it
 * Configure IFTTT (if this then that) like worklfow to automatically:
   * Back up every newly taken picture on PCloud
   * Run face detection app on backed up pictures and store this information in Metadata service
   * Index face annotations and make them searchable
+
 User must be able to configure all of these from previously paired mobile device.
