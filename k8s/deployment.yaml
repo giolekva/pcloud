@@ -2,11 +2,11 @@
 kind: Service 
 apiVersion: v1
 metadata:
-  name: pcloud-master-service
+  name: pfs-controller-service
 spec:
   type: ClusterIP
   selector:
-    app: pcloud-master 
+    app: pfs-controller 
   ports:
     - nodePort: 
       port: 111
@@ -15,49 +15,49 @@ spec:
 kind: Deployment
 apiVersion: apps/v1
 metadata:
-  name: pcloud-master
+  name: pfs-controller
 spec:
   selector:
     matchLabels:
-      app: pcloud-master
+      app: pfs-controller
   replicas: 1
   template:
     metadata:
       labels:
-        app: pcloud-master
+        app: pfs-controller
     spec:
       containers:
-      - name: pcloud-master
+      - name: pfs-controller
         image: pcloud:latest
         imagePullPolicy: Never
         ports:
         - containerPort: 123
         volumeMounts:
         - name: code
-          mountPath: /src/go/src/pcloud
+          mountPath: /src/go/src/github.com/giolekva/pcloud
         command: ["/bin/sh"]
-        args: ["-c", "protoc api/api.proto --go_out=plugins=grpc:. && go run master.go --port=123"]
+        args: ["-c", "protoc api/api.proto --go_out=plugins=grpc:. && go run controller_server.go --port=123"]
       volumes:
       - name: code
         hostPath:
-          path: "/Users/lekva/dev/go/src/pcloud"
+          path: "/Users/lekva/dev/go/src/github.com/giolekva/pcloud"
 ---
 kind: Deployment
 apiVersion: apps/v1
 metadata:
-  name: pcloud-chunk
+  name: pfs-chunk
 spec:
   selector:
     matchLabels:
-      app: pcloud-chunk
+      app: pfs-chunk
   replicas: 3
   template:
     metadata:
       labels:
-        app: pcloud-chunk
+        app: pfs-chunk
     spec:
       containers:
-      - name: pcloud-chunk
+      - name: pfs-chunk
         image: pcloud:latest
         imagePullPolicy: Never
         ports:
@@ -69,38 +69,10 @@ spec:
               fieldPath: status.podIP
         volumeMounts:
         - name: code
-          mountPath: /src/go/src/pcloud
+          mountPath: /src/go/src/github.com/giolekva/pcloud
         command: ["/bin/sh"]
-        args: ["-c", "protoc api/api.proto --go_out=plugins=grpc:. && go run chunk.go --master=pcloud-master-service:111 --self=$(SELF_IP):234"]
+        args: ["-c", "protoc api/api.proto --go_out=plugins=grpc:. && go run chunk_server.go --controller=pfs-controller-service:111 --self=$(SELF_IP):234"]
       volumes:
       - name: code
         hostPath:
-          path: "/Users/lekva/dev/go/src/pcloud"
----
-kind: Deployment
-apiVersion: apps/v1
-metadata:
-  name: pcloud-client
-spec:
-  selector:
-    matchLabels:
-      app: pcloud-client
-  replicas: 1
-  template:
-    metadata:
-      labels:
-        app: pcloud-client
-    spec:
-      containers:
-      - name: pcloud-client
-        image: pcloud:latest
-        imagePullPolicy: Never
-        volumeMounts:
-        - name: code
-          mountPath: /src/go/src/pcloud
-        command: ["/bin/sh"]
-        args: ["-c", "protoc api/api.proto --go_out=plugins=grpc:. && go run client.go --master=pcloud-master-service:111 --file=data/foo"]
-      volumes:
-      - name: code
-        hostPath:
-          path: "/Users/lekva/dev/go/src/pcloud"
+          path: "/Users/lekva/dev/go/src/github.com/giolekva/pcloud"
