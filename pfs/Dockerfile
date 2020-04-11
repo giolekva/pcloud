@@ -27,4 +27,4 @@ RUN go get -u github.com/golang/protobuf/protoc-gen-go
 RUN go get -u google.golang.org/protobuf/encoding/prototext
 RUN go get -u github.com/google/uuid
 
-WORKDIR /src/go/src/github.com/giolekva/pcloud
+WORKDIR /src/go/src/github.com/giolekva/pcloud/pfs

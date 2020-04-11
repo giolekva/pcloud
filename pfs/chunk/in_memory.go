@@ -5,7 +5,7 @@ import (
 	"errors"
 	"io"
 
-	"github.com/giolekva/pcloud/api"
+	"github.com/giolekva/pcloud/pfs/api"
 )
 
 type InMemoryChunk struct {

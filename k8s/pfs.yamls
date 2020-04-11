@@ -34,13 +34,13 @@ spec:
         - containerPort: 123
         volumeMounts:
         - name: code
-          mountPath: /src/go/src/github.com/giolekva/pcloud
+          mountPath: /src/go/src/github.com/giolekva/pcloud/pfs
         command: ["/bin/sh"]
         args: ["-c", "protoc api/api.proto --go_out=plugins=grpc:. && go run controller_server.go --port=123"]
       volumes:
       - name: code
         hostPath:
-          path: "/Users/lekva/dev/go/src/github.com/giolekva/pcloud"
+          path: "/Users/lekva/dev/go/src/github.com/giolekva/pcloud/pfs"
 ---
 kind: Deployment
 apiVersion: apps/v1
@@ -69,10 +69,10 @@ spec:
               fieldPath: status.podIP
         volumeMounts:
         - name: code
-          mountPath: /src/go/src/github.com/giolekva/pcloud
+          mountPath: /src/go/src/github.com/giolekva/pcloud/pfs
         command: ["/bin/sh"]
         args: ["-c", "protoc api/api.proto --go_out=plugins=grpc:. && go run chunk_server.go --controller=pfs-controller-service:111 --self=$(SELF_IP):234"]
       volumes:
       - name: code
         hostPath:
-          path: "/Users/lekva/dev/go/src/github.com/giolekva/pcloud"
+          path: "/Users/lekva/dev/go/src/github.com/giolekva/pcloud/pfs"

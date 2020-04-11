@@ -4,7 +4,7 @@ import (
 	"io"
 	"os"
 
-	"github.com/giolekva/pcloud/api"
+	"github.com/giolekva/pcloud/pfs/api"
 )
 
 type ReadOnlyFileChunk struct {

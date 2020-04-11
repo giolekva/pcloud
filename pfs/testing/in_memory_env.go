@@ -9,9 +9,9 @@ import (
 
 	"google.golang.org/grpc"
 
-	"github.com/giolekva/pcloud/api"
-	"github.com/giolekva/pcloud/chunk"
-	"github.com/giolekva/pcloud/controller"
+	"github.com/giolekva/pcloud/pfs/api"
+	"github.com/giolekva/pcloud/pfs/chunk"
+	"github.com/giolekva/pcloud/pfs/controller"
 )
 
 type InMemoryEnv struct {

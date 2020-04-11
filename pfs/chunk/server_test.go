@@ -5,7 +5,7 @@ import (
 	"context"
 	"testing"
 
-	"github.com/giolekva/pcloud/api"
+	"github.com/giolekva/pcloud/pfs/api"
 )
 
 func TestStoreChunk(t *testing.T) {
