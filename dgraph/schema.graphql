@@ -1,46 +1,15 @@
-enum EntityType {
-     HUMAN
-     CAR
-}
-
-type Person {
-     id: Int!
-     fullName: String!
-     nick: String
-     imgs: [Image]
-}
-
 type Image {
-     id: Int! @search
-     objectPath: String! @search(by: [term])
-     segments: [ImageSegment]
-}
-
-type Point {
-     x: Int!
-     y: Int!
+     id: ID!
+     objectPath: String! @search(by: [exact])
+     segments: [ImageSegment] @hasInverse(field: sourceImage)
 }
 
 type ImageSegment {
-     id: Int!
-     upperLeft: Point!
-     lowerRight: Point!
-     represents: EntityType
-     depicts: Person
-}
-
-type A {
      id: ID!
-}
-
-type B {
-     id: ID!
-     name: String
-     a: [A]
-}
-
-extend type A {
-       name: String @search(by: [term])
-       b: B @hasInverse(field: a)
-       
+     upperLeftX: Int!
+     upperLeftY: Int!
+     lowerRightX: Int!
+     lowerRightY: Int!
+     sourceImage: Image!
+     objectPath: String
 }
