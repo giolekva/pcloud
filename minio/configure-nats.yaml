@@ -1,0 +1,23 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: configure-nats
+  labels:
+    app: configure-nats
+spec:
+  volumes:
+  - name: minio-secrets
+    secret:
+      secretName: minio-creds-secret
+  containers:
+  - name: mc
+    image: minio/mc:RELEASE.2020-04-04T05-28-55Z
+    imagePullPolicy: IfNotPresent
+    volumeMounts:
+    - name: minio-secrets
+      readOnly: true
+      mountPath: "/etc/minio-secrets"
+    command: ["/bin/sh", "-c"]
+    args: ["mc config host add mio http://minio-hl-svc:9000 $(cat /etc/minio-secrets/accesskey) $(cat /etc/minio-secrets/secretkey) && mc mb mio/input && mc admin config set mio notify_nats:input streaming_max_pub_acks_in_flight=\"10\" subject=\"input-objects\" address=\"nats.svc:4222\" ping_interval=\"0\" queue_limit=\"1000\" tls=\"off\" streaming_async=\"on\" queue_dir=\"/data/events\" streaming_cluster_id=\"nats-streaming\" && mc admin service restart mio && mc event add mio/input arn:minio:sqs::input:nats"]
+  restartPolicy: Never
+
