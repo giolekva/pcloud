@@ -45,11 +45,11 @@ func (g *GraphQLClient) Insert(typ string, obj string) (string, error) {
 }
 
 func (g *GraphQLClient) Get(typ string, id string) (string, error) {
-	req := []byte(fmt.Sprintf(insertQuery, typ, id, strings.ToLower(typ)))
+	req := []byte(fmt.Sprintf(getQuery, typ, id))
 	glog.Info("Getting node with query:")
 	glog.Info(string(req))
 	resp, err := http.Post(g.serverAddress, "application/json", bytes.NewReader(req))
-	glog.Infof("Response status: %s", resp.StatusCode)
+	glog.Infof("Response status: %d", resp.StatusCode)
 	if err != nil {
 		return "", err
 	}
@@ -68,32 +68,31 @@ type MinioWebhook struct {
 
 func (m *MinioWebhook) handler(w http.ResponseWriter, r *http.Request) {
 	body, err := ioutil.ReadAll(r.Body)
+	if err != nil {
+		glog.Error(err)
+		http.Error(w, "Could not read HTTP request body", http.StatusInternalServerError)
+		return
+	}
 	if len(body) == 0 {
 		return
 	}
 	glog.Infof("Received event from Minio: %s", string(body))
-	if err != nil {
-		http.Error(w, "Could not read HTTP request body", http.StatusInternalServerError)
-		return
-	}
 	key, err := regogo.Get(string(body), "input.Key")
 	if err != nil {
+		glog.Error(err)
 		http.Error(w, "Could not find object key", http.StatusBadRequest)
 		return
 	}
 	resp, err := m.gqlClient.Insert("Image", fmt.Sprintf(imgJson, key.String()))
 	if err != nil {
+		glog.Error(err)
 		http.Error(w, "Can not add given objects", http.StatusInternalServerError)
 		return
 	}
-	id, err := regogo.Get(resp, "input.data.addImage.image[0]id")
+	id, err := regogo.Get(resp, "input.data.addImage.image[0].id")
 	if err != nil {
+		glog.Error(err)
 		http.Error(w, "Could not extract node id", http.StatusInternalServerError)
-		return
-	}
-	resp, err = m.gqlClient.Get("Image", id.String())
-	if err != nil {
-		http.Error(w, "Could not fetch node", http.StatusInternalServerError)
 		return
 	}
 }

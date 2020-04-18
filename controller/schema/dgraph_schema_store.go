@@ -47,10 +47,10 @@ func (s *DgraphSchemaStore) SetSchema(gqlSchema string) error {
 	glog.Info(gqlSchema)
 	req := fmt.Sprintf(addSchemaQuery, strings.ReplaceAll(strings.ReplaceAll(gqlSchema, "\n", " "), "\t", " "))
 	resp, err := http.Post(s.dgraphAddress, jsonContentType, bytes.NewReader([]byte(req)))
-	glog.Infof("Response status code: %d", resp.StatusCode)
 	if err != nil {
 		return err
 	}
+	glog.Infof("Response status code: %d", resp.StatusCode)
 	respBody, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
 		return err
