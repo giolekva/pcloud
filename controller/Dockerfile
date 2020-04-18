@@ -26,5 +26,8 @@ ENV PATH=/src/protoc/bin:$PATH
 RUN go get -u github.com/golang/protobuf/protoc-gen-go
 RUN go get -u google.golang.org/protobuf/encoding/prototext
 RUN go get -u github.com/google/uuid
+RUN go get -u github.com/itaysk/regogo
+RUN go get -u github.com/vektah/gqlparser
+RUN go get -u github.com/golang/glog
 
 WORKDIR /src/go/src/github.com/giolekva/pcloud/controller

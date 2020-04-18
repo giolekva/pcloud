@@ -1,0 +1,113 @@
+{
+  __drop
+}
+
+# query {
+#   queryImage() {
+#     id
+#     objectPath
+#   }
+# }
+
+# query {
+#   queryFoo(filter: {
+#     name: {
+#       anyofterms: "foo"
+#     }
+#   }) {
+#     id
+#     name
+#     bar {
+#       id
+#     }
+#   }
+# }
+
+
+# mutation {
+#   addA(input: [{
+#     name: "dev"
+#   }]) {
+#     numUids
+#     a {
+#       id
+#       name
+#     }
+#   }
+# }
+
+# mutation {
+#   updateB(input: {
+#     filter: {
+#       id: ["0x4"]
+#     },
+#     set: {
+#       a: [{id: "0x5"}]
+#     }
+#   }) {
+#     numUids
+#     b {
+#       id
+#       name
+#       a {
+#         id
+#         name
+#         b {
+#           id
+#           name
+#         }
+#       }
+#     }
+#   }
+# }
+
+
+# mutation {
+#   addB(input:[{
+#     name: "bar"
+#     a: [{
+#       id: "0x3"
+#     }]
+#   }]) {
+#     numUids
+#     b {
+#       id
+#       name
+#       a {
+#         id
+#         name
+#         b {
+#           id
+#           name
+#         }
+#       }
+#     }
+#   }
+# }
+
+# mutation {
+#   deleteImage(
+#     filter: {
+#       id: {
+#         gt: 0
+#       }
+#     }
+#   ) {
+#     msg
+#     numUids
+#   }
+# }
+
+
+
+# mutation {
+#   addImage(input: [{
+#     id: 2,
+#     objectPath: "foo/bar.jpg"
+#   }, {
+#     id:3
+#     objectPath: "qwe/qwe"
+#   }]) {
+#     numUids
+#   }
+# }

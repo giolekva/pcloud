@@ -36,7 +36,7 @@ spec:
         - name: code
           mountPath: /src/go/src/github.com/giolekva/pcloud/controller
         command: ["/bin/sh", "-c"]
-        args: ["go run main.go --port=1234 --graphql_address=http://dgraph-public.default.svc:8080/graphql"]
+        args: ["go run main.go --port=1234 --graphql_address=http://dgraph-public.default.svc:8080/graphql --dgraph_admin_address=http://dgraph-public.default.svc:8080/admin --logtostderr"]
       volumes:
       - name: code
         hostPath:
