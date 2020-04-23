@@ -6,10 +6,10 @@ type Image {
 
 type ImageSegment {
      id: ID!
-     upperLeftX: Int!
-     upperLeftY: Int!
-     lowerRightX: Int!
-     lowerRightY: Int!
+     upperLeftX: Float!
+     upperLeftY: Float!
+     lowerRightX: Float!
+     lowerRightY: Float!
      sourceImage: Image!
      objectPath: String
 }

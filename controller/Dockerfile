@@ -30,4 +30,15 @@ RUN go get -u github.com/itaysk/regogo
 RUN go get -u github.com/vektah/gqlparser
 RUN go get -u github.com/golang/glog
 
+COPY . /tmp/pc
+WORKDIR /tmp/pc
+RUN go build main.go
+RUN rm -r /tmp/pc
+
+# Argo cli
+# WORKDIR /tmp
+# RUN wget https://github.com/argoproj/argo/releases/download/v2.8.0-rc1/argo-linux-amd64
+# RUN chmod 0777 argo-linux-amd64
+# RUN mv argo-linux-amd64 /usr/local/bin/argo
+
 WORKDIR /src/go/src/github.com/giolekva/pcloud/controller

@@ -35,12 +35,5 @@ def classify(input_dir, output_dir):
             print(len(embedding[0]))
     
 
-def main():
-    if sys.argv[1] == "detect":
-        detect(sys.argv[2], sys.argv[3])
-    else:
-        classify(sys.argv[2], sys.argv[3])
 
 
-if __name__ == "__main__":
-    main()

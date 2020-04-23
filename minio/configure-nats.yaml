@@ -1,9 +1,9 @@
 apiVersion: v1
 kind: Pod
 metadata:
-  name: configure-nats
+  name: configure-pcloud-minio-webhook
   labels:
-    app: configure-nats
+    app: configure-pcloud-minio-webhook
 spec:
   volumes:
   - name: minio-secrets
@@ -18,7 +18,7 @@ spec:
       readOnly: true
       mountPath: "/etc/minio-secrets"
     command: ["/bin/sh", "-c"]
-    # args: ["mc config host add mio http://minio-hl-svc:9000 $(cat /etc/minio-secrets/accesskey) $(cat /etc/minio-secrets/secretkey) && mc mb mio/images && mc admin config set mio notify_webhook:pcloud queue_limit=\"1000\" queue_dir=\"/data/events\" endpoint=\"http://pcloud-controller-service.pcloud:1111/minio_webhook\" && mc event add mio/images arn:minio:sqs::pcloud:webhook --event put && mc event list mio/images"]
+    # args: ["mc config host add mio http://minio-hl-svc:9000 $(cat /etc/minio-secrets/accesskey) $(cat /etc/minio-secrets/secretkey) && mc mb mio/images && mc admin config set mio notify_webhook:pcloud queue_limit=\"1000\" queue_dir=\"/data/events\" endpoint=\"http://pcloud-controller-service.pcloud:1111/minio_webhook\""]
     args: ["mc config host add mio http://minio-hl-svc:9000 $(cat /etc/minio-secrets/accesskey) $(cat /etc/minio-secrets/secretkey) && mc event add mio/images arn:minio:sqs::pcloud:webhook --event put && mc event list mio/images"]
   restartPolicy: Never
 
@@ -26,3 +26,4 @@ spec:
 
 # mc admin config set mio notify_webhook:pcloud-controller queue_limit=\"1000\" queue_dir=\"/data/events\" endpoint=\"http://pcloud-controller-service.pcloud:1111/minio_webhook\"
 # mc event add myminio/images arn:minio:sqs::pcloud-controller:webhook --event put
+# args: ["mc config host add mio http://minio-hl-svc:9000 $(cat /etc/minio-secrets/accesskey) $(cat /etc/minio-secrets/secretkey) && mc mb mio/images && mc admin config set mio notify_webhook:pcloud queue_limit=\"1000\" queue_dir=\"/data/events\" endpoint=\"http://pcloud-controller-service.pcloud:1111/minio_webhook\" && mc event add mio/images arn:minio:sqs::pcloud:webhook --event put && mc event list mio/images"]
