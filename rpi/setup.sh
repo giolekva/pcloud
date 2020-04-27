@@ -29,3 +29,14 @@ source ~/.bash_profile
 kubectl get pods -A
 # pcloud@rpi
 rm k3s.yaml
+
+
+
+### ingress
+## traefik 2.0
+helm repo add traefik https://containous.github.io/traefik-helm-chart
+helm repo update
+kubectl create namespace traefik
+helm --namespace=traefik install traefik traefik/traefik \
+     --set additionalArguments="{--providers.kubernetesingress,--global.checknewversion=true}" \
+     --set ports.traefik.expose=True
