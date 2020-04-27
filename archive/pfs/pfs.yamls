@@ -1,0 +1,78 @@
+---
+kind: Service 
+apiVersion: v1
+metadata:
+  name: pfs-controller-service
+spec:
+  type: ClusterIP
+  selector:
+    app: pfs-controller 
+  ports:
+    - nodePort: 
+      port: 111
+      targetPort: 123
+---
+kind: Deployment
+apiVersion: apps/v1
+metadata:
+  name: pfs-controller
+spec:
+  selector:
+    matchLabels:
+      app: pfs-controller
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: pfs-controller
+    spec:
+      containers:
+      - name: pfs-controller
+        image: pcloud:latest
+        imagePullPolicy: Never
+        ports:
+        - containerPort: 123
+        volumeMounts:
+        - name: code
+          mountPath: /src/go/src/github.com/giolekva/pcloud/pfs
+        command: ["/bin/sh"]
+        args: ["-c", "protoc api/api.proto --go_out=plugins=grpc:. && go run controller_server.go --port=123"]
+      volumes:
+      - name: code
+        hostPath:
+          path: "/Users/lekva/dev/go/src/github.com/giolekva/pcloud/pfs"
+---
+kind: Deployment
+apiVersion: apps/v1
+metadata:
+  name: pfs-chunk
+spec:
+  selector:
+    matchLabels:
+      app: pfs-chunk
+  replicas: 3
+  template:
+    metadata:
+      labels:
+        app: pfs-chunk
+    spec:
+      containers:
+      - name: pfs-chunk
+        image: pcloud:latest
+        imagePullPolicy: Never
+        ports:
+        - containerPort: 234
+        env:
+        - name: SELF_IP
+          valueFrom:
+            fieldRef:
+              fieldPath: status.podIP
+        volumeMounts:
+        - name: code
+          mountPath: /src/go/src/github.com/giolekva/pcloud/pfs
+        command: ["/bin/sh"]
+        args: ["-c", "protoc api/api.proto --go_out=plugins=grpc:. && go run chunk_server.go --controller=pfs-controller-service:111 --self=$(SELF_IP):234"]
+      volumes:
+      - name: code
+        hostPath:
+          path: "/Users/lekva/dev/go/src/github.com/giolekva/pcloud/pfs"
