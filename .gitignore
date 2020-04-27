@@ -1,3 +1,4 @@
 .DS_Store
+priv/
 core
 *.pb.go
