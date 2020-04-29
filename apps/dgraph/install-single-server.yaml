@@ -1,12 +1,18 @@
-# This is the service that should be used by the clients of Dgraph to talk to the cluster.
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: dgraph
+---
 apiVersion: v1
 kind: Service
 metadata:
-  name: dgraph-public
+  name: dgraph
+  namespace: dgraph
   labels:
     app: dgraph
 spec:
-  type: LoadBalancer
+  type: ClusterIP
   ports:
   - port: 5080
     targetPort: 5080
@@ -20,17 +26,66 @@ spec:
   - port: 9080
     targetPort: 9080
     name: alpha-grpc
-  - port: 8000
-    targetPort: 8000
-    name: ratel-http
+  # - port: 8000
+  #   targetPort: 8000
+  #   name: ratel-http
   selector:
     app: dgraph
+---
+# apiVersion: traefik.containo.us/v1alpha1
+# kind: IngressRoute
+# metadata:
+#   name: ratel
+#   namespace: dgraph
+# spec:
+#   entryPoints:
+#     - web
+#   routes:
+#   - kind: Rule
+#     match: PathPrefix(`/ratel`)
+#     services:
+#     - kind: Service
+#       name: dgraph
+#       namespace: dgraph
+#       passHostHeader: true
+#       port: 8000
+---
+apiVersion: traefik.containo.us/v1alpha1
+kind: Middleware
+metadata:
+  name: dgraph-stripprefix
+  namespace: dgraph
+spec:
+  stripPrefix:
+    prefixes:
+      - /dgraph
+---
+apiVersion: traefik.containo.us/v1alpha1
+kind: IngressRoute
+metadata:
+  name: alpha
+  namespace: dgraph
+spec:
+  entryPoints:
+    - web
+  routes:
+  - kind: Rule
+    match: PathPrefix(`/dgraph`)
+    services:
+    - kind: Service
+      name: dgraph
+      namespace: dgraph
+      passHostHeader: true
+      port: 8080
+    middlewares:
+      - name: dgraph-stripprefix
 ---
 # This StatefulSet runs 1 pod with one Zero, one Alpha & one Ratel containers.
 apiVersion: apps/v1
 kind: StatefulSet
 metadata:
   name: dgraph
+  namespace: dgraph
 spec:
   serviceName: "dgraph"
   replicas: 1
@@ -43,17 +98,17 @@ spec:
         app: dgraph
     spec:
       containers:
-      - name: ratel
-        image: dgraph/dgraph:latest
-        imagePullPolicy: IfNotPresent
-        ports:
-        - containerPort: 8000
-          name: ratel-http
-        command:
-          - dgraph-ratel
+      # - name: ratel
+      #   image: giolekva/dgraph-arm:latest
+      #   imagePullPolicy: Always
+      #   ports:
+      #   - containerPort: 8000
+      #     name: ratel-http
+      #   command:
+      #     - dgraph-ratel
       - name: zero
-        image: dgraph/dgraph:latest
-        imagePullPolicy: IfNotPresent
+        image: giolekva/dgraph-arm:latest
+        imagePullPolicy: Always
         ports:
         - containerPort: 5080
           name: zero-grpc
@@ -69,8 +124,8 @@ spec:
             set -ex
             dgraph zero --my=$(hostname -f):5080
       - name: alpha
-        image: dgraph/dgraph:latest
-        imagePullPolicy: IfNotPresent
+        image: giolekva/dgraph-arm:latest
+        imagePullPolicy: Always
         ports:
         - containerPort: 8080
           name: alpha-http
@@ -107,4 +162,4 @@ spec:
         - "ReadWriteOnce"
       resources:
         requests:
-          storage: 5Gi
+          storage: 1Gi
