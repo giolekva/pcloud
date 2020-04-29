@@ -6,7 +6,5 @@ helm --namespace minio install minio-initial stable/minio \
      --set fullnameOverride=minio \
      --set image.repository=giolekva/minio-arm \
      --set image.tag=latest \
-     --set existingSecret=minio-creds \
-
-# kubectl create -f operator.yaml
-# kubectl create -n minio -f deployment.yaml
+     --set existingSecret=minio-creds
+kubectl -n minio create -f ingress.yaml

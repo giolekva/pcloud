@@ -1,25 +1,17 @@
-FROM golang:1.13-alpine as builder
+FROM arm64v8/alpine
 
-WORKDIR /home
+RUN apk add --no-cache curl
 
-ENV GOPATH /go
-ENV CGO_ENABLED 0
-ENV GO111MODULE on
-
-RUN go get github.com/minio/minio
-WORKDIR /go/pkg/mod/github.com/minio/minio@v0.0.0-20200426024807-6ecc98fddbfb
-RUN go build -tags kqueue -trimpath -o minio
-
-FROM arm32v7/alpine:3.11
-COPY --from=builder /go/pkg/mod/github.com/minio/minio@v0.0.0-20200426024807-6ecc98fddbfb/minio /usr/bin/
-COPY --from=builder /go/pkg/mod/github.com/minio/minio@v0.0.0-20200426024807-6ecc98fddbfb/dockerscripts/docker-entrypoint.sh /usr/bin/
-RUN chmod +x /usr/bin/minio
-RUN chmod +x /usr/bin/docker-entrypoint.sh
+RUN curl --silent --show-error --fail --location \
+    --header "Accept: application/tar+gzip, application/x-gzip, application/octet-stream" -o /usr/bin/minio \
+    "https://dl.minio.io/server/minio/release/linux-arm64/minio" \
+    && chmod 0755 /usr/bin/minio
+RUN curl --silent --show-error --fail --location \
+    --header "Accept: application/tar+gzip, application/x-gzip, application/octet-stream" -o /usr/bin/docker-entrypoint.sh \
+    "https://raw.githubusercontent.com/minio/minio/master/dockerscripts/docker-entrypoint.sh" \
+    && chmod 0755 /usr/bin/docker-entrypoint.sh
 
 EXPOSE 9000
-
 ENTRYPOINT ["/usr/bin/docker-entrypoint.sh"]
-
 VOLUME ["/data"]
-
 CMD ["minio"]

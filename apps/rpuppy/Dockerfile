@@ -8,12 +8,12 @@ RUN go get github.com/itaysk/regogo
 COPY main.go /app/main.go
 
 ENV GOOS linux
-ENV GOARCH arm
+ENV GOARCH arm64
 ENV CGO_ENABLED 0
 ENV GO111MODULE off
 RUN go build -o rpuppy -trimpath -ldflags="-s -w" main.go
 
-FROM arm32v7/alpine:latest
+FROM arm64v8/alpine:latest
 WORKDIR /
 COPY --from=build /app/rpuppy /usr/bin/rpuppy
 

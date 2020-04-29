@@ -42,3 +42,10 @@ kubectl create namespace traefik
 helm --namespace=traefik install traefik traefik/traefik \
      --set additionalArguments="{--providers.kubernetesingress,--global.checknewversion=true}" \
      --set ports.traefik.expose=True
+
+
+
+### setup docker
+sudo adduser docker
+sudo usermod -aG sudo docker
+sudo apt-get install docker.io

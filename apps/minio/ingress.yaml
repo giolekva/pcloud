@@ -1,0 +1,17 @@
+apiVersion: traefik.containo.us/v1alpha1
+kind: IngressRoute
+metadata:
+  name: ingress
+  namespace: minio
+spec:
+  entryPoints:
+    - web
+  routes:
+  - kind: Rule
+    match: Host(`minio`)
+    services:
+    - kind: Service
+      name: minio
+      namespace: minio
+      passHostHeader: true
+      port: 9000
