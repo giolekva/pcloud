@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"flag"
 	"fmt"
 	"io"
@@ -90,20 +91,43 @@ func (m *MinioWebhook) minioHandler(w http.ResponseWriter, r *http.Request) {
 	glog.Infof("Created deployment %q.\n", result.GetObjectMeta().GetName())
 }
 
+type query struct {
+	query     string
+	operation string
+	variables string
+}
+
+func extractQuery(r *http.Request) (*query, error) {
+	if r.Method == "GET" {
+		if err := r.ParseForm(); err != nil {
+			return nil, err
+		}
+		q, ok := r.Form["query"]
+		if !ok || len(q) != 1 {
+			return nil, errors.New("Exactly one query must be provided")
+		}
+		return &query{query: q[0]}, nil
+	} else {
+		body, err := ioutil.ReadAll(r.Body)
+		if err != nil {
+			return nil, err
+		}
+		q, err := regogo.Get(string(body), "input.query")
+		if err != nil {
+			return nil, err
+		}
+		return &query{query: q.String()}, nil
+	}
+}
+
 func (m *MinioWebhook) graphqlHandler(w http.ResponseWriter, r *http.Request) {
 	glog.Infof("New GraphQL query received: %s", r.Method)
-	err := r.ParseForm()
+	q, err := extractQuery(r)
 	if err != nil {
-		glog.Error(err)
-		http.Error(w, "Could not read query", http.StatusInternalServerError)
-		return
+		glog.Error(err.Error())
+		http.Error(w, "Could not extract query", http.StatusBadRequest)
 	}
-	query, ok := r.Form["query"]
-	if !ok || len(query) != 1 {
-		http.Error(w, "Exactly ouery parameter must be provided", http.StatusBadRequest)
-		return
-	}
-	resp, err := m.gql.RunQuery(query[0])
+	resp, err := m.gql.RunQuery(q.query)
 	if err != nil {
 		glog.Error(err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
