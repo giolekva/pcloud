@@ -17,21 +17,25 @@ import (
 const jsonContentType = "application/json"
 const textContentType = "text/plain"
 
-const getSchemaQuery = `{ "query": "{ getGQLSchema() { generatedSchema } }" }`
+// TODO(giolekva): escape
+const getSchemaQuery = `{ getGQLSchema() { schema generatedSchema } }`
+const setSchemaQuery = `mutation { updateGQLSchema(input: { set: { schema: "%s" } }) { gqlSchema { schema generatedSchema } } }`
 const runQuery = `{ "query": "%s" }`
 
 type DgraphClient struct {
-	gqlAdddress   string
-	schemaAddress string
-	gqlSchema     string
-	schema        *ast.Schema
+	gqlAddress      string
+	schemaAddress   string
+	userSchema      string
+	generatedSchema string
+	schema          *ast.Schema
 }
 
 func NewDgraphClient(gqlAddress, schemaAddress string) (GraphQLClient, error) {
 	ret := &DgraphClient{
-		gqlAdddress:   gqlAddress,
-		schemaAddress: schemaAddress,
-		gqlSchema:     ""}
+		gqlAddress:      gqlAddress,
+		schemaAddress:   schemaAddress,
+		userSchema:      "",
+		generatedSchema: ""}
 	if err := ret.fetchSchema(); err != nil {
 		return nil, err
 	}
@@ -43,54 +47,45 @@ func (s *DgraphClient) Schema() *ast.Schema {
 }
 
 func (s *DgraphClient) AddSchema(gqlSchema string) error {
-	return s.SetSchema(s.gqlSchema + gqlSchema)
+	return s.SetSchema(s.userSchema + gqlSchema)
 }
 
 func (s *DgraphClient) SetSchema(gqlSchema string) error {
-	glog.Info("Setting GraphQL schema:")
+	glog.Info("Setting GraphQL schema")
 	glog.Info(gqlSchema)
-	resp, err := http.Post(
-		s.schemaAddress+"/schema",
-		textContentType,
-		bytes.NewReader([]byte(gqlSchema)))
+	resp, err := s.runQuery(
+		fmt.Sprintf(setSchemaQuery, sanitizeSchema(gqlSchema)),
+		s.schemaAddress)
 	if err != nil {
 		return err
 	}
-	glog.Infof("Response status code: %d", resp.StatusCode)
-	respBody, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		return err
-	}
-	glog.Infof("Result: %s", string(respBody))
-	s.gqlSchema = gqlSchema
-	return s.fetchSchema()
+	return s.updateSchema(resp)
 }
 
 func (s *DgraphClient) fetchSchema() error {
-	glog.Infof("Getting GraphQL schema with query: %s", getSchemaQuery)
-	resp, err := http.Post(
-		s.schemaAddress,
-		jsonContentType,
-		bytes.NewReader([]byte(getSchemaQuery)))
+	glog.Infof("Getting GraphQL schema")
+	resp, err := s.runQuery(getSchemaQuery, s.schemaAddress)
 	if err != nil {
 		return err
 	}
-	glog.Infof("Response status code: %d", resp.StatusCode)
-	respBody, err := ioutil.ReadAll(resp.Body)
+	return s.updateSchema(resp)
+}
+
+func (s *DgraphClient) updateSchema(resp string) error {
+	userSchema, err := regogo.Get(resp, "input.getGQLSchema.schema")
 	if err != nil {
 		return err
 	}
-	glog.Infof("Result: %s", string(respBody))
-	gqlSchema, err := regogo.Get(
-		string(respBody),
-		"input.data.getGQLSchema.generatedSchema")
+	generatedSchema, err := regogo.Get(resp, "input.getGQLSchema.generatedSchema")
 	if err != nil {
 		return err
 	}
-	schema, gqlErr := gqlparser.LoadSchema(&ast.Source{Input: gqlSchema.String()})
+	schema, gqlErr := gqlparser.LoadSchema(&ast.Source{Input: generatedSchema.String()})
 	if gqlErr != nil {
 		return gqlErr
 	}
+	s.userSchema = userSchema.String()
+	s.generatedSchema = generatedSchema.String()
 	s.schema = schema
 	return nil
 }
@@ -100,10 +95,14 @@ func (s *DgraphClient) RunQuery(query string) (string, error) {
 	if gqlErr != nil {
 		return "", errors.New(gqlErr.Error())
 	}
+	return s.runQuery(query, s.gqlAddress)
+}
+
+func (s *DgraphClient) runQuery(query string, onAddr string) (string, error) {
 	glog.Infof("Running GraphQL query: %s", query)
 	queryJson := fmt.Sprintf(runQuery, sanitizeQuery(query))
 	resp, err := http.Post(
-		s.gqlAdddress,
+		onAddr,
 		jsonContentType,
 		bytes.NewReader([]byte(queryJson)))
 	if err != nil {
