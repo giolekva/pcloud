@@ -163,28 +163,38 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	// err = gqlClient.SetSchema(`
-	// type Image {
-	//      id: ID!
-	//      objectPath: String! @search(by: [exact])
-	// }
+	err = gqlClient.SetSchema(`
+enum EventState {
+  NEW
+  PROCESSING
+  DONE
+}
 
-	// type ImageSegment {
-	//      id: ID!
-	//      upperLeftX: Int!
-	//      upperLeftY: Int!
-	//      lowerRightX: Int!
-	//      lowerRightY: Int!
-	//      sourceImage: Image!
-	//      objectPath: String
-	// }
+type Foo { bar: Int }`)
+	if err != nil {
+		panic(err)
+	}
+	err = gqlClient.AddSchema(`
+	type Image {
+	     id: ID!
+	     objectPath: String! @search(by: [exact])
+	}
 
-	// extend type Image {
-	//      segments: [ImageSegment] @hasInverse(field: sourceImage)
-	// }`)
-	// if err != nil {
-	// 	panic(err)
-	// }
+	type ImageSegment {
+	     id: ID!
+	     upperLeftX: Float!
+	     upperLeftY: Float!
+	     lowerRightX: Float!
+	     lowerRightY: Float!
+	     sourceImage: Image! @hasInverse(field: segments)
+	}
+
+	extend type Image {
+	     segments: [ImageSegment] @hasInverse(field: sourceImage)
+	}`)
+	if err != nil {
+		panic(err)
+	}
 	mw := MinioWebhook{gqlClient, pods}
 	http.HandleFunc("/minio_webhook", mw.minioHandler)
 	http.HandleFunc("/graphql", mw.graphqlHandler)

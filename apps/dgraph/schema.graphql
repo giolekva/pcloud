@@ -1,15 +1,44 @@
-type Image {
-     id: ID!
-     objectPath: String! @search(by: [exact])
-     segments: [ImageSegment] @hasInverse(field: sourceImage)
+enum EventState {
+     NEW
+     PROCESSING
+     DONE
 }
 
-type ImageSegment {
-     id: ID!
-     upperLeftX: Float!
-     upperLeftY: Float!
-     lowerRightX: Float!
-     lowerRightY: Float!
-     sourceImage: Image!
-     objectPath: String
-}
+type Foo { bar: Int }
+
+# type Image {
+#      id: ID!
+#      objectPath: String!
+# }
+
+# type ImageEvent {
+#      id: ID!
+#      state: EventState!
+#      node: Image! @hasInverse(field: events)
+# }
+
+# extend type Image {
+#        events: [ImageEvent] @hasInverse(field: node)
+# }
+
+
+
+# type ImageSegment {
+#      id: ID!
+#      bar: String
+#      source: Image! @hasInverse(field: segments)
+# }
+
+# type ImageSegmentEvent {
+#      id: ID!
+#      state: EventState!     
+#      node: ImageSegment! @hasInverse(field: events)
+# }
+
+# extend type ImageSegment {
+#        events: [ImageSegmentEvent] @hasInverse(field: node)
+# }
+
+# extend type Image {
+#        segments: [ImageSegment] @hasInverse(field: source)
+# }
