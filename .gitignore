@@ -1,4 +1,5 @@
 .DS_Store
+*.out
+*.pb.go
 priv/
 core
-*.pb.go
