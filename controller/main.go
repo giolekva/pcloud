@@ -39,30 +39,8 @@ type MinioWebhook struct {
 }
 
 func (m *MinioWebhook) minioHandler(w http.ResponseWriter, r *http.Request) {
-	body, err := ioutil.ReadAll(r.Body)
-	if err != nil {
-		glog.Error(err)
-		http.Error(w, "Could not read HTTP request body", http.StatusInternalServerError)
-		return
-	}
-	if len(body) == 0 {
-		return
-	}
-	glog.Infof("Received event from Minio: %s", string(body))
-	key, err := regogo.Get(string(body), "input.Key")
-	if err != nil {
-		glog.Error(err)
-		http.Error(w, "Could not find object key", http.StatusBadRequest)
-		return
-	}
-	resp, err := m.gql.RunQuery(fmt.Sprintf(
-		"mutation { addImage(input: [{objectPath: \"%s\"}]) { image { id }} }",
-		key.String()))
-	if err != nil {
-		glog.Error(err)
-		http.Error(w, "Can not add given objects", http.StatusInternalServerError)
-		return
-	}
+	// TODO(giolekva): move this to events processor
+	resp := ""
 	id, err := regogo.Get(resp, "input.addImage.image[0].id")
 	if err != nil {
 		glog.Error(err)
@@ -196,7 +174,6 @@ type Foo { bar: Int }`)
 		panic(err)
 	}
 	mw := MinioWebhook{gqlClient, pods}
-	http.HandleFunc("/minio_webhook", mw.minioHandler)
 	http.HandleFunc("/graphql", mw.graphqlHandler)
 	log.Fatal(http.ListenAndServe(fmt.Sprintf(":%d", *port), nil))
 }

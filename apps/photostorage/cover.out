@@ -1,0 +1,23 @@
+mode: set
+github.giolekva/pcloud/apps/photo-storage/minio_importer.go:29.48,31.16 2 1
+github.giolekva/pcloud/apps/photo-storage/minio_importer.go:34.2,35.18 2 1
+github.giolekva/pcloud/apps/photo-storage/minio_importer.go:38.2,39.16 2 1
+github.giolekva/pcloud/apps/photo-storage/minio_importer.go:42.2,42.56 1 1
+github.giolekva/pcloud/apps/photo-storage/minio_importer.go:31.16,33.3 1 0
+github.giolekva/pcloud/apps/photo-storage/minio_importer.go:35.18,37.3 1 1
+github.giolekva/pcloud/apps/photo-storage/minio_importer.go:39.16,41.3 1 0
+github.giolekva/pcloud/apps/photo-storage/minio_importer.go:49.69,51.16 2 1
+github.giolekva/pcloud/apps/photo-storage/minio_importer.go:56.2,56.20 1 1
+github.giolekva/pcloud/apps/photo-storage/minio_importer.go:60.2,63.16 4 1
+github.giolekva/pcloud/apps/photo-storage/minio_importer.go:68.2,70.16 3 1
+github.giolekva/pcloud/apps/photo-storage/minio_importer.go:73.2,74.16 2 1
+github.giolekva/pcloud/apps/photo-storage/minio_importer.go:79.2,79.38 1 1
+github.giolekva/pcloud/apps/photo-storage/minio_importer.go:84.2,85.16 2 1
+github.giolekva/pcloud/apps/photo-storage/minio_importer.go:88.2,88.29 1 1
+github.giolekva/pcloud/apps/photo-storage/minio_importer.go:51.16,55.3 3 0
+github.giolekva/pcloud/apps/photo-storage/minio_importer.go:56.20,59.3 1 0
+github.giolekva/pcloud/apps/photo-storage/minio_importer.go:63.16,67.3 3 1
+github.giolekva/pcloud/apps/photo-storage/minio_importer.go:70.16,71.13 1 0
+github.giolekva/pcloud/apps/photo-storage/minio_importer.go:74.16,78.3 3 0
+github.giolekva/pcloud/apps/photo-storage/minio_importer.go:79.38,83.3 3 1
+github.giolekva/pcloud/apps/photo-storage/minio_importer.go:85.16,86.13 1 0
