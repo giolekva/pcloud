@@ -36,6 +36,6 @@ func main() {
 	}
 	pods := clientset.CoreV1().Pods("default")
 	eventStore := events.NewGraphQLClient(*apiAddr)
-	go events.NewSingleEventAtATimeProcessor(
+	events.NewSingleEventAtATimeProcessor(
 		eventStore, pods, *apiAddr, *objectStoreAddr).Start()
 }

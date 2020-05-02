@@ -48,6 +48,7 @@ func (p *singleEventAtATimeProcessor) Start() {
 		glog.Infof("Pod created: %s", resp)
 		// TODO(giolekva): do not ignore error
 		_ = monitorPod(resp, p.pods)
+		break
 	}
 }
 
@@ -82,7 +83,7 @@ func createPod(id string, pcloudApi string, objectStoreApi string) *apiv1.Pod {
 		ObjectMeta: metav1.ObjectMeta{
 			Name: fmt.Sprintf("event-%s", id)},
 		Spec: apiv1.PodSpec{
-			RestartPolicy: apiv1.RestartPolicyNever,
+			RestartPolicy: apiv1.RestartPolicyAlways,
 			Containers: []apiv1.Container{{
 				Name:            "event",
 				Image:           "giolekva/face-detector:latest",

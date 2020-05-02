@@ -27,7 +27,7 @@ const runQuery = `{ "query": "%s" }`
 const eventTmpl = `
 type %sEvent {
   id: ID!
-  state: EventState!
+  state: EventState! @search(by: [exact])
   node: %s! @hasInverse(field: events)
 }
 
