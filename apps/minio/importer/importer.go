@@ -23,7 +23,7 @@ var addImgTmpl = `mutation {
 }`
 
 type Query struct {
-	Query string
+	Query string `json:"query"`
 }
 
 func EventToQuery(event string) (Query, error) {
@@ -70,6 +70,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		panic(err)
 	}
+	glog.Infof("Query obj: %s", queryJson)
 	resp, err := http.Post(h.ApiAddr, jsonContentType, bytes.NewReader(queryJson))
 	if err != nil {
 		glog.Error(err)
