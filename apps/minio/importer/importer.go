@@ -1,4 +1,4 @@
-package photostorage
+package importer
 
 import (
 	"bytes"
