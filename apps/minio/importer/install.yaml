@@ -1,0 +1,42 @@
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: app-minio-importer
+---
+apiVersion: v1
+kind: Service 
+metadata:
+  name: minio-importer
+  namespace: app-minio-importer
+spec:
+  type: ClusterIP
+  selector:
+    app: minio-importer
+  ports:
+    - nodePort: 
+      port: 80
+      targetPort: 1234
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: minio-importer
+  namespace: app-minio-importer
+spec:
+  selector:
+    matchLabels:
+      app: minio-importer
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: minio-importer
+    spec:
+      containers:
+      - name: minio-importer
+        image: giolekva/minio-importer:latest
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 1234
+        command: ["minio-importer", "--logtostderr", "--port=1234", "--api_addr=http://api.pcloud.svc:1111/graphql"]
