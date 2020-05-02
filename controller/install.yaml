@@ -1,0 +1,42 @@
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: pcloud
+---
+kind: Service 
+apiVersion: v1
+metadata:
+  name: api
+  namespace: pcloud
+spec:
+  type: ClusterIP
+  selector:
+    app: api
+  ports:
+    - nodePort: 
+      port: 1111
+      targetPort: 1234
+---
+kind: Deployment
+apiVersion: apps/v1
+metadata:
+  name: api
+  namespace: pcloud
+spec:
+  selector:
+    matchLabels:
+      app: api
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: api
+    spec:
+      containers:
+      - name: api
+        image: giolekva/pcloud-api-server:latest
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 1234
+        command: ["pcloud-api-server", "--logtostderr", "--port=1234", "--graphql_address=http://dgraph.dgraph.svc:8080/graphql", "--dgraph_admin_address=http://dgraph.dgraph.svc:8080/admin"]

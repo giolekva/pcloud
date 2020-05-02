@@ -1,44 +1,36 @@
-FROM ubuntu:latest
+FROM golang:1-alpine AS build
 
-RUN apt-get update --fix-missing
-RUN apt-get -y upgrade
-RUN apt-get -y install wget git bash unzip
+RUN apk update && apk upgrade && \
+    apk add --no-cache bash git openssh wget
 
-WORKDIR /tmp
-RUN wget https://dl.google.com/go/go1.14.linux-amd64.tar.gz
-RUN tar -xvf go1.14.linux-amd64.tar.gz
-RUN mv go /usr/local
-RUN rm go1.14.linux-amd64.tar.gz
-
-ENV GOROOT=/usr/local/go
-ENV GOPATH=/src/go
-ENV GOBIN=$GOPATH/bin
-ENV PATH=$GOBIN:$GOROOT/bin:$PATH
-
-RUN go get -u google.golang.org/grpc
-
-WORKDIR /src/protoc
+WORKDIR /protoc
 RUN wget https://github.com/protocolbuffers/protobuf/releases/download/v3.11.4/protoc-3.11.4-linux-x86_64.zip
 RUN unzip protoc-3.11.4-linux-x86_64.zip
 RUN rm protoc-3.11.4-linux-x86_64.zip
-ENV PATH=/src/protoc/bin:$PATH
+ENV PATH=/protoc/bin:$PATH
 
-RUN go get -u github.com/golang/protobuf/protoc-gen-go
-RUN go get -u google.golang.org/protobuf/encoding/prototext
-RUN go get -u github.com/google/uuid
-RUN go get -u github.com/itaysk/regogo
-RUN go get -u github.com/vektah/gqlparser
-RUN go get -u github.com/golang/glog
+WORKDIR $GOPATH/src/github.com/giolekva/pcloud/controller
+COPY . .
+# RUN go get -v ./...
 
-COPY . /tmp/pc
-WORKDIR /tmp/pc
-RUN go build main.go
-RUN rm -r /tmp/pc
+ENV GO111MODULE on
 
-# Argo cli
-# WORKDIR /tmp
-# RUN wget https://github.com/argoproj/argo/releases/download/v2.8.0-rc1/argo-linux-amd64
-# RUN chmod 0777 argo-linux-amd64
-# RUN mv argo-linux-amd64 /usr/local/bin/argo
+RUN go build -o $GOPATH/bin/pcloud-api-server  main.go
 
-WORKDIR /src/go/src/github.com/giolekva/pcloud/controller
+FROM alpine:latest
+WORKDIR /
+COPY --from=build /go/bin/pcloud-api-server /usr/bin/
+RUN chmod a+x /usr/bin/pcloud-api-server
+
+ENV KUBECONFIG ""
+ENV PORT 80
+ENV GRAPHQL_ADDRESS ""
+ENV DGRAPH_ADMIN_ADDRESS ""
+
+EXPOSE ${PORT}
+
+CMD pcloud-api-server \
+    --port=${PORT} \
+    --kubeconfig=${KUBECONFIG} \
+    --graphql_address=${GRAPHQL_ADDRESS} \
+    --dgraph_admin_address=${DGRAPH_ADMIN_ADDRESS}
