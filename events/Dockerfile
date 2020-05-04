@@ -11,6 +11,7 @@ ENV GO111MODULE on
 RUN mkdir -p $GOPATH/src/github.com/giolekva/pcloud/events
 COPY . $GOPATH/src/github.com/giolekva/pcloud/events
 WORKDIR $GOPATH/src/github.com/giolekva/pcloud/events/cmd
+RUN go get ./...
 
 RUN mkdir -p /app/build
 RUN ls -la
