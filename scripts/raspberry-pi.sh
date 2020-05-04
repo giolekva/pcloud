@@ -45,7 +45,7 @@ helm --namespace=traefik install traefik traefik/traefik \
 
 
 
-### setup docker
-sudo adduser docker
-sudo usermod -aG sudo docker
-sudo apt-get install docker.io
+### setup docker    DO NOT INSTALL DOCKER, IT MESSES UP WITH k3s iptables
+# sudo adduser docker
+# sudo usermod -aG sudo docker
+# sudo apt-get install docker.io
