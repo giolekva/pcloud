@@ -83,7 +83,8 @@ func createPod(id string, pcloudApi string, objectStoreApi string) *apiv1.Pod {
 		ObjectMeta: metav1.ObjectMeta{
 			Name: fmt.Sprintf("event-%s", id)},
 		Spec: apiv1.PodSpec{
-			RestartPolicy: apiv1.RestartPolicyAlways,
+			RestartPolicy: apiv1.RestartPolicyIfNotPresent,
+			NodeSelector:  map[string]string{"kubernetes.io/arch", "amd64"},
 			Containers: []apiv1.Container{{
 				Name:            "event",
 				Image:           "giolekva/face-detector:latest",
