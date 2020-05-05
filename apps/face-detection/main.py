@@ -4,24 +4,13 @@ import urllib.parse
 import urllib.request
 import os
 
-from facenet_pytorch import MTCNN, InceptionResnetV1
-from PIL import Image
-
-
-def detect_faces(img_file):
-    mtcnn = MTCNN(keep_all=True)
-    ret = []
-    with Image.open(img_file) as img:
-        for box in mtcnn.detect(img)[0]:
-            ret.append((box[0], box[1], box[2], box[3]))
-    return ret
-
 
 def fetch_file_for_image(gql_endpoint, object_storage_endpoint, id):
     data = {"query": "{ getImage(id: \"" + id + "\") { objectPath } }"}
-    encoded_data = urllib.parse.urlencode(data).encode('UTF-8')
-    req = urllib.request.Request(gql_endpoint, encoded_data, method="POST")
-    resp = urllib.request.urlopen(req)
+    # encoded_data = urllib.parse.urlencode(data).encode('UTF-8')
+    req = urllib.request.Request(gql_endpoint, method="POST")
+    req.add_header('Content-Type', 'application/json')
+    resp = urllib.request.urlopen(req, json.dumps(data).encode('UTF-8'))
     object_path = json.loads(resp.read())["getImage"]["objectPath"]
     local_path = urllib.request.urlretrieve(
         object_storage_endpoint + "/" + object_path)[0]
@@ -39,17 +28,27 @@ def upload_face_segments(gql_endpoint, id, faces):
     segments = [format_img_segment(id, f) for f in faces]
     data = {"query": "mutation {{ addImageSegment(input: [{segments}]) {{ imagesegment {{ id }} }} }}".format(
         segments=", ".join(segments))}
-    encoded_data = urllib.parse.urlencode(data).encode('UTF-8')
-    req = urllib.request.Request(gql_endpoint, encoded_data, method="POST")
-    resp = urllib.request.urlopen(req)
+    # encoded_data = urllib.parse.urlencode(data).encode('UTF-8')
+    req = urllib.request.Request(gql_endpoint, method="POST")
+    req.add_header('Content-Type', 'application/json')
+    resp = urllib.request.urlopen(req, json.dumps(data).encode('UTF-8'))
     print(resp.read())
     
 
 def main():
+    method = "haar"
+    if len(sys.argv) == 5 and sys.argv[4] == "mtcnn":
+        method = "mtcnn"
     f = fetch_file_for_image(sys.argv[1], sys.argv[2], sys.argv[3])
-    faces = detect_faces(f)
+    if method == "haar":
+        import haar
+        faces = haar.detect_faces(f)
+        upload_face_segments(sys.argv[1], sys.argv[3], faces)
+    else:
+        import mtcnn
+        faces = mtcnn.detect_faces(f)
+        upload_face_segments(sys.argv[1], sys.argv[3], faces)
     os.remove(f)
-    upload_face_segments(sys.argv[1], sys.argv[3], faces)
 
 
 if __name__ == "__main__":
