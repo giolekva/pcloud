@@ -5,15 +5,8 @@ metadata:
 spec:
   containers:
   - name: detect-faces
-    image: face-detector:latest
-    imagePullPolicy: Never
-    volumeMounts:
-    - name: code
-      mountPath: /src/go/src/github.com/giolekva/pcloud/face
-    command: ["python", "main.py"]
-    args: ["http://pcloud-controller-service.pcloud.svc:1111/graphql", "http://minio-hl-svc.minio.svc:9000", "0x2"]
-  volumes:
-  - name: code
-    hostPath:
-      path: "/Users/lekva/dev/go/src/github.com/giolekva/pcloud/face"
+    image: giolekva/face-detector:latest
+    imagePullPolicy: Always
+    command: ["python3", "main.py"]
+    args: ["http://api.pcloud.svc:1111/graphql", "http://minio.minio.svc:9000", "0x3"]
   restartPolicy: Never
