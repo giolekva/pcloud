@@ -192,7 +192,7 @@ func findDefinitionWithName(name string, s *ast.Schema) *ast.Definition {
 	panic(fmt.Sprintf("Expected event input definiton for  %s", name))
 }
 
-func findEventnputDefinitionFor(d *ast.Definition, s *ast.Schema) *ast.Definition {
+func findEventInputDefinitionFor(d *ast.Definition, s *ast.Schema) *ast.Definition {
 	if !strings.HasSuffix(d.Name, "Input") {
 		panic(fmt.Sprintf("Expected input definiton, got %s", d.Name))
 	}
@@ -225,7 +225,7 @@ func newEventListValue(d *ast.Definition, s *ast.Schema) *ast.ChildValue {
 			Children:           ast.ChildValueList{newEventValue(d, s)},
 			Kind:               ast.ListValue,
 			Position:           nil,
-			Definition:         findEventnputDefinitionFor(d, s),
+			Definition:         findEventInputDefinitionFor(d, s),
 			VariableDefinition: nil,
 			ExpectedType:       nil,
 		},
@@ -241,7 +241,7 @@ func newEventValue(d *ast.Definition, s *ast.Schema) *ast.ChildValue {
 			Children:           ast.ChildValueList{newEventStateValue(s)},
 			Kind:               ast.ObjectValue,
 			Position:           nil,
-			Definition:         findEventnputDefinitionFor(d, s),
+			Definition:         findEventInputDefinitionFor(d, s),
 			VariableDefinition: nil,
 			ExpectedType:       nil,
 		},
@@ -270,7 +270,8 @@ func rewriteValue(v *ast.Value, s *ast.Schema) {
 			rewriteValue(c.Value, s)
 		}
 		if v.Definition.Kind == ast.InputObject &&
-			!strings.HasSuffix(v.Definition.Name, "Event") {
+			!strings.HasSuffix(v.Definition.Name, "Event") &&
+			!strings.HasSuffix(v.Definition.Name, "Ref") {
 			v.Children = append(v.Children, newEventListValue(v.Definition, s))
 		}
 	}
