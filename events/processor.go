@@ -83,13 +83,11 @@ func createPod(id string, pcloudApi string, objectStoreApi string) *apiv1.Pod {
 		ObjectMeta: metav1.ObjectMeta{
 			Name: fmt.Sprintf("event-%s", id)},
 		Spec: apiv1.PodSpec{
-			RestartPolicy: apiv1.RestartPolicyIfNotPresent,
-			NodeSelector:  map[string]string{"kubernetes.io/arch", "amd64"},
+			RestartPolicy: apiv1.RestartPolicyNever,
 			Containers: []apiv1.Container{{
 				Name:            "event",
 				Image:           "giolekva/face-detector:latest",
-				ImagePullPolicy: apiv1.PullNever,
+				ImagePullPolicy: apiv1.PullAlways,
 				Command:         []string{"python", "main.py"},
 				Args:            []string{pcloudApi, objectStoreApi, id}}}}}
-	// "http://api.pcloud.svc:1111/graphql", "http://minio.minio.svc:9000"
 }
