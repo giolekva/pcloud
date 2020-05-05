@@ -269,9 +269,13 @@ func rewriteValue(v *ast.Value, s *ast.Schema) {
 		for _, c := range v.Children {
 			rewriteValue(c.Value, s)
 		}
+		// TODO(giolekva): explicitly get input argument and rewrite only that part.
 		if v.Definition.Kind == ast.InputObject &&
 			!strings.HasSuffix(v.Definition.Name, "Event") &&
-			!strings.HasSuffix(v.Definition.Name, "Ref") {
+			!strings.HasSuffix(v.Definition.Name, "EventInput") &&
+			!strings.HasSuffix(v.Definition.Name, "Ref") &&
+			!strings.HasSuffix(v.Definition.Name, "Filter") &&
+			!strings.HasSuffix(v.Definition.Name, "Patch") {
 			v.Children = append(v.Children, newEventListValue(v.Definition, s))
 		}
 	}

@@ -2,6 +2,7 @@ package events
 
 type EventState string
 
+// TODO(giolekva): add FAILED
 const (
 	EventStateNew        EventState = "NEW"
 	EventStateProcessing EventState = "PROCESSING"
@@ -16,4 +17,5 @@ type Event struct {
 
 type EventStore interface {
 	GetEventsInState(state EventState) ([]Event, error)
+	MarkEventDone(event Event) error
 }

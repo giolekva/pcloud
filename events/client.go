@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	// "errors"
-	// "fmt"
+	"fmt"
 	"io/ioutil"
 	"net/http"
 
@@ -31,6 +31,19 @@ var getAllNewImageEventsTmpl = `{
     node {
       id
     }
+  }
+}`
+
+var markEventDoneTmpl = `mutation {
+  updateImageEvent(input: {
+    filter: {
+      id: ["%s"]
+    },
+    set: {
+      state: DONE
+    }
+  }) {
+    numUids
   }
 }`
 
@@ -100,4 +113,18 @@ func (c *GraphQLClient) GetEventsInState(state EventState) ([]Event, error) {
 		events = append(events, Event{e.Id, EventStateNew, e.Node.Id})
 	}
 	return events, nil
+}
+
+func (c *GraphQLClient) MarkEventDone(event Event) error {
+	q := query{fmt.Sprintf(markEventDoneTmpl, event.Id)}
+	qJson, err := json.Marshal(q)
+	if err != nil {
+		return err
+	}
+	_, err = http.Post(c.apiAddr, jsonContentType, bytes.NewReader(qJson))
+	if err != nil {
+		return err
+	}
+	// TODO(giolekva): check errors field
+	return nil
 }
