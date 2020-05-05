@@ -3,11 +3,11 @@ FROM golang:1-alpine AS build
 RUN apk update && apk upgrade && \
     apk add --no-cache bash git openssh wget
 
-WORKDIR /protoc
-RUN wget https://github.com/protocolbuffers/protobuf/releases/download/v3.11.4/protoc-3.11.4-linux-x86_64.zip
-RUN unzip protoc-3.11.4-linux-x86_64.zip
-RUN rm protoc-3.11.4-linux-x86_64.zip
-ENV PATH=/protoc/bin:$PATH
+# WORKDIR /protoc
+# RUN wget https://github.com/protocolbuffers/protobuf/releases/download/v3.11.4/protoc-3.11.4-linux-x86_64.zip
+# RUN unzip protoc-3.11.4-linux-x86_64.zip
+# RUN rm protoc-3.11.4-linux-x86_64.zip
+# ENV PATH=/protoc/bin:$PATH
 
 WORKDIR $GOPATH/src/github.com/giolekva/pcloud/controller
 COPY . .
