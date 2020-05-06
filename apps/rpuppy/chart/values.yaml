@@ -1,0 +1,8 @@
+replicas: 1
+image:
+  name: giolekva/rpuppy-arm
+  tag: latest
+  pullPolicy: Always
+servicePort: 80
+containerPort: 1234
+ingressPathPrefix: /rpuppy
