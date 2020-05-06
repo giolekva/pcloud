@@ -4,6 +4,34 @@ kind: Namespace
 metadata:
   name: pcloud-events
 ---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: event-processor
+  namespace: pcloud-events
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: modify-pods
+rules:
+  - apiGroups: [""]
+    resources: ["pods"]
+    verbs: ["create", "get", "watch", "list", "delete"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: modify-pods-to-sa
+subjects:
+  - kind: ServiceAccount
+    name: event-processor
+    namespace: pcloud-events
+roleRef:
+  kind: ClusterRole
+  name: modify-pods
+  apiGroup: rbac.authorization.k8s.io
+---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -19,6 +47,7 @@ spec:
       labels:
         app: event-processor
     spec:
+      serviceAccountName: event-processor
       containers:
       - name: minio-importer
         image: giolekva/pcloud-event-processor:latest

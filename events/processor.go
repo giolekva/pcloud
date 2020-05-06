@@ -50,7 +50,7 @@ func (p *singleEventAtATimeProcessor) Start() {
 			glog.Info("Creating pod...")
 			resp, err := p.pods.Create(context.TODO(), pod, metav1.CreateOptions{})
 			if err != nil {
-				glog.Error(resp)
+				glog.Error(err)
 				continue
 			}
 			glog.Infof("Pod created: %s", resp)
