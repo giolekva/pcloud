@@ -50,7 +50,7 @@ func (h *helmUnpacker) generateHelmInstallCmd(
 	cmd := exec.Command(h.helmBin)
 	cmd.Args = append(cmd.Args, "template")
 	cmd.Args = append(cmd.Args, fmt.Sprintf("--namespace=%s", namespace))
-	cmd.Args = append(cmd.Args, fmt.Sprintf("%s", releaseName))
+	cmd.Args = append(cmd.Args, "--generate-name")
 	cmd.Args = append(cmd.Args, fmt.Sprintf("%s", archive))
 	// TODO(giolekva): validate values
 	for key, value := range values {
