@@ -12,7 +12,6 @@ import (
 type Unpacker interface {
 	Unpack(archive string,
 		namespace string,
-		releaseRame string,
 		values map[string]string) (map[string][]string, error)
 }
 
@@ -27,9 +26,8 @@ func NewHelmUnpacker(helmBin string) Unpacker {
 func (h *helmUnpacker) Unpack(
 	archive string,
 	namespace string,
-	releaseName string,
 	values map[string]string) (map[string][]string, error) {
-	cmd := h.generateHelmInstallCmd(archive, namespace, releaseName, values)
+	cmd := h.generateHelmInstallCmd(archive, namespace, values)
 	glog.Info(cmd.String())
 	var stdout strings.Builder
 	var stderr strings.Builder
@@ -45,7 +43,6 @@ func (h *helmUnpacker) Unpack(
 func (h *helmUnpacker) generateHelmInstallCmd(
 	archive string,
 	namespace string,
-	releaseName string,
 	values map[string]string) *exec.Cmd {
 	cmd := exec.Command(h.helmBin)
 	cmd.Args = append(cmd.Args, "template")
