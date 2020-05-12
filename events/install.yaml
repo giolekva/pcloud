@@ -49,7 +49,7 @@ spec:
     spec:
       serviceAccountName: event-processor
       containers:
-      - name: minio-importer
+      - name: event-processor
         image: giolekva/pcloud-event-processor:latest
         imagePullPolicy: Always
         command: ["event-processor", "--logtostderr", "--api_addr=http://api.pcloud.svc:1111/graphql", "--object_store_addr=http://minio.minio.svc:9000"]
