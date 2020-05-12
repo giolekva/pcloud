@@ -1,7 +1,6 @@
 package main
 
 import (
-	"context"
 	"errors"
 	"flag"
 	"fmt"
@@ -10,8 +9,6 @@ import (
 	"log"
 	"net/http"
 
-	apiv1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	corev1 "k8s.io/client-go/kubernetes/typed/core/v1"
 	"k8s.io/client-go/rest"
@@ -34,39 +31,7 @@ const insertQuery = `mutation { add%s(input: [%s]) { %s { id } } }`
 const getQuery = `{ "query": "{ get%s(id: \"%s\") { id objectPath } } " }`
 
 type MinioWebhook struct {
-	gql  schema.GraphQLClient
-	pods corev1.PodInterface
-}
-
-func (m *MinioWebhook) minioHandler(w http.ResponseWriter, r *http.Request) {
-	// TODO(giolekva): move this to events processor
-	resp := ""
-	id, err := regogo.Get(resp, "input.addImage.image[0].id")
-	if err != nil {
-		glog.Error(err)
-		http.Error(w, "Could not extract node id", http.StatusInternalServerError)
-		return
-	}
-	glog.Infof("New image id: %s", id.String())
-	pod := &apiv1.Pod{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: fmt.Sprintf("detect-faces-%s", id.String())},
-		Spec: apiv1.PodSpec{
-			RestartPolicy: apiv1.RestartPolicyNever,
-			Containers: []apiv1.Container{{
-				Name:            "detect-faces",
-				Image:           "face-detector:latest",
-				ImagePullPolicy: apiv1.PullNever,
-				Command:         []string{"python", "main.py"},
-				Args:            []string{"http://pcloud-controller-service.pcloud.svc:1111/graphql", "http://minio-hl-svc.minio.svc:9000", id.String()}}}}}
-	glog.Info("Creating pod...")
-	result, err := m.pods.Create(context.TODO(), pod, metav1.CreateOptions{})
-	if err != nil {
-		glog.Error(err)
-		http.Error(w, "Could not start face detector", http.StatusInternalServerError)
-		return
-	}
-	glog.Infof("Created deployment %q.\n", result.GetObjectMeta().GetName())
+	gql schema.GraphQLClient
 }
 
 type query struct {
@@ -126,16 +91,6 @@ func getKubeConfig() (*rest.Config, error) {
 func main() {
 	flag.Parse()
 
-	config, err := getKubeConfig()
-	if err != nil {
-		panic(err.Error())
-	}
-	clientset, err := kubernetes.NewForConfig(config)
-	if err != nil {
-		panic(err)
-	}
-	pods := clientset.CoreV1().Pods("pcloud")
-
 	gqlClient, err := schema.NewDgraphClient(
 		*dgraphGqlAddress, *dgraphSchemaAddress)
 	if err != nil {
@@ -173,7 +128,7 @@ type Foo { bar: Int }`)
 	if err != nil {
 		panic(err)
 	}
-	mw := MinioWebhook{gqlClient, pods}
+	mw := MinioWebhook{gqlClient}
 	http.HandleFunc("/graphql", mw.graphqlHandler)
 	log.Fatal(http.ListenAndServe(fmt.Sprintf(":%d", *port), nil))
 }
