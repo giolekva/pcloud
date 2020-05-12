@@ -9,6 +9,7 @@ import (
 	"path"
 	"path/filepath"
 	"strings"
+	"syscall"
 
 	"github.com/golang/glog"
 	"gopkg.in/yaml.v2"
@@ -47,12 +48,21 @@ func HelmChartFromTar(chartTar string) (*HelmChart, error) {
 	}
 	dir := filepath.Dir(chartTar)
 	archive := filepath.Base(chartTar)
-	extractDir := strings.TrimSuffix(archive, ".tar.gz")
-	cmd := exec.Command(fmt.Sprintf("cd %s && rm -rf %s && tar -ztvf %s -C %s", dir, extractDir, archive, extractDir))
-	if err := cmd.Run(); err != nil {
+	if err := syscall.Chdir(dir); err != nil {
 		return nil, err
 	}
-	return HelmChartFromDir(dir + "/" + extractDir)
+	cmd := exec.Command("tar", "-xvf", archive)
+	var stdout strings.Builder
+	var stderr strings.Builder
+	cmd.Stdout = &stdout
+	cmd.Stderr = &stderr
+	if err := cmd.Run(); err != nil {
+		glog.Info("-----")
+		return nil, errors.New(stderr.String())
+	}
+	glog.Info(stdout.String())
+	glog.Info(dir)
+	return HelmChartFromDir(dir)
 }
 
 func (h *HelmChart) Install(
