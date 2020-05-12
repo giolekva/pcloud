@@ -9,11 +9,6 @@ import (
 	"log"
 	"net/http"
 
-	"k8s.io/client-go/kubernetes"
-	corev1 "k8s.io/client-go/kubernetes/typed/core/v1"
-	"k8s.io/client-go/rest"
-	"k8s.io/client-go/tools/clientcmd"
-
 	"github.com/giolekva/pcloud/controller/schema"
 
 	"github.com/golang/glog"
@@ -78,14 +73,6 @@ func (m *MinioWebhook) graphqlHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	io.WriteString(w, resp)
 	w.Header().Set("Content-Type", "application/json")
-}
-
-func getKubeConfig() (*rest.Config, error) {
-	if *kubeconfig != "" {
-		return clientcmd.BuildConfigFromFlags("", *kubeconfig)
-	} else {
-		return rest.InClusterConfig()
-	}
 }
 
 func main() {
