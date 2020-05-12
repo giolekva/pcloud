@@ -23,6 +23,7 @@ import (
 )
 
 var kubeconfig = flag.String("kubeconfig", "", "Absolute path to the kubeconfig file.")
+var helmBin = flag.String("helm_bin", "/usr/local/bin/helm", "Path to the Helm binary.")
 var port = flag.Int("port", 1234, "Port to listen on.")
 var apiAddr = flag.String("api_addr", "", "PCloud API service address.")
 
@@ -32,7 +33,7 @@ var helmUploadPage = `
        <title>Upload Helm chart</title>
 </head>
 <body>
-<form enctype="multipart/form-data" action="/" method="post">
+<form enctype="multipart/form-data" method="post">
     <input type="file" name="chartfile" />
     <input type="submit" value="upload" />
 </form>
@@ -104,7 +105,7 @@ func installHelmChart(path string, nsClient corev1.NamespaceInterface) error {
 	}
 	glog.Infof("Created namespaces: %s", namespace)
 	if err = h.Install(
-		"/usr/local/bin/helm",
+		*helmBin,
 		map[string]string{}); err != nil {
 		return err
 	}

@@ -57,7 +57,6 @@ func HelmChartFromTar(chartTar string) (*HelmChart, error) {
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
 	if err := cmd.Run(); err != nil {
-		glog.Info("-----")
 		return nil, errors.New(stderr.String())
 	}
 	glog.Info(stdout.String())

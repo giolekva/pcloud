@@ -1,0 +1,95 @@
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: pcloud-app-manager
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: app-manager
+  namespace: pcloud-app-manager
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: deploy-apps
+rules:
+  - apiGroups: [""]
+    resources: ["namespaces", "services", "pods", "secrets"]
+    verbs: ["*"]
+  - apiGroups: ["apps"]
+    resources: ["deployments", "statefulsets"]
+    verbs: ["*"]
+  - apiGroups: ["traefik.containo.us"]
+    resources: ["ingressroutes"]
+    verbs: ["*"] 
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: deploy-apps-to-sa
+subjects:
+  - kind: ServiceAccount
+    name: app-manager
+    namespace: pcloud-app-manager
+roleRef:
+  kind: ClusterRole
+  name: deploy-apps
+  apiGroup: rbac.authorization.k8s.io
+---
+kind: Service 
+apiVersion: v1
+metadata:
+  name: app-manager
+  namespace: pcloud-app-manager
+spec:
+  type: ClusterIP
+  selector:
+    app: app-manager
+  ports:
+    - nodePort: 
+      port: 80
+      targetPort: 1234
+---
+apiVersion: traefik.containo.us/v1alpha1
+kind: IngressRoute
+metadata:
+  name: ingress
+  namespace: pcloud-app-manager
+spec:
+  entryPoints:
+    - web
+  routes:
+  - kind: Rule
+    match: PathPrefix(`/app-manager`)
+    services:
+    - kind: Service
+      name: app-manager
+      namespace: pcloud-app-manager
+      passHostHeader: true
+      port: 80
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: app-manager
+  namespace: pcloud-app-manager
+spec:
+  selector:
+    matchLabels:
+      app: app-manager
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: app-manager
+    spec:
+      serviceAccountName: app-manager
+      containers:
+      - name: app-manager
+        image: giolekva/pcloud-app-manager:latest
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 1234
+        command: ["app-manager", "--logtostderr", "--port=1234", "--api_addr=http://api.pcloud.svc:1111/add_schema", "--helm_bin=/usr/bin/helm"]

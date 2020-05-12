@@ -12,7 +12,7 @@ ENV GOARCH $BUILDPLATFORM
 ENV CGO_ENABLED 0
 ENV GO111MODULE on
 
-WORKDIR $GOPATH/src/github.com/giolekva/pcloud/events
+WORKDIR $GOPATH/src/github.com/giolekva/pcloud/appmanager
 COPY . .
 RUN go build -o $GOPATH/bin/app-manager -trimpath -ldflags="-s -w" cmd/main.go
 
