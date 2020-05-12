@@ -175,6 +175,9 @@ func (s *DgraphClient) extendSchema(schema string) (string, error) {
 		if shouldIgnoreDefinition(t) {
 			continue
 		}
+		if _, ok := parsed.Types[t.Name+"Event"]; ok {
+			continue
+		}
 		_, err := fmt.Fprintf(&extended, eventTmpl, t.Name, t.Name, t.Name, t.Name)
 		if err != nil {
 			return "", err

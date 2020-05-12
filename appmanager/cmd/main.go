@@ -8,12 +8,13 @@ import (
 	"net/http"
 	"os"
 
-	// "github.com/golang/glog"
+	"github.com/golang/glog"
 
 	app "github.com/giolekva/pcloud/appmanager"
 )
 
 var port = flag.Int("port", 1234, "Port to listen on.")
+var apiAddr = flag.String("api_addr", "", "PCloud API service address.")
 
 var helmUploadPage = `
 <html>
@@ -68,11 +69,11 @@ func installHelmChart(path string) error {
 	if err != nil {
 		return err
 	}
-	// err = app.InstallSchema(h.Schema, "http://localhost:1111/add_schema")
-	// if err != nil {
-	// 	return err
-	// }
-	// glog.Infof("Installed schema: %s", h.Schema)
+	err = app.InstallSchema(h.Schema, *apiAddr)
+	if err != nil {
+		return err
+	}
+	glog.Infof("Installed schema: %s", h.Schema)
 	err = h.Install(
 		"/usr/local/bin/helm",
 		map[string]string{})

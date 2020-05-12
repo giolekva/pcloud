@@ -58,7 +58,7 @@ func extractQuery(r *http.Request) (*query, error) {
 	}
 }
 
-func (a *ApiHandler) graphqlHandler(w http.ResponseWriter, r *http.Request) {
+func (a *ApiHandler) graphql(w http.ResponseWriter, r *http.Request) {
 	glog.Infof("New GraphQL query received: %s", r.Method)
 	q, err := extractQuery(r)
 	if err != nil {
@@ -73,6 +73,23 @@ func (a *ApiHandler) graphqlHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	io.WriteString(w, resp)
 	w.Header().Set("Content-Type", "application/json")
+}
+
+func (a *ApiHandler) addSchema(w http.ResponseWriter, r *http.Request) {
+	if r.Method != "POST" {
+		http.Error(w, "Only POST requests are accepted in /add_schema", http.StatusBadRequest)
+		return
+	}
+	body, err := ioutil.ReadAll(r.Body)
+	if err != nil {
+		http.Error(w, "Could not read request", http.StatusInternalServerError)
+		return
+	}
+	err = a.gql.AddSchema(string(body))
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusPreconditionFailed)
+		return
+	}
 }
 
 func main() {
@@ -116,6 +133,7 @@ type Foo { bar: Int }`)
 		panic(err)
 	}
 	api := ApiHandler{gqlClient}
-	http.HandleFunc("/graphql", api.graphqlHandler)
+	http.HandleFunc("/graphql", api.graphql)
+	http.HandleFunc("/add_schema", api.addSchema)
 	log.Fatal(http.ListenAndServe(fmt.Sprintf(":%d", *port), nil))
 }
