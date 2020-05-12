@@ -25,7 +25,7 @@ const imgJson = `{ objectPath: \"%s\"}`
 const insertQuery = `mutation { add%s(input: [%s]) { %s { id } } }`
 const getQuery = `{ "query": "{ get%s(id: \"%s\") { id objectPath } } " }`
 
-type MinioWebhook struct {
+type ApiHandler struct {
 	gql schema.GraphQLClient
 }
 
@@ -58,14 +58,14 @@ func extractQuery(r *http.Request) (*query, error) {
 	}
 }
 
-func (m *MinioWebhook) graphqlHandler(w http.ResponseWriter, r *http.Request) {
+func (a *ApiHandler) graphqlHandler(w http.ResponseWriter, r *http.Request) {
 	glog.Infof("New GraphQL query received: %s", r.Method)
 	q, err := extractQuery(r)
 	if err != nil {
 		glog.Error(err.Error())
 		http.Error(w, "Could not extract query", http.StatusBadRequest)
 	}
-	resp, err := m.gql.RunQuery(q.query)
+	resp, err := a.gql.RunQuery(q.query)
 	if err != nil {
 		glog.Error(err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -115,7 +115,7 @@ type Foo { bar: Int }`)
 	if err != nil {
 		panic(err)
 	}
-	mw := MinioWebhook{gqlClient}
-	http.HandleFunc("/graphql", mw.graphqlHandler)
+	api := ApiHandler{gqlClient}
+	http.HandleFunc("/graphql", api.graphqlHandler)
 	log.Fatal(http.ListenAndServe(fmt.Sprintf(":%d", *port), nil))
 }
