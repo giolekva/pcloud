@@ -17,6 +17,7 @@ import (
 
 type Chart struct {
 	Name string `yaml:"name"`
+	Type string `yaml:"type"`
 }
 
 type HelmChart struct {

@@ -147,12 +147,16 @@ func (hn *handler) installHelmChart(path string) error {
 		return err
 	}
 	glog.Infof("Created namespaces: %s", namespace)
-	if err = h.Install(
-		*helmBin,
-		map[string]string{}); err != nil {
-		return err
+	if h.Type == "application" {
+		if err = h.Install(
+			*helmBin,
+			map[string]string{}); err != nil {
+			return err
+		}
+		glog.Info("Deployed")
+	} else {
+		glog.Info("Skipping deployment as we got library chart.")
 	}
-	glog.Info("Deployed")
 	hn.manager.Apps[h.Name] = app.App{namespace, h.Triggers}
 	app.StoreManagerStateToFile(hn.manager, *managerStoreFile)
 	glog.Info("Installed")
