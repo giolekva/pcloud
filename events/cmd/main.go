@@ -14,6 +14,7 @@ import (
 
 var kubeconfig = flag.String("kubeconfig", "", "Absolute path to the kubeconfig file.")
 var apiAddr = flag.String("api_addr", "", "PCloud API server address.")
+var appManagerAddr = flag.String("app_manager_addr", "", "PCloud AppManager address.")
 var objectStoreAddr = flag.String("object_store_addr", "", "S3 compatible object store address.")
 
 func getKubeConfig() (*rest.Config, error) {
@@ -26,16 +27,16 @@ func getKubeConfig() (*rest.Config, error) {
 
 func main() {
 	flag.Parse()
-	config, err := getKubeConfig()
+	kubeconfig, err := getKubeConfig()
 	if err != nil {
 		glog.Fatalf("Could not initialize Kubeconfig: %v", err)
 	}
-	clientset, err := kubernetes.NewForConfig(config)
+	kube, err := kubernetes.NewForConfig(kubeconfig)
 	if err != nil {
 		glog.Fatalf("Could not create Kubernetes API client: %v", err)
 	}
-	pods := clientset.CoreV1().Pods("default")
 	eventStore := events.NewGraphQLClient(*apiAddr)
+	appManager := events.NewAppManagerClient(*appManagerAddr)
 	events.NewSingleEventAtATimeProcessor(
-		eventStore, pods, *apiAddr, *objectStoreAddr).Start()
+		eventStore, appManager, kube, *apiAddr, *objectStoreAddr).Start()
 }

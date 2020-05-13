@@ -52,4 +52,4 @@ spec:
       - name: event-processor
         image: giolekva/pcloud-event-processor:latest
         imagePullPolicy: Always
-        command: ["event-processor", "--logtostderr", "--api_addr=http://api.pcloud.svc:1111/graphql", "--object_store_addr=http://minio.minio.svc:9000"]
+        command: ["event-processor", "--logtostderr", "--api_addr=http://api.pcloud.svc:1111/graphql", "--app_manager_addr=http://app-manager.pcloud-app-manager.svc:80", "--object_store_addr=http://minio.minio.svc:9000"]
