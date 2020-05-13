@@ -1,0 +1,13 @@
+schema: |
+  type ImageSegment {
+    id: ID!
+    upperLeftX: Float!
+    upperLeftY: Float!
+    lowerRightX: Float!
+    lowerRightY: Float!
+    sourceImage: Image! @hasInverse(field: segments)
+  }
+
+  extend type Image {
+    segments: [ImageSegment] @hasInverse(field: sourceImage)
+  }
