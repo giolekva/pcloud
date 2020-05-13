@@ -39,4 +39,4 @@ spec:
         imagePullPolicy: Always
         ports:
         - containerPort: 1234
-        command: ["pcloud-api-server", "--logtostderr", "--port=1234", "--graphql_address=http://dgraph-aplha.dgraph.svc:8080/graphql", "--dgraph_admin_address=http://dgraph-alpha.dgraph.svc:8080/admin"]
+        command: ["pcloud-api-server", "--logtostderr", "--port=1234", "--graphql_address=http://dgraph-alpha.dgraph.svc:8080/graphql", "--dgraph_admin_address=http://dgraph-alpha.dgraph.svc:8080/admin"]
