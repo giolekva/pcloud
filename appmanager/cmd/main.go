@@ -1,7 +1,9 @@
 package main
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"flag"
 	"fmt"
 	"io"
@@ -26,6 +28,7 @@ var kubeconfig = flag.String("kubeconfig", "", "Absolute path to the kubeconfig 
 var helmBin = flag.String("helm_bin", "/usr/local/bin/helm", "Path to the Helm binary.")
 var port = flag.Int("port", 1234, "Port to listen on.")
 var apiAddr = flag.String("api_addr", "", "PCloud API service address.")
+var managerStoreFile = flag.String("manager_store_file", "", "Persistent file containing installed application information.")
 
 var helmUploadPage = `
 <html>
@@ -42,10 +45,11 @@ var helmUploadPage = `
 `
 
 type handler struct {
+	manager  *app.Manager
 	nsClient corev1.NamespaceInterface
 }
 
-func (hn *handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+func (hn *handler) handleInstall(w http.ResponseWriter, r *http.Request) {
 	if r.Method == "GET" {
 		_, err := io.WriteString(w, helmUploadPage)
 		if err != nil {
@@ -82,7 +86,7 @@ func (hn *handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
-		if err = installHelmChart(p, hn.nsClient); err != nil {
+		if err = hn.installHelmChart(p); err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
@@ -90,7 +94,46 @@ func (hn *handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func installHelmChart(path string, nsClient corev1.NamespaceInterface) error {
+type trigger struct {
+	Namespace string `json:"namespace"`
+	Template  string `json:"template"`
+}
+
+func (hn *handler) handleTriggers(w http.ResponseWriter, r *http.Request) {
+	if r.Method != "GET" {
+		http.Error(w, "Only GET method is supported on /triggers", http.StatusBadRequest)
+		return
+	}
+	if err := r.ParseForm(); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	// TODO(giolekva): check if exists
+	triggerOnType := r.Form["trigger_on_type"][0]
+	triggerOnEvent := r.Form["trigger_on_event"][0]
+	var triggers []trigger
+	for _, a := range hn.manager.Apps {
+		if a.Triggers == nil {
+			continue
+		}
+		for _, t := range a.Triggers.Triggers {
+			if t.TriggerOn.Type == triggerOnType && t.TriggerOn.Event == triggerOnEvent {
+				triggers = append(triggers, trigger{a.Namespace, t.Template})
+			}
+		}
+	}
+	respBody, err := json.Marshal(triggers)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	if _, err := io.Copy(w, bytes.NewReader(respBody)); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+}
+
+func (hn *handler) installHelmChart(path string) error {
 	h, err := app.HelmChartFromTar(path)
 	if err != nil {
 		return err
@@ -100,7 +143,7 @@ func installHelmChart(path string, nsClient corev1.NamespaceInterface) error {
 	}
 	glog.Infof("Installed schema: %s", h.Schema)
 	namespace := fmt.Sprintf("app-%s", h.Name)
-	if err = createNamespace(nsClient, namespace); err != nil {
+	if err = createNamespace(hn.nsClient, namespace); err != nil {
 		return err
 	}
 	glog.Infof("Created namespaces: %s", namespace)
@@ -109,6 +152,9 @@ func installHelmChart(path string, nsClient corev1.NamespaceInterface) error {
 		map[string]string{}); err != nil {
 		return err
 	}
+	glog.Info("Deployed")
+	hn.manager.Apps[h.Name] = app.App{namespace, h.Triggers}
+	app.StoreManagerStateToFile(hn.manager, *managerStoreFile)
 	glog.Info("Installed")
 	return nil
 }
@@ -142,7 +188,13 @@ func main() {
 		glog.Fatalf("Could not create Kubernetes API client: %v", err)
 	}
 	namespaces := clientset.CoreV1().Namespaces()
-	http.Handle("/", &handler{namespaces})
+	manager, err := app.LoadManagerStateFromFile(*managerStoreFile)
+	if err != nil {
+		glog.Fatalf("Could ot initialize manager: %v", err)
+	}
+	h := handler{manager, namespaces}
+	http.HandleFunc("/triggers", h.handleTriggers)
+	http.HandleFunc("/", h.handleInstall)
 	log.Fatal(http.ListenAndServe(fmt.Sprintf(":%d", *port), nil))
 
 }

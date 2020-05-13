@@ -23,6 +23,7 @@ type HelmChart struct {
 	Chart
 	chartDir string
 	Schema   *Schema
+	Triggers *Triggers
 	Yamls    []string
 }
 
@@ -39,6 +40,11 @@ func HelmChartFromDir(chartDir string) (*HelmChart, error) {
 		return nil, err
 	}
 	chart.Schema = schema
+	triggers, err := ReadTriggers(path.Join(chartDir, "Triggers.yaml"))
+	if err != nil && !os.IsNotExist(err) {
+		return nil, err
+	}
+	chart.Triggers = triggers
 	return &chart, nil
 }
 
