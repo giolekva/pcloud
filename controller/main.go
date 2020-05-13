@@ -94,41 +94,8 @@ func (a *ApiHandler) addSchema(w http.ResponseWriter, r *http.Request) {
 
 func main() {
 	flag.Parse()
-
 	gqlClient, err := schema.NewDgraphClient(
 		*dgraphGqlAddress, *dgraphSchemaAddress)
-	if err != nil {
-		panic(err)
-	}
-	err = gqlClient.SetSchema(`
-enum EventState {
-  NEW
-  PROCESSING
-  DONE
-}
-
-type Foo { bar: Int }`)
-	if err != nil {
-		panic(err)
-	}
-	err = gqlClient.AddSchema(`
-	type Image {
-	     id: ID!
-	     objectPath: String! @search(by: [exact])
-	}
-
-	type ImageSegment {
-	     id: ID!
-	     upperLeftX: Float!
-	     upperLeftY: Float!
-	     lowerRightX: Float!
-	     lowerRightY: Float!
-	     sourceImage: Image! @hasInverse(field: segments)
-	}
-
-	extend type Image {
-	     segments: [ImageSegment] @hasInverse(field: sourceImage)
-	}`)
 	if err != nil {
 		panic(err)
 	}
