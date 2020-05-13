@@ -35,7 +35,7 @@ func HelmChartFromDir(chartDir string) (*HelmChart, error) {
 	}
 	chart.Chart = *c
 	schema, err := ReadSchema(path.Join(chartDir, "Schema.yaml"))
-	if err != nil && os.IsNotExist(err) {
+	if err != nil && !os.IsNotExist(err) {
 		return nil, err
 	}
 	chart.Schema = schema
