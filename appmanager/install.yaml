@@ -71,7 +71,7 @@ spec:
       port: 80
 ---
 apiVersion: apps/v1
-kind: Deployment
+kind: StatefulSet
 metadata:
   name: app-manager
   namespace: pcloud-app-manager
@@ -79,6 +79,7 @@ spec:
   selector:
     matchLabels:
       app: app-manager
+  serviceName: app-manager
   replicas: 1
   template:
     metadata:
@@ -90,6 +91,18 @@ spec:
       - name: app-manager
         image: giolekva/pcloud-app-manager:latest
         imagePullPolicy: Always
+        volumeMounts:
+        - name: state
+          mountPath: /pcloud/app-manager
         ports:
         - containerPort: 1234
-        command: ["app-manager", "--logtostderr", "--port=1234", "--api_addr=http://api.pcloud.svc:1111/add_schema", "--helm_bin=/usr/bin/helm"]
+        command: ["app-manager", "--logtostderr", "--port=1234", "--api_addr=http://api.pcloud.svc:1111/add_schema", "--helm_bin=/usr/bin/helm", "--manager_store_file=/pcloud/app-manager/manager-state"]
+  volumeClaimTemplates:
+  - metadata:
+      name: state
+    spec:
+      accessModes: [ "ReadWriteOnce" ]
+      storageClassName: "local-path"
+      resources:
+        requests:
+          storage: 10Mi
