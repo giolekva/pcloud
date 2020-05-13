@@ -1,0 +1,11 @@
+apiVersion: v2
+name: minio-importer
+version: 1.0.0
+description: Imports objects from Minio storage into knowledge graph
+type: application
+sources:
+  - https://github.com/giolekva/pcloud/tree/master/apps/minio/importer
+mainteners:
+  - name: Giorgi Lekveishvili
+    url: https://github.com/giolekva
+appVersion: 1.0.0

@@ -1,0 +1,5 @@
+schema: |
+  type Image {
+    id: ID!
+    objectPath: String! @search(by: [exact])
+  }
