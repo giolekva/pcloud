@@ -2,6 +2,7 @@ package appmanager
 
 import (
 	"fmt"
+	"io/ioutil"
 	"net/http"
 	"strings"
 )
@@ -15,7 +16,8 @@ func InstallSchema(schema *Schema, apiAddr string) error {
 		return err
 	}
 	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("Failed request with status code: %d", resp.StatusCode)
+		body, _ := ioutil.ReadAll(resp.Body)
+		return fmt.Errorf("Failed request with status code: %d %s", resp.StatusCode, string(body))
 	}
 	return nil
 }
