@@ -1,0 +1,12 @@
+accessKey: minio
+secretKey: minio123
+ingressHost: minio
+minio:
+  existingSecret: minio-creds
+  fullnameOverride: minio
+  image:
+    repository: giolekva/minio-arm
+    tag: latest
+    pullPolicy: Always
+  persistence:
+    size: 1Gi

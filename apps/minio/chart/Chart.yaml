@@ -1,0 +1,15 @@
+apiVersion: v2
+name: object-store
+version: 1.0.0
+description: Provide Object store interface
+type: application
+sources:
+  - https://github.com/giolekva/pcloud/tree/master/apps/minio
+dependencies:
+  - name: minio
+    version: 5.0.25
+    repository: https://kubernetes-charts.storage.googleapis.com
+mainteners:
+  - name: Giorgi Lekveishvili
+    url: https://github.com/giolekva
+appVersion: 1.0.0
