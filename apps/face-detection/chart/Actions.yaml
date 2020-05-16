@@ -1,5 +1,5 @@
-triggers:
-- name: DetectFaces
+actions:
+- name: detect-faces
   template: |
     kind: Pod
     apiVersion: v1
