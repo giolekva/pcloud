@@ -11,7 +11,7 @@ spec:
     match: Host(`{{ .Values.ingressHost }}`)
     services:
     - kind: Service
-      name: minio
+      name: {{ template "minio.fullname" . }}
       namespace: {{ .Release.Namespace }}
       passHostHeader: true
       port: {{ .Values.minio.service.port }}

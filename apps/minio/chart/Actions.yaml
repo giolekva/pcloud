@@ -1,0 +1,33 @@
+actions:
+- name: create-bucket-with-webhook
+  template: |
+    apiVersion: v1
+    kind: Pod
+    metadata:
+      name: create-bucket-with-webhook
+      labels:
+        app: create-bucket-with-webhook
+    spec:
+      containers:
+      - name: create-bucket-with-webhook
+        image: giolekva/minio-mc-arm64:latest
+        imagePullPolicy: Always
+        env:
+        - name: MINIO_ADDR
+          valueFrom:
+            configMapKeyRef:
+              name: action-env
+              key: minio_addr
+        - name: ACCESS_KEY
+          valueFrom:
+            secretKeyRef:
+              name: minio-creds
+              key: accesskey
+        - name: SECRET_KEY
+          valueFrom:
+            secretKeyRef:
+              name: minio-creds
+              key: secretkey
+        command: ["/bin/sh", "-c"]
+        args: ["mc config host add minio $MINIO_ADDR $ACCESS_KEY $SECRET_KEY && mc mb minio/{{ .BucketName }} && mc admin config set minio notify_webhook:minio queue_limit=\"1000\" queue_dir=\"/tmp/events\" endpoint=\"{{ .WebhookURL }}\" && mc admin service restart minio && mc event add minio/{{ .BucketName }} arn:minio:sqs::minio:webhook --event put"]
+      restartPolicy: Never
