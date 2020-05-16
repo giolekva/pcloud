@@ -2,7 +2,7 @@ apiVersion: v2
 name: face-detection
 version: 1.0.0
 description: Provides MTCNN and HaarCascade based face recognition
-type: library
+type: application
 sources:
   - https://github.com/giolekva/pcloud/tree/master/apps/face-detection
 mainteners:

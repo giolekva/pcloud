@@ -4,12 +4,12 @@ actions:
     kind: Pod
     apiVersion: v1
     metadata:
-      name: detect-faces-{{ .Id }}
+      name: detect-faces-{-{ .Id }-}
     spec:
       containers:
       - name: detect-faces
         image: giolekva/face-detector:latest
         imagePullPolicy: Always
         command: ["python3", "main.py"]
-        args: [{{ .PCloudApiAddr }}, {{ .ObjectStoreAddr }}, {{ .Id }}]
+        args: [{-{ .PCloudApiAddr }-}, {-{ .ObjectStoreAddr }-}, {-{ .Id }-}]
       restartPolicy: Never

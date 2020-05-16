@@ -11,7 +11,8 @@ spec:
     match: Host(`{{ .Values.ingressHost }}`)
     services:
     - kind: Service
-      name: {{ template "minio.fullname" . }}
+      # TODO(giolekva): figure out how to use template "minio.fullname" .
+      name: {{ .Values.minio.fullnameOverride }}
       namespace: {{ .Release.Namespace }}
       passHostHeader: true
       port: {{ .Values.minio.service.port }}

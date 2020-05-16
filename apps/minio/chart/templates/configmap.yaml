@@ -3,4 +3,5 @@ kind: ConfigMap
 metadata:
   name: action-env
 data:
-  minio_addr: http://{{ template "minio.fullname" . }}:{{ .Values.minio.service.port }}
+  # TODO(giolekva): figure out how to use template "minio.fullname" .
+  minio_addr: http://{{ .Values.minio.fullnameOverride }}:{{ .Values.minio.service.port }}
