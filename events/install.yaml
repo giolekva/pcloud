@@ -4,34 +4,6 @@ kind: Namespace
 metadata:
   name: pcloud-events
 ---
-apiVersion: v1
-kind: ServiceAccount
-metadata:
-  name: event-processor
-  namespace: pcloud-events
----
-apiVersion: rbac.authorization.k8s.io/v1
-kind: ClusterRole
-metadata:
-  name: modify-pods
-rules:
-  - apiGroups: [""]
-    resources: ["pods"]
-    verbs: ["create", "get", "watch", "list", "delete"]
----
-apiVersion: rbac.authorization.k8s.io/v1
-kind: ClusterRoleBinding
-metadata:
-  name: modify-pods-to-sa
-subjects:
-  - kind: ServiceAccount
-    name: event-processor
-    namespace: pcloud-events
-roleRef:
-  kind: ClusterRole
-  name: modify-pods
-  apiGroup: rbac.authorization.k8s.io
----
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -47,9 +19,8 @@ spec:
       labels:
         app: event-processor
     spec:
-      serviceAccountName: event-processor
       containers:
       - name: event-processor
         image: giolekva/pcloud-event-processor:latest
         imagePullPolicy: Always
-        command: ["event-processor", "--logtostderr", "--api_addr=http://api.pcloud.svc:1111/graphql", "--app_manager_addr=http://app-manager.pcloud-app-manager.svc:80", "--object_store_addr=http://minio.minio.svc:9000"]
+        command: ["event-processor", "--logtostderr", "--api_addr=http://api.pcloud.svc:1111/graphql", "--app_manager_addr=http://app-manager.pcloud-app-manager.svc:80", "--object_store_addr=http://minio.app-object-store.svc:9000"]
