@@ -1,0 +1,8 @@
+postInstall:
+  callAction:
+  - app: object-store
+    action: create-bucket-with-webhook
+    args: 
+      WebhookURL: http://minio-importer.app-minio-importer.svc/new_object
+       # http://{{ .Chart.Name }}.{{ .Release.Namespace }}.svc:{{ .Values.servicePort }}/new_object
+      BucketName: images
