@@ -3,16 +3,13 @@ package appmanager
 import (
 	"errors"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"path"
 	"path/filepath"
 	"strings"
-	"syscall"
 
 	"github.com/golang/glog"
-	"gopkg.in/yaml.v2"
 )
 
 type Chart struct {
@@ -22,38 +19,62 @@ type Chart struct {
 
 type HelmChart struct {
 	Chart
-	chartDir string
-	Schema   Schema
-	Triggers Triggers
-	Actions  Actions
-	Init     Init
-	Yamls    []string
+	Dir       string
+	Namespace string
+	Schema    Schema
+	Triggers  Triggers
+	Actions   Actions
+	Init      Init
+	Yamls     []string
 }
 
-func HelmChartFromDir(chartDir string) (*HelmChart, error) {
+func HelmChartFromDir(dir string) (*HelmChart, error) {
 	var chart HelmChart
-	chart.chartDir = chartDir
-	err := FromYamlFile(path.Join(chartDir, "Chart.yaml"), &chart.Chart)
+	chart.Dir = dir
+	err := FromYamlFile(path.Join(dir, "Chart.yaml"), &chart.Chart)
 	if err != nil {
 		return nil, err
 	}
-	err = FromYamlFile(path.Join(chartDir, "Schema.yaml"), &chart.Schema)
-	if err != nil && !os.IsNotExist(err) {
-		return nil, err
-	}
-	err = FromYamlFile(path.Join(chartDir, "Triggers.yaml"), &chart.Triggers)
-	if err != nil && !os.IsNotExist(err) {
-		return nil, err
-	}
-	err = FromYamlFile(path.Join(chartDir, "Actions.yaml"), &chart.Actions)
-	if err != nil && !os.IsNotExist(err) {
-		return nil, err
-	}
-	err = FromYamlFile(path.Join(chartDir, "Init.yaml"), &chart.Init)
-	if err != nil && !os.IsNotExist(err) {
-		return nil, err
-	}
 	return &chart, nil
+}
+
+func (chart *HelmChart) Render(
+	helmBin string,
+	values map[string]string) error {
+	chart.Namespace = fmt.Sprintf("app-%s", chart.Name)
+	renderDir := path.Join(chart.Dir, "__render")
+	if err := chart.renderTemplates(helmBin, values, renderDir); err != nil {
+		return err
+	}
+	if err := os.RemoveAll(path.Join(chart.Dir, "templates")); err != nil {
+		return err
+	}
+	if err := os.Rename(
+		path.Join(renderDir, chart.Name, "templates"),
+		path.Join(chart.Dir, "templates")); err != nil {
+		return err
+	}
+	pcloudDir := path.Join(chart.Dir, "templates/pcloud")
+	err := FromYamlFile(path.Join(pcloudDir, "Schema.yaml"), &chart.Schema)
+	if err != nil && !os.IsNotExist(err) {
+		return err
+	}
+	err = FromYamlFile(path.Join(pcloudDir, "Triggers.yaml"), &chart.Triggers)
+	if err != nil && !os.IsNotExist(err) {
+		return err
+	}
+	err = FromYamlFile(path.Join(pcloudDir, "Actions.yaml"), &chart.Actions)
+	if err != nil && !os.IsNotExist(err) {
+		return err
+	}
+	err = FromYamlFile(path.Join(pcloudDir, "Init.yaml"), &chart.Init)
+	if err != nil && !os.IsNotExist(err) {
+		return err
+	}
+	if err := os.RemoveAll(pcloudDir); err != nil {
+		return err
+	}
+	return nil
 }
 
 func HelmChartFromTar(chartTar string) (*HelmChart, error) {
@@ -62,7 +83,7 @@ func HelmChartFromTar(chartTar string) (*HelmChart, error) {
 	}
 	dir := filepath.Dir(chartTar)
 	archive := filepath.Base(chartTar)
-	if err := syscall.Chdir(dir); err != nil {
+	if err := os.Chdir(dir); err != nil {
 		return nil, err
 	}
 	cmd := exec.Command("tar", "-xvf", archive)
@@ -78,11 +99,34 @@ func HelmChartFromTar(chartTar string) (*HelmChart, error) {
 	return HelmChartFromDir(dir)
 }
 
-func (h *HelmChart) Install(
+func (chart *HelmChart) Install(
+	helmBin string) error {
+	cmd := exec.Command(helmBin)
+	cmd.Args = append(cmd.Args, "install")
+	cmd.Args = append(cmd.Args, fmt.Sprintf("--namespace=%s", chart.Namespace))
+	cmd.Args = append(cmd.Args, chart.Name)
+	cmd.Args = append(cmd.Args, fmt.Sprintf("%s", chart.Dir))
+	return runCmd(cmd)
+}
+
+func (chart *HelmChart) renderTemplates(
 	helmBin string,
-	values map[string]string) error {
-	namespace := fmt.Sprintf("app-%s", h.Chart.Name)
-	cmd := generateHelmInstallCmd(helmBin, h.chartDir, namespace, values)
+	values map[string]string,
+	outputDir string) error {
+	cmd := exec.Command(helmBin)
+	cmd.Args = append(cmd.Args, "template")
+	cmd.Args = append(cmd.Args, fmt.Sprintf("--output-dir=%s", outputDir))
+	cmd.Args = append(cmd.Args, fmt.Sprintf("--namespace=%s", chart.Namespace))
+	cmd.Args = append(cmd.Args, chart.Name)
+	cmd.Args = append(cmd.Args, chart.Dir)
+	// TODO(giolekva): validate values
+	for key, value := range values {
+		cmd.Args = append(cmd.Args, fmt.Sprintf("--set=%s=%s", key, value))
+	}
+	return runCmd(cmd)
+}
+
+func runCmd(cmd *exec.Cmd) error {
 	glog.Info(cmd.String())
 	var stdout strings.Builder
 	var stderr strings.Builder
@@ -94,43 +138,4 @@ func (h *HelmChart) Install(
 	}
 	glog.Info(stdout.String())
 	return nil
-}
-
-func generateHelmInstallCmd(
-	helmBin string,
-	archive string,
-	namespace string,
-	values map[string]string) *exec.Cmd {
-	cmd := exec.Command(helmBin)
-	cmd.Args = append(cmd.Args, "install")
-	cmd.Args = append(cmd.Args, fmt.Sprintf("--namespace=%s", namespace))
-	cmd.Args = append(cmd.Args, "--generate-name")
-	cmd.Args = append(cmd.Args, fmt.Sprintf("%s", archive))
-	// TODO(giolekva): validate values
-	for key, value := range values {
-		cmd.Args = append(cmd.Args, fmt.Sprintf("--set=%s=%s", key, value))
-	}
-	return cmd
-}
-
-func ChartFromYaml(str string) (*Chart, error) {
-	var s Chart
-	err := yaml.Unmarshal([]byte(str), &s)
-	if err != nil {
-		return nil, err
-	}
-	return &s, nil
-}
-
-func ReadChart(chartFile string) (*Chart, error) {
-	f, err := os.Open(chartFile)
-	if err != nil {
-		return nil, err
-	}
-	defer f.Close()
-	b, err := ioutil.ReadAll(f)
-	if err != nil {
-		return nil, err
-	}
-	return ChartFromYaml(string(b))
 }

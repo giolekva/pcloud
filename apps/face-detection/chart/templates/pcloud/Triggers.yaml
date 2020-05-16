@@ -1,0 +1,6 @@
+triggers:
+- name: detect-faces-in-new-images
+  triggerOn:
+    type: Image
+    event: NEW
+  action: detect-faces

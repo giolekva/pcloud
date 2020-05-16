@@ -174,27 +174,30 @@ func (hn *handler) installHelmChart(path string) error {
 	if err != nil {
 		return err
 	}
+	if err := h.Render(
+		*helmBin,
+		map[string]string{}); err != nil {
+		return err
+	}
+	glog.Info("Rendered templates")
 	if err = app.InstallSchema(h.Schema, *apiAddr); err != nil {
 		return err
 	}
 	glog.Infof("Installed schema: %s", h.Schema)
-	namespace := fmt.Sprintf("app-%s", h.Name)
-	err = createNamespace(hn.client.CoreV1().Namespaces(), namespace)
+	err = createNamespace(hn.client.CoreV1().Namespaces(), h.Namespace)
 	if err != nil {
 		return err
 	}
-	glog.Infof("Created namespaces: %s", namespace)
+	glog.Infof("Created namespaces: %s", h.Namespace)
 	if h.Type == "application" {
-		if err = h.Install(
-			*helmBin,
-			map[string]string{}); err != nil {
+		if err := h.Install(*helmBin); err != nil {
 			return err
 		}
 		glog.Info("Deployed")
 	} else {
 		glog.Info("Skipping deployment as we got library chart.")
 	}
-	hn.manager.Apps[h.Name] = app.App{h.Name, namespace, h.Triggers, h.Actions}
+	hn.manager.Apps[h.Name] = app.App{h.Name, h.Namespace, h.Triggers, h.Actions}
 	app.StoreManagerStateToFile(hn.manager, *managerStoreFile)
 	for _, a := range h.Init.PostInstall.CallAction {
 		if err := hn.launchAction(actionReq{a.App, a.Action, a.Args}); err != nil {

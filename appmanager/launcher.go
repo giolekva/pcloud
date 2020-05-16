@@ -13,6 +13,9 @@ import (
 	"github.com/golang/glog"
 )
 
+var leftDelim = "{-{"
+var rightDelim = "}-}"
+
 type Launcher interface {
 	Launch(ns, tmpl string, args map[string]interface{}) error
 }
@@ -40,7 +43,7 @@ func (k *k8sLauncher) Launch(ns, tmpl string, args map[string]interface{}) error
 }
 
 func renderTemplate(tmpl string, args map[string]interface{}) (*apiv1.Pod, error) {
-	t, err := template.New("action").Parse(tmpl)
+	t, err := template.New("action").Delims(leftDelim, rightDelim).Parse(tmpl)
 	if err != nil {
 		return nil, err
 	}
