@@ -7,8 +7,8 @@ import (
 	"strings"
 )
 
-func InstallSchema(schema *Schema, apiAddr string) error {
-	if schema == nil || len(schema.Schema) == 0 {
+func InstallSchema(schema Schema, apiAddr string) error {
+	if len(schema.Schema) == 0 {
 		return nil
 	}
 	resp, err := http.Post(apiAddr, "application/text", strings.NewReader(schema.Schema))

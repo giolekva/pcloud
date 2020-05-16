@@ -7,6 +7,7 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"log"
 	"net/http"
 	"os"
@@ -45,8 +46,9 @@ var helmUploadPage = `
 `
 
 type handler struct {
+	client   *kubernetes.Clientset
 	manager  *app.Manager
-	nsClient corev1.NamespaceInterface
+	launcher app.Launcher
 }
 
 func (hn *handler) handleInstall(w http.ResponseWriter, r *http.Request) {
@@ -113,9 +115,6 @@ func (hn *handler) handleTriggers(w http.ResponseWriter, r *http.Request) {
 	triggerOnEvent := r.Form["trigger_on_event"][0]
 	var triggers []trigger
 	for _, a := range hn.manager.Apps {
-		if a.Triggers == nil {
-			continue
-		}
 		for _, t := range a.Triggers.Triggers {
 			if t.TriggerOn.Type == triggerOnType && t.TriggerOn.Event == triggerOnEvent {
 				triggers = append(triggers, trigger{a.Namespace, t.Template})
@@ -133,6 +132,44 @@ func (hn *handler) handleTriggers(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+type actionReq struct {
+	App    string                 `json:"app"`
+	Action string                 `json:"action"`
+	Args   map[string]interface{} `json:"args"`
+}
+
+func (hn *handler) handleLaunchAction(w http.ResponseWriter, r *http.Request) {
+	actionStr, err := ioutil.ReadAll(r.Body)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	var req actionReq
+	if err := json.Unmarshal(actionStr, &req); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	for _, a := range hn.manager.Apps {
+		if a.Name != req.App {
+			continue
+		}
+		for _, action := range a.Actions.Actions {
+			if action.Name != req.Action {
+				continue
+			}
+			err := hn.launcher.Launch(a.Namespace, action.Template, req.Args)
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+			}
+			return
+		}
+	}
+	http.Error(
+		w,
+		fmt.Sprintf("Application action not found: %s %s", req.App, req.Action),
+		http.StatusBadRequest)
+}
+
 func (hn *handler) installHelmChart(path string) error {
 	h, err := app.HelmChartFromTar(path)
 	if err != nil {
@@ -143,7 +180,8 @@ func (hn *handler) installHelmChart(path string) error {
 	}
 	glog.Infof("Installed schema: %s", h.Schema)
 	namespace := fmt.Sprintf("app-%s", h.Name)
-	if err = createNamespace(hn.nsClient, namespace); err != nil {
+	err = createNamespace(hn.client.CoreV1().Namespaces(), namespace)
+	if err != nil {
 		return err
 	}
 	glog.Infof("Created namespaces: %s", namespace)
@@ -157,7 +195,7 @@ func (hn *handler) installHelmChart(path string) error {
 	} else {
 		glog.Info("Skipping deployment as we got library chart.")
 	}
-	hn.manager.Apps[h.Name] = app.App{namespace, h.Triggers}
+	hn.manager.Apps[h.Name] = app.App{h.Name, namespace, h.Triggers, h.Actions}
 	app.StoreManagerStateToFile(hn.manager, *managerStoreFile)
 	glog.Info("Installed")
 	return nil
@@ -191,13 +229,13 @@ func main() {
 	if err != nil {
 		glog.Fatalf("Could not create Kubernetes API client: %v", err)
 	}
-	namespaces := clientset.CoreV1().Namespaces()
 	manager, err := app.LoadManagerStateFromFile(*managerStoreFile)
 	if err != nil {
 		glog.Fatalf("Could ot initialize manager: %v", err)
 	}
-	h := handler{manager, namespaces}
+	h := handler{clientset, manager, app.NewK8sLauncher(clientset)}
 	http.HandleFunc("/triggers", h.handleTriggers)
+	http.HandleFunc("/launch_action", h.handleLaunchAction)
 	http.HandleFunc("/", h.handleInstall)
 	log.Fatal(http.ListenAndServe(fmt.Sprintf(":%d", *port), nil))
 

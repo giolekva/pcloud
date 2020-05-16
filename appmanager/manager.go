@@ -6,8 +6,10 @@ import (
 )
 
 type App struct {
+	Name      string
 	Namespace string
-	Triggers  *Triggers
+	Triggers  Triggers
+	Actions   Actions
 }
 
 // TODO(giolekva): add interface

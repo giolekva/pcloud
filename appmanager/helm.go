@@ -23,29 +23,31 @@ type Chart struct {
 type HelmChart struct {
 	Chart
 	chartDir string
-	Schema   *Schema
-	Triggers *Triggers
+	Schema   Schema
+	Triggers Triggers
+	Actions  Actions
 	Yamls    []string
 }
 
 func HelmChartFromDir(chartDir string) (*HelmChart, error) {
 	var chart HelmChart
 	chart.chartDir = chartDir
-	c, err := ReadChart(path.Join(chartDir, "Chart.yaml"))
+	err := FromYamlFile(path.Join(chartDir, "Chart.yaml"), &chart.Chart)
 	if err != nil {
 		return nil, err
 	}
-	chart.Chart = *c
-	schema, err := ReadSchema(path.Join(chartDir, "Schema.yaml"))
+	err = FromYamlFile(path.Join(chartDir, "Schema.yaml"), &chart.Schema)
 	if err != nil && !os.IsNotExist(err) {
 		return nil, err
 	}
-	chart.Schema = schema
-	triggers, err := ReadTriggers(path.Join(chartDir, "Triggers.yaml"))
+	err = FromYamlFile(path.Join(chartDir, "Triggers.yaml"), &chart.Triggers)
 	if err != nil && !os.IsNotExist(err) {
 		return nil, err
 	}
-	chart.Triggers = triggers
+	err = FromYamlFile(path.Join(chartDir, "Actions.yaml"), &chart.Actions)
+	if err != nil && !os.IsNotExist(err) {
+		return nil, err
+	}
 	return &chart, nil
 }
 
