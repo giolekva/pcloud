@@ -1,9 +1,9 @@
 #!/bin/bash
 
-set -e
+# set -e
 
-trap "exit" INT TERM ERR
-trap "kill 0" EXIT
+# trap "exit" INT TERM ERR
+# trap "kill 0" EXIT
 
 kubectl -n dgraph port-forward svc/dgraph-alpha 8080 &
 sleep 1
