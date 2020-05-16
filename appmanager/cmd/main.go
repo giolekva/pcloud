@@ -149,25 +149,24 @@ func (hn *handler) handleLaunchAction(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
+	if err := hn.launchAction(req); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+}
+
+func (hn *handler) launchAction(req actionReq) error {
 	for _, a := range hn.manager.Apps {
 		if a.Name != req.App {
 			continue
 		}
 		for _, action := range a.Actions.Actions {
-			if action.Name != req.Action {
-				continue
+			if action.Name == req.Action {
+				return hn.launcher.Launch(a.Namespace, action.Template, req.Args)
 			}
-			err := hn.launcher.Launch(a.Namespace, action.Template, req.Args)
-			if err != nil {
-				http.Error(w, err.Error(), http.StatusInternalServerError)
-			}
-			return
 		}
 	}
-	http.Error(
-		w,
-		fmt.Sprintf("Application action not found: %s %s", req.App, req.Action),
-		http.StatusBadRequest)
+	return fmt.Errorf("Action not found: %s %s", req.App, req.Action)
 }
 
 func (hn *handler) installHelmChart(path string) error {
@@ -197,6 +196,11 @@ func (hn *handler) installHelmChart(path string) error {
 	}
 	hn.manager.Apps[h.Name] = app.App{h.Name, namespace, h.Triggers, h.Actions}
 	app.StoreManagerStateToFile(hn.manager, *managerStoreFile)
+	for _, a := range h.Init.PostInstall.CallAction {
+		if err := hn.launchAction(actionReq{a.App, a.Action, a.Args}); err != nil {
+			return err
+		}
+	}
 	glog.Info("Installed")
 	return nil
 }

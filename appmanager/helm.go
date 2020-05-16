@@ -26,6 +26,7 @@ type HelmChart struct {
 	Schema   Schema
 	Triggers Triggers
 	Actions  Actions
+	Init     Init
 	Yamls    []string
 }
 
@@ -45,6 +46,10 @@ func HelmChartFromDir(chartDir string) (*HelmChart, error) {
 		return nil, err
 	}
 	err = FromYamlFile(path.Join(chartDir, "Actions.yaml"), &chart.Actions)
+	if err != nil && !os.IsNotExist(err) {
+		return nil, err
+	}
+	err = FromYamlFile(path.Join(chartDir, "Init.yaml"), &chart.Init)
 	if err != nil && !os.IsNotExist(err) {
 		return nil, err
 	}

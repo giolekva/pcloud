@@ -17,14 +17,17 @@ metadata:
   name: deploy-apps
 rules:
   - apiGroups: [""]
-    resources: ["namespaces", "services", "pods", "secrets"]
+    resources: ["namespaces", "services", "pods", "secrets", "serviceaccounts", "configmaps", "persistentvolumeclaims"]
     verbs: ["*"]
   - apiGroups: ["apps"]
     resources: ["deployments", "statefulsets"]
     verbs: ["*"]
   - apiGroups: ["traefik.containo.us"]
     resources: ["ingressroutes"]
-    verbs: ["*"] 
+    verbs: ["*"]
+  - apiGroups: ["rbac.authorization.k8s.io"]
+    resources: ["roles", "rolebindings"]
+    verbs: ["*"]
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
