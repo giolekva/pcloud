@@ -8,7 +8,7 @@ type TriggerOn struct {
 type Trigger struct {
 	Name      string    `yaml:"name"`
 	TriggerOn TriggerOn `yaml:"triggerOn"`
-	Template  string    `yaml:"template"`
+	Action    string    `yaml:"action"`
 }
 
 type Triggers struct {

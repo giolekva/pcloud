@@ -4,6 +4,7 @@ kind: Namespace
 metadata:
   name: pcloud-app-manager
 ---
+# TODO(giolekva): use default service account
 apiVersion: v1
 kind: ServiceAccount
 metadata:

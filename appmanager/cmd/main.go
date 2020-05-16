@@ -97,8 +97,8 @@ func (hn *handler) handleInstall(w http.ResponseWriter, r *http.Request) {
 }
 
 type trigger struct {
-	Namespace string `json:"namespace"`
-	Template  string `json:"template"`
+	App    string `json:"app"`
+	Action string `json:"action"`
 }
 
 func (hn *handler) handleTriggers(w http.ResponseWriter, r *http.Request) {
@@ -117,7 +117,7 @@ func (hn *handler) handleTriggers(w http.ResponseWriter, r *http.Request) {
 	for _, a := range hn.manager.Apps {
 		for _, t := range a.Triggers.Triggers {
 			if t.TriggerOn.Type == triggerOnType && t.TriggerOn.Event == triggerOnEvent {
-				triggers = append(triggers, trigger{a.Namespace, t.Template})
+				triggers = append(triggers, trigger{a.Name, t.Action})
 			}
 		}
 	}
@@ -233,6 +233,7 @@ func main() {
 	if err != nil {
 		glog.Fatalf("Could ot initialize manager: %v", err)
 	}
+	glog.Info(manager)
 	h := handler{clientset, manager, app.NewK8sLauncher(clientset)}
 	http.HandleFunc("/triggers", h.handleTriggers)
 	http.HandleFunc("/launch_action", h.handleLaunchAction)
