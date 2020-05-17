@@ -1,0 +1,55 @@
+---
+apiVersion: v1
+kind: Service 
+metadata:
+  name: {{ .Chart.Name }}
+  namespace: {{ .Release.Namespace }}
+spec:
+  type: ClusterIP
+  selector:
+    app: {{ .Chart.Name }}
+  ports:
+    - nodePort: 
+      port: {{ .Values.servicePort }}
+      targetPort: {{ .Values.containerPort }}
+---
+apiVersion: traefik.containo.us/v1alpha1
+kind: IngressRoute
+metadata:
+  name: ingress
+  namespace: {{ .Release.Namespace }}
+spec:
+  entryPoints:
+    - web
+  routes:
+  - kind: Rule
+    match: Host(`{{ .Values.ingressHost }}`)
+    services:
+    - kind: Service
+      name: {{ .Chart.Name }}
+      namespace: {{ .Release.Namespace }}
+      passHostHeader: true
+      port: {{ .Values.servicePort }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Chart.Name }}
+  namespace: {{ .Release.Namespace }}
+spec:
+  selector:
+    matchLabels:
+      app: {{ .Chart.Name }}
+  replicas: {{ .Values.replicas }}
+  template:
+    metadata:
+      labels:
+        app: {{ .Chart.Name }}
+    spec:
+      containers:
+      - name: {{ .Chart.Name }}
+        image: {{ .Values.image.name }}:{{ .Values.image.tag }}
+        imagePullPolicy: {{ .Values.image.pullPolicy }}
+        ports:
+        - containerPort: {{ .Values.containerPort }}
+        command: ["photos-ui", "--port={{ .Values.containerPort }}", "--pcloud_api_addr={{ .Values.pcloudApiAddr }}"]

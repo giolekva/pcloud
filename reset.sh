@@ -2,6 +2,7 @@
 
 kubectl delete namespace app-object-store
 kubectl delete namespace app-rpuppy
+kubectl delete namespace app-photos-ui
 kubectl delete namespace app-minio-importer
 kubectl delete namespace app-face-detection
 kubectl delete namespace pcloud-app-manager

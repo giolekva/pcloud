@@ -1,0 +1,9 @@
+replicas: 1
+image:
+  name: giolekva/photos-ui
+  tag: latest
+  pullPolicy: Always
+servicePort: 80
+containerPort: 1234
+ingressHost: photos-ui
+pcloudApiAddr: http://api.pcloud.svc:1111
