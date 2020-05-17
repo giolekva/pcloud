@@ -16,7 +16,6 @@ To prove viability of the project first milestone will be to build fully functio
 User must be able to configure all of these from previously paired mobile device.
 
 # Status
-
 Three core infrastructure services have been prototyped:
 * Knowledge Graph API: GraphQL based api with extensible schema
   * Provides CRUD operations
@@ -28,13 +27,14 @@ Three core infrastructure services have been prototyped:
     * Actions (optional): application can define any number of actions which can be invoked from other applications. Actions are parametrized.
     * Initialization action (optional): application can configure action, provided possibly by other application, to be run post installation.
     * Triggers (optional): applications can set up triggers on Knowledge Graph mutations. Triggers run actions.
+  * Applications are instulled into separate namespaces for isolation.
 * Event Processor: monitors changes in Knowledge Graph and triggers actions registered by applications installed using Application Manager.
   * It is basically a state machine moving events from NEW to IN_PROGRESS to DONE states.
 
-On top of this we are running four "third-party" applications:
+On top of this we are running five "third-party" applications:
 * Random Puppy:
   * Does not use any PCloud features
-  * Deployes web server with ingress
+  * Deploys web server with ingress
 * Object Store:
   * Provides AWS S3 compatible API
   * Exposes create-bucket-with-webhook action so other applications can create buckets and receive notifications when new objects are created.
@@ -46,3 +46,14 @@ On top of this we are running four "third-party" applications:
 * Face Detector:
   * Registers new Knowledge Graph node tupe ImageSegment and extends previously created Image type with their relation.
   * Registers trigger on new Image nodes with action running face detection algorithm, which upon completion creates ImageSegment node for each face and attaches them to source Image.
+* Photos UI:
+  * Web based photo gallery application consuming Image and ImageSegment nodes via Knowledge Graph API.
+
+Note that since Object Store is standalone application with it's own API, new third-party applications can be developed to import data from cloud providers, such as Google Drive, where users might currently be storing their personal data.
+
+# Next steps:
+* To further isolate applications from each other, namespaces they are created must be configured so they can communicate only with core PCloud services. PCloud API will take responisibility of forwarding action requests to applications.
+* Once previous step is implemented, PCloud API can enforce ACLs and make application to application communication transparent to the PCloud owner. Application during instalation will list actions, provided by other applications, it wants to use. And all of these can be reviewed and possibly rejected by the owner.
+* Make Knowledge Graph types namespaced. Right now applications add new types into global namespace which can cause conflicts. To avoid this Knowledge Graph API can build namespaces on top of Dgraph GraphQL schemas.
+* Support replaying events so applications can "react" to events created before installation. This way Face Detection app will be able to process images created before face detector was installed.
+* Make Tensorflow Facenet model work on Raspberry Pi.
