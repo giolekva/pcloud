@@ -1,5 +1,5 @@
 async function fetchAllPhotos() {
-    return await fetch("/graphql?query={queryImage(){id objectPath}}")
+    return await fetch("graphql?query={queryImage(){id objectPath}}")
 	.then(resp => resp.json())
 	.then(resp => resp.queryImage)
 	.catch(error => {
@@ -10,7 +10,7 @@ async function fetchAllPhotos() {
 }
 
 async function fetchImage(id) {
-    return await fetch("/graphql?query={getImage(id: \"" + id + "\"){id objectPath}}")
+    return await fetch("graphql?query={getImage(id: \"" + id + "\"){id objectPath}}")
 	.then(resp => resp.json())
 	.then(resp => resp.getImage)
 	.catch(error => {
@@ -21,7 +21,7 @@ async function fetchImage(id) {
 }
 
 async function fetchAllImageSegments(id) {
-    return await fetch("/graphql?query={getImage(id: \"" + id + "\"){segments { upperLeftX upperLeftY lowerRightX lowerRightY }}}")    
+    return await fetch("graphql?query={getImage(id: \"" + id + "\"){segments { upperLeftX upperLeftY lowerRightX lowerRightY }}}")    
 	.then(resp => resp.json())
 	.then(resp => resp.getImage.segments)
 	.catch(error => {

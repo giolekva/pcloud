@@ -11,7 +11,7 @@ import (
 )
 
 var port = flag.Int("port", 3000, "Port to listen on.")
-var pcloudApiServer = flag.String("pcloud_api_server", "", "PCloud API Server address.")
+var pcloudApiAddr = flag.String("pcloud_api_addr", "", "PCloud API Server address.")
 
 func handle_gallery(w http.ResponseWriter, r *http.Request) {
 	http.ServeFile(w, r, "./gallery.html")
@@ -42,8 +42,8 @@ func handle_photo(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func newGqlProxy(pcloudApiServer string) *httputil.ReverseProxy {
-	u, err := url.Parse(pcloudApiServer)
+func newGqlProxy(pcloudApiAddr string) *httputil.ReverseProxy {
+	u, err := url.Parse(pcloudApiAddr)
 	if err != nil {
 		panic(err)
 	}
@@ -54,7 +54,7 @@ func main() {
 	flag.Parse()
 	fs := http.FileServer(http.Dir("./static"))
 	http.Handle("/static/", http.StripPrefix("/static/", fs))
-	http.Handle("/graphql", newGqlProxy(*pcloudApiServer))
+	http.Handle("/graphql", newGqlProxy(*pcloudApiAddr))
 	http.HandleFunc("/photo", handle_photo)
 	http.HandleFunc("/", handle_gallery)
 	log.Fatal(http.ListenAndServe(fmt.Sprintf(":%d", *port), nil))
