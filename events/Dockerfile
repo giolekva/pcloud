@@ -4,7 +4,6 @@ RUN apk update && apk upgrade && \
     apk add --no-cache bash git openssh
 
 ENV GOOS linux
-ENV GOARCH $BUILDPLATFORM
 ENV CGO_ENABLED 0
 ENV GO111MODULE on
 
