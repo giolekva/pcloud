@@ -1,0 +1,130 @@
+---
+apiVersion: v1
+kind: Service 
+metadata:
+  name: pihole
+  namespace: pihole
+spec:
+  type: ClusterIP
+  selector:
+    app: pihole
+  ports:
+    - name: http
+      port: 80
+      targetPort: 80
+      protocol: TCP
+    - name: https
+      port: 443
+      targetPort: 443
+      protocol: TCP
+---
+apiVersion: v1
+kind: Service 
+metadata:
+  name: pihole-tpc
+  namespace: pihole
+spec:
+  type: LoadBalancer
+  selector:
+    app: pihole
+  ports:
+    - name: dnstcp
+      port: 53
+      targetPort: 53
+      protocol: TCP
+---
+apiVersion: v1
+kind: Service 
+metadata:
+  name: pihole-udp
+  namespace: pihole
+spec:
+  type: LoadBalancer
+  selector:
+    app: pihole
+  ports:
+    - name: dnsudp
+      port: 53
+      targetPort: 53
+      protocol: UDP
+    - name: dhcp
+      port: 67
+      targetPort: 67
+      protocol: UDP
+---
+apiVersion: traefik.containo.us/v1alpha1
+kind: IngressRoute
+metadata:
+  name: ingress
+  namespace: pihole
+spec:
+  entryPoints:
+    - web
+  routes:
+  - kind: Rule
+    match: Host(`pihole`)
+    services:
+    - kind: Service
+      name: pihole
+      namespace: pihole
+      passHostHeader: true
+      port: 80
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: pihole
+  namespace: pihole
+spec:
+  selector:
+    matchLabels:
+      app: pihole
+  serviceName: pihole
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: pihole
+    spec:
+      containers:
+      - name: pihole
+        image: pihole/pihole:latest
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 53
+        - containerPort: 67
+        - containerPort: 80
+        - containerPort: 443
+        volumeMounts:
+        - name: pihole
+          mountPath: /etc/pihole/
+        - name: dnsmasq
+          mountPath: /etc/dnsmasq.d/
+        env:
+        - name: WEBPASSWORD
+          value: "1234"
+        - name: VIRTUAL_HOST
+          value: pihole
+        - name: TZ
+          value: "Asia/Tbilisi"
+        # Needed for DHCP  
+        # securityContext:
+        #   capabilities:
+        #     add: ["NET_ADMIN"]
+  volumeClaimTemplates:
+  - metadata:
+      name: pihole
+    spec:
+      accessModes: [ "ReadWriteOnce" ]
+      storageClassName: "local-path"
+      resources:
+        requests:
+          storage: 100Mi
+  - metadata:
+      name: dnsmasq
+    spec:
+      accessModes: [ "ReadWriteOnce" ]
+      storageClassName: "local-path"
+      resources:
+        requests:
+          storage: 100Mi
