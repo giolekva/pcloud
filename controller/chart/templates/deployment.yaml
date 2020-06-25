@@ -1,0 +1,22 @@
+kind: Deployment
+apiVersion: apps/v1
+metadata:
+  name: api
+  namespace: {{ .Release.Namespace }}
+spec:
+  selector:
+    matchLabels:
+      app: api
+  replicas: {{ .Values.replicas }}
+  template:
+    metadata:
+      labels:
+        app: api
+    spec:
+      containers:
+      - name: api
+        image: {{ .Values.image.name }}:{{ .Values.image.tag }}
+        imagePullPolicy: {{ .Values.image.pullPolicy }}
+        ports:
+        - containerPort: {{ .Values.containerPort }}
+        command: ["pcloud-api-server", "--logtostderr", "--port={{ .Values.containerPort }}", "--graphql_address=http://dgraph-alpha.dgraph.svc:8080/graphql", "--dgraph_admin_address=http://dgraph-alpha.dgraph.svc:8080/admin"]

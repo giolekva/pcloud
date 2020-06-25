@@ -1,0 +1,7 @@
+replicas: 1
+image:
+  name: giolekva/pcloud-api-server
+  tag: latest
+  pullPolicy: Always
+servicePort: 1111
+containerPort: 1234

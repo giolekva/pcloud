@@ -1,0 +1,10 @@
+apiVersion: v2
+name: pcloud-api
+version: 0.0.1
+description: PCloud API
+type: application
+sources:
+  - https://github.com/giolekva/pcloud/tree/master/controller
+mainteners:
+  - name: Giorgi Lekveishvili
+    url: https://github.com/giolekva
