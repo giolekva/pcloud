@@ -9,4 +9,4 @@ containerPort: 1234
 ingressPathPrefix: /app-manager
 storage:
   size: 10Mi
-  className: ""
+  className: "" # local-path
