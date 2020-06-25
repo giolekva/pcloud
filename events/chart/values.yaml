@@ -1,0 +1,5 @@
+replicas: 1
+image:
+  name: giolekva/pcloud-event-processor
+  tag: latest
+  pullPolicy: Always

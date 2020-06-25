@@ -1,0 +1,10 @@
+apiVersion: v2
+name: pcloud-event-processor
+version: 0.0.1
+description: PCloud Event Processor
+type: application
+sources:
+  - https://github.com/giolekva/pcloud/tree/master/events
+mainteners:
+  - name: Giorgi Lekveishvili
+    url: https://github.com/giolekva
