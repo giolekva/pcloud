@@ -1,0 +1,13 @@
+kind: Service 
+apiVersion: v1
+metadata:
+  name: {{ .Values.serviceName }}
+  namespace: {{ .Release.Namespace }}
+spec:
+  type: ClusterIP
+  selector:
+    app: app-manager
+  ports:
+    - nodePort: 
+      port: {{ .Values.servicePort }}
+      targetPort: {{ .Values.containerPort }}

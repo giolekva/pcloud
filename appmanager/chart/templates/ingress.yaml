@@ -1,0 +1,17 @@
+apiVersion: traefik.containo.us/v1alpha1
+kind: IngressRoute
+metadata:
+  name: app-manager-ingress
+  namespace: {{ .Release.Namespace }}
+spec:
+  entryPoints:
+    - web
+  routes:
+  - kind: Rule
+    match: PathPrefix(`{{ .Values.ingressPathPrefix }}`)
+    services:
+    - kind: Service
+      name: {{ .Values.serviceName }}
+      namespace: {{ .Release.Namespace }}
+      passHostHeader: true
+      port: {{ .Values.servicePort }}

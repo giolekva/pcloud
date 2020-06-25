@@ -1,0 +1,10 @@
+apiVersion: v2
+name: pcloud-app-manager
+version: 0.0.1
+description: PCloud Application Manager
+type: application
+sources:
+  - https://github.com/giolekva/pcloud/tree/master/appmanager
+mainteners:
+  - name: Giorgi Lekveishvili
+    url: https://github.com/giolekva

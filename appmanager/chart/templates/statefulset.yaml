@@ -1,0 +1,36 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: app-manager
+  namespace: {{ .Release.Namespace }}
+spec:
+  selector:
+    matchLabels:
+      app: app-manager
+  serviceName: {{ .Values.serviceName }}
+  replicas: {{ .Values.replicas }}
+  template:
+    metadata:
+      labels:
+        app: app-manager
+    spec:
+      serviceAccountName: default
+      containers:
+      - name: app-manager
+        image: {{ .Values.image.name }}:{{ .Values.image.tag }}
+        imagePullPolicy: {{ .Values.image.pullPolicy }}
+        volumeMounts:
+        - name: state
+          mountPath: /pcloud/app-manager
+        ports:
+        - containerPort: {{ .Values.containerPort }}
+        command: ["app-manager", "--logtostderr", "--port={{ .Values.containerPort }}", "--api_addr=http://api.pcloud.svc:1111/add_schema", "--helm_bin=/usr/bin/helm", "--manager_store_file=/pcloud/app-manager/manager-state"]
+  volumeClaimTemplates:
+  - metadata:
+      name: state
+    spec:
+      accessModes: [ "ReadWriteOnce" ]
+      storageClassName: {{ .Values.storage.className }}
+      resources:
+        requests:
+          storage: {{ .Values.storage.size }}

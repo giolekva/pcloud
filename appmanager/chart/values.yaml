@@ -1,0 +1,12 @@
+serviceName: app-manager
+replicas: 1
+image:
+  name: giolekva/pcloud-app-manager
+  tag: latest
+  pullPolicy: Always
+servicePort: 80
+containerPort: 1234
+ingressPathPrefix: /app-manager
+storage:
+  size: 10Mi
+  className: ""
