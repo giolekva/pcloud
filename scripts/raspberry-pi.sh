@@ -22,6 +22,8 @@ sudo shutdown -r now
 ## install k3s without traefik
 # pcloud@rpi
 curl -sfL https://get.k3s.io | INSTALL_K3S_EXEC="server --no-deploy traefik" K3S_KUBECONFIG_MODE="644" sh
+# worker
+curl -sfL https://get.k3s.io | K3S_URL=https://192.168.0.111:6443 K3S_TOKEN=K10ad9f018be91d743f3142246e848def8859145f8f86e08ac761938ec37b1d876e::server:e5adcf3075ce25c6d42729c7823a0d5a sh -
 ## copy kubeconfig on host
 # pcloud@rpi
 sudo chown pcloud /etc/rancher/k3s/k3s.yaml
