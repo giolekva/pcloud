@@ -1,6 +1,6 @@
 ROOT="$(dirname -- $(pwd))"
 
-minikube start
+minikube start --driver=docker
 
 # Traefik
 helm repo add traefik https://containous.github.io/traefik-helm-chart
