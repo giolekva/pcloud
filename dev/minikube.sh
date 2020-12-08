@@ -14,24 +14,24 @@ eval $(minikube docker-env)
 
 # Knowledge Graph
 cd "$ROOT/controller"
-docker build --tag=pcloud-api-server .
+docker build --tag=giolekva/pcloud-api-server .
 kubectl create namespace pcloud
 helm --namespace=pcloud install init chart \
-     --set image.name=pcloud-api-server \
+     --set image.name=giolekva/pcloud-api-server \
      --set image.pullPolicy=Never
 
 # Application Manager
 cd "$ROOT/appmanager"
-docker build --tag=pcloud-app-manager .
+docker build --tag=giolekva/pcloud-app-manager .
 kubectl create namespace pcloud-app-manager
 helm --namespace=pcloud-app-manager install init chart \
-     --set image.name=pcloud-app-manager \
+     --set image.name=giolekva/pcloud-app-manager \
      --set image.pullPolicy=Never
 
 # Event Processor
 cd "$ROOT/events"
-docker build --tag=pcloud-event-processor .
+docker build --tag=giolekva/pcloud-event-processor .
 kubectl create namespace pcloud-event-processor
 helm --namespace=pcloud-event-processor install init chart \
-     --set image.name=pcloud-event-processor \
+     --set image.name=giolekva/pcloud-event-processor \
      --set image.pullPolicy=Never
