@@ -5,7 +5,8 @@ ROOT="$(dirname -- $(pwd))"
 k3d cluster create pcloud-dev \
     --servers=1 \
     --k3s-server-arg="--disable=traefik" \
-    --port="8080:80@loadbalancer"
+    --port="8080:80@loadbalancer" \
+    --port="30500:30500@server[0]"
 k3d kubeconfig merge pcloud-dev --switch-context
 
 # Traefik
@@ -17,11 +18,7 @@ helm --namespace=traefik install traefik traefik/traefik \
      --set ports.traefik.expose=True
 
 # Container Registry
+## You ca build and push images from host machine to lcoal dev environment using:
+##  docker build --tag=localhost:30500/foo/bar:latest .
+##  docker push pcloud-localhost:30500/foo/bar:latest
 kubectl apply -f $ROOT/apps/container-registry/install.yaml
-## Right now ingress on container registry does not work for some reason.
-## Use kubectl port-forward bellow to expose registry on localhost.
-##  kubectl port-forward service/registry -n container-registry 8090:5000
-## And add "127.0.0.1 pcloud-dev-container-registry" to /etc/hosts
-## After that one can:
-##  docker build --tag=pcloud-dev-container-registry:8090/foo/bar:latest .
-##  docker push pcloud-dev-container-registry:8090/foo/bar:latest

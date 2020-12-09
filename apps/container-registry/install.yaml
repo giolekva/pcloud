@@ -10,12 +10,15 @@ metadata:
   name: registry
   namespace: container-registry
 spec:
-  type: ClusterIP
+  # NOTE(lekva): We use NodePort type service here so container registry accessible
+  # from every node in the cluster without any extra whitelisting.
+  # It is easy to expose such services on host muchine from local dev environment.
+  type: NodePort
   selector:
     app: registry
   ports:
-    - nodePort: 
-      port: 5000
+    - port: 5000
+      nodePort: 30500
       targetPort: 5000
 ---
 apiVersion: networking.k8s.io/v1
