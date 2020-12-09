@@ -1,4 +1,8 @@
+#!/bin/sh
+
 ROOT="$(dirname -- $(pwd))"
+
+sh $ROOT/apps/dgraph/install.sh
 
 # Knowledge Graph
 cd "$ROOT/controller"
