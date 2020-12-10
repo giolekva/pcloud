@@ -50,6 +50,17 @@ load(
 
 _go_image_repos()
 
+## Containier Base Images
+
+load("@io_bazel_rules_docker//container:container.bzl", "container_pull")
+
+container_pull(
+    name = "alpine_base",
+    registry = "docker.io",
+    repository = "alpine",
+    digest = "sha256:4e01ddea8def856ba9fee17668fa0b2e45a8bc78127b7ab6cf921f6d6fd86ac9",
+)
+
 ## External Dependencies
 
 go_repository(
