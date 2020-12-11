@@ -42,11 +42,12 @@ spec:
               number: 5000
 ---
 apiVersion: apps/v1
-kind: Deployment
+kind: StatefulSet
 metadata:
   name: registry
   namespace: container-registry
 spec:
+  serviceName: registry
   selector:
     matchLabels:
       app: registry
@@ -60,6 +61,9 @@ spec:
       - name: registry
         image: registry:2
         imagePullPolicy: IfNotPresent
+        volumeMounts:
+        - name: registry-dir
+          mountPath: /var/lib/registry
         env:
         # - name: REGISTRY_REDIRECT_DISABLE
         #   value: "true"
@@ -75,3 +79,18 @@ spec:
           value: 0.0.0.0:5000
         ports:
         - containerPort: 5000
+      volumes:
+      - name: registry-dir
+        persistentVolumeClaim:
+          claimName: registry-dir
+  volumeClaimTemplates:
+  - metadata:
+      name: registry-dir
+      annotations:
+        volume.alpha.kubernetes.io/storage-class: local-path
+    spec:
+      accessModes:
+        - "ReadWriteOnce"
+      resources:
+        requests:
+          storage: 1Gi
