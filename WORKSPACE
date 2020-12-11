@@ -88,3 +88,9 @@ go_repository(
     importpath = "github.com/open-policy-agent/opa",
     tag = "v0.25.1",
 )
+
+go_repository(
+    name = "com_github_golang_glog",
+    importpath = "github.com/golang/glog",
+    commit = "23def4e6c14b4da8ac2ed8007337bc5eb5007998",
+)
