@@ -1,6 +1,6 @@
 replicas: 1
 image:
-  name: giolekva/minio-importer
+  name: localhost:30500/giolekva/minio-importer
   tag: latest
   pullPolicy: Always
 servicePort: 80
