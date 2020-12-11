@@ -35,7 +35,7 @@ async function initGallery(gallery_elem_id) {
     imgs = await fetchAllPhotos();
     img_list = "<ul>";
     for (img of imgs) {
-	img_list += "<li><a href='/photo?id=" + img.id + "'><img style='max-width: 300px' src='http://minio/" + img.objectPath + "' /></a></li>";
+	img_list += "<li><a href='/photo?id=" + img.id + "'><img style='max-width: 300px' src='http://minio:8080/" + img.objectPath + "' /></a></li>";
     }
     img_list += "</ul>";
     document.getElementById(gallery_elem_id).innerHTML = img_list;
@@ -43,7 +43,7 @@ async function initGallery(gallery_elem_id) {
 
 async function initImg(img_elem_id, id) {
     img = await fetchImage(id);
-    document.getElementById(img_elem_id).setAttribute("src", "http://minio/" + img.objectPath);
+    document.getElementById(img_elem_id).setAttribute("src", "http://minio:8080/" + img.objectPath);
 }
 
 async function drawFaces(photo_elem_id, faces_canvas_elem_id, id){

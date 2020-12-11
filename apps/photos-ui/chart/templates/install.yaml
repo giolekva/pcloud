@@ -52,4 +52,4 @@ spec:
         imagePullPolicy: {{ .Values.image.pullPolicy }}
         ports:
         - containerPort: {{ .Values.containerPort }}
-        command: ["photos-ui", "--port={{ .Values.containerPort }}", "--pcloud_api_addr={{ .Values.pcloudApiAddr }}"]
+        command: ["/photos_ui", "--port={{ .Values.containerPort }}", "--pcloud_api_addr={{ .Values.pcloudApiAddr }}"]
