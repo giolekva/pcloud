@@ -23,7 +23,7 @@ container_push(
    image = ":container",
    format = "Docker",
    registry = "localhost:30500",
-   repository = "giolekva/rpuppy-arm",
+   repository = "giolekva/rpuppy",
    tag = "latest",
 )
 
