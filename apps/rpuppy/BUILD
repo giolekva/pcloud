@@ -31,6 +31,5 @@ pkg_tar(
 	name = "chart",
 	srcs = glob(["chart/**"]),
 	extension = "tar.gz",
-	strip_prefix = "chart",
-	package_dir = "rpuppy",
+	strip_prefix = "./chart",
 )

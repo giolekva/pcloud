@@ -40,6 +40,5 @@ pkg_tar(
 	name = "chart",
 	srcs = glob(["chart/**"]),
 	extension = "tar.gz",
-	strip_prefix = "chart",
-	package_dir = "minio-importer",
+	strip_prefix = "./chart",
 )
