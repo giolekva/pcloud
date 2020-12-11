@@ -10,7 +10,7 @@ actions:
     spec:
       containers:
       - name: create-bucket-with-webhook
-        image: giolekva/minio-mc-arm64:latest
+        image: {{ .Values.minio_mc.image.repository }}:{{ .Values.minio_mc.image.tag }}
         imagePullPolicy: Always
         env:
         - name: MINIO_ADDR

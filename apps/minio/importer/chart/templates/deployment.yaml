@@ -19,5 +19,5 @@ spec:
         imagePullPolicy: {{ .Values.image.pullPolicy }}
         ports:
         - containerPort: {{ .Values.containerPort }}
-        command: ["minio-importer"]
+        command: ["/importer"]
         args: ["--logtostderr", "--port={{ .Values.containerPort }}", "--api_addr={{ .Values.pcloudApiAddress }}"]

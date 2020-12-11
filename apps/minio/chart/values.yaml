@@ -5,8 +5,13 @@ minio:
   existingSecret: minio-creds
   fullnameOverride: minio
   image:
-    repository: giolekva/minio-arm
+    repository: minio/minio
     tag: latest
     pullPolicy: Always
   persistence:
     size: 1Gi
+minio_mc:
+  image:
+    repository: minio/mc
+    tag: latest
+    pullPolicy: Always
