@@ -26,7 +26,7 @@ def format_img_segment(id, box):
 
 def upload_face_segments(gql_endpoint, id, faces):
     segments = [format_img_segment(id, f) for f in faces]
-    data = {"query": "mutation {{ addImageSegment(input: [{segments}]) {{ imagesegment {{ id }} }} }}".format(
+    data = {"query": "mutation {{ addImageSegment(input: [{segments}]) {{ imageSegment {{ id }} }} }}".format(
         segments=", ".join(segments))}
     # encoded_data = urllib.parse.urlencode(data).encode('UTF-8')
     req = urllib.request.Request(gql_endpoint, method="POST")

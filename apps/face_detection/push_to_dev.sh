@@ -24,8 +24,11 @@ fi
 # --- end runfiles.bash initialization ---
 
 DOCKERFILE="$(rlocation __main__/apps/face_detection/Dockerfile)"
+IMAGE="localhost:30500/giolekva/face-detector"
 
 docker build \
-       --tag=localhost:30500/giolekva/face-detector \
+       --tag=$IMAGE \
        --file=$DOCKERFILE \
        "$(dirname "$DOCKERFILE")"
+
+docker push $IMAGE

@@ -10,6 +10,6 @@ actions:
       - name: detect-faces
         image: {{ .Values.image.name }}:{{ .Values.image.tag }}
         imagePullPolicy: Always
-        command: ["/face_detector"]
+        command: ["python3", "main.py"]
         args: [{-{ .PCloudApiAddr }-}, {-{ .ObjectStoreAddr }-}, {-{ .Id }-}]
       restartPolicy: Never
