@@ -8,8 +8,8 @@ actions:
     spec:
       containers:
       - name: detect-faces
-        image: giolekva/face-detector:latest
+        image: {{ .Values.image.name }}:{{ .Values.image.tag }}
         imagePullPolicy: Always
-        command: ["python3", "main.py"]
+        command: ["/face_detector"]
         args: [{-{ .PCloudApiAddr }-}, {-{ .ObjectStoreAddr }-}, {-{ .Id }-}]
       restartPolicy: Never

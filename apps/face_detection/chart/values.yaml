@@ -1,8 +1,4 @@
-replicas: 1
 image:
-  name: giolekva/minio-importer
+  name: localhost:30500/giolekva/face-detector
   tag: latest
   pullPolicy: Always
-servicePort: 80
-containerPort: 1234
-pcloudApiAddress: http://api.pcloud.svc:1111/graphql
