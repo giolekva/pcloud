@@ -1,8 +1,0 @@
-replicas: 1
-image:
-  name: giolekva/minio-importer
-  tag: latest
-  pullPolicy: Always
-servicePort: 80
-containerPort: 1234
-pcloudApiAddress: http://api.pcloud.svc:1111/graphql

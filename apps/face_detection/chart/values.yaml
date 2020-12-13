@@ -1,0 +1,4 @@
+image:
+  name: localhost:30500/giolekva/face-detector
+  tag: latest
+  pullPolicy: Always
