@@ -12,3 +12,10 @@ docker_image(
 	     "haarcascade_frontalface_default.xml",
 	],
 )
+
+pkg_tar(
+	name = "chart",
+	srcs = glob(["chart/**"]),
+	extension = "tar.gz",
+	strip_prefix = "./chart",
+)
