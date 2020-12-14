@@ -15,4 +15,5 @@ RUN DEBIAN_FRONTEND=noninteractive apt-get -y install \
     python3-opencv
 
 WORKDIR /app
-COPY . /app
+COPY *.py /app/
+COPY *.xml /app/
