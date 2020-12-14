@@ -5,17 +5,8 @@ load("//:bazel_tools/docker.bzl", "docker_image")
 docker_image(
 	name = "push_to_dev",
 	registry = "localhost:30500",
-	image = "giolekva/face-detector",
+	image = "giolekva/pcloud-api-server",
 	tag = "latest",
 	dockerfile = "Dockerfile",
-	srcs = glob(["*.py"]) + [
-	     "haarcascade_frontalface_default.xml",
-	],
-)
-
-pkg_tar(
-	name = "chart",
-	srcs = glob(["chart/**"]),
-	extension = "tar.gz",
-	strip_prefix = "./chart",
+	srcs = glob(["**"], exclude=["Dockerfile"]),
 )
