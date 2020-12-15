@@ -1,4 +1,5 @@
 load("//:bazel_tools/docker.bzl", "docker_image")
+load("@rules_pkg//:pkg.bzl", "pkg_tar")
 
 # TODO(lekva): figure out how to build py_binary with pip dependencies and
 # migrate off docker_image rule
