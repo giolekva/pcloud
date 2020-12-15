@@ -1,8 +1,7 @@
 #!/bin/sh
 
-kubectl create namespace dgraph
 helm repo add dgraph https://charts.dgraph.io
-helm --namespace=dgraph install init dgraph/dgraph \
+helm --namespace=dgraph install --create-namespace init dgraph/dgraph \
      --set fullnameOverride=dgraph \
      --set image.repository=dgraph/dgraph \
      --set image.tag=latest \
@@ -16,6 +15,7 @@ helm --namespace=dgraph install init dgraph/dgraph \
      --set alpha.configFile."config\.yaml"="whitelist: '0.0.0.0:255.255.255.255'"
 
 echo "Waiting for dgraph-alpha to start"
-kubectl -n dgraph wait --for=condition=Ready pod/dgraph-alpha-0
+sleep 2
+kubectl -n dgraph wait --timeout=-1s --for=condition=Ready pod/dgraph-alpha-0
 echo "Waiting for dgraph-zero to start"
-kubectl -n dgraph wait --for=condition=Ready pod/dgraph-zero-0
+kubectl -n dgraph wait --timeout=-1s --for=condition=Ready pod/dgraph-zero-0
