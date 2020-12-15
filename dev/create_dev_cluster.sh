@@ -22,3 +22,6 @@ helm --namespace=traefik install traefik traefik/traefik \
 ##  docker build --tag=localhost:30500/foo/bar:latest .
 ##  docker push pcloud-localhost:30500/foo/bar:latest
 kubectl apply -f $ROOT/apps/container-registry/install.yaml
+echo "Waiting for Container Registry to start"
+sleep 2
+kubectl -n container-registry wait --timeout=-1s --for=condition=Ready pod/registry-0
