@@ -10,8 +10,8 @@ bazel run //core/appmanager:push_to_dev
 bazel run //core/appmanager:install
 
 # Event Processor
-bazel run //events:push_to_dev
-bazel run //events:install
+bazel run //core/events:push_to_dev
+bazel run //core/events:install
 
 # Knowledge Graph
 bazel run //controller:push_to_dev

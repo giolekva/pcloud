@@ -7,9 +7,9 @@ ENV GOOS linux
 ENV CGO_ENABLED 0
 ENV GO111MODULE on
 
-RUN mkdir -p $GOPATH/src/github.com/giolekva/pcloud/events
-COPY . $GOPATH/src/github.com/giolekva/pcloud/events
-WORKDIR $GOPATH/src/github.com/giolekva/pcloud/events/cmd
+RUN mkdir -p $GOPATH/src/github.com/giolekva/pcloud/core/events
+COPY . $GOPATH/src/github.com/giolekva/pcloud/core/events
+WORKDIR $GOPATH/src/github.com/giolekva/pcloud/core/events/cmd
 RUN go get ./...
 
 RUN mkdir -p /app/build

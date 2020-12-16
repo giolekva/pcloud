@@ -7,7 +7,7 @@ import (
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 
-	"github.com/giolekva/pcloud/events"
+	"github.com/giolekva/pcloud/core/events"
 
 	"github.com/golang/glog"
 )
