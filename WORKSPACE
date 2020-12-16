@@ -3,15 +3,18 @@ load("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
 ## Packaging
 
 load("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
+
 http_archive(
     name = "rules_pkg",
+    sha256 = "6b5969a7acd7b60c02f816773b06fcf32fbe8ba0c7919ccdc2df4f8fb923804a",
     urls = [
         "https://mirror.bazel.build/github.com/bazelbuild/rules_pkg/releases/download/0.3.0/rules_pkg-0.3.0.tar.gz",
         "https://github.com/bazelbuild/rules_pkg/releases/download/0.3.0/rules_pkg-0.3.0.tar.gz",
     ],
-    sha256 = "6b5969a7acd7b60c02f816773b06fcf32fbe8ba0c7919ccdc2df4f8fb923804a",
 )
+
 load("@rules_pkg//:deps.bzl", "rules_pkg_dependencies")
+
 rules_pkg_dependencies()
 
 ## Golang
@@ -38,7 +41,9 @@ load("@io_bazel_rules_go//go:deps.bzl", "go_register_toolchains", "go_rules_depe
 load("@bazel_gazelle//:deps.bzl", "gazelle_dependencies", "go_repository")
 
 go_rules_dependencies()
+
 go_register_toolchains(version = "1.15.5")
+
 gazelle_dependencies()
 
 ## Docker
@@ -64,23 +69,41 @@ load(
 
 _go_image_repos()
 
+## Buildifier
+
+http_archive(
+    name = "com_google_protobuf",
+    strip_prefix = "protobuf-master",
+    urls = ["https://github.com/protocolbuffers/protobuf/archive/master.zip"],
+)
+
+load("@com_google_protobuf//:protobuf_deps.bzl", "protobuf_deps")
+
+protobuf_deps()
+
+http_archive(
+    name = "com_github_bazelbuild_buildtools",
+    strip_prefix = "buildtools-master",
+    url = "https://github.com/bazelbuild/buildtools/archive/master.zip",
+)
+
 ## Containier Base Images
 
 load("@io_bazel_rules_docker//container:container.bzl", "container_pull")
 
 container_pull(
     name = "alpine_base",
+    digest = "sha256:4e01ddea8def856ba9fee17668fa0b2e45a8bc78127b7ab6cf921f6d6fd86ac9",
     registry = "docker.io",
     repository = "alpine",
-    digest = "sha256:4e01ddea8def856ba9fee17668fa0b2e45a8bc78127b7ab6cf921f6d6fd86ac9",
 )
 
 ## External Dependencies
 
 go_repository(
     name = "com_github_itaysk_regogo",
-    importpath = "github.com/itaysk/regogo",
     commit = "e9433c1fe5a7c871ce62509fd6376ee114de677a",
+    importpath = "github.com/itaysk/regogo",
 )
 
 go_repository(
@@ -91,6 +114,6 @@ go_repository(
 
 go_repository(
     name = "com_github_golang_glog",
-    importpath = "github.com/golang/glog",
     commit = "23def4e6c14b4da8ac2ed8007337bc5eb5007998",
+    importpath = "github.com/golang/glog",
 )

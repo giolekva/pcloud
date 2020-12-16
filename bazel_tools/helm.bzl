@@ -35,43 +35,46 @@ def helm_install(name, namespace, release_name, chart, args):
     for arg, value in args.items():
         args_str += "--set %s=%s " % (arg, value)
     native.genrule(
-	name = "%s.sh" % name,
-	executable = False,
-	srcs = [chart,],
-	outs = ["helm_install.sh",],
-	cmd = """cat > $@ <<EOM
+        name = "%s.sh" % name,
+        executable = False,
+        srcs = [chart],
+        outs = ["helm_install.sh"],
+        cmd = """cat > $@ <<EOM
 %s
 EOM
 """ % __HELM_INSTALL_TMPL.format(
-		namespace = namespace,
-		release_name = release_name,
-		package = native.package_name(),
-		chart = "%s.tar.gz" % chart.split(":")[1],
-		args = args_str,
-    ))
+            namespace = namespace,
+            release_name = release_name,
+            package = native.package_name(),
+            chart = "%s.tar.gz" % chart.split(":")[1],
+            args = args_str,
+        ),
+    )
     native.sh_binary(
-	name = name,
-	srcs = ["helm_install.sh",],
-	data = [
-	     chart,
-	],
-	deps = [
-	     "@bazel_tools//tools/bash/runfiles",
-    ])
+        name = name,
+        srcs = ["helm_install.sh"],
+        data = [
+            chart,
+        ],
+        deps = [
+            "@bazel_tools//tools/bash/runfiles",
+        ],
+    )
 
 def helm_uninstall(name, namespace, release_name):
     native.genrule(
-	name = "%s.sh" % name,
-	executable = False,
-	outs = ["helm_uninstall.sh",],
-	cmd = """cat > $@ <<EOM
+        name = "%s.sh" % name,
+        executable = False,
+        outs = ["helm_uninstall.sh"],
+        cmd = """cat > $@ <<EOM
 %s
 EOM
 """ % __HELM_UNINSTALL_TMPL.format(
-		namespace = namespace,
-		release_name = release_name,
-    ))
+            namespace = namespace,
+            release_name = release_name,
+        ),
+    )
     native.sh_binary(
-	name = name,
-	srcs = ["helm_uninstall.sh",]
+        name = name,
+        srcs = ["helm_uninstall.sh"],
     )

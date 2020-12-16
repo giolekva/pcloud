@@ -32,24 +32,25 @@ docker build \
 docker push \$$IMAGE
 """
 
-
 def docker_image(name, registry, image, tag, dockerfile, srcs, **kwargs):
     native.genrule(
-	name = "%s.sh" % name,
-	executable = False,
-	outs = ["build_and_push.sh",],
-	cmd = """cat > $@ <<EOM
+        name = "%s.sh" % name,
+        executable = False,
+        outs = ["build_and_push.sh"],
+        cmd = """cat > $@ <<EOM
 %s
 EOM
 """ % __PUSH_TO_DEV_TMPL.format(
-	    registry = registry,
-	    image = image,
-	    tag = tag,
-	    dockerfile = dockerfile,
-	    package = native.package_name(),
-	))
+            registry = registry,
+            image = image,
+            tag = tag,
+            dockerfile = dockerfile,
+            package = native.package_name(),
+        ),
+    )
     native.sh_binary(
-	name = name,
-	srcs = ["build_and_push.sh",],
-	data = srcs + [dockerfile,],
-	deps = ["@bazel_tools//tools/bash/runfiles",])
+        name = name,
+        srcs = ["build_and_push.sh"],
+        data = srcs + [dockerfile],
+        deps = ["@bazel_tools//tools/bash/runfiles"],
+    )
