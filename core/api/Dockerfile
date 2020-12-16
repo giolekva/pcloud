@@ -9,7 +9,7 @@ RUN apk update && apk upgrade && \
 # RUN rm protoc-3.11.4-linux-x86_64.zip
 # ENV PATH=/protoc/bin:$PATH
 
-WORKDIR $GOPATH/src/github.com/giolekva/pcloud/controller
+WORKDIR $GOPATH/src/github.com/giolekva/pcloud/core/api
 COPY . .
 # RUN go get -v ./...
 

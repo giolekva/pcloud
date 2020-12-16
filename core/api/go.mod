@@ -1,4 +1,4 @@
-module github.com/giolekva/pcloud/controller
+module github.com/giolekva/pcloud/core/api
 
 go 1.14
 
