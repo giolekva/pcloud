@@ -13,21 +13,29 @@ Each of these tools provide multiple ways of installing them, choose the one whi
 
 ## Installing PCloud
 PCloud installation is two step process:
+```shell
 > ./dev/create_dev_cluster.sh  # creates local Kubernetes cluster
 > ./dev/install_core_services.sh  # installs PCloud core services
+```
 
 ## Installing applications
 Under apps/ directory one can find number of sample application for PCloud. Installing any of those requires building container image, creating Helm Chart tarball and uploading it to Application Manager.
 Let's see what that looks like for rpuppy application:
+```shell
 > bazel run //apps/rpuppy:push_to_dev  # builds and pushes container image to localhost:30500 container registry, which is running inside PCloud cluster
 > bazel build //apps/rpuppy:chart  # creates Helm Chart tartball which can be found at bazel-bin/apps/rpuppy/chart.tar.gz
+```
 
 ## Redeploying core services
 To redeploy one of the core services after making changes in it you have to rebuild container images and restart the running service. Let's see what that looks like for API Service:
+```shell
 > bazel run //core/api:push_to_dev  # builds and pushes container image to localhost:30500 container registry, which is running inside PCloud cluster
 > kubectl -n pcloud rollout restart deployment/api
+```
 
 Reflecting changes in the chart configuration requires reinstallation of the chart itself:
+```shell
 > bazel build //core/api:chart  # creates chart tarball
 > bazel run //core/api:uninstall  # uninstalls old Helm Chart from the cluster
 > bazel run //core/api:install  # installs new Helm Chart to the cluster
+```
