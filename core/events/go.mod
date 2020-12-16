@@ -1,4 +1,4 @@
-module github.com/giolekva/pcloud/events
+module github.com/giolekva/pcloud/core/events
 
 go 1.14
 

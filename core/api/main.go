@@ -9,7 +9,7 @@ import (
 	"log"
 	"net/http"
 
-	"github.com/giolekva/pcloud/controller/schema"
+	"github.com/giolekva/pcloud/core/api/schema"
 
 	"github.com/golang/glog"
 	"github.com/itaysk/regogo"

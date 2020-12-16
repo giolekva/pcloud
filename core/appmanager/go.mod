@@ -1,4 +1,4 @@
-module github.com/giolekva/pcloud/appmanager
+module github.com/giolekva/pcloud/core/appmanager
 
 go 1.14
 
