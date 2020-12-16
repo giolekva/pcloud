@@ -1,6 +1,7 @@
 #!/bin/sh
 
-ROOT="$(dirname -- $(pwd))"
+ROOT=$(pwd)
+ROOT=${ROOT%/pcloud*}/pcloud
 
 # Dgraph
 source $ROOT/apps/dgraph/install.sh
