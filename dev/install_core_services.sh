@@ -6,8 +6,8 @@ ROOT="$(dirname -- $(pwd))"
 source $ROOT/apps/dgraph/install.sh
 
 # Application Manager
-bazel run //appmanager:push_to_dev
-bazel run //appmanager:install
+bazel run //core/appmanager:push_to_dev
+bazel run //core/appmanager:install
 
 # Event Processor
 bazel run //events:push_to_dev

@@ -12,7 +12,7 @@ WORKDIR /helm
 RUN wget -O helm.tar.gz https://get.helm.sh/helm-v3.2.1-$GOOS-$GOARCH.tar.gz
 RUN tar -xvf helm.tar.gz
 
-WORKDIR $GOPATH/src/github.com/giolekva/pcloud/appmanager
+WORKDIR $GOPATH/src/github.com/giolekva/pcloud/core/appmanager
 COPY . .
 RUN go build -o $GOPATH/bin/app-manager -trimpath -ldflags="-s -w" cmd/main.go
 

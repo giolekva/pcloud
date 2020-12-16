@@ -22,7 +22,7 @@ import (
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 
-	app "github.com/giolekva/pcloud/appmanager"
+	app "github.com/giolekva/pcloud/core/appmanager"
 )
 
 var kubeconfig = flag.String("kubeconfig", "", "Absolute path to the kubeconfig file.")
