@@ -26,6 +26,10 @@ CHART_TARBALL=\$$(rlocation __main__/{package}/{chart})
 helm --namespace={namespace} install --create-namespace {release_name} \$$CHART_TARBALL {args}
 """
 
+__HELM_UNINSTALL_TMPL = """
+helm --namespace={namespace} uninstall {release_name}
+"""
+
 def helm_install(name, namespace, release_name, chart, args):
     args_str = ""
     for arg, value in args.items():
@@ -44,7 +48,7 @@ EOM
 		package = native.package_name(),
 		chart = "%s.tar.gz" % chart.split(":")[1],
 		args = args_str,
-	))
+    ))
     native.sh_binary(
 	name = name,
 	srcs = ["helm_install.sh",],
@@ -53,4 +57,21 @@ EOM
 	],
 	deps = [
 	     "@bazel_tools//tools/bash/runfiles",
-	])
+    ])
+
+def helm_uninstall(name, namespace, release_name):
+    native.genrule(
+	name = "%s.sh" % name,
+	executable = False,
+	outs = ["helm_uninstall.sh",],
+	cmd = """cat > $@ <<EOM
+%s
+EOM
+""" % __HELM_UNINSTALL_TMPL.format(
+		namespace = namespace,
+		release_name = release_name,
+    ))
+    native.sh_binary(
+	name = name,
+	srcs = ["helm_uninstall.sh",]
+    )

@@ -1,5 +1,5 @@
 load("//:bazel_tools/docker.bzl", "docker_image")
-load("//:bazel_tools/helm.bzl", "helm_install")
+load("//:bazel_tools/helm.bzl", "helm_install", "helm_uninstall")
 load("@rules_pkg//:pkg.bzl", "pkg_tar")
 
 # TODO(lekva): figure out how to build py_binary with pip dependencies and
@@ -29,4 +29,10 @@ helm_install(
 	     "image.name": "localhost:30500/giolekva/pcloud-event-processor",
      	     "image.pullPolicy": "Always",
 	},
+)
+
+helm_uninstall(
+	name = "uninstall",
+	namespace = "pcloud-event-processor",
+	release_name = "init",
 )

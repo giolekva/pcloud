@@ -1,6 +1,7 @@
 #!/bin/bash
 
-ROOT="$(dirname -- $(pwd))"
+ROOT=$(pwd)
+ROOT=${ROOT%/pcloud*}/pcloud
 
 k3d cluster create pcloud-dev \
     --servers=1 \
@@ -12,8 +13,7 @@ k3d kubeconfig merge pcloud-dev --switch-context
 # Traefik
 helm repo add traefik https://containous.github.io/traefik-helm-chart
 helm repo update
-kubectl create namespace traefik
-helm --namespace=traefik install traefik traefik/traefik \
+helm --namespace=traefik install --create-namespace traefik traefik/traefik \
      --set additionalArguments="{--providers.kubernetesingress,--global.checknewversion=true}" \
      --set ports.traefik.expose=True
 
