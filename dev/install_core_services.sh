@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 
 ROOT=$(pwd)
 ROOT=${ROOT%/pcloud*}/pcloud
