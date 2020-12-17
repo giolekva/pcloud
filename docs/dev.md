@@ -2,12 +2,18 @@
 
 ## Prerequisites
 PCloud uses following tools to build and deploy it's packages:
+* Python - Used by Bazel: https://www.python.org/downloads/
+* Bazel - Build tool of the: https://docs.bazel.build/versions/3.7.0/install.html
 * Docker - To build container images: https://docs.docker.com/get-docker/
 * k3d - To create local Kubernetes cluster for development environment: https://k3d.io/#installation
 * kubectl - To interacto with the cluster: https://kubectl.docs.kubernetes.io/installation/kubectl/
 * Helm - To package and distributes both PCloud core services and applications running on it: https://helm.sh/docs/intro/install/
 
 Each of these tools provide multiple ways of installing them, choose the one which best suits you and your Host OS.
+To check if requirements are met please run:
+```shell
+> ./dev/check_requirements.sh
+```
 
 # Development Instructions
 
