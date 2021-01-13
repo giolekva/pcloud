@@ -4,7 +4,7 @@ helm repo add dgraph https://charts.dgraph.io
 helm --namespace=dgraph install --create-namespace init dgraph/dgraph \
      --set fullnameOverride=dgraph \
      --set image.repository=dgraph/dgraph \
-     --set image.tag=latest \
+     --set image.tag=v20.03.7 \
      --set ratel.enabled=False \
      --set zero.replicaCount=1 \
      --set zero.persistence.size=1Gi \
