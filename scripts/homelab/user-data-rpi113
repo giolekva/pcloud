@@ -1,0 +1,24 @@
+#cloud-config
+hostname: rpi113
+manage_etc_hosts: true
+ssh_pwauth: false
+package_update: true
+package_upgrade: true
+growpart:
+  mode: false
+resize_rootfs: false
+users:
+  - name: pcloud
+    primary-group: users
+    groups: users, sudo
+    shell: /bin/bash
+    sudo: ALL=(ALL) NOPASSWD:ALL
+    ssh-import-id: None
+    lock_passwd: true
+    ssh-authorized-keys:
+      - ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABgQDM3fYFTroCfHhT6GBUpD5vTvRPZSGi5rgBT8cvT75AKKPmuZRE+kUh4miwdw3jFT1VC5qrNqaE8Xrhppg+brVNt24lTgL9Pr5WW5mTa8Wbb3sWoCy93xv1B5TU7dUBQr/bB4FE1WeHIktkaBlEBssvOyf/IR0DR3N2rbaSWyS3zp+6+/Bk1powoXoOA7hvpwFmxYZggovATmoZoQAIqDO4W90MAR+U8c5E4jtJs3WHktlqwZff/csvrXHGCpIA2rtEbeHS6dOCx3uiBCsl/sTqaig9QmQZE260YtVTINRejFS0/mFXs9OpUEYa/yVH1x2k49Pp+sJjTgNOS5BiQLvuduL83vCehl5+IGonhJ6jZEu0L+g9YaPI2qsaIxPt4S69u3hys6DgxC0a/z+2azw75lV1pWHZ8HDJ8jq8TSOltMUQKgoiq6FE9ibFvy5bTJOLFlthEUCxLdd7Wna0Nx6zRcvr8q5dISYkNoLgxmUmCKisMaOdXkTBXUnZhWi1DNk= lekva@gl.local
+packages:
+  - emacs
+runcmd:
+  - apt autoremove -y --purge snapd
+  - echo "\nalias e='emacs -nw'\n" >> /home/pcloud/.bash_profile
