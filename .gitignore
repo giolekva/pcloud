@@ -2,7 +2,6 @@
 *.out
 *.pb.go
 priv/
-core
 bazel-*
 gazelle*
 
