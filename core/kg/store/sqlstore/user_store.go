@@ -30,10 +30,6 @@ func newSqlUserStore(sqlStore *SqlStore) store.UserStore {
 			delete_at INTEGER,
 			username VARCHAR(64) UNIQUE,
 			password VARCHAR(128) NULL,
-			email VARCHAR(128) UNIQUE,
-			email_verified BOOL NOT NULL DEFAULT FALSE,
-			first_name VARCHAR(64),
-			last_name VARCHAR(64),
 			last_password_update INTEGER);`
 
 	us.db.MustExec(schema)
