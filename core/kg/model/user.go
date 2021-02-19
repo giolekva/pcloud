@@ -1,9 +1,7 @@
 package model
 
 import (
-	"net/mail"
 	"regexp"
-	"strings"
 	"unicode"
 
 	"github.com/pkg/errors"
@@ -23,10 +21,6 @@ type User struct {
 	DeleteAt           int64  `json:"delete_at"`
 	Username           string `json:"username"`
 	Password           string `json:"password,omitempty"`
-	Email              string `json:"email"`
-	EmailVerified      bool   `json:"email_verified,omitempty"`
-	FirstName          string `json:"first_name"`
-	LastName           string `json:"last_name"`
 	LastPasswordUpdate int64  `json:"last_password_update,omitempty"`
 }
 
@@ -47,10 +41,6 @@ func (u *User) IsValid() error {
 
 	if !isValidUsername(u.Username) {
 		return invalidUserError("username", u.ID)
-	}
-
-	if !isValidEmail(u.Email) {
-		return invalidUserError("email", u.ID)
 	}
 
 	return nil
@@ -85,26 +75,4 @@ func isValidUsername(s string) bool {
 	}
 
 	return true
-}
-
-func isValidEmail(email string) bool {
-	if len(email) > userEmailMaxLength || email == "" {
-		return false
-	}
-	if !isLower(email) {
-		return false
-	}
-
-	if addr, err := mail.ParseAddress(email); err != nil {
-		return false
-	} else if addr.Name != "" {
-		// mail.ParseAddress accepts input of the form "Billy Bob <billy@example.com>" which we don't allow
-		return false
-	}
-
-	return true
-}
-
-func isLower(s string) bool {
-	return strings.ToLower(s) == s
 }
