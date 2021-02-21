@@ -33,17 +33,10 @@ func serverCmdF(command *cobra.Command, args []string) error {
 		FileLocation:  "server.log",
 	}
 	logger := log.NewLogger(config)
-	srv, err := server.NewServer(logger)
-	if err != nil {
-		logger.Error(err.Error())
-		return err
-	}
-	defer srv.Shutdown()
+	grpcServer := server.NewGRPCServer(logger)
+	servers := server.New(logger)
+	servers.AddServers(grpcServer)
+	servers.Run()
 
-	serverErr := srv.Start()
-	if serverErr != nil {
-		logger.Error(err.Error())
-		return serverErr
-	}
 	return nil
 }
