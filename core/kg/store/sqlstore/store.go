@@ -10,7 +10,7 @@ import (
 type SqlStore struct {
 	db       *sqlx.DB
 	stores   SqlStoreStores
-	settings *model.SqlSettings
+	settings *model.SQLSettings
 }
 
 var _ store.Store = &SqlStore{}
@@ -19,7 +19,7 @@ type SqlStoreStores struct {
 	user store.UserStore
 }
 
-func New(settings model.SqlSettings) *SqlStore {
+func New(settings model.SQLSettings) *SqlStore {
 	store := &SqlStore{
 		settings: &settings,
 	}
