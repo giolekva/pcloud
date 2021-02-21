@@ -9,6 +9,12 @@ type Config struct {
 	SqlSettings SqlSettings
 }
 
+func NewConfig() *Config {
+	config := &Config{}
+	config.SetDefaults()
+	return config
+}
+
 func (c *Config) SetDefaults() {
 	c.SqlSettings.SetDefaults()
 }

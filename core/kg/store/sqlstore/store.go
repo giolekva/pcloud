@@ -13,6 +13,8 @@ type SqlStore struct {
 	settings *model.SqlSettings
 }
 
+var _ store.Store = &SqlStore{}
+
 type SqlStoreStores struct {
 	user store.UserStore
 }
@@ -35,4 +37,8 @@ func (ss *SqlStore) initConnection() {
 
 func (ss *SqlStore) getQueryBuilder() sq.StatementBuilderType {
 	return sq.StatementBuilder.PlaceholderFormat(sq.Dollar)
+}
+
+func (ss *SqlStore) User() store.UserStore {
+	return ss.stores.user
 }

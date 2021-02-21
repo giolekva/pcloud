@@ -13,6 +13,8 @@ type SqlUserStore struct {
 	usersQuery sq.SelectBuilder
 }
 
+var _ store.UserStore = SqlUserStore{}
+
 func newSqlUserStore(sqlStore *SqlStore) store.UserStore {
 	us := &SqlUserStore{
 		SqlStore: sqlStore,
