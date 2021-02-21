@@ -16,7 +16,7 @@ func Run(args []string) error {
 }
 
 // rootCmd is a command to run the server.
-var rootCmd = &cobra.Command{
+var rootCmd = &Command{
 	Use:   "server",
 	Short: "An example of the basic server",
 	RunE:  serverCmdF,

@@ -50,14 +50,12 @@ type LoggerConfiguration struct {
 // NewLogger creates new logger
 func NewLogger(config *LoggerConfiguration) *Logger {
 	cores := []zapcore.Core{}
-	logger := &Logger{
-		consoleLevel: zap.NewAtomicLevelAt(getZapLevel(config.ConsoleLevel)),
-		fileLevel:    zap.NewAtomicLevelAt(getZapLevel(config.FileLevel)),
-	}
+	consoleLevel := zap.NewAtomicLevelAt(getZapLevel(config.ConsoleLevel))
+	fileLevel := zap.NewAtomicLevelAt(getZapLevel(config.FileLevel))
 
 	if config.EnableConsole {
 		writer := zapcore.Lock(os.Stderr)
-		core := zapcore.NewCore(makeEncoder(config.ConsoleJSON), writer, logger.consoleLevel)
+		core := zapcore.NewCore(makeEncoder(config.ConsoleJSON), writer, consoleLevel)
 		cores = append(cores, core)
 	}
 
@@ -67,17 +65,21 @@ func NewLogger(config *LoggerConfiguration) *Logger {
 			MaxSize:  100,
 			Compress: true,
 		})
-		core := zapcore.NewCore(makeEncoder(config.FileJSON), writer, logger.fileLevel)
+		core := zapcore.NewCore(makeEncoder(config.FileJSON), writer, fileLevel)
 		cores = append(cores, core)
 	}
 
 	combinedCore := zapcore.NewTee(cores...)
 
-	logger.zap = zap.New(combinedCore,
+	zap := zap.New(combinedCore,
 		zap.AddCaller(),
 	)
 
-	return logger
+	return &Logger{
+		consoleLevel: consoleLevel,
+		fileLevel:    fileLevel,
+		zap:          zap,
+	}
 }
 
 func (l *Logger) Debug(message string, fields ...Field) {

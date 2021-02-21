@@ -25,7 +25,7 @@ func NewServer(logger *log.Logger) (*Server, error) {
 	}
 
 	pwd, _ := os.Getwd()
-	a.Log.Info("Printing current working", log.String("directory", pwd))
+	a.Log.Info("Current working", log.String("directory", pwd))
 	return a, nil
 }
 
@@ -53,6 +53,6 @@ func (a *Server) Start() error {
 
 // Shutdown method shuts server down
 func (a *Server) Shutdown() {
-	a.Log.Info("Stoping Server...")
+	a.Log.Info("Stopping Server...")
 	a.srv.GracefulStop()
 }
