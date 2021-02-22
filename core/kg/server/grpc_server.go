@@ -5,9 +5,11 @@ import (
 	"net"
 	"os"
 
+	"github.com/giolekva/pcloud/core/kg/app"
 	"github.com/giolekva/pcloud/core/kg/log"
 	"github.com/giolekva/pcloud/core/kg/model"
-	"github.com/giolekva/pcloud/core/kg/store"
+	"github.com/giolekva/pcloud/core/kg/model/proto"
+	"github.com/giolekva/pcloud/core/kg/rpc"
 	"google.golang.org/grpc"
 )
 
@@ -16,17 +18,17 @@ type GRPCServerImpl struct {
 	Log    *log.Logger
 	srv    *grpc.Server
 	config *model.Config
-	store  store.Store
+	app    *app.App
 }
 
 var _ Server = &GRPCServerImpl{}
 
 // NewGRPCServer creates new GRPC Server
-func NewGRPCServer(logger *log.Logger, config *model.Config, store store.Store) Server {
+func NewGRPCServer(logger *log.Logger, config *model.Config, app *app.App) Server {
 	a := &GRPCServerImpl{
 		Log:    logger,
 		config: config,
-		store:  store,
+		app:    app,
 	}
 
 	pwd, _ := os.Getwd()
@@ -45,6 +47,8 @@ func (a *GRPCServerImpl) Start() error {
 	}
 
 	a.srv = grpc.NewServer()
+	userService := rpc.NewService(a.app)
+	proto.RegisterUserServiceServer(a.srv, userService)
 
 	a.Log.Info("GRPC Server is listening on", log.Int("port", a.config.GRPC.Port))
 	if err := a.srv.Serve(lis); err != nil {
