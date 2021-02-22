@@ -14,9 +14,9 @@ const (
 )
 
 type Config struct {
-	SQLSettings  SQLSettings
-	HTTPSettings HTTPSettings
-	GRPCSettings GRPCSettings
+	SQL  SQLConfig
+	HTTP HTTPConfig
+	GRPC GRPCConfig
 }
 
 func NewConfig() *Config {
@@ -26,27 +26,26 @@ func NewConfig() *Config {
 }
 
 func (c *Config) SetDefaults() {
-	c.SQLSettings.SetDefaults()
-	c.HTTPSettings.SetDefaults()
-	c.GRPCSettings.SetDefaults()
+	c.SQL.SetDefaults()
+	c.HTTP.SetDefaults()
+	c.GRPC.SetDefaults()
 }
 
-type SQLSettings struct {
+type SQLConfig struct {
 	DriverName string
 	DataSource string
 }
 
-func (s *SQLSettings) SetDefaults() {
+func (s *SQLConfig) SetDefaults() {
 	if s.DriverName == "" {
 		s.DriverName = databaseDriverPostgres
 	}
-
 	if s.DataSource == "" {
 		s.DataSource = defaultDataSource
 	}
 }
 
-type HTTPSettings struct {
+type HTTPConfig struct {
 	Host         string
 	Port         int
 	ReadTimeout  int
@@ -54,33 +53,29 @@ type HTTPSettings struct {
 	IdleTimeout  int
 }
 
-func (s *HTTPSettings) SetDefaults() {
+func (s *HTTPConfig) SetDefaults() {
 	if s.Host == "" {
 		s.Host = defaultHTTPHost
 	}
-
 	if s.Port == 0 {
 		s.Port = defaultHTTPPort
 	}
-
 	if s.ReadTimeout == 0 {
 		s.ReadTimeout = defaultHTTPReadTimeout
 	}
-
 	if s.WriteTimeout == 0 {
 		s.WriteTimeout = defaultHTTPWriteTimeout
 	}
-
 	if s.IdleTimeout == 0 {
 		s.IdleTimeout = defaultHTTPIdleTimeout
 	}
 }
 
-type GRPCSettings struct {
+type GRPCConfig struct {
 	Port int
 }
 
-func (s *GRPCSettings) SetDefaults() {
+func (s *GRPCConfig) SetDefaults() {
 	if s.Port == 0 {
 		s.Port = defaultGRPCPort
 	}

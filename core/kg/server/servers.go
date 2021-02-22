@@ -2,9 +2,10 @@ package server
 
 import (
 	"os"
+	"os/signal"
+	"syscall"
 
 	"github.com/giolekva/pcloud/core/kg/log"
-	"github.com/vardius/shutdown"
 )
 
 // Server interface
@@ -41,11 +42,17 @@ func (ss *Servers) Run() {
 			}
 		}(server)
 	}
-	shutdown.GracefulStop(func() { ss.shutdown() })
+	// wait for kill signal before attempting to gracefully shutdown
+	// the running service
+	interruptChan := make(chan os.Signal, 1)
+	signal.Notify(interruptChan, os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
+	<-interruptChan
+	ss.logger.Info("os.Interrupt...")
+	ss.shutdown()
 }
 
 func (ss *Servers) shutdown() {
-	ss.logger.Info("shutting down...")
+	ss.logger.Info("Shutting down...")
 
 	errCh := make(chan error, len(ss.servers))
 
@@ -58,12 +65,12 @@ func (ss *Servers) shutdown() {
 	for i := 0; i < len(ss.servers); i++ {
 		if err := <-errCh; err != nil {
 			go func(err error) {
-				ss.logger.Error("shutdown error", log.Err(err))
+				ss.logger.Error("Shutdown error", log.Err(err))
 				os.Exit(1)
 			}(err)
 			return
 		}
 	}
 
-	ss.logger.Info("gracefully stopped")
+	ss.logger.Info("Gracefully stopped")
 }

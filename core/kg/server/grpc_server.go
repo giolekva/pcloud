@@ -38,20 +38,17 @@ func NewGRPCServer(logger *log.Logger, config *model.Config, store store.Store) 
 func (a *GRPCServerImpl) Start() error {
 	a.Log.Info("Starting GRPC Server...")
 
-	// settings := model.NewConfig().SqlSettings
-	// a.store = sqlstore.New(settings)
-
-	lis, err := net.Listen("tcp", fmt.Sprintf(":%d", a.config.GRPCSettings.Port))
+	lis, err := net.Listen("tcp", fmt.Sprintf(":%d", a.config.GRPC.Port))
 	if err != nil {
-		a.Log.Error("failed to listen: %v", log.Err(err))
+		a.Log.Error("Failed to listen: %v", log.Err(err))
 		return err
 	}
 
 	a.srv = grpc.NewServer()
 
-	a.Log.Info("GRPC Server is listening on", log.Int("port", a.config.GRPCSettings.Port))
+	a.Log.Info("GRPC Server is listening on", log.Int("port", a.config.GRPC.Port))
 	if err := a.srv.Serve(lis); err != nil {
-		a.Log.Error("failed to serve rpc: %v", log.Err(err))
+		a.Log.Error("Failed to serve rpc: %v", log.Err(err))
 		return err
 	}
 	return nil

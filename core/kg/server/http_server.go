@@ -44,16 +44,16 @@ func (a *HTTPServerImpl) Start() error {
 	a.Log.Info("Starting HTTP Server...")
 
 	a.srv = &http.Server{
-		Addr:         fmt.Sprintf("%s:%d", a.config.HTTPSettings.Host, a.config.HTTPSettings.Port),
+		Addr:         fmt.Sprintf("%s:%d", a.config.HTTP.Host, a.config.HTTP.Port),
 		Handler:      a.root,
-		ReadTimeout:  time.Duration(a.config.HTTPSettings.ReadTimeout) * time.Second,
-		WriteTimeout: time.Duration(a.config.HTTPSettings.WriteTimeout) * time.Second,
-		IdleTimeout:  time.Duration(a.config.HTTPSettings.IdleTimeout) * time.Second,
+		ReadTimeout:  time.Duration(a.config.HTTP.ReadTimeout) * time.Second,
+		WriteTimeout: time.Duration(a.config.HTTP.WriteTimeout) * time.Second,
+		IdleTimeout:  time.Duration(a.config.HTTP.IdleTimeout) * time.Second,
 	}
 
-	a.Log.Info("HTTP Server is listening on", log.Int("port", a.config.HTTPSettings.Port))
+	a.Log.Info("HTTP Server is listening on", log.Int("port", a.config.HTTP.Port))
 	if err := a.srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-		a.Log.Error("failed to listen and serve: %v", log.Err(err))
+		a.Log.Error("Failed to listen and serve: %v", log.Err(err))
 		return err
 	}
 	return nil
@@ -63,7 +63,7 @@ func (a *HTTPServerImpl) Start() error {
 func (a *HTTPServerImpl) Shutdown() error {
 	a.Log.Info("Stopping HTTP Server...")
 	if a.srv == nil {
-		return errors.New("no http server present")
+		return errors.New("No http server present")
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
