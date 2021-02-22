@@ -2,6 +2,7 @@ package commands
 
 import (
 	"github.com/giolekva/pcloud/core/kg/log"
+	"github.com/giolekva/pcloud/core/kg/model"
 	"github.com/giolekva/pcloud/core/kg/server"
 	"github.com/spf13/cobra"
 )
@@ -23,7 +24,7 @@ var rootCmd = &Command{
 }
 
 func serverCmdF(command *cobra.Command, args []string) error {
-	config := &log.LoggerConfiguration{
+	logger := log.NewLogger(&log.LoggerConfiguration{
 		EnableConsole: true,
 		ConsoleJSON:   true,
 		ConsoleLevel:  "debug",
@@ -31,19 +32,16 @@ func serverCmdF(command *cobra.Command, args []string) error {
 		FileJSON:      true,
 		FileLevel:     "debug",
 		FileLocation:  "server.log",
-	}
-	logger := log.NewLogger(config)
-	srv, err := server.NewServer(logger)
-	if err != nil {
-		logger.Error(err.Error())
-		return err
-	}
-	defer srv.Shutdown()
+	})
+	config := model.NewConfig()
 
-	serverErr := srv.Start()
-	if serverErr != nil {
-		logger.Error(err.Error())
-		return serverErr
-	}
+	grpcServer := server.NewGRPCServer(logger, config, nil)
+	httpServer := server.NewHTTPServer(logger, config, nil)
+
+	servers := server.New(logger)
+	servers.AddServers(grpcServer)
+	servers.AddServers(httpServer)
+	servers.Run()
+
 	return nil
 }
