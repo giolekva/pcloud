@@ -46,6 +46,11 @@ func (u *User) IsValid() error {
 	return nil
 }
 
+func (u *User) Clone() *User {
+	user := *u
+	return &user
+}
+
 func isValidID(value string) bool {
 	if len(value) != 26 {
 		return false
