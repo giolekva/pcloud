@@ -37,8 +37,7 @@ message GetUserRequest {
 
 // GetUserResponse is a response data to read user
 message GetUserResponse {
-  User user = 1
-  string id = 1;
+  User user = 1;
 }
 
 // ListUserRequest is a request data to read all user for a given page

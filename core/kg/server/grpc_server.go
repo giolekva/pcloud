@@ -5,7 +5,6 @@ import (
 	"net"
 	"os"
 
-	"github.com/giolekva/pcloud/core/kg/app"
 	"github.com/giolekva/pcloud/core/kg/log"
 	"github.com/giolekva/pcloud/core/kg/model"
 	"github.com/giolekva/pcloud/core/kg/model/proto"
@@ -15,16 +14,16 @@ import (
 
 // GRPCServerImpl grpc server implementation
 type GRPCServerImpl struct {
-	Log    *log.Logger
+	Log    loggerIface
 	srv    *grpc.Server
 	config *model.Config
-	app    *app.App
+	app    appIface
 }
 
 var _ Server = &GRPCServerImpl{}
 
 // NewGRPCServer creates new GRPC Server
-func NewGRPCServer(logger *log.Logger, config *model.Config, app *app.App) Server {
+func NewGRPCServer(logger loggerIface, config *model.Config, app appIface) Server {
 	a := &GRPCServerImpl{
 		Log:    logger,
 		config: config,

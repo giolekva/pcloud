@@ -17,11 +17,11 @@ type Server interface {
 // Servers represents different server services
 type Servers struct {
 	servers []Server
-	logger  *log.Logger
+	logger  loggerIface
 }
 
 // New provides new service application
-func New(logger *log.Logger) *Servers {
+func New(logger loggerIface) *Servers {
 	return &Servers{
 		logger: logger,
 	}

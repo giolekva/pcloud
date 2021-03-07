@@ -16,7 +16,7 @@ import (
 
 // HTTPServerImpl http server implementation
 type HTTPServerImpl struct {
-	Log    *log.Logger
+	Log    loggerIface
 	srv    *http.Server
 	root   *mux.Router
 	config *model.Config
@@ -26,7 +26,7 @@ type HTTPServerImpl struct {
 var _ Server = &HTTPServerImpl{}
 
 // NewHTTPServer creates new HTTP Server
-func NewHTTPServer(logger *log.Logger, config *model.Config, store store.Store) Server {
+func NewHTTPServer(logger loggerIface, config *model.Config, store store.Store) Server {
 	a := &HTTPServerImpl{
 		Log:    logger,
 		root:   mux.NewRouter(),
