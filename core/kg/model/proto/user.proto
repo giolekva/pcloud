@@ -8,9 +8,9 @@ import "google/protobuf/timestamp.proto";
 
 // UserService handles commands dispatch and user view actions
 service UserService {
-  rpc GetUser (GetUserRequest) returns (User);
+  rpc GetUser (GetUserRequest) returns (GetUserResponse);
   rpc ListUsers (ListUserRequest) returns (ListUserResponse);
-  rpc CreateUser (CreateUserRequest) returns (User);
+  rpc CreateUser (CreateUserRequest) returns (CreateUserResponse);
 }
 
 // DispatchUserCommandRequest is passed when dispatching
@@ -35,6 +35,12 @@ message GetUserRequest {
   string id = 1;
 }
 
+// GetUserResponse is a response data to read user
+message GetUserResponse {
+  User user = 1
+  string id = 1;
+}
+
 // ListUserRequest is a request data to read all user for a given page
 message ListUserRequest {
   int64 page = 1;
@@ -51,5 +57,10 @@ message ListUserResponse {
 
 // CreateUserRequest is a request data to create a user
 message CreateUserRequest {
-    User user = 1;
+  User user = 1;
+}
+
+// CreateUserResponse is a response data to create a user
+message CreateUserResponse {
+  User user = 1;
 }

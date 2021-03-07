@@ -31,7 +31,7 @@ func newMemoryUserStore(mStore *MemoryStore) store.UserStore {
 
 func (us *memoryUserStore) Save(user *model.User) (*model.User, error) {
 	us.mutex.Lock()
-	us.mutex.Unlock()
+	defer us.mutex.Unlock()
 	if user.ID == "" {
 		user.ID = strconv.Itoa(us.maxID)
 		us.maxID++
@@ -46,7 +46,7 @@ func (us *memoryUserStore) Save(user *model.User) (*model.User, error) {
 
 func (us *memoryUserStore) Get(id string) (*model.User, error) {
 	us.mutex.RLock()
-	us.mutex.RUnlock()
+	defer us.mutex.RUnlock()
 	user, ok := us.users[id]
 	if !ok {
 		return nil, errors.New("User not found")
@@ -56,7 +56,7 @@ func (us *memoryUserStore) Get(id string) (*model.User, error) {
 
 func (us *memoryUserStore) GetAll() ([]*model.User, error) {
 	us.mutex.RLock()
-	us.mutex.RUnlock()
+	defer us.mutex.RUnlock()
 	users := make([]*model.User, 0, len(us.users))
 	for _, user := range us.users {
 		users = append(users, user.Clone())
