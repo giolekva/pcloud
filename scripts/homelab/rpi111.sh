@@ -6,6 +6,8 @@ sudo parted $DRIVE_NAME mkpart primary ext4 1GB 101GB
 sudo parted $DRIVE_NAME mkpart primary 101GB 100%
 sudo mkfs.vfat -n system-boot -F 32 "${DRIVE_NAME}1"
 sudo mkfs.ext4 -L writable "${DRIVE_NAME}2"
+# sudo mkfs.ext4 -L pcloud-storage "${DRIVE_NAME}3"
+# add script to auto mount sda3 to /opt/pcloud-storage
 
 sudo mkdir /mnt/{boot-img,rootfs-img,boot-drive,rootfs-drive}
 LOOP_DEVICE=$(sudo losetup -fP --show ubuntu-20.10-server-arm64-raspi.img)
