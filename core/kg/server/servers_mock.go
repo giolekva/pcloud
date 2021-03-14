@@ -5,12 +5,13 @@ import (
 	"time"
 
 	"github.com/giolekva/pcloud/core/kg/app"
+	"github.com/giolekva/pcloud/core/kg/common"
 	"github.com/giolekva/pcloud/core/kg/log"
 	"github.com/giolekva/pcloud/core/kg/model"
 )
 
 type MockServer struct {
-	App     appIface
+	App     common.AppIface
 	Servers []Server
 	Config  *model.Config
 }

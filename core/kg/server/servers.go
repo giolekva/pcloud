@@ -5,6 +5,7 @@ import (
 	"os/signal"
 	"syscall"
 
+	"github.com/giolekva/pcloud/core/kg/common"
 	"github.com/giolekva/pcloud/core/kg/log"
 )
 
@@ -17,11 +18,11 @@ type Server interface {
 // Servers represents different server services
 type Servers struct {
 	servers []Server
-	logger  loggerIface
+	logger  common.LoggerIface
 }
 
 // New provides new service application
-func New(logger loggerIface) *Servers {
+func New(logger common.LoggerIface) *Servers {
 	return &Servers{
 		logger: logger,
 	}
