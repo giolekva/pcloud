@@ -50,9 +50,12 @@ func NewFakeWireguardEngine(port uint16, privKey types.PrivateKey) (Engine, erro
 	}, nil
 }
 
-func genWireguardConf(privKey types.PrivateKey, port uint16, netMap *types.NetworkMap) *wgcfg.Config {
+func genWireguardConf(privKey types.PrivateKey, port uint16,
+	netMap *types.NetworkMap) *wgcfg.Config {
 	c := &wgcfg.Config{
-		Name:       "foo",
+		// TODO(giolekva): we shoudld probably use hostname and share
+		// it with the controller
+		Name:       "local-node",
 		PrivateKey: wgcfg.PrivateKey(privKey),
 		Addresses: []netaddr.IPPrefix{netaddr.IPPrefix{
 			IP:   netMap.Self.VPNIP,
@@ -93,7 +96,6 @@ func genRouterConf(netMap *types.NetworkMap) *router.Config {
 }
 
 func genTailNetMap(privKey types.PrivateKey, port uint16, netMap *types.NetworkMap) *controlclient.NetworkMap {
-	fmt.Println(netMap.Self.IPPort.String())
 	c := &controlclient.NetworkMap{
 		SelfNode: &tailcfg.Node{
 			ID:       0, // TODO(giolekva): maybe IDs should be stored server side.
