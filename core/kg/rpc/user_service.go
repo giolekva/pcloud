@@ -18,7 +18,6 @@ func NewService(app appIface) proto.UserServiceServer {
 	s := &userService{
 		app: app,
 	}
-
 	return s
 }
 
