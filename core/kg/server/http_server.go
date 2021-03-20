@@ -8,6 +8,7 @@ import (
 	"os"
 	"time"
 
+	"github.com/giolekva/pcloud/core/kg/common"
 	"github.com/giolekva/pcloud/core/kg/log"
 	"github.com/giolekva/pcloud/core/kg/model"
 	"github.com/giolekva/pcloud/core/kg/store"
@@ -16,7 +17,7 @@ import (
 
 // HTTPServerImpl http server implementation
 type HTTPServerImpl struct {
-	Log    *log.Logger
+	Log    common.LoggerIface
 	srv    *http.Server
 	root   *mux.Router
 	config *model.Config
@@ -26,7 +27,7 @@ type HTTPServerImpl struct {
 var _ Server = &HTTPServerImpl{}
 
 // NewHTTPServer creates new HTTP Server
-func NewHTTPServer(logger *log.Logger, config *model.Config, store store.Store) Server {
+func NewHTTPServer(logger common.LoggerIface, config *model.Config, store store.Store) Server {
 	a := &HTTPServerImpl{
 		Log:    logger,
 		root:   mux.NewRouter(),
