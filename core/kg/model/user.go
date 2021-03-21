@@ -8,9 +8,8 @@ import (
 )
 
 const (
-	userNameMaxLength  = 64
-	userNameMinLength  = 1
-	userEmailMaxLength = 128
+	userNameMaxLength = 64
+	userNameMinLength = 1
 )
 
 // User contains the details about the user.
@@ -75,9 +74,6 @@ func isValidUsername(s string) bool {
 	}
 
 	validUsernameChars := regexp.MustCompile(`^[a-z0-9\.\-_]+$`)
-	if !validUsernameChars.MatchString(s) {
-		return false
-	}
 
-	return true
+	return validUsernameChars.MatchString(s)
 }
