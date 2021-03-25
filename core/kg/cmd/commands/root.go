@@ -1,9 +1,11 @@
 package commands
 
 import (
+	"github.com/giolekva/pcloud/core/kg/app"
 	"github.com/giolekva/pcloud/core/kg/log"
 	"github.com/giolekva/pcloud/core/kg/model"
 	"github.com/giolekva/pcloud/core/kg/server"
+	"github.com/giolekva/pcloud/core/kg/store/memory"
 	"github.com/spf13/cobra"
 )
 
@@ -35,8 +37,11 @@ func serverCmdF(command *cobra.Command, args []string) error {
 	})
 	config := model.NewConfig()
 
-	grpcServer := server.NewGRPCServer(logger, config, nil)
-	httpServer := server.NewHTTPServer(logger, config, nil)
+	st := memory.New()
+	a := app.NewApp(st, logger)
+
+	grpcServer := server.NewGRPCServer(logger, config, a)
+	httpServer := server.NewHTTPServer(logger, config, a)
 
 	servers := server.New(logger)
 	servers.AddServers(grpcServer)

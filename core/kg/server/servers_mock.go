@@ -24,7 +24,7 @@ func Setup(tb testing.TB) *MockServer {
 	config := model.NewConfig()
 	logger := &log.NoOpLogger{}
 	grpcServer := NewGRPCServer(logger, config, app)
-	httpServer := NewHTTPServer(logger, config, nil)
+	httpServer := NewHTTPServer(logger, config, app)
 	ts := &MockServer{
 		App:     app,
 		Servers: []Server{grpcServer, httpServer},
