@@ -8,6 +8,7 @@ import (
 	"os"
 	"time"
 
+	"github.com/giolekva/pcloud/core/kg/api/rest"
 	"github.com/giolekva/pcloud/core/kg/common"
 	"github.com/giolekva/pcloud/core/kg/log"
 	"github.com/giolekva/pcloud/core/kg/model"
@@ -17,11 +18,11 @@ import (
 
 // HTTPServerImpl http server implementation
 type HTTPServerImpl struct {
-	Log    common.LoggerIface
-	srv    *http.Server
-	root   *mux.Router
-	config *model.Config
-	store  store.Store
+	Log     common.LoggerIface
+	srv     *http.Server
+	routers *rest.Routers
+	config  *model.Config
+	store   store.Store
 }
 
 var _ Server = &HTTPServerImpl{}
@@ -29,10 +30,10 @@ var _ Server = &HTTPServerImpl{}
 // NewHTTPServer creates new HTTP Server
 func NewHTTPServer(logger common.LoggerIface, config *model.Config, store store.Store) Server {
 	a := &HTTPServerImpl{
-		Log:    logger,
-		root:   mux.NewRouter(),
-		config: config,
-		store:  store,
+		Log:     logger,
+		routers: rest.NewRouter(mux.NewRouter()),
+		config:  config,
+		store:   store,
 	}
 
 	pwd, _ := os.Getwd()
@@ -46,7 +47,7 @@ func (a *HTTPServerImpl) Start() error {
 
 	a.srv = &http.Server{
 		Addr:         fmt.Sprintf("%s:%d", a.config.HTTP.Host, a.config.HTTP.Port),
-		Handler:      a.root,
+		Handler:      a.routers.Root,
 		ReadTimeout:  time.Duration(a.config.HTTP.ReadTimeout) * time.Second,
 		WriteTimeout: time.Duration(a.config.HTTP.WriteTimeout) * time.Second,
 		IdleTimeout:  time.Duration(a.config.HTTP.IdleTimeout) * time.Second,
