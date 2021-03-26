@@ -63,3 +63,7 @@ func (us *memoryUserStore) GetAll() ([]*model.User, error) {
 	}
 	return users, nil
 }
+
+func (us *memoryUserStore) Count() (int64, error) {
+	return int64(us.maxID) - 1, nil
+}

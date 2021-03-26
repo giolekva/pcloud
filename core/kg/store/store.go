@@ -12,4 +12,5 @@ type UserStore interface {
 	Save(user *model.User) (*model.User, error)
 	Get(id string) (*model.User, error)
 	GetAll() ([]*model.User, error)
+	Count() (int64, error)
 }

@@ -5,6 +5,7 @@ import (
 	"unicode"
 
 	"github.com/pkg/errors"
+	"golang.org/x/crypto/bcrypt"
 )
 
 const (
@@ -46,9 +47,38 @@ func (u *User) IsValid() error {
 	return nil
 }
 
+// Clone clones the object
 func (u *User) Clone() *User {
 	user := *u
 	return &user
+}
+
+// SanitizeInput removes input data from the user object that is not user controlled
+func (u *User) SanitizeInput() {
+	u.ID = ""
+	u.CreateAt = 0
+	u.UpdateAt = 0
+	u.DeleteAt = 0
+	u.LastPasswordUpdate = 0
+}
+
+// SanitizeOutput removes output data from the user object that is not user controlled
+func (u *User) SanitizeOutput() {
+	u.Password = ""
+}
+
+// HashPassword hashes user's password
+func (u *User) HashPassword() {
+	if u.Password == "" {
+		return
+	}
+
+	hash, err := bcrypt.GenerateFromPassword([]byte(u.Password), 10)
+	if err != nil {
+		panic(err)
+	}
+
+	u.Password = string(hash)
 }
 
 func isValidID(value string) bool {

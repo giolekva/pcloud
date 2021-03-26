@@ -1,8 +1,10 @@
 package rest
 
 import (
+	"encoding/json"
 	"net/http"
 
+	"github.com/giolekva/pcloud/core/kg/model"
 	"github.com/gorilla/mux"
 	"github.com/pkg/errors"
 )
@@ -16,6 +18,18 @@ func (router *Router) initUsers() {
 func (router *Router) buildCreateUserHandler() http.Handler {
 	fn := func(w http.ResponseWriter, r *http.Request) error {
 		router.Logger.Debug("Rest API: create user")
+		var user *model.User
+		if err := json.NewDecoder(r.Body).Decode(&user); err != nil {
+			return errors.Wrap(err, "can't decode request body")
+		}
+		user.SanitizeInput()
+		updatedUser, err := router.App.CreateUser(user)
+		if err != nil {
+			return errors.Wrap(err, "can't create user")
+		}
+		updatedUser.SanitizeOutput()
+
+		jsoner(w, http.StatusOK, updatedUser)
 		return nil
 	}
 	return HandlerFunc(fn)

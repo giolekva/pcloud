@@ -38,7 +38,7 @@ func serverCmdF(command *cobra.Command, args []string) error {
 	config := model.NewConfig()
 
 	st := memory.New()
-	a := app.NewApp(st, logger)
+	a := app.NewApp(st, config, logger)
 
 	grpcServer := server.NewGRPCServer(logger, config, a)
 	httpServer := server.NewHTTPServer(logger, config, a)

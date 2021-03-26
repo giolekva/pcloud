@@ -14,4 +14,5 @@ type LoggerIface interface {
 
 type AppIface interface {
 	GetUser(userID string) (*model.User, error)
+	CreateUser(user *model.User) (*model.User, error)
 }
