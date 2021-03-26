@@ -15,6 +15,7 @@ func (a *App) GetUser(userID string) (*model.User, error) {
 	return user, nil
 }
 
+// CreateUser creates a user. For now it is used only for creation of the very first user
 func (a *App) CreateUser(user *model.User) (*model.User, error) {
 	if !a.isFirstUserAccount() {
 		return nil, errors.New("not a first user")
@@ -26,6 +27,15 @@ func (a *App) CreateUser(user *model.User) (*model.User, error) {
 		return nil, errors.Wrap(err, "can't save user to the DB")
 	}
 	return updatedUser, nil
+}
+
+//GetUsers returns list of users
+func (a *App) GetUsers(page, perPage int) ([]*model.User, error) {
+	users, err := a.store.User().GetAllWithOptions(page, perPage)
+	if err != nil {
+		return nil, errors.Wrap(err, "can't get users with options from store")
+	}
+	return users, nil
 }
 
 func (a *App) isFirstUserAccount() bool {

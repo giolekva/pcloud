@@ -3,6 +3,7 @@ package rest
 import (
 	"encoding/json"
 	"net/http"
+	"strconv"
 
 	"github.com/giolekva/pcloud/core/kg/model"
 	"github.com/gorilla/mux"
@@ -38,6 +39,23 @@ func (router *Router) buildCreateUserHandler() http.Handler {
 func (router *Router) buildGetUsersHandler() http.Handler {
 	fn := func(w http.ResponseWriter, r *http.Request) error {
 		router.Logger.Debug("Rest API: get users")
+		page := r.URL.Query().Get("page")
+		perPage := r.URL.Query().Get("per_page")
+
+		pageInt, err := strconv.Atoi(page)
+		if err != nil {
+			return errors.New("parameter page should be an int")
+		}
+		perPageInt, err := strconv.Atoi(perPage)
+		if err != nil {
+			return errors.New("parameter per_page should be an int")
+		}
+		users, err := router.App.GetUsers(pageInt, perPageInt)
+		if err != nil {
+			return errors.Wrap(err, "can't get users from app")
+		}
+
+		jsoner(w, http.StatusOK, users)
 		return nil
 	}
 	return HandlerFunc(fn)

@@ -64,6 +64,23 @@ func (us *memoryUserStore) GetAll() ([]*model.User, error) {
 	return users, nil
 }
 
+func (us *memoryUserStore) GetAllWithOptions(page, perPage int) ([]*model.User, error) {
+	us.mutex.RLock()
+	defer us.mutex.RUnlock()
+
+	// Not an ideal way to implement a pagination over a map but memory store is for testing anyway.
+	v := make([]*model.User, 0, len(us.users))
+	for _, value := range us.users {
+		v = append(v, value)
+	}
+	users := make([]*model.User, 0, perPage)
+	startIndex := page * perPage
+	for i := startIndex; i < startIndex+perPage && i < len(us.users); i++ {
+		users = append(users, v[i].Clone())
+	}
+	return users, nil
+}
+
 func (us *memoryUserStore) Count() (int64, error) {
 	return int64(us.maxID) - 1, nil
 }
