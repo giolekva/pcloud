@@ -18,7 +18,6 @@ func (router *Router) initUsers() {
 
 func (router *Router) buildCreateUserHandler() http.Handler {
 	fn := func(w http.ResponseWriter, r *http.Request) error {
-		router.Logger.Debug("Rest API: create user")
 		var user *model.User
 		if err := json.NewDecoder(r.Body).Decode(&user); err != nil {
 			return errors.Wrap(err, "can't decode request body")
@@ -38,7 +37,6 @@ func (router *Router) buildCreateUserHandler() http.Handler {
 
 func (router *Router) buildGetUsersHandler() http.Handler {
 	fn := func(w http.ResponseWriter, r *http.Request) error {
-		router.Logger.Debug("Rest API: get users")
 		page := r.URL.Query().Get("page")
 		perPage := r.URL.Query().Get("per_page")
 
@@ -63,7 +61,6 @@ func (router *Router) buildGetUsersHandler() http.Handler {
 
 func (router *Router) buildGetUserHandler() http.Handler {
 	fn := func(w http.ResponseWriter, r *http.Request) error {
-		router.Logger.Debug("Rest API: get user")
 		params := mux.Vars(r)
 
 		var userID string

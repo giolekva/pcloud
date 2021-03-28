@@ -4,6 +4,7 @@ import (
 	"net/http"
 
 	"github.com/giolekva/pcloud/core/kg/common"
+	"github.com/giolekva/pcloud/core/kg/log"
 	"github.com/gorilla/mux"
 )
 
@@ -36,10 +37,17 @@ func NewRouter(root *mux.Router, app common.AppIface, logger common.LoggerIface)
 
 	root.Handle("/api/v1/{anything:.*}", http.HandlerFunc(http.NotFound))
 	routers.initUsers()
-
+	root.Use(routers.loggerMiddleware)
 	return routers
 }
 
 func (router *Router) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	router.Root.ServeHTTP(w, req)
+}
+
+func (router *Router) loggerMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		router.Logger.Debug(r.Method, log.String("url", r.URL.String()))
+		next.ServeHTTP(w, r)
+	})
 }
