@@ -30,8 +30,8 @@ func Setup(tb testing.TB) *MockServer {
 		Servers: []Server{grpcServer, httpServer},
 		Config:  config,
 	}
-	go grpcServer.Start()
-	go httpServer.Start()
+	go grpcServer.Start() // nolint:errcheck
+	go httpServer.Start() // nolint:errcheck
 	time.Sleep(1 * time.Second)
 	return ts
 }
@@ -40,7 +40,7 @@ func (ts *MockServer) ShutdownServers() {
 	done := make(chan bool)
 	go func() {
 		for _, server := range ts.Servers {
-			server.Shutdown()
+			server.Shutdown() // nolint:errcheck
 		}
 		close(done)
 	}()
