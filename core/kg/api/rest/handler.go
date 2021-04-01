@@ -23,9 +23,7 @@ func jsoner(w http.ResponseWriter, statusCode int, payload interface{}) error {
 		return err
 	}
 
-	if statusCode != http.StatusOK {
-		w.WriteHeader(statusCode)
-	}
+	w.WriteHeader(statusCode)
 
 	encoder := json.NewEncoder(w)
 	encoder.SetEscapeHTML(true)
@@ -33,10 +31,6 @@ func jsoner(w http.ResponseWriter, statusCode int, payload interface{}) error {
 
 	if err := encoder.Encode(payload); err != nil {
 		return err
-	}
-
-	if f, ok := w.(http.Flusher); ok {
-		f.Flush()
 	}
 
 	return nil

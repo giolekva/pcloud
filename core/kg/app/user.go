@@ -4,6 +4,7 @@ import (
 	"github.com/giolekva/pcloud/core/kg/log"
 	"github.com/giolekva/pcloud/core/kg/model"
 	"github.com/pkg/errors"
+	"golang.org/x/crypto/bcrypt"
 )
 
 // GetUser returns user
@@ -21,7 +22,6 @@ func (a *App) CreateUser(user *model.User) (*model.User, error) {
 		return nil, errors.New("not a first user")
 	}
 
-	user.HashPassword()
 	updatedUser, err := a.store.User().Save(user)
 	if err != nil {
 		return nil, errors.Wrap(err, "can't save user to the DB")
@@ -44,4 +44,18 @@ func (a *App) isFirstUserAccount() bool {
 		a.logger.Error("error fetching first user account", log.Err(err))
 	}
 	return count > 0
+}
+
+// HashPassword hashes user's password
+func HashPassword(password string) string {
+	if password == "" {
+		return ""
+	}
+
+	hash, err := bcrypt.GenerateFromPassword([]byte(password), 10)
+	if err != nil {
+		panic(err)
+	}
+
+	return string(hash)
 }

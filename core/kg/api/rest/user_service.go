@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"strconv"
 
+	"github.com/giolekva/pcloud/core/kg/app"
 	"github.com/giolekva/pcloud/core/kg/model"
 	"github.com/gorilla/mux"
 	"github.com/pkg/errors"
@@ -22,6 +23,10 @@ func (router *Router) buildCreateUserHandler() http.Handler {
 		if err := json.NewDecoder(r.Body).Decode(&user); err != nil {
 			return errors.Wrap(err, "can't decode request body")
 		}
+		if err := user.IsValidInput(); err != nil {
+			return errors.Wrap(err, "invalid user input")
+		}
+		user.Password = app.HashPassword(user.Password)
 		user.SanitizeInput()
 		updatedUser, err := router.App.CreateUser(user)
 		if err != nil {
