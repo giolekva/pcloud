@@ -3,6 +3,7 @@ package rpc
 import (
 	"context"
 
+	"github.com/giolekva/pcloud/core/kg/common"
 	"github.com/giolekva/pcloud/core/kg/model/proto"
 	"github.com/pkg/errors"
 	"google.golang.org/protobuf/types/known/timestamppb"
@@ -10,11 +11,11 @@ import (
 
 type userService struct {
 	proto.UnimplementedUserServiceServer
-	app appIface
+	app common.AppIface
 }
 
 // NewService returns new user service
-func NewService(app appIface) proto.UserServiceServer {
+func NewService(app common.AppIface) proto.UserServiceServer {
 	s := &userService{
 		app: app,
 	}

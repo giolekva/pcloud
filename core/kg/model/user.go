@@ -45,9 +45,33 @@ func (u *User) IsValid() error {
 	return nil
 }
 
+// IsValidInput validates the user input and returns an error
+func (u *User) IsValidInput() error {
+	if !isValidUsername(u.Username) {
+		return invalidUserError("username", u.ID)
+	}
+
+	return nil
+}
+
+// Clone clones the object
 func (u *User) Clone() *User {
 	user := *u
 	return &user
+}
+
+// SanitizeInput removes input data from the user object that is not user controlled
+func (u *User) SanitizeInput() {
+	u.ID = ""
+	u.CreateAt = 0
+	u.UpdateAt = 0
+	u.DeleteAt = 0
+	u.LastPasswordUpdate = 0
+}
+
+// SanitizeOutput removes output data from the user object that is not user controlled
+func (u *User) SanitizeOutput() {
+	u.Password = ""
 }
 
 func isValidID(value string) bool {

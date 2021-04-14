@@ -49,3 +49,11 @@ func (us SqlUserStore) Get(id string) (*model.User, error) {
 func (us SqlUserStore) GetAll() ([]*model.User, error) {
 	return nil, nil
 }
+
+func (us SqlUserStore) Count() (int64, error) {
+	return 0, nil
+}
+
+func (us SqlUserStore) GetAllWithOptions(page, perPage int) ([]*model.User, error) {
+	return nil, nil
+}

@@ -17,6 +17,7 @@ type Config struct {
 	SQL  SQLConfig
 	HTTP HTTPConfig
 	GRPC GRPCConfig
+	App  AppConfig
 }
 
 func NewConfig() *Config {
@@ -80,3 +81,15 @@ func (s *GRPCConfig) SetDefaults() {
 		s.Port = defaultGRPCPort
 	}
 }
+
+type AppConfig struct {
+	EnableSignUp *bool
+}
+
+func (s *AppConfig) SetDefaults() {
+	if s.EnableSignUp == nil {
+		s.EnableSignUp = NewBool(true)
+	}
+}
+
+func NewBool(b bool) *bool { return &b }

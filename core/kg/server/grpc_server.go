@@ -5,11 +5,11 @@ import (
 	"net"
 	"os"
 
+	"github.com/giolekva/pcloud/core/kg/api/rpc"
 	"github.com/giolekva/pcloud/core/kg/common"
 	"github.com/giolekva/pcloud/core/kg/log"
 	"github.com/giolekva/pcloud/core/kg/model"
 	"github.com/giolekva/pcloud/core/kg/model/proto"
-	"github.com/giolekva/pcloud/core/kg/rpc"
 	"google.golang.org/grpc"
 )
 
