@@ -11,6 +11,8 @@ const (
 	defaultHTTPIdleTimeout  = 120
 
 	defaultGRPCPort = 9087
+
+	defaultSessionLengthWebInDays = 30
 )
 
 type Config struct {
@@ -83,12 +85,16 @@ func (s *GRPCConfig) SetDefaults() {
 }
 
 type AppConfig struct {
-	EnableSignUp *bool
+	EnableSignUp        *bool
+	SessionLengthInDays int
 }
 
 func (s *AppConfig) SetDefaults() {
 	if s.EnableSignUp == nil {
 		s.EnableSignUp = NewBool(true)
+	}
+	if s.SessionLengthInDays == 0 {
+		s.SessionLengthInDays = defaultSessionLengthWebInDays
 	}
 }
 

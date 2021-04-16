@@ -11,6 +11,8 @@ type App struct {
 	store  store.Store
 	config *model.Config
 	logger common.LoggerIface
+
+	session model.Session
 }
 
 var _ common.AppIface = &App{}

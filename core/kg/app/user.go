@@ -9,6 +9,8 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
+const HeaderToken = "token"
+
 // GetUser returns user
 func (a *App) GetUser(userID string) (*model.User, error) {
 	user, err := a.store.User().Get(userID)
@@ -80,7 +82,33 @@ func (a *App) checkLogin(user *model.User, password string) error {
 }
 
 func (a *App) DoLogin(w http.ResponseWriter, r *http.Request, user *model.User) error {
+	session := &model.Session{
+		UserID: user.ID,
+	}
+	session.SetExpireInDays(a.config.App.SessionLengthInDays)
+
+	session, err := a.CreateSession(session)
+	if err != nil {
+		return errors.Wrap(err, "can't create a session")
+	}
+
+	w.Header().Set(HeaderToken, session.Token)
+	a.SetSession(session)
+
 	return nil
+}
+
+func (a *App) SetSession(s *model.Session) {
+	a.session = *s
+}
+
+func (a *App) CreateSession(session *model.Session) (*model.Session, error) {
+	session.Token = ""
+	session, err := a.store.Session().Save(session)
+	if err != nil {
+		return nil, errors.Wrap(err, "can't save the session")
+	}
+	return session, nil
 }
 
 // HashPassword hashes user's password

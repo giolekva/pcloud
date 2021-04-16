@@ -16,7 +16,8 @@ type SqlStore struct {
 var _ store.Store = &SqlStore{}
 
 type SqlStoreStores struct {
-	user store.UserStore
+	user    store.UserStore
+	session store.SessionStore
 }
 
 func New(config model.SQLConfig) *SqlStore {
@@ -27,6 +28,7 @@ func New(config model.SQLConfig) *SqlStore {
 	store.initConnection()
 
 	store.stores.user = newSqlUserStore(store)
+	store.stores.session = newSqlSessionStore(store)
 
 	return store
 }
@@ -41,4 +43,8 @@ func (ss *SqlStore) getQueryBuilder() sq.StatementBuilderType {
 
 func (ss *SqlStore) User() store.UserStore {
 	return ss.stores.user
+}
+
+func (ss *SqlStore) Session() store.SessionStore {
+	return ss.stores.session
 }

@@ -9,16 +9,22 @@ type MemoryStore struct {
 var _ store.Store = &MemoryStore{}
 
 type memoryStoreStores struct {
-	user store.UserStore
+	user    store.UserStore
+	session store.SessionStore
 }
 
 func New() *MemoryStore {
 	store := &MemoryStore{}
 	store.stores.user = newMemoryUserStore(store)
+	store.stores.session = newMemorySessionStore(store)
 
 	return store
 }
 
 func (ms *MemoryStore) User() store.UserStore {
 	return ms.stores.user
+}
+
+func (ms *MemoryStore) Session() store.SessionStore {
+	return ms.stores.session
 }
