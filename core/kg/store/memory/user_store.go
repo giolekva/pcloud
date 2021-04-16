@@ -82,5 +82,18 @@ func (us *memoryUserStore) GetAllWithOptions(page, perPage int) ([]*model.User, 
 }
 
 func (us *memoryUserStore) Count() (int64, error) {
+	us.mutex.RLock()
+	defer us.mutex.RUnlock()
 	return int64(us.maxID) - 1, nil
+}
+
+func (us *memoryUserStore) GetByUsername(username string) (*model.User, error) {
+	us.mutex.RLock()
+	defer us.mutex.RUnlock()
+	for _, value := range us.users {
+		if value.Username == username {
+			return value, nil
+		}
+	}
+	return nil, errors.New("User not found")
 }

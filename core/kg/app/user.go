@@ -1,6 +1,8 @@
 package app
 
 import (
+	"net/http"
+
 	"github.com/giolekva/pcloud/core/kg/log"
 	"github.com/giolekva/pcloud/core/kg/model"
 	"github.com/pkg/errors"
@@ -46,6 +48,41 @@ func (a *App) isFirstUserAccount() bool {
 	return count > 0
 }
 
+func (a *App) AuthenticateUserForLogin(userID, username, password string) (*model.User, error) {
+	if userID != "" {
+		user, err := a.store.User().Get(userID)
+		if err != nil {
+			return nil, errors.Wrap(err, "can't get user from store")
+		}
+		return user, nil
+	}
+	if username == "" {
+		return nil, errors.New("can't authenticate user for login")
+	}
+	user, err := a.store.User().GetByUsername(username)
+	if err != nil {
+		return nil, errors.Wrapf(err, "can't get user by username")
+	}
+	if err := a.checkLogin(user, password); err != nil {
+		return nil, errors.Wrapf(err, "login error")
+	}
+	return user, nil
+}
+
+func (a *App) checkLogin(user *model.User, password string) error {
+	if user.IsDisabled() {
+		return errors.New("user is disabled")
+	}
+	if !comparePassword(user.Password, password) {
+		return errors.New("incorrect password")
+	}
+	return nil
+}
+
+func (a *App) DoLogin(w http.ResponseWriter, r *http.Request, user *model.User) error {
+	return nil
+}
+
 // HashPassword hashes user's password
 func HashPassword(password string) string {
 	if password == "" {
@@ -58,4 +95,13 @@ func HashPassword(password string) string {
 	}
 
 	return string(hash)
+}
+
+// comparePassword compares the hash
+func comparePassword(hash string, password string) bool {
+	if password == "" || hash == "" {
+		return false
+	}
+
+	return bcrypt.CompareHashAndPassword([]byte(hash), []byte(password)) == nil
 }

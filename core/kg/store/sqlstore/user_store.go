@@ -57,3 +57,7 @@ func (us SqlUserStore) Count() (int64, error) {
 func (us SqlUserStore) GetAllWithOptions(page, perPage int) ([]*model.User, error) {
 	return nil, nil
 }
+
+func (us SqlUserStore) GetByUsername(username string) (*model.User, error) {
+	return nil, nil
+}

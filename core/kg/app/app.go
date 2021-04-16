@@ -13,6 +13,8 @@ type App struct {
 	logger common.LoggerIface
 }
 
+var _ common.AppIface = &App{}
+
 // NewApp creates new app
 func NewApp(store store.Store, config *model.Config, logger common.LoggerIface) *App {
 	return &App{

@@ -6,6 +6,7 @@ import (
 	"strconv"
 
 	"github.com/giolekva/pcloud/core/kg/app"
+	"github.com/giolekva/pcloud/core/kg/common"
 	"github.com/giolekva/pcloud/core/kg/model"
 	"github.com/gorilla/mux"
 	"github.com/pkg/errors"
@@ -15,6 +16,8 @@ func (router *Router) initUsers() {
 	router.Users.Handle("", router.buildCreateUserHandler()).Methods("POST")
 	router.Users.Handle("", router.buildGetUsersHandler()).Methods("GET")
 	router.User.Handle("", router.buildGetUserHandler()).Methods("GET")
+
+	router.Users.Handle("/login", router.buildGetLoginHandler()).Methods("POST")
 }
 
 func (router *Router) buildCreateUserHandler() http.Handler {
@@ -79,6 +82,29 @@ func (router *Router) buildGetUserHandler() http.Handler {
 			return errors.Wrapf(err, "can't get user from app")
 		}
 
+		jsoner(w, http.StatusOK, user)
+		return nil
+	}
+	return HandlerFunc(fn)
+}
+
+func (router *Router) buildGetLoginHandler() http.Handler {
+	fn := func(w http.ResponseWriter, r *http.Request) error {
+		params := common.MapFromJson(r.Body)
+		userID := params["user_id"]
+		username := params["username"]
+		password := params["password"]
+
+		user, err := router.App.AuthenticateUserForLogin(userID, username, password)
+		if err != nil {
+			return errors.Wrap(err, "can't authenticate user for login")
+		}
+
+		if err := router.App.DoLogin(w, r, user); err != nil {
+			return errors.Wrap(err, "can't login")
+		}
+
+		user.SanitizeOutput()
 		jsoner(w, http.StatusOK, user)
 		return nil
 	}

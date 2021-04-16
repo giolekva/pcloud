@@ -14,4 +14,5 @@ type UserStore interface {
 	GetAll() ([]*model.User, error)
 	Count() (int64, error)
 	GetAllWithOptions(page, perPage int) ([]*model.User, error)
+	GetByUsername(username string) (*model.User, error)
 }

@@ -74,6 +74,11 @@ func (u *User) SanitizeOutput() {
 	u.Password = ""
 }
 
+// IsDisabled returns true if user is no longer enabled
+func (u *User) IsDisabled() bool {
+	return u.DeleteAt > 0
+}
+
 func isValidID(value string) bool {
 	if len(value) != 26 {
 		return false
