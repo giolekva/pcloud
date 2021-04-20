@@ -51,20 +51,23 @@ func (a *App) isFirstUserAccount() bool {
 }
 
 func (a *App) AuthenticateUserForLogin(userID, username, password string) (*model.User, error) {
-	if userID != "" {
-		user, err := a.store.User().Get(userID)
+	var user *model.User
+	var err error
+	switch {
+	case userID != "":
+		user, err = a.store.User().Get(userID)
 		if err != nil {
 			return nil, errors.Wrap(err, "can't get user from store")
 		}
-		return user, nil
-	}
-	if username == "" {
+	case username != "":
+		user, err = a.store.User().GetByUsername(username)
+		if err != nil {
+			return nil, errors.Wrapf(err, "can't get user by username")
+		}
+	default:
 		return nil, errors.New("can't authenticate user for login")
 	}
-	user, err := a.store.User().GetByUsername(username)
-	if err != nil {
-		return nil, errors.Wrapf(err, "can't get user by username")
-	}
+
 	if err := a.checkLogin(user, password); err != nil {
 		return nil, errors.Wrapf(err, "login error")
 	}
