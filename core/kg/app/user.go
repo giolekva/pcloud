@@ -47,7 +47,7 @@ func (a *App) isFirstUserAccount() bool {
 	if err != nil {
 		a.logger.Error("error fetching first user account", log.Err(err))
 	}
-	return count > 0
+	return count == 0
 }
 
 func (a *App) AuthenticateUserForLogin(userID, username, password string) (*model.User, error) {

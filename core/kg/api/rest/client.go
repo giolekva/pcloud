@@ -52,27 +52,27 @@ func (c *Client) getUserRoute(userId string) string {
 	return fmt.Sprintf(c.getUsersRoute()+"/%v", userId)
 }
 
-func (c *Client) DoApiGet(url string) (*http.Response, error) {
-	return c.DoApiRequest(http.MethodGet, c.APIURL+url, "")
+func (c *Client) doApiGet(url string) (*http.Response, error) {
+	return c.doApiRequest(http.MethodGet, c.APIURL+url, "")
 }
 
-func (c *Client) DoApiPost(url string, data string) (*http.Response, error) {
-	return c.DoApiRequest(http.MethodPost, c.APIURL+url, data)
+func (c *Client) doApiPost(url string, data string) (*http.Response, error) {
+	return c.doApiRequest(http.MethodPost, c.APIURL+url, data)
 }
 
-func (c *Client) DoApiPut(url string, data string) (*http.Response, error) {
-	return c.DoApiRequest(http.MethodPut, c.APIURL+url, data)
+func (c *Client) doApiPut(url string, data string) (*http.Response, error) {
+	return c.doApiRequest(http.MethodPut, c.APIURL+url, data)
 }
 
-func (c *Client) DoApiDelete(url string) (*http.Response, error) {
-	return c.DoApiRequest(http.MethodDelete, c.APIURL+url, "")
+func (c *Client) doApiDelete(url string) (*http.Response, error) {
+	return c.doApiRequest(http.MethodDelete, c.APIURL+url, "")
 }
 
-func (c *Client) DoApiRequest(method, url, data string) (*http.Response, error) {
+func (c *Client) doApiRequest(method, url, data string) (*http.Response, error) {
 	return c.doApiRequestReader(method, url, strings.NewReader(data), map[string]string{})
 }
 
-func (c *Client) DoApiRequestWithHeaders(method, url, data string, headers map[string]string) (*http.Response, error) {
+func (c *Client) doApiRequestWithHeaders(method, url, data string, headers map[string]string) (*http.Response, error) {
 	return c.doApiRequestReader(method, url, strings.NewReader(data), headers)
 }
 
@@ -162,7 +162,7 @@ func buildResponse(r *http.Response) *Response {
 
 // GetUser returns a user based on the provided user id string.
 func (c *Client) GetUser(userID string) (*model.User, *Response) {
-	r, err := c.DoApiGet(c.getUserRoute(userID))
+	r, err := c.doApiGet(c.getUserRoute(userID))
 	if err != nil {
 		return nil, buildErrorResponse(r, err)
 	}
@@ -176,4 +176,30 @@ func (c *Client) GetUser(userID string) (*model.User, *Response) {
 		}
 	}
 	return user, buildResponse(r)
+}
+
+// CreateUser creates a user in the system based on the provided user struct.
+func (c *Client) CreateUser(user *model.User) (*model.User, *Response) {
+	b, err := json.Marshal(user)
+	if err != nil {
+		return nil, &Response{
+			StatusCode: 0,
+			Error:      err,
+			Header:     make(http.Header),
+		}
+	}
+	r, err := c.doApiPost(c.getUsersRoute(), string(b))
+	if err != nil {
+		return nil, buildErrorResponse(r, err)
+	}
+	defer closeBody(r)
+	var updatedUser *model.User
+	if err := json.NewDecoder(r.Body).Decode(&updatedUser); err != nil {
+		return nil, &Response{
+			StatusCode: 0,
+			Error:      err,
+			Header:     make(http.Header),
+		}
+	}
+	return updatedUser, buildResponse(r)
 }
