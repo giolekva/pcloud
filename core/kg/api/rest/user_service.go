@@ -18,6 +18,7 @@ func (router *Router) initUsers() {
 	router.User.Handle("", router.buildGetUserHandler()).Methods("GET")
 
 	router.Users.Handle("/login", router.buildGetLoginHandler()).Methods("POST")
+	router.Users.Handle("/logout", router.buildGetLogoutHandler()).Methods("POST")
 }
 
 func (router *Router) buildCreateUserHandler() http.Handler {
@@ -106,6 +107,19 @@ func (router *Router) buildGetLoginHandler() http.Handler {
 
 		user.SanitizeOutput()
 		jsoner(w, http.StatusOK, user)
+		return nil
+	}
+	return HandlerFunc(fn)
+}
+
+func (router *Router) buildGetLogoutHandler() http.Handler {
+	fn := func(w http.ResponseWriter, r *http.Request) error {
+		if router.App.Session().ID != "" {
+			if err := router.App.RevokeSession(router.App.Session().ID); err != nil {
+				return errors.Wrap(err, "can't revoke session")
+			}
+		}
+		jsoner(w, http.StatusOK, "")
 		return nil
 	}
 	return HandlerFunc(fn)

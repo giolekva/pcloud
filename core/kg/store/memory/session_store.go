@@ -44,5 +44,15 @@ func (ss *memorySessionStore) Save(session *model.Session) (*model.Session, erro
 		session.Token = session.ID
 	}
 
+	ss.sessions[session.ID] = session
+
 	return session, nil
+}
+
+func (ss *memorySessionStore) Remove(sessionID string) error {
+	if _, ok := ss.sessions[sessionID]; !ok {
+		return errors.New("session not found")
+	}
+	delete(ss.sessions, sessionID)
+	return nil
 }

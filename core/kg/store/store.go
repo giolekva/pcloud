@@ -20,4 +20,5 @@ type UserStore interface {
 
 type SessionStore interface {
 	Save(session *model.Session) (*model.Session, error)
+	Remove(sessionID string) error
 }

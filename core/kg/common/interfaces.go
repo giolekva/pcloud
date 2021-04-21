@@ -21,4 +21,7 @@ type AppIface interface {
 
 	AuthenticateUserForLogin(userID, loginID, password string) (*model.User, error)
 	DoLogin(w http.ResponseWriter, r *http.Request, user *model.User) error
+
+	Session() *model.Session
+	RevokeSession(sessionID string) error
 }

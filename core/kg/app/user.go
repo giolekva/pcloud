@@ -114,6 +114,17 @@ func (a *App) CreateSession(session *model.Session) (*model.Session, error) {
 	return session, nil
 }
 
+func (a *App) Session() *model.Session {
+	return &a.session
+}
+
+func (a *App) RevokeSession(sessionID string) error {
+	if err := a.store.Session().Remove(sessionID); err != nil {
+		return errors.Wrap(err, "can't remove session")
+	}
+	return nil
+}
+
 // HashPassword hashes user's password
 func HashPassword(password string) string {
 	if password == "" {

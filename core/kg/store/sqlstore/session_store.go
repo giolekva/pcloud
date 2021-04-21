@@ -40,3 +40,7 @@ func newSqlSessionStore(sqlStore *SqlStore) store.SessionStore {
 func (ss SqlSessionStore) Save(session *model.Session) (*model.Session, error) {
 	return nil, nil
 }
+
+func (ss SqlSessionStore) Remove(sessionID string) error {
+	return nil
+}
