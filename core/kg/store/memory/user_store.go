@@ -32,6 +32,7 @@ func newMemoryUserStore(mStore *MemoryStore) store.UserStore {
 func (us *memoryUserStore) Save(user *model.User) (*model.User, error) {
 	us.mutex.Lock()
 	defer us.mutex.Unlock()
+	user = user.Clone()
 	if user.ID == "" {
 		user.ID = strconv.Itoa(us.maxID)
 		us.maxID++
@@ -41,7 +42,7 @@ func (us *memoryUserStore) Save(user *model.User) (*model.User, error) {
 		user.UpdateAt = time.Now().Unix()
 	}
 	us.users[user.ID] = user
-	return user, nil
+	return user.Clone(), nil
 }
 
 func (us *memoryUserStore) Get(id string) (*model.User, error) {
@@ -92,7 +93,7 @@ func (us *memoryUserStore) GetByUsername(username string) (*model.User, error) {
 	defer us.mutex.RUnlock()
 	for _, value := range us.users {
 		if value.Username == username {
-			return value, nil
+			return value.Clone(), nil
 		}
 	}
 	return nil, errors.New("User not found")

@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/giolekva/pcloud/core/kg/app"
 	"github.com/giolekva/pcloud/core/kg/model"
 	"github.com/pkg/errors"
 )
@@ -50,6 +51,10 @@ func (c *Client) getUsersRoute() string {
 
 func (c *Client) getUserRoute(userId string) string {
 	return fmt.Sprintf(c.getUsersRoute()+"/%v", userId)
+}
+
+func (c *Client) getUsersPageRoute(page, perPage int) string {
+	return fmt.Sprintf(c.getUsersRoute()+"?page=%d&per_page=%d", page, perPage)
 }
 
 func (c *Client) doApiGet(url string) (*http.Response, error) {
@@ -178,6 +183,24 @@ func (c *Client) GetUser(userID string) (*model.User, *Response) {
 	return user, buildResponse(r)
 }
 
+// GetUser returns a user based on the provided user id string.
+func (c *Client) GetUsers(page, perPage int) ([]*model.User, *Response) {
+	r, err := c.doApiGet(c.getUsersPageRoute(page, perPage))
+	if err != nil {
+		return nil, buildErrorResponse(r, err)
+	}
+	defer closeBody(r)
+	var users []*model.User
+	if err := json.NewDecoder(r.Body).Decode(&users); err != nil {
+		return nil, &Response{
+			StatusCode: 0,
+			Error:      err,
+			Header:     make(http.Header),
+		}
+	}
+	return users, buildResponse(r)
+}
+
 // CreateUser creates a user in the system based on the provided user struct.
 func (c *Client) CreateUser(user *model.User) (*model.User, *Response) {
 	b, err := json.Marshal(user)
@@ -202,4 +225,47 @@ func (c *Client) CreateUser(user *model.User) (*model.User, *Response) {
 		}
 	}
 	return updatedUser, buildResponse(r)
+}
+
+// LoginByUserID authenticates a user by user id and password.
+func (c *Client) LoginByUserID(id string, password string) (*model.User, *Response) {
+	m := make(map[string]string)
+	m["user_id"] = id
+	m["password"] = password
+	return c.login(m)
+}
+
+// LoginByUsername authenticates a user by username and password.
+func (c *Client) LoginByUsername(username string, password string) (*model.User, *Response) {
+	m := make(map[string]string)
+	m["username"] = username
+	m["password"] = password
+	return c.login(m)
+}
+
+func (c *Client) login(m map[string]string) (*model.User, *Response) {
+	b, err := json.Marshal(m)
+	if err != nil {
+		return nil, &Response{
+			StatusCode: 0,
+			Error:      err,
+			Header:     make(http.Header),
+		}
+	}
+	r, err := c.doApiPost("/users/login", string(b))
+	if err != nil {
+		return nil, buildErrorResponse(r, err)
+	}
+	defer closeBody(r)
+	c.AuthToken = r.Header.Get(app.HeaderToken)
+	c.AuthType = HeaderBearer
+	var user *model.User
+	if err := json.NewDecoder(r.Body).Decode(&user); err != nil {
+		return nil, &Response{
+			StatusCode: 0,
+			Error:      err,
+			Header:     make(http.Header),
+		}
+	}
+	return user, buildResponse(r)
 }
