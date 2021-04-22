@@ -56,3 +56,15 @@ func (ss *memorySessionStore) Remove(sessionID string) error {
 	delete(ss.sessions, sessionID)
 	return nil
 }
+
+func (ss *memorySessionStore) Get(sessionIDOrToken string) (*model.Session, error) {
+	if session, ok := ss.sessions[sessionIDOrToken]; ok {
+		return session, nil
+	}
+	for _, session := range ss.sessions {
+		if session.Token == sessionIDOrToken {
+			return session, nil
+		}
+	}
+	return nil, errors.New("session not found")
+}

@@ -1,15 +1,11 @@
 package app
 
 import (
-	"net/http"
-
 	"github.com/giolekva/pcloud/core/kg/log"
 	"github.com/giolekva/pcloud/core/kg/model"
 	"github.com/pkg/errors"
 	"golang.org/x/crypto/bcrypt"
 )
-
-const HeaderToken = "token"
 
 // GetUser returns user
 func (a *App) GetUser(userID string) (*model.User, error) {
@@ -80,47 +76,6 @@ func (a *App) checkLogin(user *model.User, password string) error {
 	}
 	if !comparePassword(user.Password, password) {
 		return errors.New("incorrect password")
-	}
-	return nil
-}
-
-func (a *App) DoLogin(w http.ResponseWriter, r *http.Request, user *model.User) error {
-	session := &model.Session{
-		UserID: user.ID,
-	}
-	session.SetExpireInDays(a.config.App.SessionLengthInDays)
-
-	session, err := a.CreateSession(session)
-	if err != nil {
-		return errors.Wrap(err, "can't create a session")
-	}
-
-	w.Header().Set(HeaderToken, session.Token)
-	a.SetSession(session)
-
-	return nil
-}
-
-func (a *App) SetSession(s *model.Session) {
-	a.session = *s
-}
-
-func (a *App) CreateSession(session *model.Session) (*model.Session, error) {
-	session.Token = ""
-	session, err := a.store.Session().Save(session)
-	if err != nil {
-		return nil, errors.Wrap(err, "can't save the session")
-	}
-	return session, nil
-}
-
-func (a *App) Session() *model.Session {
-	return &a.session
-}
-
-func (a *App) RevokeSession(sessionID string) error {
-	if err := a.store.Session().Remove(sessionID); err != nil {
-		return errors.Wrap(err, "can't remove session")
 	}
 	return nil
 }

@@ -44,3 +44,7 @@ func (ss SqlSessionStore) Save(session *model.Session) (*model.Session, error) {
 func (ss SqlSessionStore) Remove(sessionID string) error {
 	return nil
 }
+
+func (ss SqlSessionStore) Get(sessionIDOrToken string) (*model.Session, error) {
+	return nil, nil
+}

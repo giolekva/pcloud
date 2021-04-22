@@ -8,7 +8,6 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/giolekva/pcloud/core/kg/app"
 	"github.com/giolekva/pcloud/core/kg/model"
 	"github.com/pkg/errors"
 )
@@ -17,6 +16,7 @@ const (
 	HeaderBearer    = "BEARER"
 	HeaderAuth      = "Authorization"
 	HeaderRequestID = "X-Request-ID"
+	HeaderToken     = "token"
 )
 
 type Client struct {
@@ -257,7 +257,7 @@ func (c *Client) login(m map[string]string) (*model.User, *Response) {
 		return nil, buildErrorResponse(r, err)
 	}
 	defer closeBody(r)
-	c.AuthToken = r.Header.Get(app.HeaderToken)
+	c.AuthToken = r.Header.Get(HeaderToken)
 	c.AuthType = HeaderBearer
 	var user *model.User
 	if err := json.NewDecoder(r.Body).Decode(&user); err != nil {

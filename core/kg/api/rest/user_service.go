@@ -101,7 +101,7 @@ func (router *Router) buildGetLoginHandler() http.Handler {
 			return errors.Wrap(err, "can't authenticate user for login")
 		}
 
-		if err := router.App.DoLogin(w, r, user); err != nil {
+		if err := router.DoLogin(w, r, user); err != nil {
 			return errors.Wrap(err, "can't login")
 		}
 
@@ -123,4 +123,15 @@ func (router *Router) buildGetLogoutHandler() http.Handler {
 		return nil
 	}
 	return HandlerFunc(fn)
+}
+
+func (router *Router) DoLogin(w http.ResponseWriter, r *http.Request, user *model.User) error {
+	session, err := router.App.CreateSession(user.ID)
+	if err != nil {
+		return errors.Wrap(err, "can't create a session")
+	}
+	w.Header().Set(HeaderToken, session.Token)
+	router.App.SetSession(session)
+
+	return nil
 }

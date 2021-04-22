@@ -1,8 +1,6 @@
 package common
 
 import (
-	"net/http"
-
 	"github.com/giolekva/pcloud/core/kg/log"
 	"github.com/giolekva/pcloud/core/kg/model"
 )
@@ -20,8 +18,10 @@ type AppIface interface {
 	GetUsers(page, perPage int) ([]*model.User, error)
 
 	AuthenticateUserForLogin(userID, loginID, password string) (*model.User, error)
-	DoLogin(w http.ResponseWriter, r *http.Request, user *model.User) error
 
+	CreateSession(userID string) (*model.Session, error)
 	Session() *model.Session
 	RevokeSession(sessionID string) error
+	GetSession(token string) (*model.Session, error)
+	SetSession(s *model.Session)
 }

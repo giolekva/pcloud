@@ -2,6 +2,7 @@ package rest
 
 import (
 	"net/http"
+	"strings"
 
 	"github.com/giolekva/pcloud/core/kg/common"
 	"github.com/giolekva/pcloud/core/kg/log"
@@ -38,6 +39,7 @@ func NewRouter(root *mux.Router, app common.AppIface, logger common.LoggerIface)
 	root.Handle("/api/v1/{anything:.*}", http.HandlerFunc(http.NotFound))
 	routers.initUsers()
 	root.Use(routers.loggerMiddleware)
+	root.Use(routers.authMiddleware)
 	return routers
 }
 
@@ -50,4 +52,49 @@ func (router *Router) loggerMiddleware(next http.Handler) http.Handler {
 		router.Logger.Debug(r.Method, log.String("url", r.URL.String()))
 		next.ServeHTTP(w, r)
 	})
+}
+
+func (router *Router) authMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		requestID := common.NewID()
+		w.Header().Set(HeaderRequestID, requestID)
+		w.Header().Set("Content-Type", "application/json")
+		if r.Method == "GET" {
+			w.Header().Set("Expires", "0")
+		}
+
+		token := parseAuthTokenFromRequest(r)
+		println("token", token)
+		if token != "" {
+			session, err := router.App.GetSession(token)
+			if err != nil {
+				w.WriteHeader(http.StatusUnauthorized)
+				w.Write([]byte(err.Error()))
+			}
+			router.App.SetSession(session)
+		}
+		next.ServeHTTP(w, r)
+	})
+}
+
+func parseAuthTokenFromRequest(r *http.Request) string {
+	authHeader := r.Header.Get(HeaderAuth)
+
+	// Parse the token from the header
+	if len(authHeader) > 6 && strings.ToUpper(authHeader[0:6]) == HeaderBearer {
+		// Default session token
+		return authHeader[7:]
+	}
+
+	if len(authHeader) > 5 && strings.ToLower(authHeader[0:5]) == HeaderToken {
+		// OAuth token
+		return authHeader[6:]
+	}
+
+	// Attempt to parse token out of the query string
+	if token := r.URL.Query().Get("access_token"); token != "" {
+		return token
+	}
+
+	return ""
 }
