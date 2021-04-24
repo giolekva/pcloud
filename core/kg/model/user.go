@@ -94,7 +94,7 @@ func isValidID(value string) bool {
 }
 
 func invalidUserError(fieldName string, userID string) error {
-	return errors.Errorf("Invalid User field: %s; id: %s", fieldName, userID)
+	return errors.Wrapf(ErrInvalidInput, "Invalid User field: %s; id: %s", fieldName, userID)
 }
 
 func isValidUsername(s string) bool {

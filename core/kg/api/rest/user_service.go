@@ -51,11 +51,11 @@ func (router *Router) buildGetUsersHandler() http.Handler {
 
 		pageInt, err := strconv.Atoi(page)
 		if err != nil {
-			return errors.New("parameter page should be an int")
+			return errors.Wrap(model.ErrInvalidInput, "parameter page should be an int")
 		}
 		perPageInt, err := strconv.Atoi(perPage)
 		if err != nil {
-			return errors.New("parameter per_page should be an int")
+			return errors.Wrap(model.ErrInvalidInput, "parameter per_page should be an int")
 		}
 		users, err := router.App.GetUsers(pageInt, perPageInt)
 		if err != nil {
@@ -75,7 +75,7 @@ func (router *Router) buildGetUserHandler() http.Handler {
 		var userID string
 		var ok bool
 		if userID, ok = params["user_id"]; !ok {
-			return errors.New("missing parameter: user_id")
+			return errors.Wrap(model.ErrInvalidInput, "missing parameter: user_id")
 		}
 		user, err := router.App.GetUser(userID)
 

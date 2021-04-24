@@ -36,12 +36,12 @@ func (a *App) GetSession(token string) (*model.Session, error) {
 		return nil, errors.Wrap(err, "can't get session")
 	}
 	if session == nil || session.ID == "" || session.IsExpired() {
-		return nil, errors.New("session is nil or expired")
+		return nil, errors.Wrap(model.ErrUnauthorized, "session is nil or expired")
 	}
 	if a.config.App.SessionIdleTimeoutInMinutes > 0 {
 		timeout := int64(a.config.App.SessionIdleTimeoutInMinutes) * 1000 * 60
 		if (common.GetMillis() - session.LastActivityAt) > timeout {
-			return nil, errors.New("session idle timeout")
+			return nil, errors.Wrap(model.ErrUnauthorized, "session idle timeout")
 		}
 	}
 	return session, nil

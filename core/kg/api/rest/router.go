@@ -64,7 +64,6 @@ func (router *Router) authMiddleware(next http.Handler) http.Handler {
 		}
 
 		token := parseAuthTokenFromRequest(r)
-		println("token", token)
 		if token != "" {
 			session, err := router.App.GetSession(token)
 			if err != nil {

@@ -2,7 +2,10 @@ package rest
 
 import (
 	"encoding/json"
+	"errors"
 	"net/http"
+
+	"github.com/giolekva/pcloud/core/kg/model"
 )
 
 type HandlerFunc func(w http.ResponseWriter, r *http.Request) error
@@ -10,7 +13,7 @@ type HandlerFunc func(w http.ResponseWriter, r *http.Request) error
 // ServeHTTP calls f(w, r) and handles error
 func (f HandlerFunc) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if err := f(w, r); err != nil {
-		jsoner(w, http.StatusBadRequest, err.Error()) // TODO detect the correct statusCode from error
+		jsonError(w, err)
 	}
 }
 
@@ -34,4 +37,21 @@ func jsoner(w http.ResponseWriter, statusCode int, payload interface{}) error {
 	}
 
 	return nil
+}
+
+// TODO test error statuses
+func jsonError(w http.ResponseWriter, err error) {
+	code := http.StatusInternalServerError
+
+	switch {
+	case errors.Is(err, model.ErrForbidden):
+		code = http.StatusForbidden
+	case errors.Is(err, model.ErrInvalidInput):
+		code = http.StatusBadRequest
+	case errors.Is(err, model.ErrNotFound):
+		code = http.StatusNotFound
+	case errors.Is(err, model.ErrNotFound):
+		code = http.StatusUnauthorized
+	}
+	jsoner(w, code, err.Error())
 }

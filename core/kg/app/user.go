@@ -19,7 +19,7 @@ func (a *App) GetUser(userID string) (*model.User, error) {
 // CreateUser creates a user. For now it is used only for creation of the very first user
 func (a *App) CreateUser(user *model.User) (*model.User, error) {
 	if !a.isFirstUserAccount() {
-		return nil, errors.New("not a first user")
+		return nil, errors.Wrap(model.ErrInvalidInput, "not a first user")
 	}
 
 	updatedUser, err := a.store.User().Save(user)
@@ -61,7 +61,7 @@ func (a *App) AuthenticateUserForLogin(userID, username, password string) (*mode
 			return nil, errors.Wrapf(err, "can't get user by username")
 		}
 	default:
-		return nil, errors.New("can't authenticate user for login")
+		return nil, errors.Wrap(model.ErrInvalidInput, "userID and username are empty")
 	}
 
 	if err := a.checkLogin(user, password); err != nil {
@@ -72,10 +72,10 @@ func (a *App) AuthenticateUserForLogin(userID, username, password string) (*mode
 
 func (a *App) checkLogin(user *model.User, password string) error {
 	if user.IsDisabled() {
-		return errors.New("user is disabled")
+		return errors.Wrap(model.ErrUnauthorized, "user is disabled")
 	}
 	if !comparePassword(user.Password, password) {
-		return errors.New("incorrect password")
+		return errors.Wrap(model.ErrUnauthorized, "incorrect password")
 	}
 	return nil
 }

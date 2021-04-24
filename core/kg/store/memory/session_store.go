@@ -33,7 +33,7 @@ func (ss *memorySessionStore) Save(session *model.Session) (*model.Session, erro
 	ss.mutex.Lock()
 	defer ss.mutex.Unlock()
 	if session.ID != "" {
-		return nil, errors.Errorf("invalid session input id: %s", session.ID)
+		return nil, errors.Wrapf(model.ErrInvalidInput, "sessionID is empty")
 	}
 	session.ID = strconv.Itoa(ss.maxID)
 	ss.maxID++
@@ -51,7 +51,7 @@ func (ss *memorySessionStore) Save(session *model.Session) (*model.Session, erro
 
 func (ss *memorySessionStore) Remove(sessionID string) error {
 	if _, ok := ss.sessions[sessionID]; !ok {
-		return errors.New("session not found")
+		errors.Wrapf(model.ErrNotFound, "sessionID = %s", sessionID)
 	}
 	delete(ss.sessions, sessionID)
 	return nil
@@ -66,5 +66,6 @@ func (ss *memorySessionStore) Get(sessionIDOrToken string) (*model.Session, erro
 			return session, nil
 		}
 	}
-	return nil, errors.New("session not found")
+	return nil, errors.Wrapf(model.ErrNotFound, "sessionID or token = %s", sessionIDOrToken)
+
 }

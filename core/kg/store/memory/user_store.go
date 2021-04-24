@@ -1,13 +1,13 @@
 package memory
 
 import (
-	"errors"
 	"strconv"
 	"sync"
 	"time"
 
 	"github.com/giolekva/pcloud/core/kg/model"
 	"github.com/giolekva/pcloud/core/kg/store"
+	"github.com/pkg/errors"
 )
 
 type memoryUserStore struct {
@@ -50,7 +50,7 @@ func (us *memoryUserStore) Get(id string) (*model.User, error) {
 	defer us.mutex.RUnlock()
 	user, ok := us.users[id]
 	if !ok {
-		return nil, errors.New("User not found")
+		return nil, errors.Wrapf(model.ErrNotFound, "userID = %s", id)
 	}
 	return user.Clone(), nil
 }
@@ -96,5 +96,5 @@ func (us *memoryUserStore) GetByUsername(username string) (*model.User, error) {
 			return value.Clone(), nil
 		}
 	}
-	return nil, errors.New("User not found")
+	return nil, errors.Wrapf(model.ErrNotFound, "username = %s", username)
 }
