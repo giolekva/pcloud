@@ -38,7 +38,7 @@ func (ss *SqlStore) initConnection() {
 }
 
 func (ss *SqlStore) getQueryBuilder() sq.StatementBuilderType {
-	return sq.StatementBuilder.PlaceholderFormat(sq.Dollar)
+	return sq.StatementBuilder.PlaceholderFormat(sq.Dollar).RunWith(ss.db)
 }
 
 func (ss *SqlStore) User() store.UserStore {
