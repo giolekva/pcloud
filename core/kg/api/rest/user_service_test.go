@@ -1,6 +1,7 @@
 package rest_test
 
 import (
+	"net/http"
 	"testing"
 
 	"github.com/giolekva/pcloud/core/kg/model"
@@ -15,8 +16,8 @@ func TestUserService(t *testing.T) {
 	t.Run("Should not find user", func(t *testing.T) {
 		user, resp := ts.RestClient.GetUser("id")
 		assert.Nil(t, user)
-		assert.Contains(t, resp.Error.Error(), "User not found")
-		assert.Equal(t, 400, resp.StatusCode)
+		assert.Contains(t, resp.Error.Error(), model.ErrNotFound.Error())
+		assert.Equal(t, http.StatusNotFound, resp.StatusCode)
 		assert.Equal(t, "", resp.RequestID)
 	})
 
@@ -68,15 +69,15 @@ func TestLogin(t *testing.T) {
 
 	t.Run("Should not login user with id", func(t *testing.T) {
 		loggedInUser, resp := ts.RestClient.LoginByUserID(uUser.ID, "bla2")
-		assert.Equal(t, 400, resp.StatusCode)
+		assert.Equal(t, http.StatusUnauthorized, resp.StatusCode)
 		assert.Nil(t, loggedInUser)
-		assert.Contains(t, resp.Error.Error(), "incorrect password")
+		assert.Contains(t, resp.Error.Error(), model.ErrUnauthorized.Error())
 	})
 
 	t.Run("Should not login user with username", func(t *testing.T) {
 		loggedInUser, resp := ts.RestClient.LoginByUsername("bla", "bla2")
-		assert.Equal(t, 400, resp.StatusCode)
+		assert.Equal(t, http.StatusUnauthorized, resp.StatusCode)
 		assert.Nil(t, loggedInUser)
-		assert.Contains(t, resp.Error.Error(), "incorrect password")
+		assert.Contains(t, resp.Error.Error(), model.ErrUnauthorized.Error())
 	})
 }

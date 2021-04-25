@@ -50,7 +50,7 @@ func jsonError(w http.ResponseWriter, err error) {
 		code = http.StatusBadRequest
 	case errors.Is(err, model.ErrNotFound):
 		code = http.StatusNotFound
-	case errors.Is(err, model.ErrNotFound):
+	case errors.Is(err, model.ErrUnauthorized):
 		code = http.StatusUnauthorized
 	}
 	jsoner(w, code, err.Error())

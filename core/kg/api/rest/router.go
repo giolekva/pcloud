@@ -69,6 +69,7 @@ func (router *Router) authMiddleware(next http.Handler) http.Handler {
 			if err != nil {
 				w.WriteHeader(http.StatusUnauthorized)
 				w.Write([]byte(err.Error()))
+				return
 			}
 			router.App.SetSession(session)
 		}
