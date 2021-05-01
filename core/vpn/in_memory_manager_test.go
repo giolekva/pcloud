@@ -11,9 +11,14 @@ import (
 	"github.com/giolekva/pcloud/core/vpn/types"
 )
 
+// TODO(giolekva): split into multiple smaller tests
 func TestTwoPeers(t *testing.T) {
 	ipm := NewSequentialIPManager(netaddr.MustParseIP("10.0.0.1"))
 	m := NewInMemoryManager(ipm)
+	groupId, err := m.CreateGroup("test")
+	if err != nil {
+		t.Fatal(err)
+	}
 	privKeyA := types.NewPrivateKey()
 	a, err := engine.NewFakeWireguardEngine(12345, privKeyA)
 	if err != nil {
@@ -24,7 +29,7 @@ func TestTwoPeers(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	nma, err := m.RegisterDevice(types.DeviceInfo{
+	err = m.RegisterDevice(types.DeviceInfo{
 		privKeyA.Public(),
 		a.DiscoKey(),
 		netaddr.MustParseIPPort("127.0.0.1:12345"),
@@ -38,10 +43,7 @@ func TestTwoPeers(t *testing.T) {
 			t.Fatal(err)
 		}
 	})
-	if err := a.Configure(nma); err != nil {
-		t.Fatal(err)
-	}
-	nmb, err := m.RegisterDevice(types.DeviceInfo{
+	err = m.RegisterDevice(types.DeviceInfo{
 		privKeyB.Public(),
 		b.DiscoKey(),
 		netaddr.MustParseIPPort("127.0.0.1:12346"),
@@ -55,6 +57,17 @@ func TestTwoPeers(t *testing.T) {
 			t.Fatal(err)
 		}
 	})
+	nma, err := m.AddDeviceToGroup(privKeyA.Public(), groupId)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := a.Configure(nma); err != nil {
+		t.Fatal(err)
+	}
+	nmb, err := m.AddDeviceToGroup(privKeyB.Public(), groupId)
+	if err != nil {
+		t.Fatal(err)
+	}
 	if err := b.Configure(nmb); err != nil {
 		t.Fatal(err)
 	}
@@ -79,5 +92,8 @@ func TestTwoPeers(t *testing.T) {
 	p := <-ping
 	if p.Err == "" {
 		t.Fatalf("Ping received even after removing device: %+v", p)
+	}
+	if err := m.DeleteGroup(groupId); err != nil {
+		t.Fatal(err)
 	}
 }
