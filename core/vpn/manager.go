@@ -9,10 +9,11 @@ type NetworkMapChangeCallback func(*types.NetworkMap)
 // Manager interface manages mesh VPN configuration for all the devices registed by all users.
 // It does enforce device to device ACLs but delegates user authorization to the client.
 type Manager interface {
-	// Registers new device with given public key and name.
-	// New device is isolated from the rest of the network until it is explicitely added to
-	// an existing group.
-	RegisterDevice(name string, pubKey types.PublicKey) error
+	// Registers new device.
+	// Returns VPN network configuration on success and error otherwise.
+	// By default new devices have access to other machines owned by the same user
+	// and a PCloud entrypoint.
+	RegisterDevice(d types.DeviceInfo) (*types.NetworkMap, error)
 	// Completely removes device with given public key from the network.
 	RemoveDevice(pubKey types.PublicKey) error
 	// Creates new group with given name and returns it's id.
