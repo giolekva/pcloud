@@ -13,7 +13,7 @@ type Manager interface {
 	// Returns VPN network configuration on success and error otherwise.
 	// By default new devices have access to other machines owned by the same user
 	// and a PCloud entrypoint.
-	RegisterDevice(d types.DeviceInfo) (*types.NetworkMap, error)
+	RegisterDevice(d types.DeviceInfo) error
 	// Completely removes device with given public key from the network.
 	RemoveDevice(pubKey types.PublicKey) error
 	// Creates new group with given name and returns it's id.
