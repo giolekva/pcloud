@@ -20,7 +20,7 @@ type InMemoryManager struct {
 	ipm          IPManager
 }
 
-func NewInMemoryManager(ipm IPManager) *InMemoryManager {
+func NewInMemoryManager(ipm IPManager) Manager {
 	return &InMemoryManager{
 		devices:      make([]*types.DeviceInfo, 0),
 		keyToDevices: make(map[types.PublicKey]*types.DeviceInfo),
