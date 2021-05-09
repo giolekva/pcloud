@@ -16,7 +16,7 @@ type Manager interface {
 	RegisterDevice(d types.DeviceInfo) (*types.NetworkMap, error)
 	// Completely removes device with given public key from the network.
 	RemoveDevice(pubKey types.PublicKey) error
-	// Returns network configuration for a device with give public key.
+	// Returns network configuration for a device with a given public key.
 	// Result of this call must be encrypted with the same public key before
 	// sending it back to the client, so only the owner of it's corresponding
 	// private key is able to decrypt and use it.
