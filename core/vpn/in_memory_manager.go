@@ -41,11 +41,18 @@ func (m *InMemoryManager) RegisterDevice(d types.DeviceInfo) (*types.NetworkMap,
 	m.keyToDevices[d.PublicKey] = &d
 	m.devices = append(m.devices, &d)
 	m.callbacks[d.PublicKey] = make([]NetworkMapChangeCallback, 0)
-	ret := m.genNetworkMap(&d)
+	ret, err := m.genNetworkMap(&d)
+	if err != nil {
+		return nil, err
+	}
 	// TODO(giolekva): run this in a goroutine
 	for _, peer := range m.devices {
 		if peer.PublicKey != d.PublicKey {
-			netMap := m.genNetworkMap(peer)
+			netMap, err := m.genNetworkMap(peer)
+			if err != nil {
+				// TODO(giolekva): maybe return netmap of requested device anyways?
+				return nil, err
+			}
 			for _, cb := range m.callbacks[peer.PublicKey] {
 				cb(netMap)
 			}
@@ -68,7 +75,10 @@ func (m *InMemoryManager) RemoveDevice(pubKey types.PublicKey) error {
 		}
 	}
 	for _, peer := range m.devices {
-		netMap := m.genNetworkMap(peer)
+		netMap, err := m.genNetworkMap(peer)
+		if err != nil {
+			return err
+		}
 		for _, cb := range m.callbacks[peer.PublicKey] {
 			cb(netMap)
 		}
@@ -80,7 +90,7 @@ func (m *InMemoryManager) GetNetworkMap(pubKey types.PublicKey) (*types.NetworkM
 	m.lock.Lock()
 	defer m.lock.Unlock()
 	if d, ok := m.keyToDevices[pubKey]; ok {
-		return m.genNetworkMap(d), nil
+		return m.genNetworkMap(d)
 	}
 	return nil, errorDeviceNotFound(pubKey)
 }
@@ -94,12 +104,12 @@ func (m *InMemoryManager) AddNetworkMapChangeCallback(pubKey types.PublicKey, cb
 	return errorDeviceNotFound(pubKey)
 }
 
-func (m *InMemoryManager) genNetworkMap(d *types.DeviceInfo) *types.NetworkMap {
+func (m *InMemoryManager) genNetworkMap(d *types.DeviceInfo) (*types.NetworkMap, error) {
 	vpnIP, err := m.ipm.Get(d.PublicKey)
 	// NOTE(giolekva): Should not happen as devices must have been already registered and assigned IP address.
 	// Maybe should return error anyways instead of panic?
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
 	ret := types.NetworkMap{
 		Self: types.Node{
@@ -116,7 +126,7 @@ func (m *InMemoryManager) genNetworkMap(d *types.DeviceInfo) *types.NetworkMap {
 		}
 		vpnIP, err := m.ipm.Get(peer.PublicKey)
 		if err != nil {
-			panic(err)
+			return nil, err
 		}
 		ret.Peers = append(ret.Peers, types.Node{
 			PublicKey:     peer.PublicKey,
@@ -126,5 +136,5 @@ func (m *InMemoryManager) genNetworkMap(d *types.DeviceInfo) *types.NetworkMap {
 			VPNIP:         vpnIP,
 		})
 	}
-	return &ret
+	return &ret, nil
 }
