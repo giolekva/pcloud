@@ -130,9 +130,9 @@ func (m *InMemoryManager) AddDeviceToGroup(pubKey types.PublicKey, id types.Grou
 	g.Peers = append(g.Peers, d)
 	groups = append(groups, g)
 	m.deviceToGroups[pubKey] = groups
-	ret := m.genNetworkMap(d)
+	ret, err := m.genNetworkMap(d)
 	m.notifyPeers(d, g)
-	return ret, nil
+	return ret, err
 }
 
 func (m *InMemoryManager) RemoveDeviceFromGroup(pubKey types.PublicKey, id types.GroupID) (*types.NetworkMap, error) {
@@ -176,7 +176,7 @@ func (m *InMemoryManager) removeDeviceFromGroupNoLock(pubKey types.PublicKey, id
 		panic("Should not reach")
 	}
 	m.notifyPeers(d, g)
-	return m.genNetworkMap(d), nil
+	return m.genNetworkMap(d)
 }
 
 func (m *InMemoryManager) GetNetworkMap(pubKey types.PublicKey) (*types.NetworkMap, error) {
@@ -201,7 +201,10 @@ func (m *InMemoryManager) notifyPeers(d *types.DeviceInfo, g *types.Group) {
 	// TODO(giolekva): maybe run this in a goroutine?
 	for _, peer := range g.Peers {
 		if peer.PublicKey != d.PublicKey {
-			netMap := m.genNetworkMap(peer)
+			netMap, err := m.genNetworkMap(peer)
+			if err != nil {
+				panic(err) // TODO(giolekva): handle properly
+			}
 			for _, cb := range m.callbacks[peer.PublicKey] {
 				cb(netMap)
 			}
