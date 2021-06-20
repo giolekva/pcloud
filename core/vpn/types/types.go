@@ -15,10 +15,19 @@ type PublicKey wgcfg.Key
 //Public discovery key of the device.
 type DiscoKey wgcfg.Key
 
+// Unique group identifier.
+type GroupID string
+
 type DeviceInfo struct {
 	PublicKey PublicKey
 	DiscoKey  DiscoKey
 	IPPort    netaddr.IPPort
+}
+
+type Group struct {
+	ID    GroupID
+	Name  string
+	Peers []*DeviceInfo
 }
 
 // Represents single node in the network.
