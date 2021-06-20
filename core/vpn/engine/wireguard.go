@@ -1,7 +1,6 @@
 package engine
 
 import (
-	"encoding/hex"
 	"fmt"
 	"log"
 
@@ -160,9 +159,7 @@ func (e *WireguardEngine) DiscoKey() types.DiscoKey {
 }
 
 func (e *WireguardEngine) DiscoEndpoint() string {
-	k := e.DiscoKey()
-	discoHex := hex.EncodeToString(k[:])
-	return fmt.Sprintf("%s%s", discoHex, controlclient.EndpointDiscoSuffix)
+	return e.DiscoKey().Endpoint()
 }
 
 func (e *WireguardEngine) Ping(ip netaddr.IP, cb func(*ipnstate.PingResult)) {

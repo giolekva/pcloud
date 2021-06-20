@@ -113,7 +113,8 @@ func TestTenPeers(t *testing.T) {
 		p := <-ping
 		if p.Err != "" {
 			t.Error(p.Err)
+		} else {
+			log.Printf("Ping received: %+v\n", p)
 		}
-		log.Printf("Ping received: %+v\n", p)
 	}
 }
