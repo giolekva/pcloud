@@ -25,7 +25,7 @@ type Manager interface {
 	AddDeviceToGroup(pubKey types.PublicKey, id types.GroupID) (*types.NetworkMap, error)
 	// Removes device from the group and returns updated network configuration.
 	RemoveDeviceFromGroup(pubKey types.PublicKey, id types.GroupID) (*types.NetworkMap, error)
-	// Returns network configuration for a device with give public key.
+	// Returns network configuration for a device with a given public key.
 	// Result of this call must be encrypted with the same public key before
 	// sending it back to the client, so only the owner of it's corresponding
 	// private key is able to decrypt and use it.

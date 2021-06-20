@@ -183,7 +183,7 @@ func (m *InMemoryManager) GetNetworkMap(pubKey types.PublicKey) (*types.NetworkM
 	m.lock.Lock()
 	defer m.lock.Unlock()
 	if d, ok := m.keyToDevices[pubKey]; ok {
-		return m.genNetworkMap(d), nil
+		return m.genNetworkMap(d)
 	}
 	return nil, errorDeviceNotFound(pubKey)
 }
@@ -209,12 +209,12 @@ func (m *InMemoryManager) notifyPeers(d *types.DeviceInfo, g *types.Group) {
 	}
 }
 
-func (m *InMemoryManager) genNetworkMap(d *types.DeviceInfo) *types.NetworkMap {
+func (m *InMemoryManager) genNetworkMap(d *types.DeviceInfo) (*types.NetworkMap, error) {
 	vpnIP, err := m.ipm.Get(d.PublicKey)
 	// NOTE(giolekva): Should not happen as devices must have been already registered and assigned IP address.
 	// Maybe should return error anyways instead of panic?
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
 	ret := types.NetworkMap{
 		Self: types.Node{
@@ -243,5 +243,5 @@ func (m *InMemoryManager) genNetworkMap(d *types.DeviceInfo) *types.NetworkMap {
 			})
 		}
 	}
-	return &ret
+	return &ret, nil
 }
