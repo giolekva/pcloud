@@ -13,7 +13,7 @@ import (
 var port = flag.Int("port", 3000, "Port to listen on")
 
 func handle(w http.ResponseWriter, r *http.Request) {
-	log.Printf("---------- %s", r.RemoteAddr)
+	fmt.Println("Received new request")
 	resp, err := http.Get("https://dog.ceo/api/breeds/image/random")
 	if err != nil {
 		log.Print(err)
@@ -33,9 +33,8 @@ func handle(w http.ResponseWriter, r *http.Request) {
 <!DOCTYPE html>
 <html>
     <head>
-        <title>Photos</title>
+        <title>Woof</title>
     </head>
-    <script src="static/photos.js"></script>
     <body>
       <img src="%s"></img>
     </body>
@@ -45,5 +44,6 @@ func handle(w http.ResponseWriter, r *http.Request) {
 func main() {
 	flag.Parse()
 	http.HandleFunc("/", handle)
+	fmt.Printf("Starting HTTP server on port: %d\n", *port)
 	log.Fatal(http.ListenAndServe(fmt.Sprintf(":%d", *port), nil))
 }
