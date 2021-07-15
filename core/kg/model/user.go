@@ -74,6 +74,11 @@ func (u *User) SanitizeOutput() {
 	u.Password = ""
 }
 
+// IsDisabled returns true if user is no longer enabled
+func (u *User) IsDisabled() bool {
+	return u.DeleteAt > 0
+}
+
 func isValidID(value string) bool {
 	if len(value) != 26 {
 		return false
@@ -89,7 +94,7 @@ func isValidID(value string) bool {
 }
 
 func invalidUserError(fieldName string, userID string) error {
-	return errors.Errorf("Invalid User field: %s; id: %s", fieldName, userID)
+	return errors.Wrapf(ErrInvalidInput, "Invalid User field: %s; id: %s", fieldName, userID)
 }
 
 func isValidUsername(s string) bool {

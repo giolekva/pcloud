@@ -13,6 +13,7 @@ import (
 type Server interface {
 	Start() error
 	Shutdown() error
+	Addr() string
 }
 
 // Servers represents different server services

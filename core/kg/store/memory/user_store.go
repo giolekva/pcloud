@@ -1,13 +1,13 @@
 package memory
 
 import (
-	"errors"
 	"strconv"
 	"sync"
 	"time"
 
 	"github.com/giolekva/pcloud/core/kg/model"
 	"github.com/giolekva/pcloud/core/kg/store"
+	"github.com/pkg/errors"
 )
 
 type memoryUserStore struct {
@@ -32,6 +32,7 @@ func newMemoryUserStore(mStore *MemoryStore) store.UserStore {
 func (us *memoryUserStore) Save(user *model.User) (*model.User, error) {
 	us.mutex.Lock()
 	defer us.mutex.Unlock()
+	user = user.Clone()
 	if user.ID == "" {
 		user.ID = strconv.Itoa(us.maxID)
 		us.maxID++
@@ -41,7 +42,7 @@ func (us *memoryUserStore) Save(user *model.User) (*model.User, error) {
 		user.UpdateAt = time.Now().Unix()
 	}
 	us.users[user.ID] = user
-	return user, nil
+	return user.Clone(), nil
 }
 
 func (us *memoryUserStore) Get(id string) (*model.User, error) {
@@ -49,7 +50,7 @@ func (us *memoryUserStore) Get(id string) (*model.User, error) {
 	defer us.mutex.RUnlock()
 	user, ok := us.users[id]
 	if !ok {
-		return nil, errors.New("User not found")
+		return nil, errors.Wrapf(model.ErrNotFound, "userID = %s", id)
 	}
 	return user.Clone(), nil
 }
@@ -82,5 +83,18 @@ func (us *memoryUserStore) GetAllWithOptions(page, perPage int) ([]*model.User, 
 }
 
 func (us *memoryUserStore) Count() (int64, error) {
+	us.mutex.RLock()
+	defer us.mutex.RUnlock()
 	return int64(us.maxID) - 1, nil
+}
+
+func (us *memoryUserStore) GetByUsername(username string) (*model.User, error) {
+	us.mutex.RLock()
+	defer us.mutex.RUnlock()
+	for _, value := range us.users {
+		if value.Username == username {
+			return value.Clone(), nil
+		}
+	}
+	return nil, errors.Wrapf(model.ErrNotFound, "username = %s", username)
 }

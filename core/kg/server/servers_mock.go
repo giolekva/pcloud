@@ -1,9 +1,12 @@
 package server
 
 import (
+	"fmt"
+	"strings"
 	"testing"
 	"time"
 
+	"github.com/giolekva/pcloud/core/kg/api/rest"
 	"github.com/giolekva/pcloud/core/kg/app"
 	"github.com/giolekva/pcloud/core/kg/common"
 	"github.com/giolekva/pcloud/core/kg/log"
@@ -11,9 +14,10 @@ import (
 )
 
 type MockServer struct {
-	App     common.AppIface
-	Servers []Server
-	Config  *model.Config
+	App        common.AppIface
+	Servers    []Server
+	RestClient *rest.Client
+	Config     *model.Config
 }
 
 func Setup(tb testing.TB) *MockServer {
@@ -22,17 +26,27 @@ func Setup(tb testing.TB) *MockServer {
 	}
 	app := app.NewTestApp()
 	config := model.NewConfig()
+	config.HTTP.Port = 0
+	config.GRPC.Port = 0
 	logger := &log.NoOpLogger{}
 	grpcServer := NewGRPCServer(logger, config, app)
 	httpServer := NewHTTPServer(logger, config, app)
-	ts := &MockServer{
-		App:     app,
-		Servers: []Server{grpcServer, httpServer},
-		Config:  config,
-	}
 	go grpcServer.Start() // nolint:errcheck
 	go httpServer.Start() // nolint:errcheck
 	time.Sleep(1 * time.Second)
+
+	addr := httpServer.Addr()
+	if strings.HasPrefix(addr, "[::]:") {
+		addr = fmt.Sprintf("http://localhost:%s", addr[5:])
+	}
+	restClient := rest.NewAPIClient(addr)
+	ts := &MockServer{
+		App:        app,
+		Servers:    []Server{grpcServer, httpServer},
+		RestClient: restClient,
+		Config:     config,
+	}
+
 	return ts
 }
 

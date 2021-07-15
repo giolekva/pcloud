@@ -11,7 +11,11 @@ type App struct {
 	store  store.Store
 	config *model.Config
 	logger common.LoggerIface
+
+	session model.Session
 }
+
+var _ common.AppIface = &App{}
 
 // NewApp creates new app
 func NewApp(store store.Store, config *model.Config, logger common.LoggerIface) *App {

@@ -19,7 +19,7 @@ func (a *App) GetUser(userID string) (*model.User, error) {
 // CreateUser creates a user. For now it is used only for creation of the very first user
 func (a *App) CreateUser(user *model.User) (*model.User, error) {
 	if !a.isFirstUserAccount() {
-		return nil, errors.New("not a first user")
+		return nil, errors.Wrap(model.ErrInvalidInput, "not a first user")
 	}
 
 	updatedUser, err := a.store.User().Save(user)
@@ -43,7 +43,41 @@ func (a *App) isFirstUserAccount() bool {
 	if err != nil {
 		a.logger.Error("error fetching first user account", log.Err(err))
 	}
-	return count > 0
+	return count == 0
+}
+
+func (a *App) AuthenticateUserForLogin(userID, username, password string) (*model.User, error) {
+	var user *model.User
+	var err error
+	switch {
+	case userID != "":
+		user, err = a.store.User().Get(userID)
+		if err != nil {
+			return nil, errors.Wrap(err, "can't get user from store")
+		}
+	case username != "":
+		user, err = a.store.User().GetByUsername(username)
+		if err != nil {
+			return nil, errors.Wrapf(err, "can't get user by username")
+		}
+	default:
+		return nil, errors.Wrap(model.ErrInvalidInput, "userID and username are empty")
+	}
+
+	if err := a.checkLogin(user, password); err != nil {
+		return nil, errors.Wrapf(err, "login error")
+	}
+	return user, nil
+}
+
+func (a *App) checkLogin(user *model.User, password string) error {
+	if user.IsDisabled() {
+		return errors.Wrap(model.ErrUnauthorized, "user is disabled")
+	}
+	if !comparePassword(user.Password, password) {
+		return errors.Wrap(model.ErrUnauthorized, "incorrect password")
+	}
+	return nil
 }
 
 // HashPassword hashes user's password
@@ -58,4 +92,13 @@ func HashPassword(password string) string {
 	}
 
 	return string(hash)
+}
+
+// comparePassword compares the hash
+func comparePassword(hash string, password string) bool {
+	if password == "" || hash == "" {
+		return false
+	}
+
+	return bcrypt.CompareHashAndPassword([]byte(hash), []byte(password)) == nil
 }
