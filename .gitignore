@@ -6,4 +6,6 @@ priv/
 bazel-*
 gazelle*
 coverage.txt
-
+*.img
+*.xz
+kubeconfig
