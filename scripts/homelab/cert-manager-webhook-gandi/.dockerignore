@@ -1,0 +1,14 @@
+.git
+.gitignore
+.idea
+LICENSE
+Makefile
+README.*
+__main__
+_out
+apiserver.local.config
+cert-manager-webhook-gandi
+deploy
+main_test.go
+scripts
+testdata

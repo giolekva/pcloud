@@ -1,0 +1,16 @@
+name: Container-image
+on: [push]
+jobs:
+  build:
+    name: Build docker image
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v1
+    - name: Build and Publish to Registry
+      uses: elgohr/Publish-Docker-Github-Action@master
+      with:
+        name: bwolf/cert-manager-webhook-gandi
+        username: '${{ secrets.DOCKER_USERNAME }}'
+        password: '${{ secrets.DOCKER_PASSWORD }}'
+        buildoptions: "--compress --force-rm"
+        tag_names: true
