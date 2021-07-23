@@ -1,0 +1,3 @@
+[submodule "apps/maddy"]
+	path = apps/maddy
+	url = https://github.com/foxcpp/maddy.git
