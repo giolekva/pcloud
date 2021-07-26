@@ -178,3 +178,6 @@ helm upgrade --create-namespace \
 #      --set logLevel=2
 
 # kubectl apply -f cluster-issuer.yaml
+
+kubectl apply -f ../../apps/maddy/install.yaml
+kubectl apply -f maddy-config.yaml
