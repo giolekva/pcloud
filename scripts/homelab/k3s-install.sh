@@ -88,6 +88,13 @@
 #      --set controller.extraArgs.v=2 \
 #      --set controller.extraArgs.default-ssl-certificate=ingress-nginx/cert-wildcard.lekva.me
 
+helm install --create-namespace \
+     --namespace ingress-nginx-private \
+     nginx ingress-nginx/ingress-nginx \
+     --set fullnameOverride=nginx-private \
+     --set controller.service.type=LoadBalancer \
+     --set controller.setAsDefaultIngress=false \
+     --set controller.ingressClass=nginx-private
 
 # helm install --create-namespace \
 #      --namespace cert-manager \
@@ -157,17 +164,17 @@
 #      --set prometheus.ingress.annotations."nginx\.ingress\.kubernetes\.io/ssl-redirect"="\"false\"" \
 #      --set prometheus.ingress.pathType=Prefix
 
-# kubectl apply -f ../../apps/pihole/install.yaml
-helm upgrade --create-namespace \
-     --namespace pihole \
-     pihole mojo2600/pihole \
-     --set ingress.enabled=true \
-     --set ingress.hosts={"pihole.pcloud"} \
-     --set serviceDhcp.enabled=false \
-     --set serviceDns.type=LoadBalancer \
-     --set serviceWeb.type=ClusterIP \
-     --set serviceWeb.https.enabled=false \
-     --set virtualHost="pihole.pcloud"
+# # kubectl apply -f ../../apps/pihole/install.yaml
+# helm upgrade --create-namespace \
+#      --namespace pihole \
+#      pihole mojo2600/pihole \
+#      --set ingress.enabled=true \
+#      --set ingress.hosts={"pihole.pcloud"} \
+#      --set serviceDhcp.enabled=false \
+#      --set serviceDns.type=LoadBalancer \
+#      --set serviceWeb.type=ClusterIP \
+#      --set serviceWeb.https.enabled=false \
+#      --set virtualHost="pihole.pcloud"
 
 # kubectl apply -f cert-manager-webhook-gandi/rbac.yaml
 # helm upgrade --namespace cert-manager  \
@@ -179,5 +186,5 @@ helm upgrade --create-namespace \
 
 # kubectl apply -f cluster-issuer.yaml
 
-kubectl apply -f ../../apps/maddy/install.yaml
-kubectl apply -f maddy-config.yaml
+# kubectl apply -f ../../apps/maddy/install.yaml
+# kubectl apply -f maddy-config.yaml
