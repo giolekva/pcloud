@@ -32,11 +32,10 @@ type Group struct {
 
 // Represents single node in the network.
 type Node struct {
-	PublicKey     PublicKey
-	DiscoKey      DiscoKey
-	DiscoEndpoint string
-	IPPort        netaddr.IPPort
-	VPNIP         netaddr.IP
+	PublicKey PublicKey
+	DiscoKey  DiscoKey
+	IPPort    netaddr.IPPort
+	VPNIP     netaddr.IP
 }
 
 type NetworkMap struct {
