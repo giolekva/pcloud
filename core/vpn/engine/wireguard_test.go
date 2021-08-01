@@ -28,13 +28,12 @@ func newNode(ip string, localPort uint16) (n *node, err error) {
 		return
 	}
 	n.node = types.Node{
-		PublicKey:     n.privKey.Public(),
-		DiscoKey:      n.e.DiscoKey(),
-		DiscoEndpoint: n.e.DiscoEndpoint(),
-		IPPort: netaddr.IPPort{
-			IP:   netaddr.IPv4(127, 0, 0, 1),
-			Port: localPort,
-		},
+		PublicKey: n.privKey.Public(),
+		DiscoKey:  n.e.DiscoKey(),
+		IPPort: netaddr.IPPortFrom(
+			netaddr.IPv4(127, 0, 0, 1),
+			localPort,
+		),
 		VPNIP: netaddr.MustParseIP(ip),
 	}
 	return

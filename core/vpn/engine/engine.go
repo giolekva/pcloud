@@ -15,10 +15,6 @@ type Engine interface {
 	Configure(netMap *types.NetworkMap) error
 	// Unique public discovery key of the current device.
 	DiscoKey() types.DiscoKey
-	// Unique public endpoint of the given device.
-	// Communication between devices happen throughs such endpoints
-	// instead of IP addresses.
-	DiscoEndpoint() string
 	// Sends ping to the given IP address and invokes callback with results.
 	Ping(ip netaddr.IP, cb func(*ipnstate.PingResult))
 }

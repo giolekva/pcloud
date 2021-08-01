@@ -221,11 +221,10 @@ func (m *InMemoryManager) genNetworkMap(d *types.DeviceInfo) (*types.NetworkMap,
 	}
 	ret := types.NetworkMap{
 		Self: types.Node{
-			PublicKey:     d.PublicKey,
-			DiscoKey:      d.DiscoKey,
-			DiscoEndpoint: d.DiscoKey.Endpoint(),
-			IPPort:        d.IPPort,
-			VPNIP:         vpnIP,
+			PublicKey: d.PublicKey,
+			DiscoKey:  d.DiscoKey,
+			IPPort:    d.IPPort,
+			VPNIP:     vpnIP,
 		},
 	}
 	for _, group := range m.deviceToGroups[d.PublicKey] {
@@ -238,11 +237,10 @@ func (m *InMemoryManager) genNetworkMap(d *types.DeviceInfo) (*types.NetworkMap,
 				panic(err)
 			}
 			ret.Peers = append(ret.Peers, types.Node{
-				PublicKey:     peer.PublicKey,
-				DiscoKey:      peer.DiscoKey,
-				DiscoEndpoint: peer.DiscoKey.Endpoint(),
-				IPPort:        peer.IPPort,
-				VPNIP:         vpnIP,
+				PublicKey: peer.PublicKey,
+				DiscoKey:  peer.DiscoKey,
+				IPPort:    peer.IPPort,
+				VPNIP:     vpnIP,
 			})
 		}
 	}
