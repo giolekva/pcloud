@@ -85,16 +85,15 @@
 #      --set fullNameOverride=nginx \
 #      --set controller.service.type=LoadBalancer \
 #      --set controller.setAsDefaultIngress=true \
-#      --set controller.extraArgs.v=2 \
 #      --set controller.extraArgs.default-ssl-certificate=ingress-nginx/cert-wildcard.lekva.me
 
-helm install --create-namespace \
-     --namespace ingress-nginx-private \
-     nginx ingress-nginx/ingress-nginx \
-     --set fullnameOverride=nginx-private \
-     --set controller.service.type=LoadBalancer \
-     --set controller.setAsDefaultIngress=false \
-     --set controller.ingressClass=nginx-private
+# helm install --create-namespace \
+#      --namespace ingress-nginx-private \
+#      nginx ingress-nginx/ingress-nginx \
+#      --set fullnameOverride=nginx-private \
+#      --set controller.service.type=LoadBalancer \
+#      --set controller.setAsDefaultIngress=false \
+#      --set controller.ingressClass=nginx-private
 
 # helm install --create-namespace \
 #      --namespace cert-manager \
@@ -111,9 +110,11 @@ helm install --create-namespace \
 #      --set defaultSettings.defaultDataPath=/pcloud-storage/longhorn \
 #      --set persistence.defaultClassReplicaCount=2 \
 #      --set ingress.enabled=true \
-#      --set ingress.ingressClassName=nginx \
+#      --set ingress.ingressClassName=nginx-private \
+#      --set ingress.tls=true \
 #      --set ingress.host=longhorn.pcloud \
-#      --set ingress.annotations."nginx\.ingress\.kubernetes\.io/ssl-redirect"="\"false\""
+#      --set ingress.annotations."cert-manager\.io/cluster-issuer"="selfsigned-ca" \
+#      --set ingress.annotations."acme\.cert-manager\.io/http01-edit-in-place"="\"true\""
 
 # kubectl apply -f ~/dev/src/socialme-go/install.yaml
 
@@ -165,16 +166,21 @@ helm install --create-namespace \
 #      --set prometheus.ingress.pathType=Prefix
 
 # # kubectl apply -f ../../apps/pihole/install.yaml
-# helm upgrade --create-namespace \
-#      --namespace pihole \
-#      pihole mojo2600/pihole \
-#      --set ingress.enabled=true \
-#      --set ingress.hosts={"pihole.pcloud"} \
-#      --set serviceDhcp.enabled=false \
-#      --set serviceDns.type=LoadBalancer \
-#      --set serviceWeb.type=ClusterIP \
-#      --set serviceWeb.https.enabled=false \
-#      --set virtualHost="pihole.pcloud"
+helm upgrade --create-namespace \
+     --namespace pihole \
+     pihole mojo2600/pihole \
+     --set ingress.enabled=true \
+     --set ingress.hosts={"pihole.pcloud"} \
+     --set ingress.tls[0].hosts[0]="pihole.pcloud" \
+     --set ingress.tls[0].secretName="cert-pihole.pcloud" \
+     --set ingress.annotations."kubernetes\.io/ingress\.class"="nginx-private" \
+     --set ingress.annotations."cert-manager\.io/cluster-issuer"="selfsigned-ca" \
+     --set ingress.annotations."acme\.cert-manager\.io/http01-edit-in-place"="\"true\"" \
+     --set serviceDhcp.enabled=false \
+     --set serviceDns.type=LoadBalancer \
+     --set serviceWeb.type=ClusterIP \
+     --set serviceWeb.https.enabled=false \
+     --set virtualHost="pihole.pcloud"
 
 # kubectl apply -f cert-manager-webhook-gandi/rbac.yaml
 # helm upgrade --namespace cert-manager  \

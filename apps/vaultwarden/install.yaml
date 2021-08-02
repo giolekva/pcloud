@@ -75,7 +75,6 @@ metadata:
   name: ingress
   namespace: app-vault
   annotations:
-    # nginx.ingress.kubernetes.io/ssl-redirect: "false"
     cert-manager.io/cluster-issuer: "selfsigned-ca"
     acme.cert-manager.io/http01-edit-in-place: "true"
 spec:
