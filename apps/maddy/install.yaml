@@ -1,0 +1,182 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: app-maddy
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: maddy
+  namespace: app-maddy
+spec:
+  type: LoadBalancer
+  externalTrafficPolicy: Local
+  selector:
+    app: maddy
+  ports:
+    - port: 25
+      protocol: TCP
+      name: a
+    - port: 143
+      protocol: TCP
+      name: b
+    - port: 993
+      protocol: TCP
+      name: c
+    - port: 587
+      protocol: TCP
+      name: d
+    - port: 465
+      protocol: TCP
+      name: e
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: wildcard-lekva.me  # mx1
+  namespace: app-maddy
+spec:
+  dnsNames:
+  - 'mx1.lekva.me'
+  issuerRef:
+    name: letsencrypt-prod-dns
+    kind: ClusterIssuer
+  secretName: cert-mx1.lekva.me
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: data
+  namespace: app-maddy
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 100Gi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: maddy
+  namespace: app-maddy
+spec:
+  selector:
+    matchLabels:
+      app: maddy
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: maddy
+    spec:
+      volumes:
+      - name: config
+        configMap:
+          name: config
+      - name: certs
+        secret:
+          secretName: cert-mx1.lekva.me
+      - name: data
+        persistentVolumeClaim:
+          claimName: data
+      containers:
+      - name: maddy
+        image: giolekva/maddy:v0.4.4
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 25
+        - containerPort: 143
+        - containerPort: 993
+        - containerPort: 587
+        - containerPort: 465
+        command: ["maddy"]
+        args: ["-config", "/etc/maddy/config/maddy.conf"]
+        volumeMounts:
+        - name: config
+          mountPath: /etc/maddy/config
+        - name: certs
+          mountPath: /etc/maddy/certs
+        - name: data
+          mountPath: /var/lib/maddy
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: mta-sts
+  namespace: app-maddy
+data:
+  mta-sts.txt: |
+    version: STSv1
+    mode: enforce
+    max_age: 604800
+    mx: mx1.lekva.me
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mta-sts
+  namespace: app-maddy
+spec:
+  selector:
+    matchLabels:
+      app: mta-sts
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: mta-sts
+    spec:
+      volumes:
+      - name: mta-sts
+        configMap:
+          name: mta-sts
+      containers:
+      - name: maddy
+        image: giolekva/static-file-server:latest
+        imagePullPolicy: Always
+        ports:
+        - name: http
+          containerPort: 80
+        command: ["static-file-server"]
+        args: ["-port=80", "-dir=/etc/static-file-server/data"]
+        volumeMounts:
+        - name: mta-sts
+          mountPath: /etc/static-file-server/data/.well-known
+          readOnly: true
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mta-sts
+  namespace: app-maddy
+spec:
+  type: ClusterIP
+  selector:
+    app: mta-sts
+  ports:
+    - name: http
+      port: 80
+      targetPort: http
+      protocol: TCP
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: mta-sts
+  namespace: app-maddy
+  annotations:
+    nginx.ingress.kubernetes.io/ssl-redirect: "false"
+spec:
+  ingressClassName: nginx
+  rules:
+  - host: mta-sts.lekva.me
+    http:
+      paths:
+      - pathType: Prefix
+        path: "/"
+        backend:
+          service:
+            name: mta-sts
+            port:
+              name: http
