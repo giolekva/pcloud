@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <title>Manage email accounts</title>
+</head>
+<body>
+    <form action="/create" method="POST">
+	<label for="username">Username:</label><br />
+	<input type="text" name="username" /><br />
+	<label for="password">Last name:</label><br />
+	<input type="password" name="password" /><br />
+	<input type="submit" value="Create New Account" />
+    </form>
+    <table>
+	<tr>
+	    <th>Account</th>
+	    <th>Delete</th>
+	</tr>
+	{{range .}}
+	<tr>
+	    <td>
+		{{.}}
+	    </td>
+	    <td>
+		Delete
+	    </td>
+	</tr>
+	{{end}}
+    </table>
+</body>
+</html>
+
