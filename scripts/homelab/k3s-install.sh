@@ -166,24 +166,26 @@
 #      --set prometheus.ingress.pathType=Prefix
 
 # # kubectl apply -f ../../apps/pihole/install.yaml
-helm upgrade --create-namespace \
-     --namespace pihole \
-     pihole mojo2600/pihole \
-     --set ingress.enabled=true \
-     --set ingress.hosts={"pihole.pcloud"} \
-     --set ingress.tls[0].hosts[0]="pihole.pcloud" \
-     --set ingress.tls[0].secretName="cert-pihole.pcloud" \
-     --set ingress.annotations."kubernetes\.io/ingress\.class"="nginx-private" \
-     --set ingress.annotations."cert-manager\.io/cluster-issuer"="selfsigned-ca" \
-     --set ingress.annotations."acme\.cert-manager\.io/http01-edit-in-place"="\"true\"" \
-     --set serviceDhcp.enabled=false \
-     --set serviceDns.type=LoadBalancer \
-     --set serviceWeb.type=ClusterIP \
-     --set serviceWeb.https.enabled=false \
-     --set virtualHost="pihole.pcloud"
+# helm install --create-namespace \
+#      --namespace pihole \
+#      pihole mojo2600/pihole \
+#      --set persistentVolumeClaim.enabled=true \
+#      --set persistentVolumeClaim.size="5Gi" \
+#      --set ingress.enabled=true \
+#      --set ingress.hosts={"pihole.pcloud"} \
+#      --set ingress.tls[0].hosts[0]="pihole.pcloud" \
+#      --set ingress.tls[0].secretName="cert-pihole.pcloud" \
+#      --set ingress.annotations."kubernetes\.io/ingress\.class"="nginx-private" \
+#      --set ingress.annotations."cert-manager\.io/cluster-issuer"="selfsigned-ca" \
+#      --set ingress.annotations."acme\.cert-manager\.io/http01-edit-in-place"="\"true\"" \
+#      --set serviceDhcp.enabled=false \
+#      --set serviceDns.type=LoadBalancer \
+#      --set serviceWeb.type=ClusterIP \
+#      --set serviceWeb.https.enabled=false \
+#      --set virtualHost="pihole.pcloud"
 
 # kubectl apply -f cert-manager-webhook-gandi/rbac.yaml
-# helm upgrade --namespace cert-manager  \
+# helm install --namespace cert-manager  \
 #      cert-manager-webhook-gandi ./cert-manager-webhook-gandi/deploy/cert-manager-webhook-gandi \
 #      --set image.repository=giolekva/cert-manager-webhook-gandi \
 #      --set image.tag=latest \
@@ -194,3 +196,33 @@ helm upgrade --create-namespace \
 
 # kubectl apply -f ../../apps/maddy/install.yaml
 # kubectl apply -f maddy-config.yaml
+## maddyctl -config /etc/maddy/config/maddy.conf creds create *****@lekva.me
+## maddyctl -config /etc/maddy/config/maddy.conf imap-acct create *****@lekva.me
+
+# kubectl apply -f ../../apps/nebula/install.yaml
+# kubectl create configmap \
+# 	-n app-nebula \
+# 	lighthouse-cert \
+# 	--from-file ../../apps/nebula/lighthouse-cert/
+# kubectl create configmap \
+# 	-n app-nebula \
+# 	ca-cert \
+# 	--from-file ../../apps/nebula/ca-cert/ca.crt
+# kubectl create configmap \
+# 	-n app-nebula \
+# 	lighthouse-config \
+# 	--from-file ../../apps/nebula/lighthouse.yaml
+
+kubectl apply -f ../../apps/matrix/install.yaml
+# kubectl create configmap \
+# 	-n app-matrix \
+# 	config \
+# 	--from-file ../../apps/matrix/homeserver.yaml
+# kubectl apply -f www.yaml
+##kubectl rollout restart deployment/nginx -n www
+## kubectl cp app-matrix/matrix-7dd48659c9-p5mpq:/data/homeserver.yaml $(pwd)/../../apps/matrix/homeserver.yaml
+## Modify homeserver.yaml and copy back
+
+
+## kubectl -n ingress-nginx get secret cert-wildcard.lekva.me -o yaml > cert-wildcard.lekva.me.yaml
+## kubectl apply -f cert-wildcard.lekva.me.yaml -n app-matrix

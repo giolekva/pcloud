@@ -1,0 +1,103 @@
+# ---
+# apiVersion: v1
+# kind: Namespace
+# metadata:
+#   name: app-matrix
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: matrix
+  namespace: app-matrix
+spec:
+  type: ClusterIP
+  selector:
+    app: matrix
+  ports:
+  - name: http
+    port: 80
+    targetPort: http
+    protocol: TCP
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: ingress
+  namespace: app-matrix
+  # annotations:
+  #   cert-manager.io/cluster-issuer: "letsencrypt-prod"
+  #   acme.cert-manager.io/http01-edit-in-place: "true"
+spec:
+  ingressClassName: nginx
+  tls:
+  - hosts:
+    - matrix.lekva.me
+    # secretName: cert-matrix.lekva.me
+    secretName: cert-wildcard.lekva.me
+  rules:
+  - host: matrix.lekva.me
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: matrix
+            port:
+              name: http
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: matrix
+  namespace: app-matrix
+spec:
+  selector:
+    matchLabels:
+      app: matrix
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: matrix
+    spec:
+      volumes:
+      - name: data
+        persistentVolumeClaim:
+          claimName: matrix-data
+      containers:
+      - name: matrix
+        image: matrixdotorg/synapse:v1.43.0
+        imagePullPolicy: IfNotPresent
+        ports:
+        - name: http
+          containerPort: 8008
+          protocol: TCP
+        env:
+        - name: SYNAPSE_SERVER_NAME
+          value: "lekva.me"
+        - name: SYNAPSE_REPORT_STATS
+          value: "no"
+        - name: SYNAPSE_CONFIG_DIR
+          value: "/data"
+        - name: SYNAPSE_DATA_DIR
+          value: "/data"
+        # - name: SYNAPSE_CONFIG_PATH
+        #   value: "/etc/matrix/homeserver.yaml"
+        command: ["/start.py"]
+        # args: ["generate"]
+        volumeMounts:
+        - name: data
+          mountPath: /data
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: matrix-data
+  namespace: app-matrix
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 100Gi
