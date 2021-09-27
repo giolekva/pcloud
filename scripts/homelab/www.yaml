@@ -1,0 +1,122 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: www
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: nginx
+  namespace: www
+spec:
+  type: ClusterIP
+  selector:
+    app: nginx
+  ports:
+  - name: http
+    port: 80
+    targetPort: http
+    protocol: TCP
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: ingress
+  namespace: www
+  annotations:
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+    acme.cert-manager.io/http01-edit-in-place: "true"
+spec:
+  ingressClassName: nginx
+  tls:
+  - hosts:
+    - lekva.me
+    secretName: cert-lekva.me
+  - hosts:
+    - www.lekva.me
+    secretName: cert-www.lekva.me
+  rules:
+  - host: lekva.me
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: nginx
+            port:
+              name: http
+  - host: www.lekva.me
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: nginx
+            port:
+              name: http
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: config
+  namespace: www
+data:
+  nginx.conf: |
+    # user       www www;
+    worker_processes  1;
+    error_log   /dev/null   crit;
+    # pid        logs/nginx.pid;
+    worker_rlimit_nofile 8192;
+    events {
+        worker_connections  1024;
+    }
+    http {
+        server {
+            listen 8080;
+            location /.well-known/matrix/client {
+                return 200 '{"m.homeserver": {"base_url": "https://matrix.lekva.me:443"}}';
+                default_type application/json;
+                add_header Access-Control-Allow-Origin *;
+            }
+            location /.well-known/matrix/server {
+                return 200 '{"m.server": "matrix.lekva.me:443"}';
+                default_type application/json;
+                add_header Access-Control-Allow-Origin *;
+            }
+        }
+    }
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nginx
+  namespace: www
+spec:
+  selector:
+    matchLabels:
+      app: nginx
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: nginx
+    spec:
+      volumes:
+      - name: config
+        configMap:
+          name: config
+      containers:
+      - name: nginx
+        image: nginx:1.21.3-alpine
+        imagePullPolicy: IfNotPresent
+        ports:
+        - name: http
+          containerPort: 8080
+          protocol: TCP
+        # command: ["nginx"]
+        volumeMounts:
+        - name: config
+          mountPath: /etc/nginx
+          readOnly: true
