@@ -38,7 +38,7 @@ type nodeRef struct {
 	key string
 }
 
-type CAController struct {
+type NebulaController struct {
 	kubeClient   kubernetes.Interface
 	nebulaClient clientset.Interface
 	caLister     listers.NebulaCALister
@@ -52,13 +52,13 @@ type CAController struct {
 	nebulaCert string
 }
 
-func NewCAController(kubeClient kubernetes.Interface,
+func NewNebulaController(kubeClient kubernetes.Interface,
 	nebulaClient clientset.Interface,
 	caInformer informers.NebulaCAInformer,
 	nodeInformer informers.NebulaNodeInformer,
 	secretInformer corev1informers.SecretInformer,
-	nebulaCert string) *CAController {
-	c := &CAController{
+	nebulaCert string) *NebulaController {
+	c := &NebulaController{
 		kubeClient:   kubeClient,
 		nebulaClient: nebulaClient,
 		caLister:     caInformer.Lister(),
@@ -91,7 +91,7 @@ func NewCAController(kubeClient kubernetes.Interface,
 	return c
 }
 
-func (c *CAController) enqueueCA(o interface{}) {
+func (c *NebulaController) enqueueCA(o interface{}) {
 	var key string
 	var err error
 	if key, err = cache.MetaNamespaceKeyFunc(o); err != nil {
@@ -101,7 +101,7 @@ func (c *CAController) enqueueCA(o interface{}) {
 	c.workqueue.Add(caRef{key})
 }
 
-func (c *CAController) enqueueNode(o interface{}) {
+func (c *NebulaController) enqueueNode(o interface{}) {
 	var key string
 	var err error
 	if key, err = cache.MetaNamespaceKeyFunc(o); err != nil {
@@ -111,7 +111,7 @@ func (c *CAController) enqueueNode(o interface{}) {
 	c.workqueue.Add(nodeRef{key})
 }
 
-func (c *CAController) Run(workers int, stopCh <-chan struct{}) error {
+func (c *NebulaController) Run(workers int, stopCh <-chan struct{}) error {
 	defer utilruntime.HandleCrash()
 	defer c.workqueue.ShutDown()
 	klog.Info("Starting NebulaCA controller")
@@ -129,12 +129,12 @@ func (c *CAController) Run(workers int, stopCh <-chan struct{}) error {
 	return nil
 }
 
-func (c *CAController) runWorker() {
+func (c *NebulaController) runWorker() {
 	for c.processNextWorkItem() {
 	}
 }
 
-func (c *CAController) processNextWorkItem() bool {
+func (c *NebulaController) processNextWorkItem() bool {
 	o, shutdown := c.workqueue.Get()
 	if shutdown {
 		return false
@@ -168,7 +168,7 @@ func (c *CAController) processNextWorkItem() bool {
 	return true
 }
 
-func (c *CAController) processCAWithKey(key string) error {
+func (c *NebulaController) processCAWithKey(key string) error {
 	namespace, name, err := cache.SplitMetaNamespaceKey(key)
 	if err != nil {
 		return nil
@@ -203,7 +203,7 @@ func (c *CAController) processCAWithKey(key string) error {
 	return nil
 }
 
-func (c *CAController) processNodeWithKey(key string) error {
+func (c *NebulaController) processNodeWithKey(key string) error {
 	namespace, name, err := cache.SplitMetaNamespaceKey(key)
 	if err != nil {
 		return nil
@@ -255,7 +255,7 @@ func (c *CAController) processNodeWithKey(key string) error {
 	return nil
 }
 
-func (c *CAController) updateCAStatus(ca *nebulav1.NebulaCA, state nebulav1.NebulaCAState, msg string) error {
+func (c *NebulaController) updateCAStatus(ca *nebulav1.NebulaCA, state nebulav1.NebulaCAState, msg string) error {
 	cp := ca.DeepCopy()
 	cp.Status.State = state
 	cp.Status.Message = msg
@@ -263,7 +263,7 @@ func (c *CAController) updateCAStatus(ca *nebulav1.NebulaCA, state nebulav1.Nebu
 	return err
 }
 
-func (c *CAController) updateNodeStatus(node *nebulav1.NebulaNode, state nebulav1.NebulaNodeState, msg string) error {
+func (c *NebulaController) updateNodeStatus(node *nebulav1.NebulaNode, state nebulav1.NebulaNodeState, msg string) error {
 	cp := node.DeepCopy()
 	cp.Status.State = state
 	cp.Status.Message = msg
@@ -337,7 +337,7 @@ func generateNodeKey(name, ip, dir, nebulaCert string) error {
 	return nil
 }
 
-func (c *CAController) getCA(namespace, name string) (*nebulav1.NebulaCA, error) {
+func (c *NebulaController) getCA(namespace, name string) (*nebulav1.NebulaCA, error) {
 	s := labels.NewSelector()
 	r, err := labels.NewRequirement("metadata.namespace", selection.Equals, []string{namespace})
 	if err != nil {
@@ -358,7 +358,7 @@ func (c *CAController) getCA(namespace, name string) (*nebulav1.NebulaCA, error)
 	return ncas[0], nil
 }
 
-func (c *CAController) getNode(namespace, name string) (*nebulav1.NebulaNode, error) {
+func (c *NebulaController) getNode(namespace, name string) (*nebulav1.NebulaNode, error) {
 	s := labels.NewSelector()
 	r, err := labels.NewRequirement("metadata.namespace", selection.Equals, []string{namespace})
 	if err != nil {
@@ -379,6 +379,6 @@ func (c *CAController) getNode(namespace, name string) (*nebulav1.NebulaNode, er
 	return nodes[0], nil
 }
 
-func (c *CAController) getSecret(namespace, name string) (*corev1.Secret, error) {
+func (c *NebulaController) getSecret(namespace, name string) (*corev1.Secret, error) {
 	return c.secretLister.Secrets(namespace).Get(name)
 }

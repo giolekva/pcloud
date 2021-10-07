@@ -35,7 +35,7 @@ func main() {
 	utilruntime.Must(nebulascheme.AddToScheme(scheme.Scheme))
 	kubeInformerFactory := kubeinformers.NewSharedInformerFactory(kubeClient, time.Second*30)
 	nebulaInformerFactory := informers.NewSharedInformerFactory(nebulaClient, 5*time.Second)
-	c := controllers.NewCAController(
+	c := controllers.NewNebulaController(
 		kubeClient,
 		nebulaClient,
 		nebulaInformerFactory.Lekva().V1().NebulaCAs(),
