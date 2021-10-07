@@ -11,3 +11,11 @@ type NebulaCAListerExpansion interface{}
 // NebulaCANamespaceListerExpansion allows custom methods to be added to
 // NebulaCANamespaceLister.
 type NebulaCANamespaceListerExpansion interface{}
+
+// NebulaNodeListerExpansion allows custom methods to be added to
+// NebulaNodeLister.
+type NebulaNodeListerExpansion interface{}
+
+// NebulaNodeNamespaceListerExpansion allows custom methods to be added to
+// NebulaNodeNamespaceLister.
+type NebulaNodeNamespaceListerExpansion interface{}

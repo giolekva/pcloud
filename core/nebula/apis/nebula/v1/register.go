@@ -33,6 +33,8 @@ func addKnownTypes(scheme *runtime.Scheme) error {
 	scheme.AddKnownTypes(SchemeGroupVersion,
 		&NebulaCA{},
 		&NebulaCAList{},
+		&NebulaNode{},
+		&NebulaNodeList{},
 	)
 
 	scheme.AddKnownTypes(SchemeGroupVersion,

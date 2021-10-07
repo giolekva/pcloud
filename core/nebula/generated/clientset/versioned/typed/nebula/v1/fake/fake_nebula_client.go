@@ -18,6 +18,10 @@ func (c *FakeLekvaV1) NebulaCAs(namespace string) v1.NebulaCAInterface {
 	return &FakeNebulaCAs{c, namespace}
 }
 
+func (c *FakeLekvaV1) NebulaNodes(namespace string) v1.NebulaNodeInterface {
+	return &FakeNebulaNodes{c, namespace}
+}
+
 // RESTClient returns a RESTClient that is used to communicate
 // with API server by this client implementation.
 func (c *FakeLekvaV1) RESTClient() rest.Interface {

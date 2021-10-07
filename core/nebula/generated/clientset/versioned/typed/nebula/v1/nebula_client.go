@@ -13,6 +13,7 @@ import (
 type LekvaV1Interface interface {
 	RESTClient() rest.Interface
 	NebulaCAsGetter
+	NebulaNodesGetter
 }
 
 // LekvaV1Client is used to interact with features provided by the lekva.me group.
@@ -22,6 +23,10 @@ type LekvaV1Client struct {
 
 func (c *LekvaV1Client) NebulaCAs(namespace string) NebulaCAInterface {
 	return newNebulaCAs(c, namespace)
+}
+
+func (c *LekvaV1Client) NebulaNodes(namespace string) NebulaNodeInterface {
+	return newNebulaNodes(c, namespace)
 }
 
 // NewForConfig creates a new LekvaV1Client for the given config.

@@ -1,0 +1,10 @@
+apiVersion: lekva.me/v1
+kind: NebulaNode
+metadata:
+  name: test-host
+  namespace: test-nebula
+spec:
+  caName: lekva-pcloud
+  nodeName: lighthouse
+  ipCidr: "111.0.0.1/24"
+  secretName: node-lighthouse

@@ -41,6 +41,8 @@ func (f *sharedInformerFactory) ForResource(resource schema.GroupVersionResource
 	// Group=lekva.me, Version=v1
 	case v1.SchemeGroupVersion.WithResource("nebulacas"):
 		return &genericInformer{resource: resource.GroupResource(), informer: f.Lekva().V1().NebulaCAs().Informer()}, nil
+	case v1.SchemeGroupVersion.WithResource("nebulanodes"):
+		return &genericInformer{resource: resource.GroupResource(), informer: f.Lekva().V1().NebulaNodes().Informer()}, nil
 
 	}
 

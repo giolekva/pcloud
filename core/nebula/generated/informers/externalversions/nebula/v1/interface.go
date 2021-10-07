@@ -12,6 +12,8 @@ import (
 type Interface interface {
 	// NebulaCAs returns a NebulaCAInformer.
 	NebulaCAs() NebulaCAInformer
+	// NebulaNodes returns a NebulaNodeInformer.
+	NebulaNodes() NebulaNodeInformer
 }
 
 type version struct {
@@ -28,4 +30,9 @@ func New(f internalinterfaces.SharedInformerFactory, namespace string, tweakList
 // NebulaCAs returns a NebulaCAInformer.
 func (v *version) NebulaCAs() NebulaCAInformer {
 	return &nebulaCAInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
+}
+
+// NebulaNodes returns a NebulaNodeInformer.
+func (v *version) NebulaNodes() NebulaNodeInformer {
+	return &nebulaNodeInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
 }

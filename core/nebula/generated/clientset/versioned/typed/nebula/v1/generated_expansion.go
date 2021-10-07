@@ -5,3 +5,5 @@
 package v1
 
 type NebulaCAExpansion interface{}
+
+type NebulaNodeExpansion interface{}
