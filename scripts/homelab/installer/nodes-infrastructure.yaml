@@ -1,0 +1,206 @@
+apiVersion: lekva.me/v1
+kind: NebulaNode
+metadata:
+  name: rpi111
+  namespace: ingress-nginx-private
+spec:
+  caName: pcloud
+  caNamespace: ingress-nginx-private
+  ipCidr: "111.0.0.111/24"
+  secretName: node-rpi111-cert
+---
+apiVersion: lekva.me/v1
+kind: NebulaNode
+metadata:
+  name: rpi112
+  namespace: ingress-nginx-private
+spec:
+  caName: pcloud
+  caNamespace: ingress-nginx-private
+  ipCidr: "111.0.0.112/24"
+  secretName: node-rpi112-cert
+---
+apiVersion: lekva.me/v1
+kind: NebulaNode
+metadata:
+  name: rpi113
+  namespace: ingress-nginx-private
+spec:
+  caName: pcloud
+  caNamespace: ingress-nginx-private
+  ipCidr: "111.0.0.113/24"
+  secretName: node-rpi113-cert
+---
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: lighthouse-rpi111
+  namespace: ingress-nginx-private
+spec:
+  selector:
+    matchLabels:
+      app: lighthouse-rpi111
+  template:
+    metadata:
+      labels:
+        app: lighthouse-rpi111
+    spec:
+      restartPolicy: Always
+      hostNetwork: true
+      volumes:
+      - name: cert
+        secret:
+          secretName: node-rpi111-cert
+      - name: config
+        configMap:
+          name: nodes-lighthouse-config
+      containers:
+      - name: lighthouse
+        image: giolekva/nebula:latest
+        imagePullPolicy: IfNotPresent
+        securityContext:
+          capabilities:
+            add: ["NET_ADMIN"]
+          privileged: true
+        ports:
+        - name: lighthouse
+          containerPort: 4242
+          protocol: UDP
+        command: ["nebula", "--config=/etc/nebula/config/nodes-lighthouse.yaml"]
+        volumeMounts:
+        - name: cert
+          mountPath: /etc/nebula/lighthouse
+          readOnly: true
+        - name: config
+          mountPath: /etc/nebula/config
+          readOnly: true
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+              - matchExpressions:
+                - key: kubernetes.io/hostname
+                  operator: In
+                  values:
+                  - rpi111
+      tolerations:
+      - key: "pcloud"
+        operator: "Equal"
+        value: "role"
+        effect: "NoSchedule"
+---
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: lighthouse-rpi112
+  namespace: ingress-nginx-private
+spec:
+  selector:
+    matchLabels:
+      app: lighthouse-rpi112
+  template:
+    metadata:
+      labels:
+        app: lighthouse-rpi112
+    spec:
+      restartPolicy: Always
+      hostNetwork: true
+      volumes:
+      - name: cert
+        secret:
+          secretName: node-rpi112-cert
+      - name: config
+        configMap:
+          name: nodes-lighthouse-config
+      containers:
+      - name: lighthouse
+        image: giolekva/nebula:latest
+        imagePullPolicy: IfNotPresent
+        securityContext:
+          capabilities:
+            add: ["NET_ADMIN"]
+          privileged: true
+        ports:
+        - name: lighthouse
+          containerPort: 4242
+          protocol: UDP
+        command: ["nebula", "--config=/etc/nebula/config/nodes-lighthouse.yaml"]
+        volumeMounts:
+        - name: cert
+          mountPath: /etc/nebula/lighthouse
+          readOnly: true
+        - name: config
+          mountPath: /etc/nebula/config
+          readOnly: true
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+              - matchExpressions:
+                - key: kubernetes.io/hostname
+                  operator: In
+                  values:
+                  - rpi112
+      tolerations:
+      - key: "pcloud"
+        operator: "Equal"
+        value: "role"
+        effect: "NoSchedule"
+---
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: lighthouse-rpi113
+  namespace: ingress-nginx-private
+spec:
+  selector:
+    matchLabels:
+      app: lighthouse-rpi113
+  template:
+    metadata:
+      labels:
+        app: lighthouse-rpi113
+    spec:
+      restartPolicy: Always
+      hostNetwork: true
+      volumes:
+      - name: cert
+        secret:
+          secretName: node-rpi113-cert
+      - name: config
+        configMap:
+          name: nodes-lighthouse-config
+      containers:
+      - name: lighthouse
+        image: giolekva/nebula:latest
+        imagePullPolicy: IfNotPresent
+        securityContext:
+          capabilities:
+            add: ["NET_ADMIN"]
+          privileged: true
+        ports:
+        - name: lighthouse
+          containerPort: 4242
+          protocol: UDP
+        command: ["nebula", "--config=/etc/nebula/config/nodes-lighthouse.yaml"]
+        volumeMounts:
+        - name: cert
+          mountPath: /etc/nebula/lighthouse
+          readOnly: true
+        - name: config
+          mountPath: /etc/nebula/config
+          readOnly: true
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+              - matchExpressions:
+                - key: kubernetes.io/hostname
+                  operator: In
+                  values:
+                  - rpi113
+      tolerations:
+      - key: "pcloud"
+        operator: "Equal"
+        value: "role"
+        effect: "NoSchedule"

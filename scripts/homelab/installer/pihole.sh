@@ -3,6 +3,7 @@
 helm upgrade --create-namespace \
      --namespace pihole \
      pihole mojo2600/pihole \
+     --version 2.4.2 \
      --set image.repository="pihole/pihole" \
      --set image.tag=v5.8.1 \
      --set persistentVolumeClaim.enabled=true \
@@ -23,3 +24,5 @@ helm upgrade --create-namespace \
      --set resources.limits.cpu="500m" \
      --set resources.requests.memory="100M" \
      --set resources.limits.memory="250M"
+
+# specify ingressClassName manually
