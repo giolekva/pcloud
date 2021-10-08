@@ -1,14 +1,18 @@
 clean:
-	rm -f controller
+	rm -f controller web
 
 generate:
 	rm -rf generated
 	./hack/generate.sh
 
-build: clean
+controller: clean
 	go1.16 mod tidy
 	go1.16 mod vendor
-	go1.16 build -o controller .
+	go1.16 build -o controller main.go
+
+web: clean
+	go1.16 build -o web web.go
+
 
 # image: clean build
 # 	docker build --tag=giolekva/rpuppy-arm .

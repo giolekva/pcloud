@@ -26,8 +26,6 @@ spec:
             spec:
               type: object
               properties:
-                caName:
-                  type: string
                 secretName:
                   type: string
             status:
@@ -68,9 +66,11 @@ spec:
               properties:
                 caName:
                   type: string
-                nodeName:
+                caNamespace:
                   type: string
                 ipCidr:
+                  type: string
+                pubKey:
                   type: string
                 secretName:
                   type: string

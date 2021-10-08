@@ -1,8 +1,0 @@
-apiVersion: lekva.me/v1
-kind: NebulaCA
-metadata:
-  name: test
-  namespace: test-nebula
-spec:
-  caName: lekva-pcloud
-  secretName: lekva-pcloud-ca

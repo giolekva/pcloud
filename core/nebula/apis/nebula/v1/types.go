@@ -16,7 +16,6 @@ type NebulaCA struct {
 }
 
 type NebulaCASpec struct {
-	CAName     string `json:"caName"`
 	SecretName string `json:"secretName"`
 }
 
@@ -52,10 +51,11 @@ type NebulaNode struct {
 }
 
 type NebulaNodeSpec struct {
-	CAName     string `json:"caName"`
-	NodeName   string `json:"nodeName"`
-	IPCidr     string `json:"ipCidr"`
-	SecretName string `json:"secretName"`
+	CAName      string `json:"caName"`
+	CANamespace string `json:"caNamespace"`
+	IPCidr      string `json:"ipCidr"`
+	PubKey      string `json:"pubKey"`
+	SecretName  string `json:"secretName"`
 }
 
 type NebulaNodeStatus struct {
