@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <title>Nebula Mesh VPN Manager</title>
+</head>
+<body>
+    <form action="/sign-node" method="POST">
+	<label for="ca-name">CA Name:</label><br />
+	<input type="text" name="ca-name" /><br />
+	<label for="ca-namespace">CA Namespace:</label><br />
+	<input type="text" name="ca-namespace" /><br />
+	<label for="node-name">Node Name:</label><br />
+	<input type="text" name="node-name" /><br />
+	<label for="node-namespace">Node Namespace:</label><br />
+	<input type="text" name="node-namespace" /><br />
+	<label for="ip-cidr">IP/CIDR:</label><br />
+	<input type="text" name="ip-cidr" /><br />
+	<label for="pub-key">Public Key:</label><br />
+	<textarea name="pub-key">Put node public key here</textarea><br />
+	<input type="submit" value="Sign node key" />
+    </form>
+    {{range .}}
+    <a href="/ca/{{.Namespace}}/{{.Name}}"><h1>{{.Name}}</h1></a>
+    <table>
+	<tr>
+	    <th>Node</th>
+	    <th>IP</th>
+	</tr>
+	{{range .Nodes}}
+	<tr>
+	    <td>
+		<a href="/node/{{.Namespace}}/{{.Name}}">{{.Name}}</a>
+	    </td>
+	    <td>
+		{{.IP}}
+	    </td>
+	</tr>
+	{{end}}
+    </table>
+    {{end}}
+</body>
+</html>
+

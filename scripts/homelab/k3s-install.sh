@@ -3,6 +3,8 @@
 # # # helm repo add cilium https://helm.cilium.io/
 # # # helm repo add rook-release https://charts.rook.io/release
 
+# helm repo add bitnami https://charts.bitnami.com/bitnami
+
 # helm repo add ingress-nginx https://kubernetes.github.io/ingress-nginx
 # helm repo add jetstack https://charts.jetstack.io
 # helm repo add longhorn https://charts.longhorn.io
@@ -42,79 +44,14 @@
 #       --server-user pcloud \
 #       --server-ip 192.168.0.111
 
-# kubectl apply -f https://raw.githubusercontent.com/metallb/metallb/v0.10.2/manifests/namespace.yaml
-# kubectl apply -f https://raw.githubusercontent.com/metallb/metallb/v0.10.2/manifests/metallb.yaml
-# # On first install only
-# kubectl create secret generic -n metallb-system memberlist --from-literal=secretkey="$(openssl rand -base64 128)"
-# kubectl apply -f metallb-config.yaml
-
-
-
-# # # kubectl apply -f bgp-config.yaml
-# # helm install cilium cilium/cilium \
-# #      --version 1.10.2 \
-# #      --namespace kube-system \
-# #      --set hubble.relay.enabled=true \
-# #      --set hubble.ui.enabled=true \
-# #      --set kubeProxyReplacement=strict \
-# #      --set k8sServiceHost=192.168.0.113 \
-# #      --set k8sServicePort=6443 \
-# #      --set policyEnforcementMode=never \
-# #      --set nodePort.enabled=true
-# #      # --set bgp.enabled=true \
-# #      # --set bgp.announce.loadbalancerIP=true \
-
-
-# # kubectl create ns cilium-test
-# # kubectl apply --namespace=cilium-test -f https://raw.githubusercontent.com/cilium/cilium/v1.10.2/examples/kubernetes/connectivity-check/connectivity-check.yaml
-
-
-# # helm install --create-namespace \
-# #      --namespace rook-ceph \
-# #      rook-ceph rook-1.6.7/cluster/charts/rook-ceph \
-# #      --set image.tag=v1.6.7
-
-# # kubectl apply -f ceph-cluster.yaml
-# # # kubectl -n rook-ceph patch cephcluster rook-ceph --type merge -p '{"spec":{"cleanupPolicy":{"confirmation":"yes-really-destroy-data"}}}'
-# # # ceph config set mgr mgr/dashboard/server_addr 0.0.0.0
-
-
-# helm install --create-namespace \
-#      --namespace ingress-nginx \
-#      nginx ingress-nginx/ingress-nginx \
-#      --set fullNameOverride=nginx \
-#      --set controller.service.type=LoadBalancer \
-#      --set controller.setAsDefaultIngress=true \
-#      --set controller.extraArgs.default-ssl-certificate=ingress-nginx/cert-wildcard.lekva.me
-
-# helm install --create-namespace \
-#      --namespace ingress-nginx-private \
-#      nginx ingress-nginx/ingress-nginx \
-#      --set fullnameOverride=nginx-private \
-#      --set controller.service.type=LoadBalancer \
-#      --set controller.setAsDefaultIngress=false \
-#      --set controller.ingressClass=nginx-private
-
-# helm install --create-namespace \
-#      --namespace cert-manager \
-#      cert-manager jetstack/cert-manager \
-#      --version v1.4.0 \
-#      --set installCRDs=true
+#source installer/metallb.sh
+source installer/ingress-nginx.sh
+#source installer/cert-manager.sh
+#source installer/longhorn.sh
+#source installer/pihole.sh
+#source installer/matrix.sh
 
 # kubectl apply -f ../../apps/rpuppy/install.yaml
-
-
-# helm install --create-namespace \
-#      --namespace longhorn-system \
-#      longhorn longhorn/longhorn \
-#      --set defaultSettings.defaultDataPath=/pcloud-storage/longhorn \
-#      --set persistence.defaultClassReplicaCount=2 \
-#      --set ingress.enabled=true \
-#      --set ingress.ingressClassName=nginx-private \
-#      --set ingress.tls=true \
-#      --set ingress.host=longhorn.pcloud \
-#      --set ingress.annotations."cert-manager\.io/cluster-issuer"="selfsigned-ca" \
-#      --set ingress.annotations."acme\.cert-manager\.io/http01-edit-in-place"="\"true\""
 
 # kubectl apply -f ~/dev/src/socialme-go/install.yaml
 
@@ -165,63 +102,10 @@
 #      --set prometheus.ingress.annotations."nginx\.ingress\.kubernetes\.io/ssl-redirect"="\"false\"" \
 #      --set prometheus.ingress.pathType=Prefix
 
-# # kubectl apply -f ../../apps/pihole/install.yaml
-# helm install --create-namespace \
-#      --namespace pihole \
-#      pihole mojo2600/pihole \
-#      --set persistentVolumeClaim.enabled=true \
-#      --set persistentVolumeClaim.size="5Gi" \
-#      --set ingress.enabled=true \
-#      --set ingress.hosts={"pihole.pcloud"} \
-#      --set ingress.tls[0].hosts[0]="pihole.pcloud" \
-#      --set ingress.tls[0].secretName="cert-pihole.pcloud" \
-#      --set ingress.annotations."kubernetes\.io/ingress\.class"="nginx-private" \
-#      --set ingress.annotations."cert-manager\.io/cluster-issuer"="selfsigned-ca" \
-#      --set ingress.annotations."acme\.cert-manager\.io/http01-edit-in-place"="\"true\"" \
-#      --set serviceDhcp.enabled=false \
-#      --set serviceDns.type=LoadBalancer \
-#      --set serviceWeb.type=ClusterIP \
-#      --set serviceWeb.https.enabled=false \
-#      --set virtualHost="pihole.pcloud"
-
-# kubectl apply -f cert-manager-webhook-gandi/rbac.yaml
-# helm install --namespace cert-manager  \
-#      cert-manager-webhook-gandi ./cert-manager-webhook-gandi/deploy/cert-manager-webhook-gandi \
-#      --set image.repository=giolekva/cert-manager-webhook-gandi \
-#      --set image.tag=latest \
-#      --set image.pullPolicy=Always \
-#      --set logLevel=2
-
-# kubectl apply -f cluster-issuer.yaml
-
 # kubectl apply -f ../../apps/maddy/install.yaml
 # kubectl apply -f maddy-config.yaml
 ## maddyctl -config /etc/maddy/config/maddy.conf creds create *****@lekva.me
 ## maddyctl -config /etc/maddy/config/maddy.conf imap-acct create *****@lekva.me
-
-# kubectl apply -f ../../apps/nebula/install.yaml
-# kubectl create configmap \
-# 	-n app-nebula \
-# 	lighthouse-cert \
-# 	--from-file ../../apps/nebula/lighthouse-cert/
-# kubectl create configmap \
-# 	-n app-nebula \
-# 	ca-cert \
-# 	--from-file ../../apps/nebula/ca-cert/ca.crt
-# kubectl create configmap \
-# 	-n app-nebula \
-# 	lighthouse-config \
-# 	--from-file ../../apps/nebula/lighthouse.yaml
-
-kubectl apply -f ../../apps/matrix/install.yaml
-# kubectl create configmap \
-# 	-n app-matrix \
-# 	config \
-# 	--from-file ../../apps/matrix/homeserver.yaml
-# kubectl apply -f www.yaml
-##kubectl rollout restart deployment/nginx -n www
-## kubectl cp app-matrix/matrix-7dd48659c9-p5mpq:/data/homeserver.yaml $(pwd)/../../apps/matrix/homeserver.yaml
-## Modify homeserver.yaml and copy back
 
 
 ## kubectl -n ingress-nginx get secret cert-wildcard.lekva.me -o yaml > cert-wildcard.lekva.me.yaml
