@@ -115,8 +115,19 @@ spec:
         - name: http
           containerPort: 8080
           protocol: TCP
-        # command: ["nginx"]
         volumeMounts:
         - name: config
           mountPath: /etc/nginx
           readOnly: true
+        resources:
+          requests:
+            memory: "10Mi"
+            cpu: "10m"
+          limits:
+            memory: "20Mi"
+            cpu: "100m"
+      tolerations:
+      - key: "pcloud"
+        operator: "Equal"
+        value: "role"
+        effect: "NoSchedule"

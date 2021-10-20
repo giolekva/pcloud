@@ -1,15 +1,14 @@
-build:
-	go1.16 build -o maddy-web *.go
-
 clean:
 	rm -f maddy-web
 
-image: clean build
-	docker build --tag=giolekva/maddy-web .
+build: clean
+	go build -o maddy-web *.go
+
+image: build
+	docker build --tag=giolekva/maddy-web:latest .
 
 push: image
 	docker push giolekva/maddy-web:latest
-
 
 push_arm64: export GOOS=linux
 push_arm64: export GOARCH=arm64

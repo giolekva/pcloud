@@ -23,7 +23,7 @@
 # kubectl create configmap \
 # 	-n ingress-nginx-private \
 # 	lighthouse-config \
-# 	--from-file ../../apps/nebula/lighthouse.yaml
+# 	--from-file ../../core/nebula/lighthouse.yaml
 kubectl create configmap \
 	-n ingress-nginx-private \
 	nodes-lighthouse-config \
@@ -73,3 +73,5 @@ kubectl apply -f installer/nodes-infrastructure.yaml
 
      # # --set controller.extraContainers[0].volumeMounts[1].name=ca-cert \
      # # --set controller.extraContainers[0].volumeMounts[1].mountPath=/etc/nebula/ca \
+
+# kubectl apply -f installer/ingress-nginx-private-lightouse-service.yaml

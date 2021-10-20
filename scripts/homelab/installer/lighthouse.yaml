@@ -24,7 +24,7 @@ static_host_map:
 lighthouse:
   # am_lighthouse is used to enable lighthouse functionality for a node. This should ONLY be true on nodes
   # you have configured to be lighthouses in your network
-  am_lighthouse: false
+  am_lighthouse: true
   # serve_dns optionally starts a dns listener that responds to various queries and can even be
   # delegated to for resolution
   #serve_dns: false
@@ -39,7 +39,7 @@ lighthouse:
   # IMPORTANT: THIS SHOULD BE EMPTY ON LIGHTHOUSE NODES
   # IMPORTANT2: THIS SHOULD BE LIGHTHOUSES' NEBULA IPs, NOT LIGHTHOUSES' REAL ROUTABLE IPs
   hosts:
-    - "111.0.0.1"
+    # - "111.0.0.1"
 
   # remote_allow_list allows you to control ip ranges that this node will
   # consider when handshaking to another node. By default, any remote IPs are
@@ -146,7 +146,7 @@ tun:
   # Sets the transmit queue length, if you notice lots of transmit drops on the tun it may help to raise this number. Default is 500
   tx_queue: 500
   # Default MTU for every packet, safe setting is (and the default) 1300 for internet based traffic
-  mtu: 576
+  mtu: 1300
   # Route based MTU overrides, you have known vpn ip paths that can support larger MTUs you can increase/decrease them here
   routes:
     #- mtu: 8800

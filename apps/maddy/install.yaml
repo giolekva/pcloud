@@ -9,7 +9,7 @@ metadata:
   name: maddy
   namespace: app-maddy
 spec:
-  type: LoadBalancer
+  type: ClusterIP
   externalTrafficPolicy: Local
   selector:
     app: maddy
