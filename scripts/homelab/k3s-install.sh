@@ -107,6 +107,7 @@ source installer/kratos.sh
 # kubectl apply -f maddy-config.yaml
 ## maddyctl -config /etc/maddy/config/maddy.conf creds create *****@lekva.me
 ## maddyctl -config /etc/maddy/config/maddy.conf imap-acct create *****@lekva.me
+# kubectl apply -f ../../apps/alps/install.yaml
 
 
 ## kubectl -n ingress-nginx get secret cert-wildcard.lekva.me -o yaml > cert-wildcard.lekva.me.yaml

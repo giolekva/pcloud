@@ -1,0 +1,89 @@
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: app-alps
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: alps
+  namespace: app-alps
+spec:
+  type: ClusterIP
+  selector:
+    app: alps
+  ports:
+  - name: http
+    port: 80
+    targetPort: http
+    protocol: TCP
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: ingress
+  namespace: app-alps
+  annotations:
+    cert-manager.io/cluster-issuer: "selfsigned-ca"
+    acme.cert-manager.io/http01-edit-in-place: "true"
+spec:
+  ingressClassName: nginx-private
+  tls:
+  - hosts:
+    - mail.pcloud
+    secretName: cert-mail.pcloud
+  rules:
+  - host: mail.pcloud
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: alps
+            port:
+              name: http
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: alps
+  namespace: app-alps
+spec:
+  selector:
+    matchLabels:
+      app: alps
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: alps
+    spec:
+      containers:
+      - name: alps
+        image: giolekva/alps:latest
+        imagePullPolicy: Always
+        ports:
+        - name: http
+          containerPort: 8080
+          protocol: TCP
+        workingDir: "/alps"
+        command:
+        - "./alps"
+        - "--addr=0.0.0.0:8080"
+        - "--theme=alps"
+        - "imaps://mx1.lekva.me:993"
+        - "smtps://mx1.lekva.me:465"
+        resources:
+          requests:
+            memory: "10Mi"
+            cpu: "10m"
+          limits:
+            memory: "20Mi"
+            cpu: "100m"
+      tolerations:
+      - key: "pcloud"
+        operator: "Equal"
+        value: "role"
+        effect: "NoSchedule"
