@@ -1,0 +1,95 @@
+version: v0.7.1-alpha.1
+
+dsn: postgres://postgres:psswd@postgres:5432/kr?sslmode=disable&max_conns=20&max_idle_conns=4
+
+serve:
+  public:
+    base_url: https://accounts.lekva.me/
+    cors:
+      enabled: true
+      debug: true
+      allow_credentials: true
+      allowed_origins:
+        - https://lekva.me
+        - https://*.lekva.me
+  admin:
+    base_url: https://kratos.pcloud/
+
+selfservice:
+  default_browser_return_url: https://accounts-ui.lekva.me/
+  whitelisted_return_urls:
+    - https://accounts-ui.lekva.me
+
+  methods:
+    password:
+      enabled: true
+
+  flows:
+    error:
+      ui_url: https://accounts-ui.lekva.me/error
+
+    settings:
+      ui_url: https://accounts-ui.lekva.me/settings
+      privileged_session_max_age: 15m
+
+    recovery:
+      enabled: false
+
+    verification:
+      enabled: false
+
+    logout:
+      after:
+        default_browser_return_url: https://accounts-ui.lekva.me/login
+
+    login:
+      ui_url: https://accounts-ui.lekva.me/login
+      lifespan: 10m
+      after:
+        password:
+          default_browser_return_url: https://accounts-ui.lekva.me/
+
+    registration:
+      lifespan: 10m
+      ui_url: https://accounts-ui.lekva.me/registration
+      after:
+        password:
+          hooks:
+            -
+              hook: session
+          default_browser_return_url: https://accounts-ui.lekva.me/
+
+log:
+  level: debug
+  format: text
+  leak_sensitive_values: true
+
+cookies:
+  path: /
+  same_site: None
+  domain: lekva.me
+
+secrets:
+  cookie:
+    - PLEASE-CHANGE-ME-I-AM-VERY-INSECURE
+  # cipher:
+  #   - 32-LONG-SECRET-NOT-SECURE-AT-ALL
+
+# ciphers:
+#   algorithm: xchacha20-poly1305
+
+hashers:
+  argon2:
+    parallelism: 1
+    memory: 128MB
+    iterations: 2
+    salt_length: 16
+    key_length: 16
+
+identity:
+  default_schema_url: file:///etc/kratos/identity/identity.schema.json
+
+courier:
+  smtp:
+    connection_uri: smtps://test-z1VmkYfYPjgdPRgPFgmeZ31esT9rUgS%40lekva.me:iW%213Kk%5EPPLFrZa%24%21bbpTPN9Wv3b8mvwS6ZJvMLtce%23A2%2A4MotD@mx1.lekva.me
+    # connection_uri: smtps://test-z1VmkYfYPjgdPRgPFgmeZ31esT9rUgS@lekva.me:iW!3Kk^PPLFrZa$!bbpTPN9Wv3b8mvwS6ZJvMLtce#A2*4MotD@mx1.lekva.me

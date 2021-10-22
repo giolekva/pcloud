@@ -50,7 +50,7 @@
 #source installer/longhorn.sh
 #source installer/pihole.sh
 #source installer/matrix.sh
-source installer/kratos.sh
+source installer/auth.sh
 
 # kubectl apply -f ../../apps/rpuppy/install.yaml
 

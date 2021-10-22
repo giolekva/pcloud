@@ -1,0 +1,124 @@
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: core-auth
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: kratos
+  namespace: core-auth
+spec:
+  type: ClusterIP
+  selector:
+    app: kratos
+  ports:
+  - name: public
+    port: 80
+    targetPort: public
+    protocol: TCP
+  - name: admin
+    port: 81
+    targetPort: admin
+    protocol: TCP
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: ingress-kratos-public
+  namespace: core-auth
+  annotations:
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+    acme.cert-manager.io/http01-edit-in-place: "true"
+spec:
+  ingressClassName: nginx
+  tls:
+  - hosts:
+    - accounts.lekva.me
+    secretName: cert-accounts.lekva.me
+  rules:
+  - host: accounts.lekva.me
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: kratos
+            port:
+              name: public
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: ingress-kratos-private
+  namespace: core-auth
+  annotations:
+    cert-manager.io/cluster-issuer: "selfsigned-ca"
+    acme.cert-manager.io/http01-edit-in-place: "true"
+spec:
+  ingressClassName: nginx-private
+  tls:
+  - hosts:
+    - kratos.pcloud
+    secretName: cert-kratos.pcloud
+  rules:
+  - host: kratos.pcloud
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: kratos
+            port:
+              name: admin
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: kratos
+  namespace: core-auth
+spec:
+  selector:
+    matchLabels:
+      app: kratos
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: kratos
+    spec:
+      volumes:
+      - name: config
+        configMap:
+          name: kratos
+      - name: identity
+        configMap:
+          name: identity
+      containers:
+      - name: kratos
+        image: giolekva/ory-kratos:latest
+        imagePullPolicy: IfNotPresent
+        ports:
+        - name: public
+          containerPort: 4433
+          protocol: TCP
+        - name: admin
+          containerPort: 4434
+          protocol: TCP
+        command: ["kratos", "--config=/etc/kratos/config/kratos.yaml", "serve"]
+        #command: ["kratos", "serve"]
+        # resources:
+        #   requests:
+        #     memory: "10Mi"
+        #     cpu: "10m"
+        #   limits:
+        #     memory: "20Mi"
+        #     cpu: "100m"
+        volumeMounts:
+        - name: config
+          mountPath: /etc/kratos/config
+        - name: identity
+          mountPath: /etc/kratos/identity
