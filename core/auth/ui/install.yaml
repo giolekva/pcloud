@@ -1,0 +1,82 @@
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: core-auth
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: kratos-selfservice-ui
+  namespace: core-auth
+spec:
+  type: ClusterIP
+  selector:
+    app: kratos-selfservice-ui
+  ports:
+  - name: http
+    port: 80
+    targetPort: http
+    protocol: TCP
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: ingress-kratos-selfservice-ui-public
+  namespace: core-auth
+  annotations:
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+    acme.cert-manager.io/http01-edit-in-place: "true"
+spec:
+  ingressClassName: nginx
+  tls:
+  - hosts:
+    - accounts-ui.lekva.me
+    secretName: cert-accounts-ui.lekva.me
+  rules:
+  - host: accounts-ui.lekva.me
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: kratos-selfservice-ui
+            port:
+              name: http
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: kratos-selfservice-ui
+  namespace: core-auth
+spec:
+  selector:
+    matchLabels:
+      app: kratos-selfservice-ui
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: kratos-selfservice-ui
+    spec:
+      containers:
+      - name: server
+        # image: giolekva/ory-kratos-selfservice-ui:latest
+        image: giolekva/auth-ui:latest
+        imagePullPolicy: Always
+        env:
+        - name: KRATOS_PUBLIC_URL
+          value: "https://accounts.lekva.me"
+        ports:
+        - name: http
+          containerPort: 8080
+          protocol: TCP
+        command: ["server", "--port=8080"]
+        # resources:
+        #   requests:
+        #     memory: "10Mi"
+        #     cpu: "10m"
+        #   limits:
+        #     memory: "20Mi"
+        #     cpu: "100m"
