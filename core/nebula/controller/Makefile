@@ -6,12 +6,12 @@ generate:
 	./hack/generate.sh
 
 controller: clean
-	go1.16 mod tidy
-	go1.16 mod vendor
-	go1.16 build -o controller main.go
+	go mod tidy
+	go mod vendor
+	go build -o controller main.go
 
 web: clean
-	go1.16 build -o web web.go
+	go build -o web web.go
 
 
 # image: clean build

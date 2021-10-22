@@ -5,7 +5,7 @@ clean:
 	rm -f server
 
 image: clean build
-	docker build --tag=giolekva/auth-ui .
+	docker build --tag=giolekva/auth-ui . --platform=linux/arm64
 
 push: image
 	docker push giolekva/auth-ui:latest

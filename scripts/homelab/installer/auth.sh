@@ -20,7 +20,13 @@
 # kubectl create configmap kratos -n core-auth --from-file=../../core/auth/kratos.yaml
 # kubectl create configmap identity -n core-auth --from-file=../../core/auth/identity.schema.json
 # kubectl apply -f ../../core/auth/kratos/install.yaml
-# kubectl apply -f ../../core/auth/ui/install.yaml
+
+kubectl create configmap \
+	-n core-auth \
+	auth-ui-lighthouse-config \
+	--from-file ../../core/auth/ui/lighthouse.yaml
+
+kubectl apply -f ../../core/auth/ui/install.yaml
 
 kubectl create configmap hydra -n core-auth --from-file=../../core/auth/hydra/hydra.yaml
 kubectl apply -f ../../core/auth/hydra/install.yaml

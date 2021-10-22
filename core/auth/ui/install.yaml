@@ -60,9 +60,19 @@ spec:
       labels:
         app: kratos-selfservice-ui
     spec:
+      volumes:
+      - name: cert
+        secret:
+          secretName: node-auth-ui-cert
+      - name: config
+        configMap:
+          name: auth-ui-lighthouse-config
+      hostAliases:
+      - ip: "111.0.0.1"
+        hostnames:
+          - "hydra.pcloud"
       containers:
       - name: server
-        # image: giolekva/ory-kratos-selfservice-ui:latest
         image: giolekva/auth-ui:latest
         imagePullPolicy: Always
         env:
@@ -80,3 +90,33 @@ spec:
         #   limits:
         #     memory: "20Mi"
         #     cpu: "100m"
+      - name: lighthouse
+        image: giolekva/nebula:latest
+        imagePullPolicy: IfNotPresent
+        securityContext:
+          capabilities:
+            add: ["NET_ADMIN"]
+          privileged: true
+        ports:
+        - name: lighthouse
+          containerPort: 4247
+          protocol: UDP
+        command: ["nebula", "--config=/etc/nebula/config/lighthouse.yaml"]
+        volumeMounts:
+        - name: cert
+          mountPath: /etc/nebula/lighthouse
+          readOnly: true
+        - name: config
+          mountPath: /etc/nebula/config
+          readOnly: true
+---
+apiVersion: lekva.me/v1
+kind: NebulaNode
+metadata:
+  name: auth-ui
+  namespace: core-auth
+spec:
+  caName: pcloud
+  caNamespace: ingress-nginx-private
+  ipCidr: "111.0.0.10/24"
+  secretName: node-auth-ui-cert

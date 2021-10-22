@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"crypto/tls"
 	"embed"
 	"encoding/json"
 	"errors"
@@ -14,6 +15,7 @@ import (
 	"net/http"
 	"net/http/cookiejar"
 	"net/url"
+	"strings"
 
 	"github.com/gorilla/mux"
 	"github.com/itaysk/regogo"
@@ -172,6 +174,15 @@ func (s *Server) loginInitiate(w http.ResponseWriter, r *http.Request) {
 	}
 	flow, ok := r.Form["flow"]
 	if !ok {
+		challenge, ok := r.Form["login_challenge"]
+		if ok {
+			// TODO(giolekva): encrypt
+			http.SetCookie(w, &http.Cookie{
+				Name:     "login_challenge",
+				Value:    challenge[0],
+				HttpOnly: true,
+			})
+		}
 		http.Redirect(w, r, s.kratos+"/self-service/login/browser", http.StatusSeeOther)
 		return
 	}
@@ -303,7 +314,44 @@ func (s *Server) login(w http.ResponseWriter, r *http.Request) {
 		for _, c := range resp.Cookies() {
 			http.SetCookie(w, c)
 		}
-		http.Redirect(w, r, "/", http.StatusSeeOther)
+		if challenge, _ := r.Cookie("login_challenge"); challenge != nil {
+			username, err := getWhoAmIFromKratos(resp.Cookies())
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
+			req := &http.Request{
+				Method: http.MethodPut,
+				URL: &url.URL{
+					Scheme:   "https",
+					Host:     "hydra.pcloud",
+					Path:     "/oauth2/auth/requests/login/accept",
+					RawQuery: fmt.Sprintf("login_challenge=%s", challenge.Value),
+				},
+				Header: map[string][]string{
+					"Content-Type": []string{"text/html"},
+				},
+				// TODO(giolekva): user stable userid instead
+				Body: io.NopCloser(strings.NewReader(fmt.Sprintf(`
+{
+    "subject": "%s",
+    "remember": true,
+    "remember_for": 3600
+}`, username))),
+			}
+			client := &http.Client{
+				Transport: &http.Transport{
+					TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+				},
+			}
+			resp, err := client.Do(req)
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+			} else {
+				io.Copy(w, resp.Body)
+			}
+		}
+		// http.Redirect(w, r, "/", http.StatusSeeOther)
 	}
 }
 
