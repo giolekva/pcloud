@@ -24,10 +24,10 @@
 # 	-n ingress-nginx-private \
 # 	lighthouse-config \
 # 	--from-file ../../core/nebula/lighthouse.yaml
-kubectl create configmap \
-	-n ingress-nginx-private \
-	nodes-lighthouse-config \
-	--from-file installer/nodes-lighthouse.yaml
+# kubectl create configmap \
+# 	-n ingress-nginx-private \
+# 	nodes-lighthouse-config \
+# 	--from-file installer/nodes-lighthouse.yaml
 
 kubectl apply -f installer/nodes-infrastructure.yaml
 

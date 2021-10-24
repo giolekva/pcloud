@@ -31,6 +31,17 @@ spec:
   ipCidr: "111.0.0.113/24"
   secretName: node-rpi113-cert
 ---
+apiVersion: lekva.me/v1
+kind: NebulaNode
+metadata:
+  name: rpi114
+  namespace: ingress-nginx-private
+spec:
+  caName: pcloud
+  caNamespace: ingress-nginx-private
+  ipCidr: "111.0.0.114/24"
+  secretName: node-rpi114-cert
+---
 apiVersion: apps/v1
 kind: DaemonSet
 metadata:
@@ -199,6 +210,64 @@ spec:
                   operator: In
                   values:
                   - rpi113
+      tolerations:
+      - key: "pcloud"
+        operator: "Equal"
+        value: "role"
+        effect: "NoSchedule"
+---
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: lighthouse-rpi114
+  namespace: ingress-nginx-private
+spec:
+  selector:
+    matchLabels:
+      app: lighthouse-rpi114
+  template:
+    metadata:
+      labels:
+        app: lighthouse-rpi114
+    spec:
+      restartPolicy: Always
+      hostNetwork: true
+      volumes:
+      - name: cert
+        secret:
+          secretName: node-rpi114-cert
+      - name: config
+        configMap:
+          name: nodes-lighthouse-config
+      containers:
+      - name: lighthouse
+        image: giolekva/nebula:latest
+        imagePullPolicy: IfNotPresent
+        securityContext:
+          capabilities:
+            add: ["NET_ADMIN"]
+          privileged: true
+        ports:
+        - name: lighthouse
+          containerPort: 4242
+          protocol: UDP
+        command: ["nebula", "--config=/etc/nebula/config/nodes-lighthouse.yaml"]
+        volumeMounts:
+        - name: cert
+          mountPath: /etc/nebula/lighthouse
+          readOnly: true
+        - name: config
+          mountPath: /etc/nebula/config
+          readOnly: true
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+              - matchExpressions:
+                - key: kubernetes.io/hostname
+                  operator: In
+                  values:
+                  - rpi114
       tolerations:
       - key: "pcloud"
         operator: "Equal"
