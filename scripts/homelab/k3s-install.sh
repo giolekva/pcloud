@@ -56,9 +56,9 @@
 #source installer/ingress-nginx.sh
 #source installer/cert-manager.sh
 #source installer/longhorn.sh
-#source installer/pihole.sh
+source installer/pihole.sh
 #source installer/matrix.sh
-#source installer/auth.sh
+# source installer/auth.sh
 
 # kubectl apply -f ../../apps/rpuppy/install.yaml
 
