@@ -2,7 +2,6 @@ package main
 
 import (
 	"bytes"
-	"crypto/tls"
 	"embed"
 	"encoding/json"
 	"errors"
@@ -15,7 +14,6 @@ import (
 	"net/http"
 	"net/http/cookiejar"
 	"net/url"
-	"strings"
 
 	"github.com/gorilla/mux"
 	"github.com/itaysk/regogo"
@@ -23,6 +21,7 @@ import (
 
 var port = flag.Int("port", 8080, "Port to listen on")
 var kratos = flag.String("kratos", "https://accounts.lekva.me", "Kratos URL")
+var hydra = flag.String("hydra", "hydra.pcloud", "Hydra admin server address")
 
 var ErrNotLoggedIn = errors.New("Not logged in")
 
@@ -33,9 +32,14 @@ type Templates struct {
 	WhoAmI       *template.Template
 	Registration *template.Template
 	Login        *template.Template
+	Consent      *template.Template
 }
 
 func ParseTemplates(fs embed.FS) (*Templates, error) {
+	whoami, err := template.ParseFS(fs, "templates/whoami.html")
+	if err != nil {
+		return nil, err
+	}
 	registration, err := template.ParseFS(fs, "templates/registration.html")
 	if err != nil {
 		return nil, err
@@ -44,15 +48,16 @@ func ParseTemplates(fs embed.FS) (*Templates, error) {
 	if err != nil {
 		return nil, err
 	}
-	whoami, err := template.ParseFS(fs, "templates/whoami.html")
+	consent, err := template.ParseFS(fs, "templates/consent.html")
 	if err != nil {
 		return nil, err
 	}
-	return &Templates{whoami, registration, login}, nil
+	return &Templates{whoami, registration, login, consent}, nil
 }
 
 type Server struct {
 	kratos string
+	hydra  *HydraClient
 	tmpls  *Templates
 }
 
@@ -63,6 +68,8 @@ func (s *Server) Start(port int) error {
 	r.Path("/registration").Methods(http.MethodPost).HandlerFunc(s.registration)
 	r.Path("/login").Methods(http.MethodGet).HandlerFunc(s.loginInitiate)
 	r.Path("/login").Methods(http.MethodPost).HandlerFunc(s.login)
+	r.Path("/consent").Methods(http.MethodGet).HandlerFunc(s.consent)
+	r.Path("/consent").Methods(http.MethodPost).HandlerFunc(s.processConsent)
 	r.Path("/logout").Methods(http.MethodGet).HandlerFunc(s.logout)
 	r.Path("/").HandlerFunc(s.whoami)
 	fmt.Printf("Starting HTTP server on port: %d\n", port)
@@ -112,7 +119,6 @@ func (s *Server) registrationInitiate(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	log.Println(csrfToken)
 	w.Header().Set("Content-Type", "text/html")
 	if err := s.tmpls.Registration.Execute(w, csrfToken); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -172,17 +178,23 @@ func (s *Server) loginInitiate(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
+	if challenge, ok := r.Form["login_challenge"]; ok {
+		// TODO(giolekva): encrypt
+		http.SetCookie(w, &http.Cookie{
+			Name:     "login_challenge",
+			Value:    challenge[0],
+			HttpOnly: true,
+		})
+	} else {
+		// http.SetCookie(w, &http.Cookie{
+		// 	Name:     "login_challenge",
+		// 	Value:    "",
+		// 	Expires:  time.Unix(0, 0),
+		// 	HttpOnly: true,
+		// })
+	}
 	flow, ok := r.Form["flow"]
 	if !ok {
-		challenge, ok := r.Form["login_challenge"]
-		if ok {
-			// TODO(giolekva): encrypt
-			http.SetCookie(w, &http.Cookie{
-				Name:     "login_challenge",
-				Value:    challenge[0],
-				HttpOnly: true,
-			})
-		}
 		http.Redirect(w, r, s.kratos+"/self-service/login/browser", http.StatusSeeOther)
 		return
 	}
@@ -191,7 +203,6 @@ func (s *Server) loginInitiate(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	log.Println(csrfToken)
 	w.Header().Set("Content-Type", "text/html")
 	if err := s.tmpls.Login.Execute(w, csrfToken); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -286,6 +297,25 @@ func getWhoAmIFromKratos(cookies []*http.Cookie) (string, error) {
 
 }
 
+func extractError(r io.Reader) error {
+	respBody, err := ioutil.ReadAll(r)
+	if err != nil {
+		return err
+	}
+	t, err := regogo.Get(string(respBody), "input.ui.messages[0].type")
+	if err != nil {
+		return err
+	}
+	if t.String() == "error" {
+		message, err := regogo.Get(string(respBody), "input.ui.messages[0].text")
+		if err != nil {
+			return err
+		}
+		return errors.New(message.String())
+	}
+	return nil
+}
+
 func (s *Server) login(w http.ResponseWriter, r *http.Request) {
 	if err := r.ParseForm(); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -307,52 +337,41 @@ func (s *Server) login(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	if resp, err := postToKratos("login", flow[0], r.Cookies(), &reqBody); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	} else {
-		for _, c := range resp.Cookies() {
-			http.SetCookie(w, c)
-		}
+	resp, err := postToKratos("login", flow[0], r.Cookies(), &reqBody)
+	if err == nil {
+		err = extractError(resp.Body)
+	}
+	if err != nil {
 		if challenge, _ := r.Cookie("login_challenge"); challenge != nil {
-			username, err := getWhoAmIFromKratos(resp.Cookies())
+			redirectTo, err := s.hydra.LoginRejectChallenge(challenge.Value, err.Error())
 			if err != nil {
 				http.Error(w, err.Error(), http.StatusInternalServerError)
 				return
 			}
-			req := &http.Request{
-				Method: http.MethodPut,
-				URL: &url.URL{
-					Scheme:   "https",
-					Host:     "hydra.pcloud",
-					Path:     "/oauth2/auth/requests/login/accept",
-					RawQuery: fmt.Sprintf("login_challenge=%s", challenge.Value),
-				},
-				Header: map[string][]string{
-					"Content-Type": []string{"text/html"},
-				},
-				// TODO(giolekva): user stable userid instead
-				Body: io.NopCloser(strings.NewReader(fmt.Sprintf(`
-{
-    "subject": "%s",
-    "remember": true,
-    "remember_for": 3600
-}`, username))),
-			}
-			client := &http.Client{
-				Transport: &http.Transport{
-					TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
-				},
-			}
-			resp, err := client.Do(req)
-			if err != nil {
-				http.Error(w, err.Error(), http.StatusInternalServerError)
-			} else {
-				io.Copy(w, resp.Body)
-			}
+			http.Redirect(w, r, redirectTo, http.StatusSeeOther)
+			return
 		}
-		// http.Redirect(w, r, "/", http.StatusSeeOther)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
 	}
+	for _, c := range resp.Cookies() {
+		http.SetCookie(w, c)
+	}
+	if challenge, _ := r.Cookie("login_challenge"); challenge != nil {
+		username, err := getWhoAmIFromKratos(resp.Cookies())
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		redirectTo, err := s.hydra.LoginAcceptChallenge(challenge.Value, username)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		http.Redirect(w, r, redirectTo, http.StatusSeeOther)
+		return
+	}
+	http.Redirect(w, r, "/", http.StatusSeeOther)
 }
 
 func (s *Server) logout(w http.ResponseWriter, r *http.Request) {
@@ -378,6 +397,56 @@ func (s *Server) whoami(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// TODO(giolekva): verify if logged in
+func (s *Server) consent(w http.ResponseWriter, r *http.Request) {
+	if err := r.ParseForm(); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	challenge, ok := r.Form["consent_challenge"]
+	if !ok {
+		http.Error(w, "Consent challenge not provided", http.StatusBadRequest)
+		return
+	}
+	consent, err := s.hydra.GetConsentChallenge(challenge[0])
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	w.Header().Set("Content-Type", "text/html")
+	if err := s.tmpls.Consent.Execute(w, consent.RequestedScopes); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+}
+
+func (s *Server) processConsent(w http.ResponseWriter, r *http.Request) {
+	if err := r.ParseForm(); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	username, err := getWhoAmIFromKratos(r.Cookies())
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	if _, accepted := r.Form["allow"]; accepted {
+		acceptedScopes, _ := r.Form["scope"]
+		idToken := map[string]string{
+			"username": username,
+			"email":    username + "@lekva.me",
+		}
+		if redirectTo, err := s.hydra.ConsentAccept(r.FormValue("consent_challenge"), acceptedScopes, idToken); err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+		} else {
+			http.Redirect(w, r, redirectTo, http.StatusSeeOther)
+		}
+		return
+	} else {
+		// TODO(giolekva): implement rejection logic
+	}
+}
+
 func main() {
 	flag.Parse()
 	t, err := ParseTemplates(tmpls)
@@ -386,6 +455,7 @@ func main() {
 	}
 	s := &Server{
 		kratos: *kratos,
+		hydra:  NewHydraClient(*hydra),
 		tmpls:  t,
 	}
 	log.Fatal(s.Start(*port))
