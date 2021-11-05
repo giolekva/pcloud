@@ -1,0 +1,10 @@
+certificateAuthority:
+  name: "nebula"
+  secretName: "ca-nebula-cert"
+
+lighthouse:
+  name: "lighthouse"
+  secretName: "node-lighthouse-cert"
+  internalIP: "0.0.0.0"
+  externalIP: "0.0.0.0"
+  port: "4242"

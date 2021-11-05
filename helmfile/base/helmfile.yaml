@@ -1,0 +1,37 @@
+repositories:
+- name: ingress-nginx
+  url: https://kubernetes.github.io/ingress-nginx
+
+helmDefaults:
+  tillerless: true
+
+releases:
+- name: ingress-public
+  chart: ingress-nginx/ingress-nginx
+  version: 4.0.3
+  namespace: {{ .Values.id }}-ingress-public
+  createNamespace: true
+  values:
+  - fullnameOverride: {{ .Values.id }}-ingress-public
+  - controller:
+      service:
+        type: LoadBalancer
+      ingressClassByName: true
+      ingressClassResource:
+        name: {{ .Values.id }}-ingress-public
+        enabled: true
+        default: false
+        controllerValue: k8s.io/{{ .Values.id }}-ingress-public
+      config:
+        proxy-body-size: 100M
+      tcp:
+      - 25: {{ .Values.id }}-app-maddy/maddy:25
+      - 143: {{ .Values.id }}-app-maddy/maddy:143
+      - 993: {{ .Values.id }}-app-maddy/maddy:993
+      - 587: {{ .Values.id }}-app-maddy/maddy:587
+      - 465: {{ .Values.id }}-app-maddy/maddy:465
+
+environments:
+  shveli:
+    values:
+      - id: shveli

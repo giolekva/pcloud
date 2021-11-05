@@ -1,0 +1,6 @@
+apiVersion: v2
+name: vpn-mesh-config
+description: A Helm chart for PCloud internal VPN mesh network configuration
+type: application
+version: 0.0.1
+appVersion: "0.0.1"

@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: lighthouse-config
+  namespace: {{ .Release.Namespace }}
+data:
+{{ (.Files.Glob "lighthouse.yaml").AsConfig | replace "<INTERNAL_IP>" .Values.lighthouse.internalIP | replace "<EXTERNAL_IP>" .Values.lighthouse.externalIP | replace "<PORT>" .Values.lighthouse.port | indent 2 }}

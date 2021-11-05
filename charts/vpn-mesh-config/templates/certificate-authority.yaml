@@ -1,0 +1,9 @@
+apiVersion: lekva.me/v1
+kind: NebulaCA
+metadata:
+  name: {{ .Values.certificateAuthority.name }}
+  namespace: {{ .Release.Namespace }}
+spec:
+  secretName: {{ .Values.certificateAuthority.secretName }}
+
+

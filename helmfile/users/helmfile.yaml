@@ -1,0 +1,76 @@
+repositories:
+- name: ingress-nginx
+  url: https://kubernetes.github.io/ingress-nginx
+
+helmDefaults:
+  tillerless: true
+
+releases:
+- name: vpn-mesh-config
+  chart: ../../charts/vpn-mesh-config
+  namespace: {{ .Values.id }}-ingress-private
+  createNamespace: true
+  values:
+  - certificateAuthority:
+      name: {{ .Values.id }}
+      secretName: ca-{{ .Values.id }}-cert
+  - lighthouse:
+      internalIP: 111.0.0.1
+      externalIP: 46.49.35.44
+      port: "4243"
+- name: ingress-private
+  chart: ingress-nginx/ingress-nginx
+  version: 4.0.3
+  namespace: {{ .Values.id }}-ingress-private
+  createNamespace: true
+  values:
+  - fullnameOverride: nginx
+  - controller:
+      service:
+        type: ClusterIP
+      ingressClassByName: true
+      ingressClassResource:
+        name: {{ .Values.id }}-ingress-private
+        enabled: true
+        default: false
+        controllerValue: k8s.io/{{ .Values.id }}-ingress-private
+      extraVolumes:
+      - name: lighthouse-cert
+        secret:
+          secretName: node-lighthouse-cert
+      - name: config
+        configMap:
+          name: lighthouse-config
+      extraContainers:
+      - name: lighthouse
+        image: giolekva/nebula:latest
+        imagePullPolicy: IfNotPresent
+        securityContext:
+          privileged: true
+          capabilities:
+            add:
+            - NET_ADMIN
+        ports:
+        - name: nebula
+          containerPort: 4242
+          protocol: UDP
+        command:
+        - nebula
+        - --config=/etc/nebula/config/lighthouse.yaml
+        volumeMounts:
+        - name: lighthouse-cert
+          mountPath: /etc/nebula/lighthouse
+        - name: config
+          mountPath: /etc/nebula/config
+      config:
+        bind-address: 111.0.0.1
+        proxy-body-size: 0
+      udp:
+      - 53: {{ .Values.id }}-app-pihole/pihole-dns-udp:53
+      tcp:
+      - 53: {{ .Values.id }}-app-pihole/pihole-dns-tcp:53
+
+environments:
+  shveli:
+    values:
+      - id: shveli

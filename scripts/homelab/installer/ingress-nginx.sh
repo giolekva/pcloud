@@ -4,7 +4,7 @@
 #      --namespace ingress-nginx \
 #      nginx ingress-nginx/ingress-nginx \
 #      --version 4.0.3 \
-#      --set fullNameOverride=nginx \
+#      --set fullnameOverride=nginx \
 #      --set controller.service.type=LoadBalancer \
 #      --set controller.ingressClassByName=true \
 #      --set controller.ingressClassResource.name=nginx \
@@ -18,7 +18,6 @@
 #      --set tcp.993="app-maddy/maddy:993" \
 #      --set tcp.587="app-maddy/maddy:587" \
 #      --set tcp.465="app-maddy/maddy:465"
-# #    --set udp.4242="ingress-nginx-private/lighthouse:4242"
 
 # kubectl create configmap \
 # 	-n ingress-nginx-private \

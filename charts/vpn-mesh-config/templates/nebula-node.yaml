@@ -1,0 +1,10 @@
+apiVersion: lekva.me/v1
+kind: NebulaNode
+metadata:
+  name: {{ .Values.lighthouse.name }}
+  namespace: {{ .Release.Namespace }}
+spec:
+  caName: {{ .Values.certificateAuthority.name }}
+  caNamespace: {{ .Release.Namespace }}
+  ipCidr: {{ .Values.lighthouse.internalIP }}/24
+  secretName: {{ .Values.lighthouse.secretName }}
