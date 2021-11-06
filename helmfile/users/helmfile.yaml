@@ -69,8 +69,22 @@ releases:
       - 53: {{ .Values.id }}-app-pihole/pihole-dns-udp:53
       tcp:
       - 53: {{ .Values.id }}-app-pihole/pihole-dns-tcp:53
+- name: certificate-issuer
+  chart: ../../charts/certificate-issuer
+  namespace: {{ .Values.certManagerNamespace }} # {{ .Values.id }}-ingress-private
+  createNamespace: true
+  values:
+  - public:
+      name: {{ .Values.id }}-public
+      server: https://acme-v02.api.letsencrypt.org/directory
+      contactEmail: {{ .Values.contactEmail }}
+      ingressClass: ingress-nginx
+  - private:
+      name: {{ .Values.id }}-private
 
 environments:
   shveli:
     values:
       - id: shveli
+      - contactEmail: giolekva@gmail.com
+      - certManagerNamespace: cert-manager
