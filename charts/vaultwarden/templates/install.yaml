@@ -1,0 +1,90 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: data
+  namespace: {{ .Release.Namespace }}
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: {{ .Values.storage.size }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: server
+  namespace: {{ .Release.Namespace }}
+spec:
+  selector:
+    matchLabels:
+      app: server
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: server
+    spec:
+      volumes:
+      - name: data
+        persistentVolumeClaim:
+          claimName: data
+      containers:
+      - name: server
+        image: {{ .Values.image.repository }}:{{ .Values.image.tag }}
+        imagePullPolicy: {{ .Values.image.pullPolicy }}
+        env:
+        - name: ROCKET_PORT
+          value: "80"
+        - name: DISABLE_ADMIN_TOKEN
+          value: "true"
+        - name: DOMAIN
+          value: https://{{ .Values.domain }}
+        ports:
+        - name: http
+          containerPort: 80
+          protocol: TCP
+        volumeMounts:
+        - name: data
+          mountPath: /data
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: server
+  namespace: {{ .Release.Namespace }}
+spec:
+  type: ClusterIP
+  selector:
+    app: server
+  ports:
+  - name: http
+    port: 80
+    targetPort: http
+    protocol: TCP
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: ingress
+  namespace: {{ .Release.Namespace }}
+  annotations:
+    cert-manager.io/cluster-issuer: "{{ .Values.certificateIssuier }}"
+    acme.cert-manager.io/http01-edit-in-place: "true"
+spec:
+  ingressClassName: {{ .Values.ingressClassName }}
+  tls:
+  - hosts:
+    - {{ .Values.domain }}
+    secretName: cert-{{ .Values.domain }}
+  rules:
+  - host: {{ .Values.domain }}
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: server
+            port:
+              name: http

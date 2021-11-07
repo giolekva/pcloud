@@ -398,6 +398,20 @@ releases:
         certificateAuthority:
           name: {{ .Values.id }}
           namespace: {{ .Values.id }}-ingress-private
+- name: vaultwarden
+  chart: ../../charts/vaultwarden
+  namespace: {{ .Values.id }}-app-vaultwarden
+  createNamespace: true
+  values:
+  - image:
+      repository: vaultwarden/server
+      tag: 1.22.2
+      pullPolicy: IfNotPresent
+  - storage:
+      size: 1Gi
+  - domain: bitwarden.{{ .Values.id }}
+  - certificateIssuer: {{ .Values.id }}-private
+  - ingressClassName: {{ .Values.id }}-ingress-private
 
 environments:
   shveli:
