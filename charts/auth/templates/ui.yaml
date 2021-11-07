@@ -1,0 +1,124 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: ui
+  namespace: {{ .Release.Namespace }}
+spec:
+  type: ClusterIP
+  selector:
+    app: ui
+  ports:
+  - name: http
+    port: 80
+    targetPort: http
+    protocol: TCP
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: ui
+  namespace: {{ .Release.Namespace }}
+  annotations:
+    cert-manager.io/cluster-issuer: {{ .Values.ui.certificateIssuer }}
+    acme.cert-manager.io/http01-edit-in-place: "true"
+spec:
+  ingressClassName: {{ .Values.ui.ingressClassName }}
+  tls:
+  - hosts:
+    - accounts-ui.{{ .Values.ui.domain }}
+    secretName: cert-accounts-ui.{{ .Values.ui.domain }}
+  rules:
+  - host: accounts-ui.{{ .Values.ui.domain }}
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: ui
+            port:
+              name: http
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ui
+  namespace: {{ .Release.Namespace }}
+spec:
+  selector:
+    matchLabels:
+      app: ui
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: ui
+    spec:
+      volumes:
+      - name: cert
+        secret:
+          secretName: {{ .Values.ui.nebula.node.secretName }}
+      - name: config
+        configMap:
+          name: {{ .Values.ui.nebula.lighthouse.name }}
+      hostAliases:
+      - ip: "111.0.0.1"
+        hostnames:
+          - "hydra.{{ .Values.ui.internalDomain }}"
+      containers:
+      - name: server
+        image: giolekva/auth-ui:latest
+        imagePullPolicy: Always
+        env:
+        - name: KRATOS_PUBLIC_URL
+          value: "https://accounts.{{ .Values.ui.domain }}"
+        ports:
+        - name: http
+          containerPort: 8080
+          protocol: TCP
+        command:
+        - server
+        - --port=8080
+        - --kratos=https://accounts.{{ .Values.ui.domain }}
+        - --hydra=hydra{{ .Values.ui.internalDomain }}
+        - --email-domain={{ .Values.ui.domain }}
+        # resources:
+        #   requests:
+        #     memory: "10Mi"
+        #     cpu: "10m"
+        #   limits:
+        #     memory: "20Mi"
+        #     cpu: "100m"
+      - name: lighthouse
+        image: giolekva/nebula:latest
+        imagePullPolicy: Always
+        securityContext:
+          capabilities:
+            add:
+            - NET_ADMIN
+          privileged: true
+        ports:
+        - name: lighthouse
+          containerPort: 4247
+          protocol: UDP
+        command:
+        - nebula
+        - --config=/etc/nebula/config/lighthouse.yaml
+        volumeMounts:
+        - name: cert
+          mountPath: /etc/nebula/lighthouse
+          readOnly: true
+        - name: config
+          mountPath: /etc/nebula/config
+          readOnly: true
+---
+apiVersion: lekva.me/v1
+kind: NebulaNode
+metadata:
+  name: {{ .Values.ui.nebula.node.name }}
+  namespace: {{ .Release.Namespace }}
+spec:
+  caName: {{ .Values.ui.nebula.certificateAuthority.name }}
+  caNamespace: {{ .Values.ui.nebula.certificateAuthority.namespace }}
+  ipCidr: {{ .Values.ui.nebula.node.ipCidr }}
+  secretName: {{ .Values.ui.nebula.node.secretName }}

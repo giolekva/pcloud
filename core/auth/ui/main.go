@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"crypto/tls"
 	"embed"
 	"encoding/json"
 	"errors"
@@ -22,6 +23,7 @@ import (
 var port = flag.Int("port", 8080, "Port to listen on")
 var kratos = flag.String("kratos", "https://accounts.lekva.me", "Kratos URL")
 var hydra = flag.String("hydra", "hydra.pcloud", "Hydra admin server address")
+var emailDomain = flag.String("email-domain", "lekva.me", "Email domain")
 
 var ErrNotLoggedIn = errors.New("Not logged in")
 
@@ -83,13 +85,16 @@ func getCSRFToken(flowType, flow string, cookies []*http.Cookie) (string, error)
 	}
 	client := &http.Client{
 		Jar: jar,
+		Transport: &http.Transport{
+			TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+		},
 	}
-	b, err := url.Parse("https://accounts.lekva.me/self-service/" + flowType + "/browser")
+	b, err := url.Parse(*kratos + "/self-service/" + flowType + "/browser")
 	if err != nil {
 		return "", err
 	}
 	client.Jar.SetCookies(b, cookies)
-	resp, err := client.Get(fmt.Sprintf("https://accounts.lekva.me/self-service/"+flowType+"/flows?id=%s", flow))
+	resp, err := client.Get(fmt.Sprintf(*kratos+"/self-service/"+flowType+"/flows?id=%s", flow))
 	if err != nil {
 		return "", err
 	}
@@ -224,13 +229,16 @@ func postToKratos(flowType, flow string, cookies []*http.Cookie, req io.Reader) 
 	}
 	client := &http.Client{
 		Jar: jar,
+		Transport: &http.Transport{
+			TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+		},
 	}
-	b, err := url.Parse("https://accounts.lekva.me/self-service/" + flowType + "/browser")
+	b, err := url.Parse(*kratos + "/self-service/" + flowType + "/browser")
 	if err != nil {
 		return nil, err
 	}
 	client.Jar.SetCookies(b, cookies)
-	resp, err := client.Post(fmt.Sprintf("https://accounts.lekva.me/self-service/"+flowType+"?flow=%s", flow), "application/json", req)
+	resp, err := client.Post(fmt.Sprintf(*kratos+"/self-service/"+flowType+"?flow=%s", flow), "application/json", req)
 	if err != nil {
 		return nil, err
 	}
@@ -248,13 +256,16 @@ func getLogoutURLFromKratos(cookies []*http.Cookie) (string, error) {
 	}
 	client := &http.Client{
 		Jar: jar,
+		Transport: &http.Transport{
+			TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+		},
 	}
-	b, err := url.Parse("https://accounts.lekva.me/self-service/logout/browser")
+	b, err := url.Parse(*kratos + "/self-service/logout/browser")
 	if err != nil {
 		return "", err
 	}
 	client.Jar.SetCookies(b, cookies)
-	resp, err := client.Get("https://accounts.lekva.me/self-service/logout/browser")
+	resp, err := client.Get(*kratos + "/self-service/logout/browser")
 	if err != nil {
 		return "", err
 	}
@@ -272,13 +283,16 @@ func getWhoAmIFromKratos(cookies []*http.Cookie) (string, error) {
 	}
 	client := &http.Client{
 		Jar: jar,
+		Transport: &http.Transport{
+			TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+		},
 	}
-	b, err := url.Parse("https://accounts.lekva.me/sessions/whoami")
+	b, err := url.Parse(*kratos + "/sessions/whoami")
 	if err != nil {
 		return "", err
 	}
 	client.Jar.SetCookies(b, cookies)
-	resp, err := client.Get("https://accounts.lekva.me/sessions/whoami")
+	resp, err := client.Get(*kratos + "/sessions/whoami")
 	if err != nil {
 		return "", err
 	}
@@ -434,7 +448,7 @@ func (s *Server) processConsent(w http.ResponseWriter, r *http.Request) {
 		acceptedScopes, _ := r.Form["scope"]
 		idToken := map[string]string{
 			"username": username,
-			"email":    username + "@lekva.me",
+			"email":    username + "@" + *emailDomain,
 		}
 		if redirectTo, err := s.hydra.ConsentAccept(r.FormValue("consent_challenge"), acceptedScopes, idToken); err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)

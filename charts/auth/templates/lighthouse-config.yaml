@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Values.ui.nebula.lighthouse.name }}
+  namespace: {{ .Release.Namespace }}
+data:
+{{ (.Files.Glob "lighthouse.yaml").AsConfig | replace "<INTERNAL_IP>" .Values.ui.nebula.lighthouse.internalIP | replace "<EXTERNAL_IP>" .Values.ui.nebula.lighthouse.externalIP | replace "<PORT>" .Values.ui.nebula.lighthouse.port | indent 2 }}

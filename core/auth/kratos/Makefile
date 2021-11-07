@@ -1,5 +1,5 @@
 image:
-	docker build --tag=giolekva/ory-kratos:latest .
+	docker build --tag=giolekva/ory-kratos:latest . --platform=linux/arm64
 
 push: image
 	docker push giolekva/ory-kratos:latest

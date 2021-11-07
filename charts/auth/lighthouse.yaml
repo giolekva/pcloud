@@ -24,7 +24,7 @@ static_host_map:
 lighthouse:
   # am_lighthouse is used to enable lighthouse functionality for a node. This should ONLY be true on nodes
   # you have configured to be lighthouses in your network
-  am_lighthouse: true
+  am_lighthouse: false
   # serve_dns optionally starts a dns listener that responds to various queries and can even be
   # delegated to for resolution
   #serve_dns: false
@@ -39,7 +39,7 @@ lighthouse:
   # IMPORTANT: THIS SHOULD BE EMPTY ON LIGHTHOUSE NODES
   # IMPORTANT2: THIS SHOULD BE LIGHTHOUSES' NEBULA IPs, NOT LIGHTHOUSES' REAL ROUTABLE IPs
   hosts:
-    # - "111.0.0.1"
+    - <INTERNAL_IP>
 
   # remote_allow_list allows you to control ip ranges that this node will
   # consider when handshaking to another node. By default, any remote IPs are
@@ -77,7 +77,7 @@ lighthouse:
 listen:
   # To listen on both any ipv4 and ipv6 use "[::]"
   host: "[::]"
-  port: <PORT>
+  port: 4243
   # Sets the max number of packets to pull from the kernel for each syscall (under systems that support recvmmsg)
   # default is 64, does not support reload
   #batch: 64

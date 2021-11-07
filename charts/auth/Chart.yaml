@@ -1,0 +1,13 @@
+apiVersion: v2
+name: auth
+description: A Helm chart for PCloud core authentication & authorization services
+type: application
+version: 0.0.1
+appVersion: "0.0.1"
+dependencies:
+- name: kratos
+  version: v0.20.1
+  repository: https://k8s.ory.sh/helm/charts
+- name: hydra
+  version: v0.20.1
+  repository: https://k8s.ory.sh/helm/charts
