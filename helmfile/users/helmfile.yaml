@@ -158,12 +158,13 @@ releases:
             - path: /
               pathType: Prefix
           annotations:
-            cert-manager.io/cluster-issuer: "{{ .Values.id }}-public-staging"
+            cert-manager.io/cluster-issuer: "{{ .Values.id }}-public"
             acme.cert-manager.io/http01-edit-in-place: "true"
           tls:
           - hosts:
             - accounts.{{ .Values.domain }}
-            secretName: cert-accounts.{{ .Values.domain }}
+            # secretName: cert-accounts.{{ .Values.domain }}
+            secretName: cert-wildcard.{{ .Values.domain }}
       secret:
         enabled: true
       kratos:
@@ -317,16 +318,26 @@ releases:
             - path: /
               pathType: Prefix
           annotations:
-            cert-manager.io/cluster-issuer: "{{ .Values.id }}-public-staging"
+            cert-manager.io/cluster-issuer: "{{ .Values.id }}-public"
             acme.cert-manager.io/http01-edit-in-place: "true"
           tls:
           - hosts:
             - hydra.{{ .Values.domain }}
-            secretName: cert-hydra.{{ .Values.domain }}
+            # secretName: cert-hydra.{{ .Values.domain }}
+            secretName: cert-wildcard.{{ .Values.domain }}
       secret:
         enabled: true
       maester:
-        enabled: false
+        enabled: true
+        hydraFullnameOverride: hydra
+      hydra-maester:
+        image:
+          repository: giolekva/ory-hydra-maester
+          tag: latest
+          pullPolicy: IfNotPresent
+        adminService:
+          name: hydra
+          port: 80
       hydra:
         autoMigrate: true
         config:
@@ -381,7 +392,7 @@ releases:
             level: trace
             leak_sensitive_values: false
   - ui:
-      certificateIssuer: {{ .Values.id }}-public-staging
+      certificateIssuer: {{ .Values.id }}-public
       ingressClassName: nginx
       domain: {{ .Values.domain }}
       internalDomain: {{ .Values.id }}
@@ -412,6 +423,58 @@ releases:
   - domain: bitwarden.{{ .Values.id }}
   - certificateIssuer: {{ .Values.id }}-private
   - ingressClassName: {{ .Values.id }}-ingress-private
+- name: matrix-storage  # TODO(giolekva): merge with core-auth
+  chart: bitnami/postgresql
+  version: 10.13.5
+  namespace: {{ .Values.id }}-app-matrix
+  createNamespace: true
+  values:
+  - fullnameOverride: postgres
+  - image:
+      repository: arm64v8/postgres
+      tag: 13.4
+  - service:
+      type: ClusterIP
+      port: 5432
+  - postgresqlPassword: psswd
+  - initdbScripts:
+      createdb.sh: |
+        #!/bin/sh
+        createdb -U postgres --encoding=UTF8 --locale=C --template=template0 --owner=postgres matrix
+  - persistence:
+      size: 1Gi
+  - securityContext:
+      enabled: true
+      fsGroup: 0
+  - containerSecurityContext:
+      enabled: true
+      runAsUser: 0
+  - volumePermissions:
+      securityContext:
+        runAsUser: 0
+- name: matrix
+  chart: ../../charts/matrix
+  namespace: {{ .Values.id }}-app-matrix
+  createNamespace: true
+  values:
+  - domain: {{ .Values.domain }}
+  - oauth2:
+      hydraAdmin: http://hydra-admin
+      hydraPublic: https://hydra.{{ .Values.domain }}
+      clientId: matrix
+      clientSecret: ""
+      secretName: oauth2-client
+  - postgresql:
+      host: postgres
+      port: 5432
+      database: matrix
+      user: postgres
+      password: psswd
+  - certificateIssuer: {{ .Values.id }}-public
+  - ingressClassName: nginx
+  - configMerge:
+      configName: config-to-merge
+      fileName: to-merge.yaml
 
 environments:
   shveli:

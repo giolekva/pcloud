@@ -1,0 +1,19 @@
+apiVersion: hydra.ory.sh/v1alpha1
+kind: OAuth2Client
+metadata:
+  name: matrix
+  namespace: {{ .Release.Namespace }}
+spec:
+  grantTypes:
+  - authorization_code
+  responseTypes:
+  - code
+  scope: "openid profile"
+  secretName: {{ .Values.oauth2.secretName }}
+  redirectUris:
+  - https://matrix.{{ .Values.domain }}/_synapse/client/oidc/callback
+  hydraAdmin:
+    url: {{ .Values.oauth2.hydraAdmin }}
+    port: 80
+    endpoint: /clients
+    forwardedProto: https

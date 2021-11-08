@@ -1,0 +1,45 @@
+{{- $secret := include "clientSecret" . -}}
+---
+apiVersion: v1
+kind: Secret
+type: Opaque
+metadata:
+  name: {{ .Values.oauth2.secretName }}
+  namespace: {{ .Release.Namespace }}
+data:
+  client_id: {{ .Values.oauth2.clientId | b64enc  }}
+  client_secret: {{ $secret | b64enc }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Values.configMerge.configName }}
+  namespace: {{ .Release.Namespace }}
+data:
+  {{ .Values.configMerge.fileName }}: |
+    public_baseurl: https://matrix.{{ .Values.domain }}/
+    enable_registration: false
+    database:
+     name: psycopg2
+     txn_limit: 10000
+     args:
+       host: {{ .Values.postgresql.host }}
+       port: {{ .Values.postgresql.port }}
+       database: {{ .Values.postgresql.database }}
+       user: {{ .Values.postgresql.user }}
+       password: {{ .Values.postgresql.password }}
+       cp_min: 5
+       cp_max: 10
+    oidc_providers:
+      - idp_id: pcloud
+        idp_name: "PCloud"
+        skip_verification: true
+        issuer: {{ .Values.oauth2.hydraPublic }}
+        client_id: {{ .Values.oauth2.clientId }}
+        client_secret: {{ $secret }}
+        scopes: ["openid", "profile"]
+        allow_existing_users: true
+        user_mapping_provider:
+          config:
+            localpart_template: {{`"{{ user.username }}"`}}
+            display_name_template: "{{`{{ user.username }}"`}}

@@ -18,15 +18,16 @@ kind: Ingress
 metadata:
   name: ui
   namespace: {{ .Release.Namespace }}
-  annotations:
-    cert-manager.io/cluster-issuer: {{ .Values.ui.certificateIssuer }}
-    acme.cert-manager.io/http01-edit-in-place: "true"
+  # annotations:
+  #   cert-manager.io/cluster-issuer: {{ .Values.ui.certificateIssuer }}
+  #   acme.cert-manager.io/http01-edit-in-place: "true"
 spec:
   ingressClassName: {{ .Values.ui.ingressClassName }}
   tls:
   - hosts:
     - accounts-ui.{{ .Values.ui.domain }}
-    secretName: cert-accounts-ui.{{ .Values.ui.domain }}
+    # secretName: cert-accounts-ui.{{ .Values.ui.domain }}
+    secretName: cert-wildcard.{{ .Values.ui.domain }}
   rules:
   - host: accounts-ui.{{ .Values.ui.domain }}
     http:
@@ -80,7 +81,7 @@ spec:
         - server
         - --port=8080
         - --kratos=https://accounts.{{ .Values.ui.domain }}
-        - --hydra=hydra{{ .Values.ui.internalDomain }}
+        - --hydra=hydra.{{ .Values.ui.internalDomain }}
         - --email-domain={{ .Values.ui.domain }}
         # resources:
         #   requests:

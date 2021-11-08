@@ -1,0 +1,18 @@
+domain: example.com
+oauth2:
+  hydraAdmin: http://hydra-admin
+  hydraPublic: https://hydra.example.com
+  clientId: matrix
+  clientSecret: ""
+  secretName: oauth2-client
+postgresql:
+  host: postgresql
+  port: 5432
+  database: synapse
+  user: synapse_user
+  password: password
+certificateIssuer: public
+ingressClassName: nginx
+configMerge:
+  configName: config-to-merge
+  fileName: to-merge.yaml

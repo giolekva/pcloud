@@ -5,7 +5,7 @@ build: clean
 	go build -o capture-config *.go
 
 image: build
-	docker build --tag=giolekva/capture-config:latest .
+	docker build --tag=giolekva/capture-config:latest . --platform=linux/arm64
 
 push: image
 	docker push giolekva/capture-config:latest

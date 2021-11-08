@@ -1,0 +1,187 @@
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: CreateConfigMaps
+  namespace: {{ .Release.Namespace }}
+rules:
+- apiGroups:
+  - ""
+  resources:
+  - configmaps
+  verbs:
+  - get
+  - create
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: default-CreateConfigMaps
+  namespace: {{ .Release.Namespace }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: CreateConfigMaps
+subjects:
+- kind: ServiceAccount
+  name: default
+  namespace: {{ .Release.Namespace }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: matrix
+  namespace: {{ .Release.Namespace }}
+spec:
+  type: ClusterIP
+  selector:
+    app: matrix
+  ports:
+  - name: http
+    port: 80
+    targetPort: http
+    protocol: TCP
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: ingress
+  namespace: {{ .Release.Namespace }}
+  annotations:
+    cert-manager.io/cluster-issuer: {{ .Values.certificateIssuer }}
+    acme.cert-manager.io/http01-edit-in-place: "true"
+spec:
+  ingressClassName: {{ .Values.ingressClassName }}
+  tls:
+  - hosts:
+    - matrix.{{ .Values.domain }}
+    # secretName: cert-matrix.{{ .Values.domain }}
+    secretName: cert-wildcard.{{ .Values.domain }}
+  rules:
+  - host: matrix.{{ .Values.domain }}
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: matrix
+            port:
+              name: http
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: generate-config
+  namespace: {{ .Release.Namespace }}
+spec:
+  template:
+    metadata:
+      labels:
+        app: generate-config
+    spec:
+      restartPolicy: OnFailure
+      volumes:
+      - name: data
+        persistentVolumeClaim:
+          claimName: data
+      initContainers:
+      - name: matrix
+        image: matrixdotorg/synapse:v1.43.0
+        imagePullPolicy: IfNotPresent
+        ports:
+        - name: http
+          containerPort: 8008
+          protocol: TCP
+        env:
+        - name: SYNAPSE_SERVER_NAME
+          value: "{{ .Values.domain }}"
+        - name: SYNAPSE_REPORT_STATS
+          value: "no"
+        - name: SYNAPSE_CONFIG_DIR
+          value: "/data"
+        - name: SYNAPSE_CONFIG_PATH
+          value: "/data/homeserver.yaml"
+        - name: SYNAPSE_DATA_DIR
+          value: "/data"
+        command:
+        - /start.py
+        - generate
+        volumeMounts:
+        - name: data
+          mountPath: /data
+      containers:
+      - name: capture-config
+        image: giolekva/capture-config:latest
+        imagePullPolicy: Always
+        command:
+        - capture-config
+        - --config=/data/homeserver.yaml
+        - --namespace={{ .Release.Namespace }}
+        - --config-map-name=config
+        - --config-to-merge={{ .Values.configMerge.configName }}
+        - --to-merge-filename={{ .Values.configMerge.fileName }}
+        volumeMounts:
+        - name: data
+          mountPath: /data
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: matrix
+  namespace: {{ .Release.Namespace }}
+spec:
+  selector:
+    matchLabels:
+      app: matrix
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: matrix
+    spec:
+      volumes:
+      - name: data
+        persistentVolumeClaim:
+          claimName: data
+      - name: homeserver-config
+        configMap:
+          name: config
+      containers:
+      - name: matrix
+        image: matrixdotorg/synapse:v1.43.0
+        imagePullPolicy: IfNotPresent
+        ports:
+        - name: http
+          containerPort: 8008
+          protocol: TCP
+        env:
+        - name: SYNAPSE_SERVER_NAME
+          value: "{{ .Values.domain }}"
+        - name: SYNAPSE_REPORT_STATS
+          value: "no"
+        - name: SYNAPSE_CONFIG_DIR
+          value: "/data"
+        - name: SYNAPSE_CONFIG_PATH
+          value: "/homeserver-config/homeserver.yaml"
+        - name: SYNAPSE_DATA_DIR
+          value: "/data"
+        command: ["/start.py"]
+        volumeMounts:
+        - name: data
+          mountPath: /data
+        - name: homeserver-config
+          mountPath: /homeserver-config
+          readOnly: true
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: data
+  namespace: {{ .Release.Namespace }}
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 10Gi
