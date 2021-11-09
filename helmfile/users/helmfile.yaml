@@ -9,480 +9,482 @@ helmDefaults:
   waitForJobs: false
 
 releases:
-- name: vpn-mesh-config
-  chart: ../../charts/vpn-mesh-config
-  namespace: {{ .Values.id }}-ingress-private
-  createNamespace: true
-  values:
-  - certificateAuthority:
-      name: {{ .Values.id }}
-      secretName: ca-{{ .Values.id }}-cert
-  - lighthouse:
-      internalIP: 111.0.0.1
-      externalIP: 46.49.35.44
-      port: "4243"
-- name: ingress-private
-  chart: ingress-nginx/ingress-nginx
-  version: 4.0.3
-  namespace: {{ .Values.id }}-ingress-private
-  createNamespace: true
-  values:
-  - fullnameOverride: nginx
-  - controller:
-      service:
-        type: ClusterIP
-      ingressClassByName: true
-      ingressClassResource:
-        name: {{ .Values.id }}-ingress-private
-        enabled: true
-        default: false
-        controllerValue: k8s.io/{{ .Values.id }}-ingress-private
-      extraVolumes:
-      - name: lighthouse-cert
-        secret:
-          secretName: node-lighthouse-cert
-      - name: config
-        configMap:
-          name: lighthouse-config
-      extraContainers:
-      - name: lighthouse
-        image: giolekva/nebula:latest
-        imagePullPolicy: IfNotPresent
-        securityContext:
-          privileged: true
-          capabilities:
-            add:
-            - NET_ADMIN
-        ports:
-        - name: nebula
-          containerPort: 4243
-          protocol: UDP
-        command:
-        - nebula
-        - --config=/etc/nebula/config/lighthouse.yaml
-        volumeMounts:
-        - name: lighthouse-cert
-          mountPath: /etc/nebula/lighthouse
-        - name: config
-          mountPath: /etc/nebula/config
-      config:
-        bind-address: 111.0.0.1
-        proxy-body-size: 0
-      udp:
-      - 53: {{ .Values.id }}-app-pihole/pihole-dns-udp:53
-      tcp:
-      - 53: {{ .Values.id }}-app-pihole/pihole-dns-tcp:53
-- name: certificate-issuer
-  chart: ../../charts/certificate-issuer
-  namespace: {{ .Values.certManagerNamespace }} # {{ .Values.id }}-ingress-private
-  createNamespace: true
-  values:
-  - public:
-      name: {{ .Values.id }}-public
-      server: https://acme-v02.api.letsencrypt.org/directory
-      stagingServer: https://acme-staging-v02.api.letsencrypt.org/directory
-      contactEmail: {{ .Values.contactEmail }}
-      ingressClass: nginx
-  - private:
-      name: {{ .Values.id }}-private
-      domain: {{ .Values.id }}
-      ingressClassName: {{ .Values.id }}-ingress-private
-- name: core-auth-storage  # TODO(giolekva): merge with core-auth
-  chart: bitnami/postgresql
-  version: 10.13.5
-  namespace: {{ .Values.id }}-core-auth
-  createNamespace: true
-  values:
-  - fullnameOverride: postgres
-  - image:
-      repository: arm64v8/postgres
-      tag: 13.4
-  - service:
-      type: ClusterIP
-      port: 5432
-  - postgresqlPassword: psswd
-  - postgresqlDatabase: kratos
-  - persistence:
-      size: 1Gi
-  - securityContext:
-      enabled: true
-      fsGroup: 0
-  - containerSecurityContext:
-      enabled: true
-      runAsUser: 0
-  - volumePermissions:
-      securityContext:
-        runAsUser: 0
-- name: core-auth
-  chart: ../../charts/auth
-  namespace: {{ .Values.id }}-core-auth
-  createNamespace: true
-  values:
-  - kratos:
-      fullnameOverride: kratos
-      image:
-        repository: giolekva/ory-kratos
-        tag: latest
-        pullPolicy: Always
-      service:
-        admin:
-          enabled: true
-          type: ClusterIP
-          port: 80
-          name: http
-        public:
-          enabled: true
-          type: ClusterIP
-          port: 80
-          name: http
-      ingress:
-        admin:
-          enabled: true
-          className: {{ .Values.id }}-ingress-private
-          hosts:
-          - host: kratos.{{ .Values.id }}
-            paths:
-            - path: /
-              pathType: Prefix
-          annotations:
-            cert-manager.io/cluster-issuer: "{{ .Values.id }}-private"
-            acme.cert-manager.io/http01-edit-in-place: "true"
-          tls:
-          - hosts:
-            - kratos.{{ .Values.id }}
-            secretName: cert-kratos.{{ .Values.id }}
-        public:
-          enabled: true
-          className: nginx
-          hosts:
-          - host: accounts.{{ .Values.domain }}
-            paths:
-            - path: /
-              pathType: Prefix
-          annotations:
-            cert-manager.io/cluster-issuer: "{{ .Values.id }}-public"
-            acme.cert-manager.io/http01-edit-in-place: "true"
-          tls:
-          - hosts:
-            - accounts.{{ .Values.domain }}
-            # secretName: cert-accounts.{{ .Values.domain }}
-            secretName: cert-wildcard.{{ .Values.domain }}
-      secret:
-        enabled: true
-      kratos:
-        autoMigrate: true
-        development: false
-        config:
-          version: v0.7.1-alpha.1
-          dsn: postgres://postgres:psswd@postgres:5432/kratos?sslmode=disable&max_conns=20&max_idle_conns=4
-          serve:
-            public:
-              base_url: https://accounts.{{ .Values.domain }}
-              cors:
-                enabled: true
-                debug: false
-                allow_credentials: true
-                allowed_origins:
-                - https://{{ .Values.domain }}
-                - https://*.{{ .Values.domain }}
-            admin:
-              base_url: https://kratos.{{ .Values.id }}/
-          selfservice:
-            default_browser_return_url: https://accounts-ui.{{ .Values.domain }}
-            whitelisted_return_urls:
-              - https://accounts-ui.{{ .Values.domain }}
-            methods:
-              password:
-                enabled: true
-            flows:
-              error:
-                ui_url: https://accounts-ui.{{ .Values.domain }}/error
-              settings:
-                ui_url: https://accounts-ui.{{ .Values.domain }}/settings
-                privileged_session_max_age: 15m
-              recovery:
-                enabled: false
-              verification:
-                enabled: false
-              logout:
-                after:
-                  default_browser_return_url: https://accounts-ui.{{ .Values.domain }}/login
-              login:
-                ui_url: https://accounts-ui.{{ .Values.domain }}/login
-                lifespan: 10m
-                after:
-                  password:
-                    default_browser_return_url: https://accounts-ui.{{ .Values.domain }}/
-              registration:
-                lifespan: 10m
-                ui_url: https://accounts-ui.{{ .Values.domain }}/registration
-                after:
-                  password:
-                    hooks:
-                      -
-                        hook: session
-                    default_browser_return_url: https://accounts-ui.{{ .Values.domain }}/
-          log:
-            level: debug
-            format: text
-            leak_sensitive_values: true
-          cookies:
-            path: /
-            same_site: None
-            domain: {{ .Values.domain }}
-          secrets:
-            cookie:
-              - PLEASE-CHANGE-ME-I-AM-VERY-INSECURE
-            # cipher:
-            #   - 32-LONG-SECRET-NOT-SECURE-AT-ALL
-          # ciphers:
-          #   algorithm: xchacha20-poly1305
-          hashers:
-            argon2:
-              parallelism: 1
-              memory: 128MB
-              iterations: 2
-              salt_length: 16
-              key_length: 16
-          identity:
-            default_schema_url: file:///etc/config/identity.schema.json
-          courier:
-            smtp:
-              connection_uri: smtps://test-z1VmkYfYPjgdPRgPFgmeZ31esT9rUgS%40{{ .Values.domain }}:iW%213Kk%5EPPLFrZa%24%21bbpTPN9Wv3b8mvwS6ZJvMLtce%23A2%2A4MotD@mx1.{{ .Values.domain }}
-        identitySchemas:
-          "identity.schema.json": |
-            {
-              "$id": "https://schemas.ory.sh/presets/kratos/quickstart/email-password/identity.schema.json",
-              "$schema": "http://json-schema.org/draft-07/schema#",
-              "title": "User",
-              "type": "object",
-              "properties": {
-                "traits": {
-                  "type": "object",
-                  "properties": {
-                    "username": {
-                      "type": "string",
-                      "format": "username",
-                      "title": "Username",
-                      "minLength": 3,
-                      "ory.sh/kratos": {
-                        "credentials": {
-                          "password": {
-                            "identifier": true
-                          }
-                        }
-                      }
-                    }
-                  },
-                  "additionalProperties": false
-                }
-              }
-            }
-  - hydra:
-      fullnameOverride: hydra
-      image:
-        repository: giolekva/ory-hydra
-        tag: latest
-        pullPolicy: Always
-      service:
-        admin:
-          enabled: true
-          type: ClusterIP
-          port: 80
-          name: http
-        public:
-          enabled: true
-          type: ClusterIP
-          port: 80
-          name: http
-      ingress:
-        admin:
-          enabled: true
-          className: {{ .Values.id }}-ingress-private
-          hosts:
-          - host: hydra.{{ .Values.id }}
-            paths:
-            - path: /
-              pathType: Prefix
-          annotations:
-            cert-manager.io/cluster-issuer: "{{ .Values.id }}-private"
-            acme.cert-manager.io/http01-edit-in-place: "true"
-          tls:
-          - hosts:
-            - hydra.{{ .Values.id }}
-            secretName: cert-hydra.{{ .Values.id }}
-        public:
-          enabled: true
-          className: nginx
-          hosts:
-          - host: hydra.{{ .Values.domain }}
-            paths:
-            - path: /
-              pathType: Prefix
-          annotations:
-            cert-manager.io/cluster-issuer: "{{ .Values.id }}-public"
-            acme.cert-manager.io/http01-edit-in-place: "true"
-          tls:
-          - hosts:
-            - hydra.{{ .Values.domain }}
-            # secretName: cert-hydra.{{ .Values.domain }}
-            secretName: cert-wildcard.{{ .Values.domain }}
-      secret:
-        enabled: true
-      maester:
-        enabled: true
-        hydraFullnameOverride: hydra
-      hydra-maester:
-        image:
-          repository: giolekva/ory-hydra-maester
-          tag: latest
-          pullPolicy: IfNotPresent
-        adminService:
-          name: hydra
-          port: 80
-      hydra:
-        autoMigrate: true
-        config:
-          version: v1.10.6
-          dsn: postgres://postgres:psswd@postgres:5432/kratos?sslmode=disable&max_conns=20&max_idle_conns=4
-          serve:
-            cookies:
-              same_site_mode: None
-            public:
-              cors:
-                enabled: true
-                debug: false
-                allow_credentials: true
-                allowed_origins:
-                  - https://{{ .Values.domain }}
-                  - https://*.{{ .Values.domain }}
-            admin:
-              # host: localhost
-              cors:
-                allowed_origins:
-                  - https://hydra.{{ .Values.id }}
-              tls:
-                allow_termination_from:
-                  - 0.0.0.0/0
-                  - 10.42.0.0/16
-                  - 10.43.0.0/16
-                  - 111.0.0.1/32
-            tls:
-              allow_termination_from:
-                - 0.0.0.0/0
-                - 10.42.0.0/16
-                - 10.43.0.0/16
-                - 111.0.0.1/32
-          urls:
-            self:
-              public: https://hydra.{{ .Values.domain }}
-              issuer: https://hydra.{{ .Values.domain }}
-            consent: https://accounts-ui.{{ .Values.domain }}/consent
-            login: https://accounts-ui.{{ .Values.domain }}/login
-            logout: https://accounts-ui.{{ .Values.domain }}/logout
-          secrets:
-            system:
-              - youReallyNeedToChangeThis
-          oidc:
-            subject_identifiers:
-              supported_types:
-                - pairwise
-                - public
-              pairwise:
-                salt: youReallyNeedToChangeThis
-          log:
-            level: trace
-            leak_sensitive_values: false
-  - ui:
-      certificateIssuer: {{ .Values.id }}-public
-      ingressClassName: nginx
-      domain: {{ .Values.domain }}
-      internalDomain: {{ .Values.id }}
-      nebula:
-        lighthouse:
-          name: ui-lighthouse
-          internalIP: 111.0.0.1
-          externalIP: 46.49.35.44
-          port: "4243"
-        node:
-          name: ui
-          ipCidr: 111.0.0.2/24
-          secretName: node-ui-cert
-        certificateAuthority:
-          name: {{ .Values.id }}
-          namespace: {{ .Values.id }}-ingress-private
-- name: vaultwarden
-  chart: ../../charts/vaultwarden
-  namespace: {{ .Values.id }}-app-vaultwarden
-  createNamespace: true
-  values:
-  - image:
-      repository: vaultwarden/server
-      tag: 1.22.2
-      pullPolicy: IfNotPresent
-  - storage:
-      size: 1Gi
-  - domain: bitwarden.{{ .Values.id }}
-  - certificateIssuer: {{ .Values.id }}-private
-  - ingressClassName: {{ .Values.id }}-ingress-private
-- name: matrix-storage  # TODO(giolekva): merge with core-auth
-  chart: bitnami/postgresql
-  version: 10.13.5
-  namespace: {{ .Values.id }}-app-matrix
-  createNamespace: true
-  values:
-  - fullnameOverride: postgres
-  - image:
-      repository: arm64v8/postgres
-      tag: 13.4
-  - service:
-      type: ClusterIP
-      port: 5432
-  - postgresqlPassword: psswd
-  - initdbScripts:
-      createdb.sh: |
-        #!/bin/sh
-        createdb -U postgres --encoding=UTF8 --locale=C --template=template0 --owner=postgres matrix
-  - persistence:
-      size: 1Gi
-  - securityContext:
-      enabled: true
-      fsGroup: 0
-  - containerSecurityContext:
-      enabled: true
-      runAsUser: 0
-  - volumePermissions:
-      securityContext:
-        runAsUser: 0
-- name: matrix
-  chart: ../../charts/matrix
-  namespace: {{ .Values.id }}-app-matrix
-  createNamespace: true
-  values:
-  - domain: {{ .Values.domain }}
-  - oauth2:
-      hydraAdmin: http://hydra-admin
-      hydraPublic: https://hydra.{{ .Values.domain }}
-      clientId: matrix
-      clientSecret: ""
-      secretName: oauth2-client
-  - postgresql:
-      host: postgres
-      port: 5432
-      database: matrix
-      user: postgres
-      password: psswd
-  - certificateIssuer: {{ .Values.id }}-public
-  - ingressClassName: nginx
-  - configMerge:
-      configName: config-to-merge
-      fileName: to-merge.yaml
+# - name: vpn-mesh-config
+#   chart: ../../charts/vpn-mesh-config
+#   namespace: {{ .Values.id }}-ingress-private
+#   createNamespace: true
+#   values:
+#   - certificateAuthority:
+#       name: {{ .Values.id }}
+#       secretName: ca-{{ .Values.id }}-cert
+#   - lighthouse:
+#       internalIP: 111.0.0.1
+#       externalIP: 46.49.35.44
+#       port: "4243"
+# - name: ingress-private
+#   chart: ingress-nginx/ingress-nginx
+#   version: 4.0.3
+#   namespace: {{ .Values.id }}-ingress-private
+#   createNamespace: true
+#   values:
+#   - fullnameOverride: nginx
+#   - controller:
+#       service:
+#         type: ClusterIP
+#       ingressClassByName: true
+#       ingressClassResource:
+#         name: {{ .Values.id }}-ingress-private
+#         enabled: true
+#         default: false
+#         controllerValue: k8s.io/{{ .Values.id }}-ingress-private
+#       extraArgs:
+#         default-ssl-certificate: "{{ .Values.id }}-ingress-private/cert-wildcard.p.{{ .Values.domain }}"
+#       extraVolumes:
+#       - name: lighthouse-cert
+#         secret:
+#           secretName: node-lighthouse-cert
+#       - name: config
+#         configMap:
+#           name: lighthouse-config
+#       extraContainers:
+#       - name: lighthouse
+#         image: giolekva/nebula:latest
+#         imagePullPolicy: IfNotPresent
+#         securityContext:
+#           privileged: true
+#           capabilities:
+#             add:
+#             - NET_ADMIN
+#         ports:
+#         - name: nebula
+#           containerPort: 4243
+#           protocol: UDP
+#         command:
+#         - nebula
+#         - --config=/etc/nebula/config/lighthouse.yaml
+#         volumeMounts:
+#         - name: lighthouse-cert
+#           mountPath: /etc/nebula/lighthouse
+#         - name: config
+#           mountPath: /etc/nebula/config
+#       config:
+#         bind-address: 111.0.0.1
+#         proxy-body-size: 0
+#       udp:
+#       - 53: {{ .Values.id }}-app-pihole/pihole-dns-udp:53
+#       tcp:
+#       - 53: {{ .Values.id }}-app-pihole/pihole-dns-tcp:53
+# - name: certificate-issuer
+#   chart: ../../charts/certificate-issuer
+#   namespace: {{ .Values.certManagerNamespace }} # {{ .Values.id }}-ingress-private
+#   createNamespace: true
+#   values:
+#   - public:
+#       name: {{ .Values.id }}-public
+#       server: https://acme-v02.api.letsencrypt.org/directory
+#       stagingServer: https://acme-staging-v02.api.letsencrypt.org/directory
+#       contactEmail: {{ .Values.contactEmail }}
+#       ingressClass: nginx
+#   - private:
+#       name: {{ .Values.id }}-private
+#       domain: {{ .Values.id }}
+#       ingressClassName: {{ .Values.id }}-ingress-private
+# - name: core-auth-storage  # TODO(giolekva): merge with core-auth
+#   chart: bitnami/postgresql
+#   version: 10.13.5
+#   namespace: {{ .Values.id }}-core-auth
+#   createNamespace: true
+#   values:
+#   - fullnameOverride: postgres
+#   - image:
+#       repository: arm64v8/postgres
+#       tag: 13.4
+#   - service:
+#       type: ClusterIP
+#       port: 5432
+#   - postgresqlPassword: psswd
+#   - postgresqlDatabase: kratos
+#   - persistence:
+#       size: 1Gi
+#   - securityContext:
+#       enabled: true
+#       fsGroup: 0
+#   - containerSecurityContext:
+#       enabled: true
+#       runAsUser: 0
+#   - volumePermissions:
+#       securityContext:
+#         runAsUser: 0
+# - name: core-auth
+#   chart: ../../charts/auth
+#   namespace: {{ .Values.id }}-core-auth
+#   createNamespace: true
+#   values:
+#   - kratos:
+#       fullnameOverride: kratos
+#       image:
+#         repository: giolekva/ory-kratos
+#         tag: latest
+#         pullPolicy: Always
+#       service:
+#         admin:
+#           enabled: true
+#           type: ClusterIP
+#           port: 80
+#           name: http
+#         public:
+#           enabled: true
+#           type: ClusterIP
+#           port: 80
+#           name: http
+#       ingress:
+#         admin:
+#           enabled: true
+#           className: {{ .Values.id }}-ingress-private
+#           hosts:
+#           - host: kratos.{{ .Values.id }}
+#             paths:
+#             - path: /
+#               pathType: Prefix
+#           annotations:
+#             cert-manager.io/cluster-issuer: "{{ .Values.id }}-private"
+#             acme.cert-manager.io/http01-edit-in-place: "true"
+#           tls:
+#           - hosts:
+#             - kratos.{{ .Values.id }}
+#             secretName: cert-kratos.{{ .Values.id }}
+#         public:
+#           enabled: true
+#           className: nginx
+#           hosts:
+#           - host: accounts.{{ .Values.domain }}
+#             paths:
+#             - path: /
+#               pathType: Prefix
+#           annotations:
+#             cert-manager.io/cluster-issuer: "{{ .Values.id }}-public"
+#             acme.cert-manager.io/http01-edit-in-place: "true"
+#           tls:
+#           - hosts:
+#             - accounts.{{ .Values.domain }}
+#             # secretName: cert-accounts.{{ .Values.domain }}
+#             secretName: cert-wildcard.{{ .Values.domain }}
+#       secret:
+#         enabled: true
+#       kratos:
+#         autoMigrate: true
+#         development: false
+#         config:
+#           version: v0.7.1-alpha.1
+#           dsn: postgres://postgres:psswd@postgres:5432/kratos?sslmode=disable&max_conns=20&max_idle_conns=4
+#           serve:
+#             public:
+#               base_url: https://accounts.{{ .Values.domain }}
+#               cors:
+#                 enabled: true
+#                 debug: false
+#                 allow_credentials: true
+#                 allowed_origins:
+#                 - https://{{ .Values.domain }}
+#                 - https://*.{{ .Values.domain }}
+#             admin:
+#               base_url: https://kratos.{{ .Values.id }}/
+#           selfservice:
+#             default_browser_return_url: https://accounts-ui.{{ .Values.domain }}
+#             whitelisted_return_urls:
+#               - https://accounts-ui.{{ .Values.domain }}
+#             methods:
+#               password:
+#                 enabled: true
+#             flows:
+#               error:
+#                 ui_url: https://accounts-ui.{{ .Values.domain }}/error
+#               settings:
+#                 ui_url: https://accounts-ui.{{ .Values.domain }}/settings
+#                 privileged_session_max_age: 15m
+#               recovery:
+#                 enabled: false
+#               verification:
+#                 enabled: false
+#               logout:
+#                 after:
+#                   default_browser_return_url: https://accounts-ui.{{ .Values.domain }}/login
+#               login:
+#                 ui_url: https://accounts-ui.{{ .Values.domain }}/login
+#                 lifespan: 10m
+#                 after:
+#                   password:
+#                     default_browser_return_url: https://accounts-ui.{{ .Values.domain }}/
+#               registration:
+#                 lifespan: 10m
+#                 ui_url: https://accounts-ui.{{ .Values.domain }}/registration
+#                 after:
+#                   password:
+#                     hooks:
+#                       -
+#                         hook: session
+#                     default_browser_return_url: https://accounts-ui.{{ .Values.domain }}/
+#           log:
+#             level: debug
+#             format: text
+#             leak_sensitive_values: true
+#           cookies:
+#             path: /
+#             same_site: None
+#             domain: {{ .Values.domain }}
+#           secrets:
+#             cookie:
+#               - PLEASE-CHANGE-ME-I-AM-VERY-INSECURE
+#             # cipher:
+#             #   - 32-LONG-SECRET-NOT-SECURE-AT-ALL
+#           # ciphers:
+#           #   algorithm: xchacha20-poly1305
+#           hashers:
+#             argon2:
+#               parallelism: 1
+#               memory: 128MB
+#               iterations: 2
+#               salt_length: 16
+#               key_length: 16
+#           identity:
+#             default_schema_url: file:///etc/config/identity.schema.json
+#           courier:
+#             smtp:
+#               connection_uri: smtps://test-z1VmkYfYPjgdPRgPFgmeZ31esT9rUgS%40{{ .Values.domain }}:iW%213Kk%5EPPLFrZa%24%21bbpTPN9Wv3b8mvwS6ZJvMLtce%23A2%2A4MotD@mx1.{{ .Values.domain }}
+#         identitySchemas:
+#           "identity.schema.json": |
+#             {
+#               "$id": "https://schemas.ory.sh/presets/kratos/quickstart/email-password/identity.schema.json",
+#               "$schema": "http://json-schema.org/draft-07/schema#",
+#               "title": "User",
+#               "type": "object",
+#               "properties": {
+#                 "traits": {
+#                   "type": "object",
+#                   "properties": {
+#                     "username": {
+#                       "type": "string",
+#                       "format": "username",
+#                       "title": "Username",
+#                       "minLength": 3,
+#                       "ory.sh/kratos": {
+#                         "credentials": {
+#                           "password": {
+#                             "identifier": true
+#                           }
+#                         }
+#                       }
+#                     }
+#                   },
+#                   "additionalProperties": false
+#                 }
+#               }
+#             }
+#   - hydra:
+#       fullnameOverride: hydra
+#       image:
+#         repository: giolekva/ory-hydra
+#         tag: latest
+#         pullPolicy: Always
+#       service:
+#         admin:
+#           enabled: true
+#           type: ClusterIP
+#           port: 80
+#           name: http
+#         public:
+#           enabled: true
+#           type: ClusterIP
+#           port: 80
+#           name: http
+#       ingress:
+#         admin:
+#           enabled: true
+#           className: {{ .Values.id }}-ingress-private
+#           hosts:
+#           - host: hydra.{{ .Values.id }}
+#             paths:
+#             - path: /
+#               pathType: Prefix
+#           annotations:
+#             cert-manager.io/cluster-issuer: "{{ .Values.id }}-private"
+#             acme.cert-manager.io/http01-edit-in-place: "true"
+#           tls:
+#           - hosts:
+#             - hydra.{{ .Values.id }}
+#             secretName: cert-hydra.{{ .Values.id }}
+#         public:
+#           enabled: true
+#           className: nginx
+#           hosts:
+#           - host: hydra.{{ .Values.domain }}
+#             paths:
+#             - path: /
+#               pathType: Prefix
+#           annotations:
+#             cert-manager.io/cluster-issuer: "{{ .Values.id }}-public"
+#             acme.cert-manager.io/http01-edit-in-place: "true"
+#           tls:
+#           - hosts:
+#             - hydra.{{ .Values.domain }}
+#             # secretName: cert-hydra.{{ .Values.domain }}
+#             secretName: cert-wildcard.{{ .Values.domain }}
+#       secret:
+#         enabled: true
+#       maester:
+#         enabled: true
+#         hydraFullnameOverride: hydra
+#       hydra-maester:
+#         image:
+#           repository: giolekva/ory-hydra-maester
+#           tag: latest
+#           pullPolicy: IfNotPresent
+#         adminService:
+#           name: hydra
+#           port: 80
+#       hydra:
+#         autoMigrate: true
+#         config:
+#           version: v1.10.6
+#           dsn: postgres://postgres:psswd@postgres:5432/kratos?sslmode=disable&max_conns=20&max_idle_conns=4
+#           serve:
+#             cookies:
+#               same_site_mode: None
+#             public:
+#               cors:
+#                 enabled: true
+#                 debug: false
+#                 allow_credentials: true
+#                 allowed_origins:
+#                   - https://{{ .Values.domain }}
+#                   - https://*.{{ .Values.domain }}
+#             admin:
+#               # host: localhost
+#               cors:
+#                 allowed_origins:
+#                   - https://hydra.{{ .Values.id }}
+#               tls:
+#                 allow_termination_from:
+#                   - 0.0.0.0/0
+#                   - 10.42.0.0/16
+#                   - 10.43.0.0/16
+#                   - 111.0.0.1/32
+#             tls:
+#               allow_termination_from:
+#                 - 0.0.0.0/0
+#                 - 10.42.0.0/16
+#                 - 10.43.0.0/16
+#                 - 111.0.0.1/32
+#           urls:
+#             self:
+#               public: https://hydra.{{ .Values.domain }}
+#               issuer: https://hydra.{{ .Values.domain }}
+#             consent: https://accounts-ui.{{ .Values.domain }}/consent
+#             login: https://accounts-ui.{{ .Values.domain }}/login
+#             logout: https://accounts-ui.{{ .Values.domain }}/logout
+#           secrets:
+#             system:
+#               - youReallyNeedToChangeThis
+#           oidc:
+#             subject_identifiers:
+#               supported_types:
+#                 - pairwise
+#                 - public
+#               pairwise:
+#                 salt: youReallyNeedToChangeThis
+#           log:
+#             level: trace
+#             leak_sensitive_values: false
+#   - ui:
+#       certificateIssuer: {{ .Values.id }}-public
+#       ingressClassName: nginx
+#       domain: {{ .Values.domain }}
+#       internalDomain: {{ .Values.id }}
+#       nebula:
+#         lighthouse:
+#           name: ui-lighthouse
+#           internalIP: 111.0.0.1
+#           externalIP: 46.49.35.44
+#           port: "4243"
+#         node:
+#           name: ui
+#           ipCidr: 111.0.0.2/24
+#           secretName: node-ui-cert
+#         certificateAuthority:
+#           name: {{ .Values.id }}
+#           namespace: {{ .Values.id }}-ingress-private
+# - name: vaultwarden
+#   chart: ../../charts/vaultwarden
+#   namespace: {{ .Values.id }}-app-vaultwarden
+#   createNamespace: true
+#   values:
+#   - image:
+#       repository: vaultwarden/server
+#       tag: 1.22.2
+#       pullPolicy: IfNotPresent
+#   - storage:
+#       size: 1Gi
+#   - domain: bitwarden.{{ .Values.id }}
+#   - certificateIssuer: {{ .Values.id }}-private
+#   - ingressClassName: {{ .Values.id }}-ingress-private
+# - name: matrix-storage  # TODO(giolekva): merge with core-auth
+#   chart: bitnami/postgresql
+#   version: 10.13.5
+#   namespace: {{ .Values.id }}-app-matrix
+#   createNamespace: true
+#   values:
+#   - fullnameOverride: postgres
+#   - image:
+#       repository: arm64v8/postgres
+#       tag: 13.4
+#   - service:
+#       type: ClusterIP
+#       port: 5432
+#   - postgresqlPassword: psswd
+#   - initdbScripts:
+#       createdb.sh: |
+#         #!/bin/sh
+#         createdb -U postgres --encoding=UTF8 --locale=C --template=template0 --owner=postgres matrix
+#   - persistence:
+#       size: 1Gi
+#   - securityContext:
+#       enabled: true
+#       fsGroup: 0
+#   - containerSecurityContext:
+#       enabled: true
+#       runAsUser: 0
+#   - volumePermissions:
+#       securityContext:
+#         runAsUser: 0
+# - name: matrix
+#   chart: ../../charts/matrix
+#   namespace: {{ .Values.id }}-app-matrix
+#   createNamespace: true
+#   values:
+#   - domain: {{ .Values.domain }}
+#   - oauth2:
+#       hydraAdmin: http://hydra-admin
+#       hydraPublic: https://hydra.{{ .Values.domain }}
+#       clientId: matrix
+#       clientSecret: ""
+#       secretName: oauth2-client
+#   - postgresql:
+#       host: postgres
+#       port: 5432
+#       database: matrix
+#       user: postgres
+#       password: psswd
+#   - certificateIssuer: {{ .Values.id }}-public
+#   - ingressClassName: nginx
+#   - configMerge:
+#       configName: config-to-merge
+#       fileName: to-merge.yaml
 - name: pihole
   chart: ../../charts/pihole
   namespace: {{ .Values.id }}-app-pihole
   createNamespace: true
   values:
-  - domain: {{ .Values.id }}
+  - domain: {{ .Values.domain }}
   - pihole:
       image:
         repository: "pihole/pihole"
@@ -503,7 +505,7 @@ releases:
           enabled: true
         https:
           enabled: false
-      virtualHost: pihole.{{ .Values.id }}
+      virtualHost: pihole.p.{{ .Values.domain }}
       resources:
         requests:
           cpu: "250m"

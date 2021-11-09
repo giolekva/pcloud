@@ -11,7 +11,7 @@ spec:
   scope: "openid email profile"
   secretName: {{ .Values.oauth2.secretName }}
   redirectUris:
-  - https://pihole.{{ .Values.domain }}/oauth2/callback
+  - https://pihole.p.{{ .Values.domain }}/oauth2/callback
   hydraAdmin:
     url: {{ .Values.oauth2.hydraAdmin }}
     port: 80
