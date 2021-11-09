@@ -1,0 +1,12 @@
+pihole: {}
+oauth2:
+  clientId: app-pihole
+  secretName: oauth2-secret
+  configName: oauth2-proxy
+domain: example.com
+hydraPublic: https://hydra.example.com
+profileUrl: https://profile.example.com
+certificateIssuer: public
+ingressClassName: public
+
+

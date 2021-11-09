@@ -85,6 +85,8 @@ releases:
       ingressClass: nginx
   - private:
       name: {{ .Values.id }}-private
+      domain: {{ .Values.id }}
+      ingressClassName: {{ .Values.id }}-ingress-private
 - name: core-auth-storage  # TODO(giolekva): merge with core-auth
   chart: bitnami/postgresql
   version: 10.13.5
@@ -475,6 +477,50 @@ releases:
   - configMerge:
       configName: config-to-merge
       fileName: to-merge.yaml
+- name: pihole
+  chart: ../../charts/pihole
+  namespace: {{ .Values.id }}-app-pihole
+  createNamespace: true
+  values:
+  - domain: {{ .Values.id }}
+  - pihole:
+      image:
+        repository: "pihole/pihole"
+        tag: v5.8.1
+      persistentVolumeClaim:
+        enabled: true
+        size: 5Gi
+      adminPassword: "admin"
+      ingress:
+        enabled: false
+      serviceDhcp:
+        enabled: false
+      serviceDns:
+        type: ClusterIP
+      serviceWeb:
+        type: ClusterIP
+        http:
+          enabled: true
+        https:
+          enabled: false
+      virtualHost: pihole.{{ .Values.id }}
+      resources:
+        requests:
+          cpu: "250m"
+          memory: "100M"
+        limits:
+          cpu: "500m"
+          memory: "250M"
+  - oauth2:
+      clientId: pihole
+      clientSecret: ""
+      secretName: oauth2-secret
+      configName: oauth2-proxy
+      hydraAdmin: http://hydra-admin
+  - hydraPublic: https://hydra.{{ .Values.domain }}/
+  - profileUrl: https://accounts-ui.{{ .Values.domain }}
+  - certificateIssuer: {{ .Values.id }}-private
+  - ingressClassName: {{ .Values.id }}-ingress-private
 
 environments:
   shveli:

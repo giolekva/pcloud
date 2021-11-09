@@ -5,4 +5,5 @@ public:
   ingressClass: ingress-nginx
 private:
   name: selfsigned-private
+  domain: pcloud
 

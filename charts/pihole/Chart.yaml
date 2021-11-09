@@ -1,0 +1,10 @@
+apiVersion: v2
+name: pihole
+description: A Helm chart for PCloud Pihole service
+type: application
+version: 0.0.1
+appVersion: "0.0.1"
+dependencies:
+- name: pihole
+  version: 2.4.2
+  repository: https://mojo2600.github.io/pihole-kubernetes/
