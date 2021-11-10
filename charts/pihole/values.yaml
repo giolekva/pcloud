@@ -1,6 +1,8 @@
 pihole: {}
 oauth2:
   clientId: app-pihole
+  clientSecret: ""
+  cookieSecret: ""
   secretName: oauth2-secret
   configName: oauth2-proxy
 domain: example.com

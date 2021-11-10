@@ -1,15 +1,3 @@
-{{- $secret := include "clientSecret" . -}}
----
-apiVersion: v1
-kind: Secret
-type: Opaque
-metadata:
-  name: {{ .Values.oauth2.secretName }}
-  namespace: {{ .Release.Namespace }}
-data:
-  client_id: {{ .Values.oauth2.clientId | b64enc  }}
-  client_secret: {{ $secret | b64enc }}
----
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -43,13 +31,13 @@ data:
 
     ## The OAuth Client ID, Secret
     client_id = "{{ .Values.oauth2.clientId }}"
-    client_secret = "{{ $secret }}"
+    client_secret = "{{ .Values.oauth2.clientSecret }}"
 
     ## Pass OAuth Access token to upstream via "X-Forwarded-Access-Token"
     pass_access_token = false
 
     cookie_name = "_oauth2_proxy_pihole"
-    cookie_secret = "123456789012345678901234567890--"
+    cookie_secret = "{{ .Values.oauth2.cookieSecret }}"
     cookie_domains = "pihole.p.{{ .Values.domain }}"
     cookie_expire = "168h"
     cookie_refresh = "100h"
