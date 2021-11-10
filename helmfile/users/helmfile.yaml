@@ -424,7 +424,7 @@ releases:
       pullPolicy: IfNotPresent
   - storage:
       size: 1Gi
-  - domain: bitwarden.{{ .Values.id }}
+  - domain: bitwarden.p.{{ .Values.domain }}
   - certificateIssuer: {{ .Values.id }}-private
   - ingressClassName: {{ .Values.id }}-ingress-private
 - name: matrix-storage  # TODO(giolekva): merge with core-auth

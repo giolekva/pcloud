@@ -68,15 +68,15 @@ kind: Ingress
 metadata:
   name: ingress
   namespace: {{ .Release.Namespace }}
-  annotations:
-    cert-manager.io/cluster-issuer: "{{ .Values.certificateIssuer }}"
-    acme.cert-manager.io/http01-edit-in-place: "true"
+  # annotations:
+  #   cert-manager.io/cluster-issuer: "{{ .Values.certificateIssuer }}"
+  #   acme.cert-manager.io/http01-edit-in-place: "true"
 spec:
   ingressClassName: {{ .Values.ingressClassName }}
   tls:
   - hosts:
     - {{ .Values.domain }}
-    secretName: cert-{{ .Values.domain }}
+    # secretName: cert-{{ .Values.domain }}
   rules:
   - host: {{ .Values.domain }}
     http:
