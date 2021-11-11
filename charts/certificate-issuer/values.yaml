@@ -1,3 +1,6 @@
+certManager:
+  namespace: cert-manager
+  gandiWebhookSecretReader: cert-manager-webhook-gandi
 public:
   name: letsencrypt-prod
   server: https://acme-v02.api.letsencrypt.org/directory
@@ -5,5 +8,8 @@ public:
   ingressClass: ingress-nginx
 private:
   name: selfsigned-private
-  domain: pcloud
+  server: https://acme-v02.api.letsencrypt.org/directory
+  contactEmail: admin@example.com
+  gandiAPIToken: token
+  domain: p.example.com
 

@@ -215,7 +215,7 @@ func (c *NebulaController) processNodeWithKey(key string) error {
 		return nil
 	}
 	ca, err := c.getCA(node.Spec.CANamespace, node.Spec.CAName)
-	if ca.Status.State != nebulav1.NebulaCAStateReady {
+	if ca == nil || ca.Status.State != nebulav1.NebulaCAStateReady {
 		return fmt.Errorf("Referenced CA %s is not ready yet.", node.Spec.CAName)
 	}
 	caSecret, err := c.getSecret(ca.Namespace, ca.Spec.SecretName)

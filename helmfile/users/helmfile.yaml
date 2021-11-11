@@ -76,19 +76,26 @@ releases:
       - 53: {{ .Values.id }}-app-pihole/pihole-dns-tcp:53
 - name: certificate-issuer
   chart: ../../charts/certificate-issuer
-  namespace: {{ .Values.certManagerNamespace }} # {{ .Values.id }}-ingress-private
+  namespace: {{ .Values.id }}-ingress-private
   createNamespace: true
   values:
+  - certManager:
+      namespace: cert-manager
+      gandiWebhookSecretReader: cert-manager-webhook-gandi
   - public:
       name: {{ .Values.id }}-public
       server: https://acme-v02.api.letsencrypt.org/directory
+      domain: {{ .Values.domain }}
       stagingServer: https://acme-staging-v02.api.letsencrypt.org/directory
       contactEmail: {{ .Values.contactEmail }}
       ingressClass: nginx
   - private:
       name: {{ .Values.id }}-private
-      domain: {{ .Values.id }}
+      server: https://acme-v02.api.letsencrypt.org/directory
+      domain: p.{{ .Values.domain }}
+      contactEmail: {{ .Values.contactEmail }}
       ingressClassName: {{ .Values.id }}-ingress-private
+      gandiAPIToken: {{ .Values.gandiAPIToken }}
 - name: core-auth-storage  # TODO(giolekva): merge with core-auth
   chart: bitnami/postgresql
   version: 10.13.5
@@ -142,17 +149,13 @@ releases:
           enabled: true
           className: {{ .Values.id }}-ingress-private
           hosts:
-          - host: kratos.{{ .Values.id }}
+          - host: kratos.p.{{ .Values.domain }}
             paths:
             - path: /
               pathType: Prefix
-          annotations:
-            cert-manager.io/cluster-issuer: "{{ .Values.id }}-private"
-            acme.cert-manager.io/http01-edit-in-place: "true"
           tls:
           - hosts:
-            - kratos.{{ .Values.id }}
-            secretName: cert-kratos.{{ .Values.id }}
+            - kratos.p.{{ .Values.domain }}
         public:
           enabled: true
           className: nginx
@@ -161,9 +164,9 @@ releases:
             paths:
             - path: /
               pathType: Prefix
-          annotations:
-            cert-manager.io/cluster-issuer: "{{ .Values.id }}-public"
-            acme.cert-manager.io/http01-edit-in-place: "true"
+          # annotations:
+          #   cert-manager.io/cluster-issuer: "{{ .Values.id }}-public"
+          #   acme.cert-manager.io/http01-edit-in-place: "true"
           tls:
           - hosts:
             - accounts.{{ .Values.domain }}
@@ -188,7 +191,7 @@ releases:
                 - https://{{ .Values.domain }}
                 - https://*.{{ .Values.domain }}
             admin:
-              base_url: https://kratos.{{ .Values.id }}/
+              base_url: https://kratos.p.{{ .Values.domain }}/
           selfservice:
             default_browser_return_url: https://accounts-ui.{{ .Values.domain }}
             whitelisted_return_urls:
@@ -302,17 +305,13 @@ releases:
           enabled: true
           className: {{ .Values.id }}-ingress-private
           hosts:
-          - host: hydra.{{ .Values.id }}
+          - host: hydra.p.{{ .Values.domain }}
             paths:
             - path: /
               pathType: Prefix
-          annotations:
-            cert-manager.io/cluster-issuer: "{{ .Values.id }}-private"
-            acme.cert-manager.io/http01-edit-in-place: "true"
           tls:
           - hosts:
-            - hydra.{{ .Values.id }}
-            secretName: cert-hydra.{{ .Values.id }}
+            - hydra.p.{{ .Values.domain }}
         public:
           enabled: true
           className: nginx
@@ -321,9 +320,9 @@ releases:
             paths:
             - path: /
               pathType: Prefix
-          annotations:
-            cert-manager.io/cluster-issuer: "{{ .Values.id }}-public"
-            acme.cert-manager.io/http01-edit-in-place: "true"
+          # annotations:
+          #   cert-manager.io/cluster-issuer: "{{ .Values.id }}-public"
+          #   acme.cert-manager.io/http01-edit-in-place: "true"
           tls:
           - hosts:
             - hydra.{{ .Values.domain }}
@@ -362,7 +361,7 @@ releases:
               # host: localhost
               cors:
                 allowed_origins:
-                  - https://hydra.{{ .Values.id }}
+                  - https://hydra.p.{{ .Values.domain }}
               tls:
                 allow_termination_from:
                   - 0.0.0.0/0
@@ -399,7 +398,7 @@ releases:
       certificateIssuer: {{ .Values.id }}-public
       ingressClassName: nginx
       domain: {{ .Values.domain }}
-      internalDomain: {{ .Values.id }}
+      internalDomain: p.{{ .Values.domain }}
       nebula:
         lighthouse:
           name: ui-lighthouse
@@ -466,7 +465,7 @@ releases:
       hydraAdmin: http://hydra-admin
       hydraPublic: https://hydra.{{ .Values.domain }}
       clientId: matrix
-      clientSecret: ""
+      clientSecret: {{ .Values.matrixOAuth2ClientSecret }}
       secretName: oauth2-client
   - postgresql:
       host: postgres
