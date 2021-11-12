@@ -2,20 +2,20 @@
 <html lang="en">
 <head>
     <meta charset="utf-8" />
+    <link rel="stylesheet" type="text/css" href="/static/main.css?v=0.0.1">
     <title>Consent</title>
 </head>
 <body>
-    <a href="/">whoami</a>
-    <a href="/login">login</a>
-    <a href="/logout">logout</a>
-    <a href="/registration">registration</a><br/>
-    <form action="" method="POST">
-	{{range .}}
-	<input type="checkbox" name="scope" value="{{.}}" />{{.}}<br />
-	{{end}}
-	<input type="submit" name="allow" value="Allow" />
-	<input type="submit" name="reject" value="Reject" />
-    </form>
+    <div class="main">
+	<form action="" method="POST">
+	    {{range .}}
+	    <label><input type="checkbox" name="scope" value="{{.}}" checked />{{.}}</label>
+	    {{end}}
+	    <input type="submit" name="allow" value="Allow" />
+	    <input type="submit" name="reject" value="Reject" />
+	    <a href="/logout">logout</a>
+	</form>
+    </div>
 </body>
 </html>
 

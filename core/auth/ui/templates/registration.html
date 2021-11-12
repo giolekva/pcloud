@@ -2,21 +2,19 @@
 <html lang="en">
 <head>
     <meta charset="utf-8" />
-    <title>Create New Account</title>
+    <link rel="stylesheet" type="text/css" href="/static/main.css?v=0.0.1">
+    <title>Create Account</title>
 </head>
 <body>
-    <a href="/">whoami</a>
-    <a href="/login">login</a>
-    <a href="/logout">logout</a>
-    <a href="/registration">registration</a><br/>
-    <form action="" method="POST">
-	<label for="username">Username:</label><br />
-	<input type="text" name="username" autofocus /><br />
-	<label for="password">Password:</label><br />
-	<input type="password" name="password" /><br />
-	<input type="hidden" name="csrf_token" value="{{.}}" /><br />
-	<input type="submit" value="Create New Account" />
-    </form>
+    <div class="main">
+	<form action="" method="POST">
+	    <input class="field" type="text" name="username" placeholder="Username" autofocus />
+	    <input class="field" type="password" name="password" placeholder="Password" />
+	    <input type="submit" value="Create Account" />
+	    <input type="hidden" name="csrf_token" value="{{.}}" />
+	    <a href="/login">Sign In</a>
+	</form>
+    </div>
 </body>
 </html>
 

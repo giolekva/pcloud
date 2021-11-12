@@ -30,6 +30,9 @@ var ErrNotLoggedIn = errors.New("Not logged in")
 //go:embed templates/*
 var tmpls embed.FS
 
+//go:embed static
+var static embed.FS
+
 type Templates struct {
 	WhoAmI       *template.Template
 	Registration *template.Template
@@ -63,9 +66,20 @@ type Server struct {
 	tmpls  *Templates
 }
 
+func cacheControlWrapper(h http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// TODO(giolekva): enable caching
+		// w.Header().Set("Cache-Control", "max-age=2592000") // 30 days
+		h.ServeHTTP(w, r)
+	})
+}
+
 func (s *Server) Start(port int) error {
 	r := mux.NewRouter()
 	http.Handle("/", r)
+	var staticFS = http.FS(static)
+	fs := http.FileServer(staticFS)
+	r.PathPrefix("/static/").Handler(cacheControlWrapper(fs))
 	r.Path("/registration").Methods(http.MethodGet).HandlerFunc(s.registrationInitiate)
 	r.Path("/registration").Methods(http.MethodPost).HandlerFunc(s.registration)
 	r.Path("/login").Methods(http.MethodGet).HandlerFunc(s.loginInitiate)
