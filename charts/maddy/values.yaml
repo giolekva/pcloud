@@ -1,0 +1,10 @@
+ingress:
+  private:
+    className: ingress-private
+    domain: p.example.com
+  public:
+    className: ingress-public
+    domain: example.com
+    certificateIssuer: issuer-public
+storage:
+  size: 1Gi

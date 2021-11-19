@@ -523,6 +523,21 @@ releases:
   - profileUrl: https://accounts-ui.{{ .Values.domain }}
   - certificateIssuer: {{ .Values.id }}-private
   - ingressClassName: {{ .Values.id }}-ingress-private
+- name: maddy
+  chart: ../../charts/maddy
+  namespace: {{ .Values.id }}-app-maddy
+  createNamespace: true
+  values:
+  - ingress:
+      private:
+        className: {{ .Values.id }}-ingress-private
+        domain: p.{{ .Values.domain }}
+      public:
+        className: nginx
+        domain: {{ .Values.domain }}
+        certificateIssuer: {{ .Values.id }}-public
+  - storage:
+      size: 10Gi
 
 environments:
   shveli:

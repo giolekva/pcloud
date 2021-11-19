@@ -5,7 +5,7 @@ build: clean
 	go build -o maddy-web *.go
 
 image: build
-	docker build --tag=giolekva/maddy-web:latest .
+	docker build --tag=giolekva/maddy-web:latest . --platform=linux/arm64
 
 push: image
 	docker push giolekva/maddy-web:latest

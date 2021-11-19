@@ -1,0 +1,6 @@
+apiVersion: v2
+name: maddy
+description: A Helm chart for Maddy email server running on PCloud
+type: application
+version: 0.0.1
+appVersion: "0.0.1"

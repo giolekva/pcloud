@@ -1,40 +1,34 @@
 apiVersion: v1
-kind: Namespace
-metadata:
-  name: app-maddy
----
-apiVersion: v1
 kind: Service
 metadata:
   name: maddy
-  namespace: app-maddy
+  namespace: {{ .Release.Namespace }}
 spec:
   type: ClusterIP
-  externalTrafficPolicy: Local
   selector:
     app: maddy
   ports:
-    - port: 25
+    - name: imap
+      port: 143
       protocol: TCP
-      name: smtp
-    - port: 143
+    - name: imaps
+      port: 993
       protocol: TCP
-      name: imap
-    - port: 993
+    - name: smtp
+      port: 25
       protocol: TCP
-      name: imaps
-    - port: 587
+    - name: smtps
+      port: 465
       protocol: TCP
-      name: submission
-    - port: 465
+    - name: submission
+      port: 587
       protocol: TCP
-      name: smtps
 ---
 apiVersion: v1
 kind: Service
 metadata:
-  name: web
-  namespace: app-maddy
+  name: manage
+  namespace: {{ .Release.Namespace }}
 spec:
   type: ClusterIP
   selector:
@@ -48,59 +42,58 @@ spec:
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
-  name: web-ingress
-  namespace: app-maddy
-  annotations:
-    cert-manager.io/cluster-issuer: "selfsigned-ca"
-    acme.cert-manager.io/http01-edit-in-place: "true"
+  name: manage
+  namespace: {{ .Release.Namespace }}
 spec:
-  ingressClassName: nginx-private
+  ingressClassName: {{ .Values.ingress.private.className }}
   tls:
   - hosts:
-    - maddy.pcloud
-    secretName: cert-maddy-web.pcloud
+    - mail.{{ .Values.ingress.private.domain }}
+    secretName: cert-mail.{{ .Values.ingress.private.domain }}
   rules:
-  - host: maddy.pcloud
+  - host: mail.{{ .Values.ingress.private.domain }}
     http:
       paths:
       - path: /
         pathType: Prefix
         backend:
           service:
-            name: web
+            name: manage
             port:
               name: http
 ---
 apiVersion: cert-manager.io/v1
 kind: Certificate
 metadata:
-  name: wildcard-lekva.me  # mx1
-  namespace: app-maddy
+  name: mail.{{ .Values.ingress.public.domain }}
+  namespace: {{ .Release.Namespace }}
+  annotations:
+    "helm.sh/resource-policy": keep
 spec:
   dnsNames:
-  - 'mx1.lekva.me'
+  - 'mail.{{ .Values.ingress.public.domain }}'
   issuerRef:
-    name: letsencrypt-prod-dns
+    name: {{ .Values.ingress.public.certificateIssuer }}
     kind: ClusterIssuer
-  secretName: cert-mx1.lekva.me
+  secretName: cert-mail.{{ .Values.ingress.public.domain }}
 ---
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
   name: data
-  namespace: app-maddy
+  namespace: {{ .Release.Namespace }}
 spec:
   accessModes:
     - ReadWriteOnce
   resources:
     requests:
-      storage: 100Gi
+      storage: {{ .Values.storage.size }}
 ---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: maddy
-  namespace: app-maddy
+  namespace: {{ .Release.Namespace }}
 spec:
   selector:
     matchLabels:
@@ -117,7 +110,7 @@ spec:
           name: config
       - name: certs
         secret:
-          secretName: cert-mx1.lekva.me
+          secretName: cert-mail.{{ .Values.ingress.public.domain}}
       - name: data
         persistentVolumeClaim:
           claimName: data
@@ -126,13 +119,25 @@ spec:
         image: giolekva/maddy:v0.4.4
         imagePullPolicy: Always
         ports:
-        - containerPort: 25
-        - containerPort: 143
-        - containerPort: 993
-        - containerPort: 587
-        - containerPort: 465
-        command: ["maddy"]
-        args: ["-config", "/etc/maddy/config/maddy.conf"]
+        - name: imap
+          containerPort: 143
+          protocol: TCP
+        - name: imaps
+          containerPort: 993
+          protocol: TCP
+        - name: smtp
+          containerPort: 25
+          protocol: TCP
+        - name: smtps
+          containerPort: 465
+          protocol: TCP
+        - name: submission
+          containerPort: 587
+          protocol: TCP
+        command:
+        - maddy
+        - -config
+        - /etc/maddy/config/maddy.conf
         volumeMounts:
         - name: config
           mountPath: /etc/maddy/config
@@ -147,8 +152,11 @@ spec:
         - name: http
           containerPort: 80
           protocol: TCP
-        command: ["maddy-web"]
-        args: ["-port", "80", "-maddy-config", "/etc/maddy/config/maddy.conf"]
+        command:
+        - maddy-web
+        - --port=80
+        - --maddy-config=/etc/maddy/config/maddy.conf
+        - --export-dkim=/var/lib/maddy/dkim_keys/{{ .Values.ingress.public.domain }}_default.dns
         volumeMounts:
         - name: config
           mountPath: /etc/maddy/config
@@ -161,19 +169,19 @@ apiVersion: v1
 kind: ConfigMap
 metadata:
   name: mta-sts
-  namespace: app-maddy
+  namespace: {{ .Release.Namespace }}
 data:
   mta-sts.txt: |
     version: STSv1
     mode: enforce
     max_age: 604800
-    mx: mx1.lekva.me
+    mx: mail.{{ .Values.ingress.public.domain }}
 ---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: mta-sts
-  namespace: app-maddy
+  namespace: {{ .Release.Namespace }}
 spec:
   selector:
     matchLabels:
@@ -195,8 +203,11 @@ spec:
         ports:
         - name: http
           containerPort: 80
-        command: ["static-file-server"]
-        args: ["-port=80", "-dir=/etc/static-file-server/data"]
+          protocol: TCP
+        command:
+        - static-file-server
+        - --port=80
+        - --dir=/etc/static-file-server/data
         volumeMounts:
         - name: mta-sts
           mountPath: /etc/static-file-server/data/.well-known
@@ -206,7 +217,7 @@ apiVersion: v1
 kind: Service
 metadata:
   name: mta-sts
-  namespace: app-maddy
+  namespace: {{ .Release.Namespace }}
 spec:
   type: ClusterIP
   selector:
@@ -217,17 +228,34 @@ spec:
       targetPort: http
       protocol: TCP
 ---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: mta-sts.{{ .Values.ingress.public.domain }}
+  namespace: {{ .Release.Namespace }}
+  annotations:
+    "helm.sh/resource-policy": keep
+spec:
+  dnsNames:
+  - 'mta-sts.{{ .Values.ingress.public.domain }}'
+  issuerRef:
+    name: {{ .Values.ingress.public.certificateIssuer }}
+    kind: ClusterIssuer
+  secretName: cert-mta-sts.{{ .Values.ingress.public.domain }}
+---
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: mta-sts
-  namespace: app-maddy
-  annotations:
-    nginx.ingress.kubernetes.io/ssl-redirect: "false"
+  namespace: {{ .Release.Namespace }}
 spec:
-  ingressClassName: nginx
+  ingressClassName: {{ .Values.ingress.public.className }}
+  tls:
+  - hosts:
+    - mta-sts.{{ .Values.ingress.public.domain }}
+    secretName: cert-mta-sts.{{ .Values.ingress.public.domain }}
   rules:
-  - host: mta-sts.lekva.me
+  - host: mta-sts.{{ .Values.ingress.public.domain }}
     http:
       paths:
       - pathType: Prefix

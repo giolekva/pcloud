@@ -10,11 +10,13 @@ import (
 	"io/ioutil"
 	"log"
 	"net/http"
+	"os"
 	"os/exec"
 )
 
 var port = flag.Int("port", 8080, "Port to listen on.")
 var maddyConfig = flag.String("maddy-config", "", "Path to the Maddy configuration file.")
+var exportDKIM = flag.String("export-dkim", "", "Path to the dkim dns configuration to expose.")
 
 //go:embed templates/*
 var tmpls embed.FS
@@ -108,6 +110,19 @@ func (h *MaddyHandler) handleCreateAccount(w http.ResponseWriter, r *http.Reques
 	http.Redirect(w, r, "/", http.StatusSeeOther)
 }
 
+func (h *MaddyHandler) handleDKIM(w http.ResponseWriter, r *http.Request) {
+	d, err := os.Open(*exportDKIM)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	defer d.Close()
+	if _, err := io.Copy(w, d); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+}
+
 func main() {
 	flag.Parse()
 	t, err := ParseTemplates(tmpls)
@@ -123,6 +138,9 @@ func main() {
 	}
 	http.HandleFunc("/", handler.handleListAccounts)
 	http.HandleFunc("/create", handler.handleCreateAccount)
+	if *exportDKIM != "" {
+		http.HandleFunc("/dkim", handler.handleDKIM)
+	}
 	fmt.Printf("Starting HTTP server on port: %d\n", *port)
 	fmt.Printf("Maddy config: %s\n", *maddyConfig)
 	if cfg, err := ioutil.ReadFile(*maddyConfig); err != nil {
