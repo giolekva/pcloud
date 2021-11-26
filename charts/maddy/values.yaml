@@ -1,3 +1,6 @@
+mailGateway:
+  mxHostname: mail.example.com
+  address: tcp://maddy.pcloud-mail-gateway.svc.cluster.local:587
 ingress:
   private:
     className: ingress-private

@@ -27,7 +27,7 @@ releases:
   namespace: {{ .Values.id }}-ingress-private
   createNamespace: true
   values:
-  - fullnameOverride: nginx
+  - fullnameOverride: {{ .Values.id }}-nginx-private
   - controller:
       service:
         type: ClusterIP
@@ -70,10 +70,14 @@ releases:
       config:
         bind-address: 111.0.0.1
         proxy-body-size: 0
-      udp:
-      - 53: {{ .Values.id }}-app-pihole/pihole-dns-udp:53
-      tcp:
-      - 53: {{ .Values.id }}-app-pihole/pihole-dns-tcp:53
+  - udp:
+      53: "{{ .Values.id }}-app-pihole/pihole-dns-udp:53"
+  - tcp:
+      53: "{{ .Values.id }}-app-pihole/pihole-dns-tcp:53"
+      143: "{{ .Values.id }}-app-maddy/maddy:143"
+      465: "{{ .Values.id }}-app-maddy/maddy:465"
+      587: "{{ .Values.id }}-app-maddy/maddy:587"
+      993: "{{ .Values.id }}-app-maddy/maddy:993"
 - name: certificate-issuer
   chart: ../../charts/certificate-issuer
   namespace: {{ .Values.id }}-ingress-private
@@ -538,6 +542,9 @@ releases:
         certificateIssuer: {{ .Values.id }}-public
   - storage:
       size: 10Gi
+  - mailGateway:
+      mxHostname: {{ .Values.mxHostname}}
+      address: {{ .Values.mailGatewayAddress }}
 
 environments:
   shveli:
@@ -548,3 +555,5 @@ environments:
     - domain: shve.li
     - contactEmail: giolekva@gmail.com
     - certManagerNamespace: cert-manager
+    - mxHostname: mx1.lekva.me
+    - mailGatewayAddress: "tcp://maddy.pcloud-mail-gateway.svc.cluster.local:587"

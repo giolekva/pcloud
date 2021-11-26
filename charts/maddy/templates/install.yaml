@@ -103,6 +103,8 @@ spec:
     metadata:
       labels:
         app: maddy
+      annotations:
+        checksum/config: {{ include (print $.Template.BasePath "/config.yaml") . | sha256sum }}
     spec:
       volumes:
       - name: config
@@ -111,6 +113,9 @@ spec:
       - name: certs
         secret:
           secretName: cert-mail.{{ .Values.ingress.public.domain}}
+      - name: certs-private
+        secret:
+          secretName: cert-wildcard.{{ .Values.ingress.private.domain}}
       - name: data
         persistentVolumeClaim:
           claimName: data
@@ -141,10 +146,13 @@ spec:
         volumeMounts:
         - name: config
           mountPath: /etc/maddy/config
-        - name: certs
-          mountPath: /etc/maddy/certs
+          readOnly: true
+        - name: certs-private
+          mountPath: /etc/maddy/certs-private
+          readOnly: true
         - name: data
           mountPath: /var/lib/maddy
+          readOnly: false
       - name: web
         image: giolekva/maddy-web:latest
         imagePullPolicy: Always
@@ -160,10 +168,13 @@ spec:
         volumeMounts:
         - name: config
           mountPath: /etc/maddy/config
+          readOnly: true
         - name: certs
           mountPath: /etc/maddy/certs
+          readOnly: true
         - name: data
           mountPath: /var/lib/maddy
+          readOnly: false
 ---
 apiVersion: v1
 kind: ConfigMap
@@ -175,7 +186,7 @@ data:
     version: STSv1
     mode: enforce
     max_age: 604800
-    mx: mail.{{ .Values.ingress.public.domain }}
+    mx: {{ .Values.mailGateway.mxHostname }}
 ---
 apiVersion: apps/v1
 kind: Deployment
