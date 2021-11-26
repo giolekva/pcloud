@@ -51,12 +51,20 @@
 #       --server-user pcloud \
 #       --server-ip 192.168.0.111
 
+# k3sup join \
+#       --k3s-channel stable \
+#       --ip 192.168.0.116 \
+#       --user pcloud \
+#       --server-user pcloud \
+#       --server-ip 192.168.0.111
+
+
 
 #source installer/metallb.sh
-#source installer/ingress-nginx.sh
+source installer/ingress-nginx.sh
 #source installer/cert-manager.sh
 #source installer/longhorn.sh
-source installer/pihole.sh
+#source installer/pihole.sh
 #source installer/matrix.sh
 # source installer/auth.sh
 
