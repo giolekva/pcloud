@@ -104,7 +104,7 @@ releases:
       domain: {{ .Values.domain }}
       stagingServer: https://acme-staging-v02.api.letsencrypt.org/directory
       contactEmail: {{ .Values.contactEmail }}
-      ingressClass: nginx
+      ingressClass: {{ .Values.pcloudEnvName }}-ingress-public
   - private:
       name: {{ .Values.id }}-private
       server: https://acme-v02.api.letsencrypt.org/directory
@@ -172,7 +172,7 @@ releases:
             - kratos.p.{{ .Values.domain }}
         public:
           enabled: true
-          className: nginx
+          className: {{ .Values.pcloudEnvName }}-ingress-public
           hosts:
           - host: accounts.{{ .Values.domain }}
             paths:
@@ -328,7 +328,7 @@ releases:
             - hydra.p.{{ .Values.domain }}
         public:
           enabled: true
-          className: nginx
+          className: {{ .Values.pcloudEnvName }}-ingress-public
           hosts:
           - host: hydra.{{ .Values.domain }}
             paths:
@@ -410,7 +410,7 @@ releases:
             leak_sensitive_values: false
   - ui:
       certificateIssuer: {{ .Values.id }}-public
-      ingressClassName: nginx
+      ingressClassName: {{ .Values.pcloudEnvName }}-ingress-public
       domain: {{ .Values.domain }}
       internalDomain: p.{{ .Values.domain }}
       nebula:
@@ -485,7 +485,7 @@ releases:
       user: postgres
       password: psswd
   - certificateIssuer: {{ .Values.id }}-public
-  - ingressClassName: nginx
+  - ingressClassName: {{ .Values.pcloudEnvName }}-ingress-public
   - configMerge:
       configName: config-to-merge
       fileName: to-merge.yaml
@@ -542,7 +542,7 @@ releases:
         className: {{ .Values.id }}-ingress-private
         domain: p.{{ .Values.domain }}
       public:
-        className: nginx
+        className: {{ .Values.pcloudEnvName }}-ingress-public
         domain: {{ .Values.domain }}
         certificateIssuer: {{ .Values.id }}-public
   - storage:
