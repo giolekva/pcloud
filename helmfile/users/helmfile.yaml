@@ -7,12 +7,25 @@ repositories:
 helmDefaults:
   tillerless: true
   waitForJobs: false
+  createNamespace: false
 
 releases:
+- name: namespaces
+  chart: ../../charts/namespaces
+  namespace: {{ .Values.id }}
+  createNamespace: true
+  values:
+  - pcloudInstanceId: {{ .Values.id }}
+  - namespaces:
+      - app-maddy
+      - app-matrix
+      - app-pihole
+      - app-vaultwarden
+      - core-auth
+      - ingress-private
 - name: vpn-mesh-config
   chart: ../../charts/vpn-mesh-config
   namespace: {{ .Values.id }}-ingress-private
-  createNamespace: true
   values:
   - certificateAuthority:
       name: {{ .Values.id }}
@@ -25,7 +38,6 @@ releases:
   chart: ingress-nginx/ingress-nginx
   version: 4.0.3
   namespace: {{ .Values.id }}-ingress-private
-  createNamespace: true
   values:
   - fullnameOverride: {{ .Values.id }}-nginx-private
   - controller:
@@ -81,11 +93,11 @@ releases:
 - name: certificate-issuer
   chart: ../../charts/certificate-issuer
   namespace: {{ .Values.id }}-ingress-private
-  createNamespace: true
   values:
+  - pcloudInstanceId: {{ .Values.id }}
   - certManager:
-      namespace: cert-manager
-      gandiWebhookSecretReader: cert-manager-webhook-gandi
+      namespace: {{ .Values.pcloudEnvName }}-cert-manager
+      gandiWebhookSecretReader: {{ .Values.pcloudEnvName }}-cert-manager-webhook-gandi
   - public:
       name: {{ .Values.id }}-public
       server: https://acme-v02.api.letsencrypt.org/directory
@@ -104,7 +116,6 @@ releases:
   chart: bitnami/postgresql
   version: 10.13.5
   namespace: {{ .Values.id }}-core-auth
-  createNamespace: true
   values:
   - fullnameOverride: postgres
   - image:
@@ -129,7 +140,6 @@ releases:
 - name: core-auth
   chart: ../../charts/auth
   namespace: {{ .Values.id }}-core-auth
-  createNamespace: true
   values:
   - kratos:
       fullnameOverride: kratos
@@ -168,14 +178,14 @@ releases:
             paths:
             - path: /
               pathType: Prefix
-          # annotations:
-          #   cert-manager.io/cluster-issuer: "{{ .Values.id }}-public"
-          #   acme.cert-manager.io/http01-edit-in-place: "true"
+          annotations:
+            cert-manager.io/cluster-issuer: "{{ .Values.id }}-public"
+            acme.cert-manager.io/http01-edit-in-place: "true"
           tls:
           - hosts:
             - accounts.{{ .Values.domain }}
-            # secretName: cert-accounts.{{ .Values.domain }}
-            secretName: cert-wildcard.{{ .Values.domain }}
+            secretName: cert-accounts.{{ .Values.domain }}
+            # secretName: cert-wildcard.{{ .Values.domain }}
       secret:
         enabled: true
       kratos:
@@ -324,14 +334,14 @@ releases:
             paths:
             - path: /
               pathType: Prefix
-          # annotations:
-          #   cert-manager.io/cluster-issuer: "{{ .Values.id }}-public"
-          #   acme.cert-manager.io/http01-edit-in-place: "true"
+          annotations:
+            cert-manager.io/cluster-issuer: "{{ .Values.id }}-public"
+            acme.cert-manager.io/http01-edit-in-place: "true"
           tls:
           - hosts:
             - hydra.{{ .Values.domain }}
-            # secretName: cert-hydra.{{ .Values.domain }}
-            secretName: cert-wildcard.{{ .Values.domain }}
+            secretName: cert-hydra.{{ .Values.domain }}
+            # secretName: cert-wildcard.{{ .Values.domain }}
       secret:
         enabled: true
       maester:
@@ -419,7 +429,6 @@ releases:
 - name: vaultwarden
   chart: ../../charts/vaultwarden
   namespace: {{ .Values.id }}-app-vaultwarden
-  createNamespace: true
   values:
   - image:
       repository: vaultwarden/server
@@ -434,7 +443,6 @@ releases:
   chart: bitnami/postgresql
   version: 10.13.5
   namespace: {{ .Values.id }}-app-matrix
-  createNamespace: true
   values:
   - fullnameOverride: postgres
   - image:
@@ -462,7 +470,6 @@ releases:
 - name: matrix
   chart: ../../charts/matrix
   namespace: {{ .Values.id }}-app-matrix
-  createNamespace: true
   values:
   - domain: {{ .Values.domain }}
   - oauth2:
@@ -485,7 +492,6 @@ releases:
 - name: pihole
   chart: ../../charts/pihole
   namespace: {{ .Values.id }}-app-pihole
-  createNamespace: true
   values:
   - domain: {{ .Values.domain }}
   - pihole:
@@ -530,7 +536,6 @@ releases:
 - name: maddy
   chart: ../../charts/maddy
   namespace: {{ .Values.id }}-app-maddy
-  createNamespace: true
   values:
   - ingress:
       private:
@@ -551,6 +556,7 @@ environments:
     secrets:
     - secrets.shveli.yaml
     values:
+    - pcloudEnvName: pcloud
     - id: shveli
     - domain: shve.li
     - contactEmail: giolekva@gmail.com

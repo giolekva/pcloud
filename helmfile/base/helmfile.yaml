@@ -1,37 +1,109 @@
 repositories:
+- name: appscode
+  url: https://charts.appscode.com/stable/
 - name: ingress-nginx
   url: https://kubernetes.github.io/ingress-nginx
+- name: jetstack
+  url: https://charts.jetstack.io
+- name: bwolf
+  url: https://bwolf.github.io/cert-manager-webhook-gandi
 
 helmDefaults:
   tillerless: true
+  waitForJobs: false
+  createNamespace: true
 
 releases:
-- name: ingress-public
-  chart: ingress-nginx/ingress-nginx
-  version: 4.0.3
-  namespace: {{ .Values.id }}-ingress-public
-  createNamespace: true
+- name: kubed
+  chart: appscode/kubed
+  version: v0.12.0
+  namespace: {{ .Values.name }}-kubed
   values:
-  - fullnameOverride: {{ .Values.id }}-ingress-public
-  - controller:
-      service:
-        type: LoadBalancer
-      ingressClassByName: true
-      ingressClassResource:
-        name: {{ .Values.id }}-ingress-public
-        enabled: true
-        default: false
-        controllerValue: k8s.io/{{ .Values.id }}-ingress-public
-      config:
-        proxy-body-size: 100M
-      tcp:
-      - 25: {{ .Values.id }}-app-maddy/maddy:25
-      - 143: {{ .Values.id }}-app-maddy/maddy:143
-      - 993: {{ .Values.id }}-app-maddy/maddy:993
-      - 587: {{ .Values.id }}-app-maddy/maddy:587
-      - 465: {{ .Values.id }}-app-maddy/maddy:465
+  - enableAnalytics: false
+  - fullnameOverride: {{ .Values.name }}-kubed
+  - operator:
+      registry: appscode
+      repository: kubed
+      tag: v0.12.0
+  - criticalAddon: true
+  - config:
+      clusterName: {{ .Values.name }}
+- name: cert-manager
+  chart: jetstack/cert-manager
+  version: v1.6
+  namespace: {{ .Values.name }}-cert-manager
+  values:
+  - installCRDs: true
+  - fullnameOverride: {{ .Values.name}}-cert-manager
+  - image:
+      tag: v1.6.1
+      pullPolicy: IfNotPresent
+  - resources:
+      requests:
+        cpu: "100m"
+        memory: "50M"
+      limits:
+        cpu: "250m"
+        memory: "150M"
+  - tolerations:
+    - key: "pcloud"
+      operator: "Equal"
+      value: "role"
+      effect: "NoSchedule"
+  - cainjector:
+      resources:
+        requests:
+          cpu: "100m"
+          memory: "50M"
+        limits:
+          cpu: "250m"
+          memory: "150M"
+      tolerations:
+      - key: "pcloud"
+        operator: "Equal"
+        value: "role"
+        effect: "NoSchedule"
+  - webhook:
+      resources:
+        requests:
+          cpu: "100m"
+          memory: "50M"
+        limits:
+          cpu: "250m"
+          memory: "150M"
+      tolerations:
+      - key: "pcloud"
+        operator: "Equal"
+        value: "role"
+        effect: "NoSchedule"
+- name: cert-manager-gandi
+  chart: bwolf/cert-manager-webhook-gandi
+  version: v0.2.0
+  namespace: {{ .Values.name }}-cert-manager
+  values:
+  - certManager:
+      namespace: {{ .Values.name }}-cert-manager
+      serviceAccountName: {{ .Values.name }}-cert-manager
+  - fullnameOverride: {{ .Values.name }}-cert-manager-webhook-gandi
+  - image:
+      repository: giolekva/cert-manager-webhook-gandi
+      tag: v0.2.0
+      pullPolicy: IfNotPresent
+  - logLevel: 2
+  - resources:
+      requests:
+        cpu: "100m"
+        memory: "50M"
+      limits:
+        cpu: "250m"
+        memory: "150M"
+  - tolerations:
+    - key: "pcloud"
+      operator: "Equal"
+      value: "role"
+      effect: "NoSchedule"
 
 environments:
-  shveli:
+  prod:
     values:
-      - id: shveli
+      - name: pcloud

@@ -1,0 +1,10 @@
+{{ $id := .Values.pcloudInstanceId }}
+{{ range .Values.namespaces }}
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: {{ $id }}-{{ . }}
+  labels:
+    pcloud-instance-id: {{ $id }}
+---
+{{ end }}

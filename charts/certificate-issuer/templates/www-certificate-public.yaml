@@ -1,15 +1,16 @@
 apiVersion: cert-manager.io/v1
 kind: Certificate
 metadata:
-  name: wildcard-{{ .Values.private.domain }}
+  name: www-{{ .Values.public.domain }}
   namespace: {{ .Release.Namespace }}
 spec:
   dnsNames:
-  - '*.{{ .Values.private.domain }}'
+  - '{{ .Values.public.domain }}'
+  - 'www.{{ .Values.public.domain }}'
   issuerRef:
-    name: {{ .Values.private.name }}
-    kind: Issuer
-  secretName: cert-wildcard.{{ .Values.private.domain }}
+    name: {{ .Values.public.name }}
+    kind: ClusterIssuer
+  secretName: cert-www.{{ .Values.private.domain }}
   secretTemplate:
     annotations:
       kubed.appscode.com/sync: "pcloud-instance-id={{ .Values.pcloudInstanceId }}"

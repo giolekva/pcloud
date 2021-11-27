@@ -47,16 +47,16 @@ kind: Ingress
 metadata:
   name: ingress
   namespace: {{ .Release.Namespace }}
-  # annotations:
-  #   cert-manager.io/cluster-issuer: {{ .Values.certificateIssuer }}
-  #   acme.cert-manager.io/http01-edit-in-place: "true"
+  annotations:
+    cert-manager.io/cluster-issuer: {{ .Values.certificateIssuer }}
+    acme.cert-manager.io/http01-edit-in-place: "true"
 spec:
   ingressClassName: {{ .Values.ingressClassName }}
   tls:
   - hosts:
     - matrix.{{ .Values.domain }}
-    # secretName: cert-matrix.{{ .Values.domain }}
-    secretName: cert-wildcard.{{ .Values.domain }}
+    secretName: cert-matrix.{{ .Values.domain }}
+    # secretName: cert-wildcard.{{ .Values.domain }}
   rules:
   - host: matrix.{{ .Values.domain }}
     http:

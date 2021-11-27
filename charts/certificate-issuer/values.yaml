@@ -1,3 +1,4 @@
+pcloudInstanceId: example
 certManager:
   namespace: cert-manager
   gandiWebhookSecretReader: cert-manager-webhook-gandi
@@ -6,6 +7,7 @@ public:
   server: https://acme-v02.api.letsencrypt.org/directory
   contactEmail: admin@example.com
   ingressClass: ingress-nginx
+  domain: example.com
 private:
   name: selfsigned-private
   server: https://acme-v02.api.letsencrypt.org/directory

@@ -27,7 +27,7 @@ spec:
   tls:
   - hosts:
     - {{ .Values.domain }}
-    secretName: cert-{{ .Values.domain }}
+    secretName: cert-www.{{ .Values.domain }}
   - hosts:
     - www.{{ .Values.domain }}
     secretName: cert-www.{{ .Values.domain }}
