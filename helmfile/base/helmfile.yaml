@@ -9,6 +9,8 @@ repositories:
   url: https://bwolf.github.io/cert-manager-webhook-gandi
 - name: metallb
   url: https://metallb.github.io/metallb
+- name: longhorn
+  url: https://charts.longhorn.io
 
 helmDefaults:
   tillerless: true
@@ -145,9 +147,32 @@ releases:
       operator: "Equal"
       value: "role"
       effect: "NoSchedule"
+- name: longhorn
+  chart: longhorn/longhorn
+  version: v1.1.2
+  # TODO(giolekva): pcloud-storage-longhorn ? https://github.com/longhorn/longhorn/issues/2034
+  namespace: longhorn-system
+  values:
+  - defaultSettings:
+      defaultDataPath: {{ .Values.storageDir }}
+  - persistence:
+      defaultClassReplicaCount: 2
+  - service:
+      ui:
+        type: LoadBalancer
+  - ingress:
+      # TODO(giolekva): maybe run separate Nebula network for pcloud infrastructure services?
+      enabled: false
+      # ngressClassName: nginx-private
+      # tls: true
+      # host: longhorn.pcloud
+      # annotations:
+      #   cert-manager.io/cluster-issuer: "selfsigned-ca"
+      #   acme.cert-manager.io/http01-edit-in-place: "true"
 
 environments:
   prod:
     values:
     - name: pcloud
     - loadBalancerIPRange: 192.168.0.200-192.168.0.250
+    - storageDir: /pcloud-storage/longhorn
