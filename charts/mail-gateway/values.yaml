@@ -1,0 +1,10 @@
+mxHostname: mx1.example.com
+domains:
+  primary:
+    name: example.com
+    namespace: example-app-maddy
+  others:
+  - name: other.com
+    namespace: other-app-maddy
+persistence:
+  size: 10Gi

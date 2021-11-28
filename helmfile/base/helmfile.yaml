@@ -169,6 +169,20 @@ releases:
       # annotations:
       #   cert-manager.io/cluster-issuer: "selfsigned-ca"
       #   acme.cert-manager.io/http01-edit-in-place: "true"
+- name: mail-gateway
+  chart: ../../charts/mail-gateway
+  namespace: {{ .Values.name }}-mail-gateway
+  values:
+  - mxHostname: mx1.lekva.me
+  - domains:
+      primary:
+        name: lekva.me
+        namespace: app-maddy
+      others:
+      - name: shve.li
+        namespace: shveli-app-maddy
+  - persistence:
+      size: 100Gi
 
 environments:
   prod:
