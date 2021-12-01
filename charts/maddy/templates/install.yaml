@@ -49,7 +49,7 @@ spec:
   tls:
   - hosts:
     - mail.{{ .Values.ingress.private.domain }}
-    secretName: cert-mail.{{ .Values.ingress.private.domain }}
+    secretName: cert-wildcard.{{ .Values.ingress.private.domain }}
   rules:
   - host: mail.{{ .Values.ingress.private.domain }}
     http:
@@ -245,7 +245,7 @@ metadata:
   name: mta-sts.{{ .Values.ingress.public.domain }}
   namespace: {{ .Release.Namespace }}
   annotations:
-    "helm.sh/resource-policy": keep
+    helm.sh/resource-policy: keep
 spec:
   dnsNames:
   - 'mta-sts.{{ .Values.ingress.public.domain }}'

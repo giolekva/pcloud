@@ -1,8 +1,9 @@
-mxHostname: mx1.example.com
 domains:
   primary:
     name: example.com
     namespace: example-app-maddy
+    mx: mx1.example.com
+    certificateIssuer: public
   others:
   - name: other.com
     namespace: other-app-maddy

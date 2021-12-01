@@ -3,6 +3,7 @@ package main
 import (
 	"bufio"
 	"crypto/tls"
+	"flag"
 	"fmt"
 	"os"
 
@@ -10,9 +11,23 @@ import (
 	"github.com/emersion/go-smtp"
 )
 
-var smtpServers = []string{
-	"maddy.app-maddy.svc.cluster.local:587",
-	"maddy.shveli-app-maddy.svc.cluster.local:587",
+var config = flag.String("config", "/etc/maddy/config/smtp-servers.conf", "Path to the configuration file with downstream SMTP server addresses per line.")
+
+func readConfig(path string) ([]string, error) {
+	inp, err := os.Open(path)
+	if err != nil {
+		return nil, err
+	}
+	defer inp.Close()
+	lines := bufio.NewScanner(inp)
+	ret := make([]string, 0)
+	for lines.Scan() {
+		ret = append(ret, lines.Text())
+	}
+	if err := lines.Err(); err != nil {
+		return nil, err
+	}
+	return ret, nil
 }
 
 func auth(server, username, password string) (bool, error) {
@@ -30,6 +45,7 @@ func auth(server, username, password string) (bool, error) {
 }
 
 func main() {
+	flag.Parse()
 	inp := bufio.NewReader(os.Stdin)
 	username, err := inp.ReadString('\n')
 	if err != nil {
@@ -43,6 +59,11 @@ func main() {
 		os.Exit(2)
 	}
 	password = password[:len(password)-1]
+	smtpServers, err := readConfig(*config)
+	if err != nil {
+		fmt.Println(err.Error())
+		os.Exit(2)
+	}
 	for _, s := range smtpServers {
 		if ok, _ := auth(s, username, password); ok {
 			os.Exit(0)

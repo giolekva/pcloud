@@ -1,0 +1,14 @@
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: {{ .Values.domains.primary.mx }}
+  namespace: {{ .Release.Namespace }}
+  annotations:
+    "helm.sh/resource-policy": keep
+spec:
+  dnsNames:
+  - {{ .Values.domains.primary.mx }}
+  issuerRef:
+    name: {{ .Values.domains.primary.certificateIssuer }}
+    kind: ClusterIssuer
+  secretName: cert-{{ .Values.domains.primary.mx }}

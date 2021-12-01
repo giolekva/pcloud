@@ -173,11 +173,12 @@ releases:
   chart: ../../charts/mail-gateway
   namespace: {{ .Values.name }}-mail-gateway
   values:
-  - mxHostname: mx1.lekva.me
   - domains:
       primary:
         name: lekva.me
-        namespace: app-maddy
+        namespace: lekva-app-maddy
+        mx: mail.lekva.me
+        certificateIssuer: lekva-public
       others:
       - name: shve.li
         namespace: shveli-app-maddy
