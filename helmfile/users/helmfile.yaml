@@ -346,7 +346,7 @@ releases:
       secret:
         enabled: true
       maester:
-        enabled: true
+        enabled: false
         hydraFullnameOverride: hydra
       hydra-maester:
         fullnameOverride: {{ .Values.id }}-hydra-maester
@@ -475,7 +475,7 @@ releases:
   values:
   - domain: {{ .Values.domain }}
   - oauth2:
-      hydraAdmin: http://hydra-admin
+      hydraAdmin: http://hydra-admin.{{ .Values.namespacePrefix}}core-auth.svc.cluster.local
       hydraPublic: https://hydra.{{ .Values.domain }}
       clientId: matrix
       clientSecret: {{ .Values.matrixOAuth2ClientSecret }}
@@ -530,7 +530,7 @@ releases:
       cookieSecret: {{ .Values.piholeOAuth2CookieSecret }}
       secretName: oauth2-secret
       configName: oauth2-proxy
-      hydraAdmin: http://hydra-admin
+      hydraAdmin: http://hydra-admin.{{ .Values.namespacePrefix}}core-auth.svc.cluster.local
   - hydraPublic: https://hydra.{{ .Values.domain }}/
   - profileUrl: https://accounts-ui.{{ .Values.domain }}
   - ingressClassName: {{ .Values.id }}-ingress-private
@@ -565,7 +565,7 @@ environments:
     - certManagerNamespace: cert-manager
     - mxHostname: mail.lekva.me
     - mailGatewayAddress: "tcp://maddy.pcloud-mail-gateway.svc.cluster.local:587"
-    - matrixStorageSize: 100Gi
+    - matrixStorageSize: 1Gi
   lekva:
     secrets:
     - secrets.lekva.yaml

@@ -11,6 +11,8 @@ repositories:
   url: https://metallb.github.io/metallb
 - name: longhorn
   url: https://charts.longhorn.io
+- name: ory
+  url: https://k8s.ory.sh/helm/charts
 
 helmDefaults:
   tillerless: true
@@ -184,6 +186,19 @@ releases:
         namespace: shveli-app-maddy
   - persistence:
       size: 100Gi
+- name: oauth2-manager
+  chart: ory/hydra-maester
+  version: v0.20.1
+  namespace: {{ .Values.name }}-oauth2-manager
+  values:
+  - fullnameOverride: {{ .Values.name }}-hydra-maester
+  - image:
+      repository: giolekva/ory-hydra-maester
+      tag: latest
+      pullPolicy: IfNotPresent
+  - adminService:
+      name: hydra # IGNORED
+      port: 80
 
 environments:
   prod:
