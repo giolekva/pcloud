@@ -6,7 +6,7 @@ repositories:
 
 helmDefaults:
   tillerless: true
-  waitForJobs: false
+  waitForJobs: true
   createNamespace: false
 
 releases:
@@ -16,6 +16,7 @@ releases:
   createNamespace: true
   values:
   - pcloudInstanceId: {{ .Values.id }}
+  - namespacePrefix: {{ .Values.namespacePrefix }}
   - namespaces:
       - app-maddy
       - app-matrix
@@ -25,7 +26,7 @@ releases:
       - ingress-private
 - name: vpn-mesh-config
   chart: ../../charts/vpn-mesh-config
-  namespace: {{ .Values.id }}-ingress-private
+  namespace: {{ .Values.namespacePrefix }}ingress-private
   values:
   - certificateAuthority:
       name: {{ .Values.id }}
@@ -37,7 +38,7 @@ releases:
 - name: ingress-private
   chart: ingress-nginx/ingress-nginx
   version: 4.0.3
-  namespace: {{ .Values.id }}-ingress-private
+  namespace: {{ .Values.namespacePrefix }}ingress-private
   values:
   - fullnameOverride: {{ .Values.id }}-nginx-private
   - controller:
@@ -83,16 +84,16 @@ releases:
         bind-address: 111.0.0.1
         proxy-body-size: 0
   - udp:
-      53: "{{ .Values.id }}-app-pihole/pihole-dns-udp:53"
+      53: "{{ .Values.namespacePrefix }}app-pihole/pihole-dns-udp:53"
   - tcp:
-      53: "{{ .Values.id }}-app-pihole/pihole-dns-tcp:53"
-      143: "{{ .Values.id }}-app-maddy/maddy:143"
-      465: "{{ .Values.id }}-app-maddy/maddy:465"
-      587: "{{ .Values.id }}-app-maddy/maddy:587"
-      993: "{{ .Values.id }}-app-maddy/maddy:993"
+      53: "{{ .Values.namespacePrefix }}app-pihole/pihole-dns-tcp:53"
+      143: "{{ .Values.namespacePrefix }}app-maddy/maddy:143"
+      465: "{{ .Values.namespacePrefix }}app-maddy/maddy:465"
+      587: "{{ .Values.namespacePrefix }}app-maddy/maddy:587"
+      993: "{{ .Values.namespacePrefix }}app-maddy/maddy:993"
 - name: certificate-issuer
   chart: ../../charts/certificate-issuer
-  namespace: {{ .Values.id }}-ingress-private
+  namespace: {{ .Values.namespacePrefix }}ingress-private
   values:
   - pcloudInstanceId: {{ .Values.id }}
   - certManager:
@@ -115,7 +116,7 @@ releases:
 - name: core-auth-storage  # TODO(giolekva): merge with core-auth
   chart: bitnami/postgresql
   version: 10.13.5
-  namespace: {{ .Values.id }}-core-auth
+  namespace: {{ .Values.namespacePrefix }}core-auth
   values:
   - fullnameOverride: postgres
   - image:
@@ -139,7 +140,7 @@ releases:
         runAsUser: 0
 - name: core-auth
   chart: ../../charts/auth
-  namespace: {{ .Values.id }}-core-auth
+  namespace: {{ .Values.namespacePrefix }}core-auth
   values:
   - kratos:
       fullnameOverride: kratos
@@ -348,6 +349,7 @@ releases:
         enabled: true
         hydraFullnameOverride: hydra
       hydra-maester:
+        fullnameOverride: {{ .Values.id }}-hydra-maester
         image:
           repository: giolekva/ory-hydra-maester
           tag: latest
@@ -425,10 +427,10 @@ releases:
           secretName: node-ui-cert
         certificateAuthority:
           name: {{ .Values.id }}
-          namespace: {{ .Values.id }}-ingress-private
+          namespace: {{ .Values.namespacePrefix }}ingress-private
 - name: vaultwarden
   chart: ../../charts/vaultwarden
-  namespace: {{ .Values.id }}-app-vaultwarden
+  namespace: {{ .Values.namespacePrefix }}app-vaultwarden
   values:
   - image:
       repository: vaultwarden/server
@@ -442,7 +444,7 @@ releases:
 - name: matrix-storage  # TODO(giolekva): merge with core-auth
   chart: bitnami/postgresql
   version: 10.13.5
-  namespace: {{ .Values.id }}-app-matrix
+  namespace: {{ .Values.namespacePrefix }}app-matrix
   values:
   - fullnameOverride: postgres
   - image:
@@ -457,7 +459,7 @@ releases:
         #!/bin/sh
         createdb -U postgres --encoding=UTF8 --locale=C --template=template0 --owner=postgres matrix
   - persistence:
-      size: 1Gi
+      size: {{ .Values.matrixStorageSize }}
   - securityContext:
       enabled: true
       fsGroup: 0
@@ -469,7 +471,7 @@ releases:
         runAsUser: 0
 - name: matrix
   chart: ../../charts/matrix
-  namespace: {{ .Values.id }}-app-matrix
+  namespace: {{ .Values.namespacePrefix }}app-matrix
   values:
   - domain: {{ .Values.domain }}
   - oauth2:
@@ -491,9 +493,9 @@ releases:
       fileName: to-merge.yaml
 - name: pihole
   chart: ../../charts/pihole
-  namespace: {{ .Values.id }}-app-pihole
+  namespace: {{ .Values.namespacePrefix }}app-pihole
   values:
-  - domain: {{ .Values.domain }}
+  - domain: pihole.p.{{ .Values.domain }}
   - pihole:
       image:
         repository: "pihole/pihole"
@@ -531,11 +533,10 @@ releases:
       hydraAdmin: http://hydra-admin
   - hydraPublic: https://hydra.{{ .Values.domain }}/
   - profileUrl: https://accounts-ui.{{ .Values.domain }}
-  - certificateIssuer: {{ .Values.id }}-private
   - ingressClassName: {{ .Values.id }}-ingress-private
 - name: maddy
   chart: ../../charts/maddy
-  namespace: {{ .Values.id }}-app-maddy
+  namespace: {{ .Values.namespacePrefix }}app-maddy
   values:
   - ingress:
       private:
@@ -558,8 +559,23 @@ environments:
     values:
     - pcloudEnvName: pcloud
     - id: shveli
+    - namespacePrefix: shveli-
     - domain: shve.li
     - contactEmail: giolekva@gmail.com
     - certManagerNamespace: cert-manager
-    - mxHostname: mx1.lekva.me
+    - mxHostname: mail.lekva.me
     - mailGatewayAddress: "tcp://maddy.pcloud-mail-gateway.svc.cluster.local:587"
+    - matrixStorageSize: 100Gi
+  lekva:
+    secrets:
+    - secrets.lekva.yaml
+    values:
+    - pcloudEnvName: pcloud
+    - id: lekva
+    - namespacePrefix: lekva-
+    - domain: lekva.me
+    - contactEmail: giolekva@gmail.com
+    - certManagerNamespace: cert-manager
+    - mxHostname: mail.lekva.me
+    - mailGatewayAddress: "tcp://maddy.pcloud-mail-gateway.svc.cluster.local:587"
+    - matrixStorageSize: 100Gi

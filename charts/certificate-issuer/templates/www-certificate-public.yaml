@@ -10,7 +10,7 @@ spec:
   issuerRef:
     name: {{ .Values.public.name }}
     kind: ClusterIssuer
-  secretName: cert-www.{{ .Values.private.domain }}
+  secretName: cert-www.{{ .Values.public.domain }}
   secretTemplate:
     annotations:
       kubed.appscode.com/sync: "pcloud-instance-id={{ .Values.pcloudInstanceId }}"

@@ -5,10 +5,9 @@ oauth2:
   cookieSecret: ""
   secretName: oauth2-secret
   configName: oauth2-proxy
-domain: example.com
+domain: pihole.p.example.com
 hydraPublic: https://hydra.example.com
 profileUrl: https://profile.example.com
-certificateIssuer: public
-ingressClassName: public
+ingressClassName: private
 
 

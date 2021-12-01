@@ -19,17 +19,13 @@ kind: Ingress
 metadata:
   name: ingress
   namespace: {{ .Release.Namespace }}
-  # annotations:
-  #   cert-manager.io/cluster-issuer: "{{ .Values.certificateIssuer }}"
-  #   acme.cert-manager.io/http01-edit-in-place: "true"
 spec:
   ingressClassName: {{ .Values.ingressClassName }}
   tls:
   - hosts:
-    - pihole.p.{{ .Values.domain }}
-    # secretName: cert-pihole.{{ .Values.domain }}
+    - {{ .Values.domain }}
   rules:
-  - host: pihole.p.{{ .Values.domain }}
+  - host: {{ .Values.domain }}
     http:
       paths:
       - path: /

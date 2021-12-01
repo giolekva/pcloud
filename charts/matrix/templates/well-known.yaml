@@ -19,9 +19,6 @@ kind: Ingress
 metadata:
   name: well-known
   namespace: {{ .Release.Namespace }}
-  # annotations:
-  #   cert-manager.io/cluster-issuer: "{{ .Values.certificateIssuer }}"
-  #   acme.cert-manager.io/http01-edit-in-place: "true"
 spec:
   ingressClassName: {{ .Values.ingressClassName }}
   tls:

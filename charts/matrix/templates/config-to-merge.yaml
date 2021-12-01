@@ -6,6 +6,9 @@ type: Opaque
 metadata:
   name: {{ .Values.oauth2.secretName }}
   namespace: {{ .Release.Namespace }}
+  annotations:
+    helm.sh/hook: pre-install
+    helm.sh/hook-weight: "-10"
 data:
   client_id: {{ .Values.oauth2.clientId | b64enc  }}
   client_secret: {{ $secret | b64enc }}
@@ -15,6 +18,9 @@ kind: ConfigMap
 metadata:
   name: {{ .Values.configMerge.configName }}
   namespace: {{ .Release.Namespace }}
+  annotations:
+    helm.sh/hook: pre-install
+    helm.sh/hook-weight: "-10"
 data:
   {{ .Values.configMerge.fileName }}: |
     public_baseurl: https://matrix.{{ .Values.domain }}/

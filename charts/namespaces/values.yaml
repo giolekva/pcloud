@@ -1,4 +1,5 @@
 pcloudInstanceId: example
+namespacePrefix: example-
 namespaces:
 - foo
 - bar

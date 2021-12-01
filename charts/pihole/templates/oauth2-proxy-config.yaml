@@ -38,7 +38,7 @@ data:
 
     cookie_name = "_oauth2_proxy_pihole"
     cookie_secret = "{{ .Values.oauth2.cookieSecret }}"
-    cookie_domains = "pihole.p.{{ .Values.domain }}"
+    cookie_domains = "{{ .Values.domain }}"
     cookie_expire = "168h"
     cookie_refresh = "100h"
     cookie_secure = true
