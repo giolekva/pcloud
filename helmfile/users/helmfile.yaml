@@ -32,9 +32,9 @@ releases:
       name: {{ .Values.id }}
       secretName: ca-{{ .Values.id }}-cert
   - lighthouse:
-      internalIP: 111.0.0.1
-      externalIP: 46.49.35.44
-      port: "4243"
+      internalIP: {{ .Values.lighthouseMainIP }}
+      externalIP: {{ .Values.publicIP }}
+      port: "{{ .Values.lighthouseMainPort }}"
 - name: ingress-private
   chart: ingress-nginx/ingress-nginx
   version: 4.0.3
@@ -70,7 +70,7 @@ releases:
             - NET_ADMIN
         ports:
         - name: nebula
-          containerPort: 4243
+          containerPort: {{ .Values.lighthouseMainPort }}
           protocol: UDP
         command:
         - nebula
@@ -81,7 +81,7 @@ releases:
         - name: config
           mountPath: /etc/nebula/config
       config:
-        bind-address: 111.0.0.1
+        bind-address: {{ .Values.lighthouseMainIP }}
         proxy-body-size: 0
   - udp:
       53: "{{ .Values.namespacePrefix }}app-pihole/pihole-dns-udp:53"
@@ -375,13 +375,13 @@ releases:
                   - 0.0.0.0/0
                   - 10.42.0.0/16
                   - 10.43.0.0/16
-                  - 111.0.0.1/32
+                  - {{ .Values.lighthouseMainIP }}/32
             tls:
               allow_termination_from:
                 - 0.0.0.0/0
                 - 10.42.0.0/16
                 - 10.43.0.0/16
-                - 111.0.0.1/32
+                - {{ .Values.lighthouseMainIP }}/32
           urls:
             self:
               public: https://hydra.{{ .Values.domain }}
@@ -410,12 +410,12 @@ releases:
       nebula:
         lighthouse:
           name: ui-lighthouse
-          internalIP: 111.0.0.1
-          externalIP: 46.49.35.44
-          port: "4243"
+          internalIP: {{ .Values.lighthouseMainIP }}
+          externalIP: {{ .Values.publicIP }}
+          port: "{{ .Values.lighthouseMainPort }}"
         node:
           name: ui
-          ipCidr: 111.0.0.2/24
+          ipCidr: {{ .Values.lighthouseAuthUIIP }}/24
           secretName: node-ui-cert
         certificateAuthority:
           name: {{ .Values.id }}
@@ -557,7 +557,11 @@ environments:
     - certManagerNamespace: cert-manager
     - mxHostname: mail.lekva.me
     - mailGatewayAddress: "tcp://maddy.pcloud-mail-gateway.svc.cluster.local:587"
-    - matrixStorageSize: 1Gi
+    - matrixStorageSize: 10Gi
+    - publicIP: 46.49.35.44
+    - lighthouseMainIP: 110.0.0.1
+    - lighthouseMainPort: 4242
+    - lighthouseAuthUIIP: 110.0.0.2
   lekva:
     secrets:
     - secrets.lekva.yaml
@@ -571,3 +575,7 @@ environments:
     - mxHostname: mail.lekva.me
     - mailGatewayAddress: "tcp://maddy.pcloud-mail-gateway.svc.cluster.local:587"
     - matrixStorageSize: 100Gi
+    - publicIP: 46.49.35.44
+    - lighthouseMainIP: 111.0.0.1
+    - lighthouseMainPort: 4243
+    - lighthouseAuthUIIP: 111.0.0.2

@@ -50,6 +50,8 @@ spec:
     metadata:
       labels:
         app: ui
+      annotations:
+        checksum/config: {{ include (print $.Template.BasePath "/lighthouse-config.yaml") . | sha256sum }}
     spec:
       volumes:
       - name: cert

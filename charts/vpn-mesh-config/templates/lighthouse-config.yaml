@@ -4,4 +4,43 @@ metadata:
   name: lighthouse-config
   namespace: {{ .Release.Namespace }}
 data:
-{{ (.Files.Glob "lighthouse.yaml").AsConfig | replace "<INTERNAL_IP>" .Values.lighthouse.internalIP | replace "<EXTERNAL_IP>" .Values.lighthouse.externalIP | replace "<PORT>" .Values.lighthouse.port | indent 2 }}
+  lighthouse.yaml: |
+    pki:
+      ca: /etc/nebula/lighthouse/ca.crt
+      cert: /etc/nebula/lighthouse/host.crt
+      key: /etc/nebula/lighthouse/host.key
+    static_host_map:
+      "{{ .Values.lighthouse.internalIP }}": ["{{ .Values.lighthouse.externalIP }}:{{ .Values.lighthouse.port }}"]
+    lighthouse:
+      am_lighthouse: true
+      interval: 60
+    listen:
+      host: "[::]"
+      port: {{ .Values.lighthouse.port }}
+    punchy:
+      punch: true
+    cipher: chachapoly
+    tun:
+      disabled: false
+      dev: nebula1
+      drop_local_broadcast: false
+      drop_multicast: false
+      tx_queue: 500
+      mtu: 1300
+    logging:
+      level: info
+      format: text
+    firewall:
+      conntrack:
+        tcp_timeout: 12m
+        udp_timeout: 3m
+        default_timeout: 10m
+        max_connections: 100000
+      outbound:
+        - port: any
+          proto: any
+          host: any
+      inbound:
+        - port: any
+          proto: any
+          host: any
