@@ -9,7 +9,7 @@ data:
     version: STSv1
     mode: enforce
     max_age: 604800
-    mx: {{ .Values.mailGateway.mxHostname}}
+    mx: {{ .Values.mailGateway.mxHostname }}
 ---
 apiVersion: cert-manager.io/v1
 kind: Certificate
