@@ -1,0 +1,4 @@
+FROM alpine:latest
+
+COPY web /usr/bin/nebula-web
+RUN chmod +x /usr/bin/nebula-web

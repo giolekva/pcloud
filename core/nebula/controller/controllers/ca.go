@@ -10,6 +10,7 @@ import (
 	"time"
 
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/apimachinery/pkg/util/wait"
@@ -144,12 +145,14 @@ func (c *NebulaController) processNextWorkItem() bool {
 				c.workqueue.AddRateLimited(ref)
 				return fmt.Errorf("Error syncing '%s': %s, requeuing", ref.key, err.Error())
 			}
+			c.workqueue.Forget(o)
 			fmt.Printf("Successfully synced CA '%s'\n", ref.key)
 		} else if ref, ok := o.(nodeRef); ok {
 			if err := c.processNodeWithKey(ref.key); err != nil {
 				c.workqueue.AddRateLimited(ref)
 				return fmt.Errorf("Error syncing '%s': %s, requeuing", ref.key, err.Error())
 			}
+			c.workqueue.Forget(o)
 			fmt.Printf("Successfully synced Node '%s'\n", ref.key)
 		} else {
 			c.workqueue.Forget(o)
@@ -171,9 +174,13 @@ func (c *NebulaController) processCAWithKey(key string) error {
 	if err != nil {
 		return nil
 	}
-	ca, err := c.getCA(namespace, name)
+	ca, err := c.caLister.NebulaCAs(namespace).Get(name)
 	if err != nil {
-		panic(err)
+		if errors.IsNotFound(err) {
+			utilruntime.HandleError(fmt.Errorf("CA '%s' in work queue no longer exists", key))
+			return nil
+		}
+		return err
 	}
 	if ca.Status.State == nebulav1.NebulaCAStateReady {
 		fmt.Printf("%s CA is already in Ready state\n", ca.Name)
@@ -181,22 +188,22 @@ func (c *NebulaController) processCAWithKey(key string) error {
 	}
 	keyDir, err := generateCAKey(ca.Name, c.nebulaCert)
 	if err != nil {
-		panic(err)
+		return err
 	}
 	defer os.RemoveAll(keyDir)
 	secret, err := createSecretFromDir(keyDir)
 	if err != nil {
-		panic(err)
+		return err
 	}
 	secret.Immutable = &secretImmutable
 	secret.Name = ca.Spec.SecretName
 	_, err = c.kubeClient.CoreV1().Secrets(namespace).Create(context.TODO(), secret, metav1.CreateOptions{})
 	if err != nil {
-		panic(err)
+		return err
 	}
 	err = c.updateCAStatus(ca, nebulav1.NebulaCAStateReady, "Generated credentials")
 	if err != nil {
-		panic(err)
+		return err
 	}
 	return nil
 }
@@ -206,55 +213,65 @@ func (c *NebulaController) processNodeWithKey(key string) error {
 	if err != nil {
 		return nil
 	}
-	node, err := c.getNode(namespace, name)
+	node, err := c.nodeLister.NebulaNodes(namespace).Get(name)
 	if err != nil {
-		panic(err)
+		if errors.IsNotFound(err) {
+			utilruntime.HandleError(fmt.Errorf("NebulaNode '%s' in work queue no longer exists", key))
+			return nil
+		}
+		return err
 	}
 	if node.Status.State == nebulav1.NebulaNodeStateReady {
 		fmt.Printf("%s Node is already in Ready state\n", node.Name)
 		return nil
 	}
-	ca, err := c.getCA(node.Spec.CANamespace, node.Spec.CAName)
-	if ca == nil || ca.Status.State != nebulav1.NebulaCAStateReady {
+	ca, err := c.caLister.NebulaCAs(node.Spec.CANamespace).Get(node.Spec.CAName)
+	if err != nil {
+		return err
+	}
+	if ca.Status.State != nebulav1.NebulaCAStateReady {
 		return fmt.Errorf("Referenced CA %s is not ready yet.", node.Spec.CAName)
 	}
-	caSecret, err := c.getSecret(ca.Namespace, ca.Spec.SecretName)
+	caSecret, err := c.secretLister.Secrets(ca.Namespace).Get(ca.Spec.SecretName)
 	if err != nil {
-		panic(err)
+		if errors.IsNotFound(err) {
+			c.updateNodeStatus(node, nebulav1.NebulaNodeStateError, "Could not find CA secret")
+		}
+		return err
 	}
 	dir, err := extractSecret(caSecret)
 	if err != nil {
-		panic(err)
+		return err
 	}
 	if node.Spec.PubKey == "" {
 		if err := generateNodeKey(node.Name, node.Spec.IPCidr, dir, c.nebulaCert); err != nil {
-			panic(err)
+			return err
 		}
 	} else {
 		if err := generateNodeKeyFromPub(node.Name, node.Spec.IPCidr, node.Spec.PubKey, dir, c.nebulaCert); err != nil {
-			panic(err)
+			return err
 		}
 	}
 	defer os.RemoveAll(dir)
 	if err := os.Remove(filepath.Join(dir, "ca.key")); err != nil {
-		panic(err)
+		return err
 	}
 	if err := os.Remove(filepath.Join(dir, "ca.png")); err != nil {
-		panic(err)
+		return err
 	}
 	secret, err := createSecretFromDir(dir)
 	if err != nil {
-		panic(err)
+		return err
 	}
 	secret.Immutable = &secretImmutable
 	secret.Name = node.Spec.SecretName
 	_, err = c.kubeClient.CoreV1().Secrets(namespace).Create(context.TODO(), secret, metav1.CreateOptions{})
 	if err != nil {
-		panic(err)
+		return err
 	}
 	err = c.updateNodeStatus(node, nebulav1.NebulaNodeStateReady, "Generated credentials")
 	if err != nil {
-		panic(err)
+		return err
 	}
 	return nil
 }
@@ -304,7 +321,7 @@ func extractSecret(secret *corev1.Secret) (string, error) {
 	for name, data := range secret.Data {
 		if err := ioutil.WriteFile(filepath.Join(tmp, name), data, 0644); err != nil {
 			defer os.RemoveAll(tmp)
-			return "", nil
+			return "", err
 		}
 	}
 	return tmp, nil
@@ -340,8 +357,8 @@ func generateNodeKeyFromPub(name, ip, pubKey, dir, nebulaCert string) error {
 		"-in-pub", hostPub,
 		"-out-crt", filepath.Join(dir, "host.crt"),
 		"-out-qr", filepath.Join(dir, "host.png"))
-	if d, err := cmd.CombinedOutput(); err != nil {
-		return fmt.Errorf(string(d))
+	if _, err := cmd.CombinedOutput(); err != nil {
+		return err
 	}
 	return nil
 }
@@ -355,56 +372,8 @@ func generateNodeKey(name, ip, dir, nebulaCert string) error {
 		"-out-key", filepath.Join(dir, "host.key"),
 		"-out-crt", filepath.Join(dir, "host.crt"),
 		"-out-qr", filepath.Join(dir, "host.png"))
-	if d, err := cmd.CombinedOutput(); err != nil {
-		return fmt.Errorf(string(d))
+	if _, err := cmd.CombinedOutput(); err != nil {
+		return err
 	}
 	return nil
-}
-
-func (c *NebulaController) getCA(namespace, name string) (*nebulav1.NebulaCA, error) {
-	return c.caLister.NebulaCAs(namespace).Get(name)
-	// s := labels.NewSelector()
-	// r, err := labels.NewRequirement("metadata.namespace", selection.Equals, []string{namespace})
-	// if err != nil {
-	// 	panic(err)
-	// }
-	// r1, err := labels.NewRequirement("metadata.name", selection.Equals, []string{name})
-	// if err != nil {
-	// 	panic(err)
-	// }
-	// s.Add(*r, *r1)
-	// ncas, err := c.caLister.List(s)
-	// if err != nil {
-	// 	panic(err)
-	// }
-	// if len(ncas) != 1 {
-	// 	panic("err")
-	// }
-	// return ncas[0], nil
-}
-
-func (c *NebulaController) getNode(namespace, name string) (*nebulav1.NebulaNode, error) {
-	return c.nodeLister.NebulaNodes(namespace).Get(name)
-	// s := labels.NewSelector()
-	// r, err := labels.NewRequirement("metadata.namespace", selection.Equals, []string{namespace})
-	// if err != nil {
-	// 	panic(err)
-	// }
-	// r1, err := labels.NewRequirement("metadata.name", selection.Equals, []string{name})
-	// if err != nil {
-	// 	panic(err)
-	// }
-	// s.Add(*r, *r1)
-	// nodes, err := c.nodeLister.List(s)
-	// if err != nil {
-	// 	panic(err)
-	// }
-	// if len(nodes) != 1 {
-	// 	panic("err")
-	// }
-	// return nodes[0], nil
-}
-
-func (c *NebulaController) getSecret(namespace, name string) (*corev1.Secret, error) {
-	return c.secretLister.Secrets(namespace).Get(name)
 }

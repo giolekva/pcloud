@@ -342,7 +342,6 @@ releases:
           - hosts:
             - hydra.{{ .Values.domain }}
             secretName: cert-hydra.{{ .Values.domain }}
-            # secretName: cert-wildcard.{{ .Values.domain }}
       secret:
         enabled: true
       maester:

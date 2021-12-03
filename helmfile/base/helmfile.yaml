@@ -199,6 +199,20 @@ releases:
   - adminService:
       name: hydra # IGNORED
       port: 80
+- name: nebula-controller
+  chart: ../../charts/nebula
+  namespace: {{ .Values.name }}-nebula-controller
+  values:
+  - controller:
+      image:
+        repository: giolekva/nebula-controller
+        tag: latest
+        pullPolicy: Always
+  - manage:
+      image:
+        repository: giolekva/nebula-web
+        tag: latest
+        pullPolicy: Always
 
 environments:
   prod:

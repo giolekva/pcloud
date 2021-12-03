@@ -68,6 +68,7 @@ type NebulaNodeState string
 const (
 	NebulaNodeStateCreating NebulaNodeState = "Creating"
 	NebulaNodeStateReady    NebulaNodeState = "Ready"
+	NebulaNodeStateError    NebulaNodeState = "Error"
 )
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
