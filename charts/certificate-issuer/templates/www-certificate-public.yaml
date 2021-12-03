@@ -3,6 +3,8 @@ kind: Certificate
 metadata:
   name: www-{{ .Values.public.domain }}
   namespace: {{ .Release.Namespace }}
+  annotations:
+    helm.sh/resource-policy: keep
 spec:
   dnsNames:
   - '{{ .Values.public.domain }}'

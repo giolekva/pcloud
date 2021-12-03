@@ -4,7 +4,7 @@ metadata:
   name: {{ .Values.domains.primary.mx }}
   namespace: {{ .Release.Namespace }}
   annotations:
-    "helm.sh/resource-policy": keep
+    helm.sh/resource-policy: keep
 spec:
   dnsNames:
   - {{ .Values.domains.primary.mx }}

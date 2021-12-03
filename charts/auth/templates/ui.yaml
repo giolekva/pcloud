@@ -18,16 +18,12 @@ kind: Ingress
 metadata:
   name: ui
   namespace: {{ .Release.Namespace }}
-  annotations:
-    cert-manager.io/cluster-issuer: {{ .Values.ui.certificateIssuer }}
-    acme.cert-manager.io/http01-edit-in-place: "true"
 spec:
   ingressClassName: {{ .Values.ui.ingressClassName }}
   tls:
   - hosts:
     - accounts-ui.{{ .Values.ui.domain }}
     secretName: cert-accounts-ui.{{ .Values.ui.domain }}
-    # secretName: cert-wildcard.{{ .Values.ui.domain }}
   rules:
   - host: accounts-ui.{{ .Values.ui.domain }}
     http:
@@ -62,10 +58,6 @@ spec:
       - name: config
         configMap:
           name: {{ .Values.ui.nebula.lighthouse.name }}
-      hostAliases:
-      - ip: "111.0.0.1"
-        hostnames:
-          - "hydra.{{ .Values.ui.internalDomain }}"
       containers:
       - name: server
         image: giolekva/auth-ui:latest

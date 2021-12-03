@@ -179,14 +179,10 @@ releases:
             paths:
             - path: /
               pathType: Prefix
-          annotations:
-            cert-manager.io/cluster-issuer: "{{ .Values.id }}-public"
-            acme.cert-manager.io/http01-edit-in-place: "true"
           tls:
           - hosts:
             - accounts.{{ .Values.domain }}
             secretName: cert-accounts.{{ .Values.domain }}
-            # secretName: cert-wildcard.{{ .Values.domain }}
       secret:
         enabled: true
       kratos:
@@ -335,9 +331,6 @@ releases:
             paths:
             - path: /
               pathType: Prefix
-          annotations:
-            cert-manager.io/cluster-issuer: "{{ .Values.id }}-public"
-            acme.cert-manager.io/http01-edit-in-place: "true"
           tls:
           - hosts:
             - hydra.{{ .Values.domain }}
@@ -546,7 +539,7 @@ releases:
         domain: {{ .Values.domain }}
         certificateIssuer: {{ .Values.id }}-public
   - storage:
-      size: 10Gi
+      size: 100Gi
   - mailGateway:
       mxHostname: {{ .Values.mxHostname}}
       address: {{ .Values.mailGatewayAddress }}

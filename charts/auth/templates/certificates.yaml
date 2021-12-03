@@ -1,0 +1,44 @@
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: accounts-ui.{{ .Values.ui.domain }}
+  namespace: {{ .Release.Namespace }}
+  annotations:
+    helm.sh/resource-policy: keep
+spec:
+  dnsNames:
+  - 'accounts-ui.{{ .Values.ui.domain }}'
+  issuerRef:
+    name: {{ .Values.ui.certificateIssuer }}
+    kind: ClusterIssuer
+  secretName: cert-accounts-ui.{{ .Values.ui.domain }}
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: accounts.{{ .Values.ui.domain }}
+  namespace: {{ .Release.Namespace }}
+  annotations:
+    helm.sh/resource-policy: keep
+spec:
+  dnsNames:
+  - 'accounts.{{ .Values.ui.domain }}'
+  issuerRef:
+    name: {{ .Values.ui.certificateIssuer }}
+    kind: ClusterIssuer
+  secretName: cert-accounts.{{ .Values.ui.domain }}
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: hydra.{{ .Values.ui.domain }}
+  namespace: {{ .Release.Namespace }}
+  annotations:
+    helm.sh/resource-policy: keep
+spec:
+  dnsNames:
+  - 'hydra.{{ .Values.ui.domain }}'
+  issuerRef:
+    name: {{ .Values.ui.certificateIssuer }}
+    kind: ClusterIssuer
+  secretName: cert-hydra.{{ .Values.ui.domain }}

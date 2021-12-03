@@ -3,6 +3,8 @@ kind: Certificate
 metadata:
   name: wildcard-{{ .Values.private.domain }}
   namespace: {{ .Release.Namespace }}
+  annotations:
+    helm.sh/resource-policy: keep
 spec:
   dnsNames:
   - '*.{{ .Values.private.domain }}'

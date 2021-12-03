@@ -165,12 +165,6 @@ releases:
   - ingress:
       # TODO(giolekva): maybe run separate Nebula network for pcloud infrastructure services?
       enabled: false
-      # ngressClassName: nginx-private
-      # tls: true
-      # host: longhorn.pcloud
-      # annotations:
-      #   cert-manager.io/cluster-issuer: "selfsigned-ca"
-      #   acme.cert-manager.io/http01-edit-in-place: "true"
 - name: mail-gateway
   chart: ../../charts/mail-gateway
   namespace: {{ .Values.name }}-mail-gateway
