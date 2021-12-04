@@ -1,4 +1,6 @@
 FROM alpine:latest
 
-COPY capture-config /usr/bin
+ARG TARGETARCH
+
+COPY capture-config_${TARGETARCH} /usr/bin/capture-config
 RUN chmod +x /usr/bin/capture-config

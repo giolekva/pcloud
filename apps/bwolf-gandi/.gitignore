@@ -1,2 +1,3 @@
 cert-manager-webhook-gandi
-webhook
+webhook_arm64
+webhook_amd64

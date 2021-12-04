@@ -1,3 +1,5 @@
-controller
+controller_arm64
+controller_amd64
 vendor
-web
+web_arm64
+web_amd64

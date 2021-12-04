@@ -1,17 +1,21 @@
 clean:
-	rm -f auth-smtp
+	rm -f auth-smtp_*
 
-build: clean
-	go build -o auth-smtp *.go
+build_arm64: export CGO_ENABLED=0
+build_arm64: export GO111MODULE=on
+build_arm64: export GOOS=linux
+build_arm64: export GOARCH=arm64
+build_arm64:
+	go build -o auth-smtp_arm64 *.go
 
-image: build
-	docker build --tag=giolekva/maddy-auth-smtp:v0.4.4 . --platform=linux/arm64
+build_amd64: export CGO_ENABLED=0
+build_amd64: export GO111MODULE=on
+build_amd64: export GOOS=linux
+build_amd64: export GOARCH=amd64
+build_amd64:
+	go build -o auth-smtp_amd64 *.go
 
-push: image
-	docker push giolekva/maddy-auth-smtp:v0.4.4
+build: clean build_arm64 build_amd64
 
-push_arm64: export GOOS=linux
-push_arm64: export GOARCH=arm64
-push_arm64: export CGO_ENABLED=0
-push_arm64: export GO111MODULE=on
-push_arm64: push
+push: build
+	docker buildx build --tag=giolekva/maddy-auth-smtp:v0.4.4 . --platform=linux/arm64,linux/amd64 --push

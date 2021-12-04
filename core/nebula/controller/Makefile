@@ -1,36 +1,50 @@
 clean:
-	rm -f controller web
+	rm -f controller_* web_*
 
 generate:
 	rm -rf generated
 	./hack/generate.sh
 
-controller: export CGO_ENABLED=0
-controller: export GO111MODULE=on
-controller: export GOOS=linux
-controller: export GOARCH=arm64
-controller:
+controller_arm64: export CGO_ENABLED=0
+controller_arm64: export GO111MODULE=on
+controller_arm64: export GOOS=linux
+controller_arm64: export GOARCH=arm64
+controller_arm64:
 	go mod tidy
 	go mod vendor
-	go build -o controller main.go
+	go build -o controller_arm64 main.go
 
-web: export CGO_ENABLED=0
-web: export GO111MODULE=on
-web: export GOOS=linux
-web: export GOARCH=arm64
-web:
-	go build -o web web.go
+controller_amd64: export CGO_ENABLED=0
+controller_amd64: export GO111MODULE=on
+controller_amd64: export GOOS=linux
+controller_amd64: export GOARCH=amd64
+controller_amd64:
+	go mod tidy
+	go mod vendor
+	go build -o controller_amd64 main.go
 
-image_controller: controller
-	docker build -f Dockerfile.controller --tag=giolekva/nebula-controller:latest . --platform=linux/arm64
+controller: controller_arm64 controller_amd64
 
-image_web: web
-	docker build -f Dockerfile.web --tag=giolekva/nebula-web:latest . --platform=linux/arm64
+web_arm64: export CGO_ENABLED=0
+web_arm64: export GO111MODULE=on
+web_arm64: export GOOS=linux
+web_arm64: export GOARCH=arm64
+web_arm64:
+	go build -o web_arm64 web.go
 
-push_controller: image_controller
-	docker push giolekva/nebula-controller:latest
+web_amd64: export CGO_ENABLED=0
+web_amd64: export GO111MODULE=on
+web_amd64: export GOOS=linux
+web_amd64: export GOARCH=amd64
+web_amd64:
+	go build -o web_amd64 web.go
 
-push_web: image_web
-	docker push giolekva/nebula-web:latest
+web: web_arm64 web_amd64
 
-push_arm64: push_controller push_web
+push_controller: controller
+	docker buildx build -f Dockerfile.controller --tag=giolekva/nebula-controller:latest . --platform=linux/arm64,linux/amd64 --push
+
+push_web: web
+	docker buildx build -f Dockerfile.web --tag=giolekva/nebula-web:latest . --platform=linux/arm64,linux/amd64 --push
+
+push: push_controller push_web

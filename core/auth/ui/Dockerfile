@@ -1,4 +1,6 @@
 FROM alpine:latest
 
-COPY server /usr/bin
+ARG TARGETARCH
+
+COPY server_${TARGETARCH} /usr/bin/server
 RUN chmod +x /usr/bin/server

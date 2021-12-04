@@ -2,23 +2,26 @@ IMAGE_NAME := "giolekva/cert-manager-webhook-gandi"
 IMAGE_TAG := "v0.2.0"
 
 checkout:
-	git clone --depth 1 --branch v0.2.0 https://github.com/bwolf/cert-manager-webhook-gandi.git
+	git clone --depth 1 --branch $(IMAGE_TAG) https://github.com/bwolf/cert-manager-webhook-gandi.git
 
 clean:
-	rm -f webhook
+	rm -f webhook_*
 
-build: export CGO_ENABLED=0
-build: export GO111MODULE=on
-build: clean
-	cd cert-manager-webhook-gandi && go build -o ../webhook -ldflags '-w -extldflags "-static"' .
+build_arm64: export CGO_ENABLED=0
+build_arm64: export GO111MODULE=on
+build_arm64: export GOOS=linux
+build_arm64: export GOARCH=arm64
+build_arm64: clean
+	cd cert-manager-webhook-gandi && go build -o ../webhook_arm64 -ldflags '-w -extldflags "-static"' .
 
-image: build
-	docker build --tag=$(IMAGE_NAME):$(IMAGE_TAG) . --platform=linux/arm64
+build_amd64: export CGO_ENABLED=0
+build_amd64: export GO111MODULE=on
+build_amd64: export GOOS=linux
+build_amd64: export GOARCH=amd64
+build_amd64: clean
+	cd cert-manager-webhook-gandi && go build -o ../webhook_amd64 -ldflags '-w -extldflags "-static"' .
 
-push: image
-	docker push $(IMAGE_NAME):$(IMAGE_TAG)
+build: clean build_arm64 build_amd64
 
-
-push_arm64: export GOOS=linux
-push_arm64: export GOARCH=arm64
-push_arm64: push
+push: build
+	docker buildx build --tag=$(IMAGE_NAME):$(IMAGE_TAG) . --platform=linux/arm64,linux/amd64 --push

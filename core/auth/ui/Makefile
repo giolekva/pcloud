@@ -1,18 +1,19 @@
-build:
-	go build -o server *.go
-
 clean:
-	rm -f server
+	rm -f server_*
 
-image: clean build
-	docker build --tag=giolekva/auth-ui . --platform=linux/arm64
+build_arm64: export CGO_ENABLED=0
+build_arm64: export GO111MODULE=on
+build_arm64: export GOOS=linux
+build_arm64: export GOARCH=arm64
+build_arm64:
+	go build -o server_arm64 *.go
 
-push: image
-	docker push giolekva/auth-ui:latest
+build_amd64: export CGO_ENABLED=0
+build_amd64: export GO111MODULE=on
+build_amd64: export GOOS=linux
+build_amd64: export GOARCH=amd64
+build_amd64:
+	go build -o server_amd64 *.go
 
-
-push_arm64: export GOOS=linux
-push_arm64: export GOARCH=arm64
-push_arm64: export CGO_ENABLED=0
-push_arm64: export GO111MODULE=on
-push_arm64: push
+push: clean build_arm64 build_amd64
+	docker buildx build --tag=giolekva/auth-ui:latest . --platform=linux/arm64,linux/amd64 --push
