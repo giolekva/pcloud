@@ -10,3 +10,4 @@ coverage.txt
 *.xz
 kubeconfig
 cert-*
+secrets.*.dec
