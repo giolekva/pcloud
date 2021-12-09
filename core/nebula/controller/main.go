@@ -9,10 +9,10 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
 
-	controllers "github.com/giolekva/pcloud/core/nebula/controllers"
-	clientset "github.com/giolekva/pcloud/core/nebula/generated/clientset/versioned"
-	"github.com/giolekva/pcloud/core/nebula/generated/clientset/versioned/scheme"
-	informers "github.com/giolekva/pcloud/core/nebula/generated/informers/externalversions"
+	controllers "github.com/giolekva/pcloud/core/nebula/controller/controllers"
+	clientset "github.com/giolekva/pcloud/core/nebula/controller/generated/clientset/versioned"
+	"github.com/giolekva/pcloud/core/nebula/controller/generated/clientset/versioned/scheme"
+	informers "github.com/giolekva/pcloud/core/nebula/controller/generated/informers/externalversions"
 
 	nebulascheme "k8s.io/sample-controller/pkg/generated/clientset/versioned/scheme"
 )

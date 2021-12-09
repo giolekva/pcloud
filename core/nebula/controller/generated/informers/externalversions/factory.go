@@ -9,9 +9,9 @@ import (
 	sync "sync"
 	time "time"
 
-	versioned "github.com/giolekva/pcloud/core/nebula/generated/clientset/versioned"
-	internalinterfaces "github.com/giolekva/pcloud/core/nebula/generated/informers/externalversions/internalinterfaces"
-	nebula "github.com/giolekva/pcloud/core/nebula/generated/informers/externalversions/nebula"
+	versioned "github.com/giolekva/pcloud/core/nebula/controller/generated/clientset/versioned"
+	internalinterfaces "github.com/giolekva/pcloud/core/nebula/controller/generated/informers/externalversions/internalinterfaces"
+	nebula "github.com/giolekva/pcloud/core/nebula/controller/generated/informers/externalversions/nebula"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	runtime "k8s.io/apimachinery/pkg/runtime"
 	schema "k8s.io/apimachinery/pkg/runtime/schema"

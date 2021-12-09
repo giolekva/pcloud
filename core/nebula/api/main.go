@@ -15,8 +15,8 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
 
-	nebulav1 "github.com/giolekva/pcloud/core/nebula/apis/nebula/v1"
-	clientset "github.com/giolekva/pcloud/core/nebula/generated/clientset/versioned"
+	nebulav1 "github.com/giolekva/pcloud/core/nebula/controller/apis/nebula/v1"
+	clientset "github.com/giolekva/pcloud/core/nebula/controller/generated/clientset/versioned"
 )
 
 var port = flag.Int("port", 8080, "Port to listen on.")

@@ -5,9 +5,9 @@
 package fake
 
 import (
-	clientset "github.com/giolekva/pcloud/core/nebula/generated/clientset/versioned"
-	lekvav1 "github.com/giolekva/pcloud/core/nebula/generated/clientset/versioned/typed/nebula/v1"
-	fakelekvav1 "github.com/giolekva/pcloud/core/nebula/generated/clientset/versioned/typed/nebula/v1/fake"
+	clientset "github.com/giolekva/pcloud/core/nebula/controller/generated/clientset/versioned"
+	lekvav1 "github.com/giolekva/pcloud/core/nebula/controller/generated/clientset/versioned/typed/nebula/v1"
+	fakelekvav1 "github.com/giolekva/pcloud/core/nebula/controller/generated/clientset/versioned/typed/nebula/v1/fake"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/discovery"

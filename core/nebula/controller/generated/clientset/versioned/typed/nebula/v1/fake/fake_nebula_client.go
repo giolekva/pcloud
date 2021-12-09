@@ -5,7 +5,7 @@
 package fake
 
 import (
-	v1 "github.com/giolekva/pcloud/core/nebula/generated/clientset/versioned/typed/nebula/v1"
+	v1 "github.com/giolekva/pcloud/core/nebula/controller/generated/clientset/versioned/typed/nebula/v1"
 	rest "k8s.io/client-go/rest"
 	testing "k8s.io/client-go/testing"
 )

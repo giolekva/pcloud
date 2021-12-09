@@ -5,8 +5,8 @@
 package nebula
 
 import (
-	internalinterfaces "github.com/giolekva/pcloud/core/nebula/generated/informers/externalversions/internalinterfaces"
-	v1 "github.com/giolekva/pcloud/core/nebula/generated/informers/externalversions/nebula/v1"
+	internalinterfaces "github.com/giolekva/pcloud/core/nebula/controller/generated/informers/externalversions/internalinterfaces"
+	v1 "github.com/giolekva/pcloud/core/nebula/controller/generated/informers/externalversions/nebula/v1"
 )
 
 // Interface provides access to each of this group's versions.

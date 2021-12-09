@@ -5,7 +5,7 @@
 package v1
 
 import (
-	v1 "github.com/giolekva/pcloud/core/nebula/apis/nebula/v1"
+	v1 "github.com/giolekva/pcloud/core/nebula/controller/apis/nebula/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/client-go/tools/cache"

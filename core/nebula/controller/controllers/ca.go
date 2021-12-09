@@ -21,10 +21,10 @@ import (
 	"k8s.io/client-go/util/workqueue"
 	"k8s.io/klog/v2"
 
-	nebulav1 "github.com/giolekva/pcloud/core/nebula/apis/nebula/v1"
-	clientset "github.com/giolekva/pcloud/core/nebula/generated/clientset/versioned"
-	informers "github.com/giolekva/pcloud/core/nebula/generated/informers/externalversions/nebula/v1"
-	listers "github.com/giolekva/pcloud/core/nebula/generated/listers/nebula/v1"
+	nebulav1 "github.com/giolekva/pcloud/core/nebula/controller/apis/nebula/v1"
+	clientset "github.com/giolekva/pcloud/core/nebula/controller/generated/clientset/versioned"
+	informers "github.com/giolekva/pcloud/core/nebula/controller/generated/informers/externalversions/nebula/v1"
+	listers "github.com/giolekva/pcloud/core/nebula/controller/generated/listers/nebula/v1"
 )
 
 var secretImmutable = true

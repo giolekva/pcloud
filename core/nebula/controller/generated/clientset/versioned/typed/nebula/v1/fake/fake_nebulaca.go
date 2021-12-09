@@ -7,7 +7,7 @@ package fake
 import (
 	"context"
 
-	nebulav1 "github.com/giolekva/pcloud/core/nebula/apis/nebula/v1"
+	nebulav1 "github.com/giolekva/pcloud/core/nebula/controller/apis/nebula/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	labels "k8s.io/apimachinery/pkg/labels"
 	schema "k8s.io/apimachinery/pkg/runtime/schema"

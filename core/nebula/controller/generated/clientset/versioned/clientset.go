@@ -7,7 +7,7 @@ package versioned
 import (
 	"fmt"
 
-	lekvav1 "github.com/giolekva/pcloud/core/nebula/generated/clientset/versioned/typed/nebula/v1"
+	lekvav1 "github.com/giolekva/pcloud/core/nebula/controller/generated/clientset/versioned/typed/nebula/v1"
 	discovery "k8s.io/client-go/discovery"
 	rest "k8s.io/client-go/rest"
 	flowcontrol "k8s.io/client-go/util/flowcontrol"

@@ -5,7 +5,7 @@
 package v1
 
 import (
-	internalinterfaces "github.com/giolekva/pcloud/core/nebula/generated/informers/externalversions/internalinterfaces"
+	internalinterfaces "github.com/giolekva/pcloud/core/nebula/controller/generated/informers/externalversions/internalinterfaces"
 )
 
 // Interface provides access to all the informers in this group version.

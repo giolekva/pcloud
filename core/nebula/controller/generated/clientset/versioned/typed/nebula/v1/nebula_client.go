@@ -5,8 +5,8 @@
 package v1
 
 import (
-	v1 "github.com/giolekva/pcloud/core/nebula/apis/nebula/v1"
-	"github.com/giolekva/pcloud/core/nebula/generated/clientset/versioned/scheme"
+	v1 "github.com/giolekva/pcloud/core/nebula/controller/apis/nebula/v1"
+	"github.com/giolekva/pcloud/core/nebula/controller/generated/clientset/versioned/scheme"
 	rest "k8s.io/client-go/rest"
 )
 

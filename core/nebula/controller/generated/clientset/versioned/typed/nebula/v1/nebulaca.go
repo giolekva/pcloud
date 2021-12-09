@@ -8,8 +8,8 @@ import (
 	"context"
 	"time"
 
-	v1 "github.com/giolekva/pcloud/core/nebula/apis/nebula/v1"
-	scheme "github.com/giolekva/pcloud/core/nebula/generated/clientset/versioned/scheme"
+	v1 "github.com/giolekva/pcloud/core/nebula/controller/apis/nebula/v1"
+	scheme "github.com/giolekva/pcloud/core/nebula/controller/generated/clientset/versioned/scheme"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	types "k8s.io/apimachinery/pkg/types"
 	watch "k8s.io/apimachinery/pkg/watch"
