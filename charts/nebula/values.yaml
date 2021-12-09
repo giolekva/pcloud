@@ -5,6 +5,6 @@ controller:
     pullPolicy: Always
 manage:
   image:
-    repository: giolekva/nebula-web
+    repository: giolekva/nebula-api
     tag: latest
     pullPolicy: Always
