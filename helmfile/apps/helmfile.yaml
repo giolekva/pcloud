@@ -28,6 +28,9 @@ releases:
   chart: ../../charts/vpn-mesh-config
   namespace: {{ .Values.namespacePrefix }}ingress-private
   values:
+  - domain: {{ .Values.domain }}
+  - ingressClassName: {{ .Values.pcloudEnvName }}-ingress-public
+  - certificateIssuer: {{ .Values.id }}-public
   - certificateAuthority:
       name: {{ .Values.id }}
       secretName: ca-{{ .Values.id }}-cert

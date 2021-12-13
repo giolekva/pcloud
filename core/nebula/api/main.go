@@ -1,8 +1,8 @@
 package main
 
 import (
-	"context"
 	"embed"
+	"encoding/json"
 	"flag"
 	"fmt"
 	"html/template"
@@ -11,17 +11,17 @@ import (
 
 	"github.com/gorilla/mux"
 
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
 
-	nebulav1 "github.com/giolekva/pcloud/core/nebula/controller/apis/nebula/v1"
 	clientset "github.com/giolekva/pcloud/core/nebula/controller/generated/clientset/versioned"
 )
 
 var port = flag.Int("port", 8080, "Port to listen on.")
 var kubeConfig = flag.String("kubeconfig", "", "Path to a kubeconfig. Only required if out-of-cluster.")
 var masterURL = flag.String("master", "", "The address of the Kubernetes API server. Overrides any value in kubeconfig. Only required if out-of-cluster.")
+var namespace = flag.String("namespace", "", "Namespace where Nebula CA and Node secrets are stored.")
+var caSecretName = flag.String("ca-secret-name", "", "Name of the Nebula CA secret storing certificate information.")
 
 //go:embed templates/*
 var tmpls embed.FS
@@ -36,99 +36,6 @@ func ParseTemplates(fs embed.FS) (*Templates, error) {
 		return nil, err
 	}
 	return &Templates{index}, nil
-}
-
-type nebulaCA struct {
-	Name      string
-	Namespace string
-	Nodes     []nebulaNode
-}
-
-type nebulaNode struct {
-	Name      string
-	Namespace string
-	IP        string
-}
-
-type Manager struct {
-	kubeClient   kubernetes.Interface
-	nebulaClient clientset.Interface
-}
-
-func (m *Manager) ListAll() ([]*nebulaCA, error) {
-	ret := make([]*nebulaCA, 0)
-	cas, err := m.nebulaClient.LekvaV1().NebulaCAs("").List(context.TODO(), metav1.ListOptions{})
-	if err != nil {
-		return nil, err
-	}
-	for _, ca := range cas.Items {
-		ret = append(ret, &nebulaCA{
-			Name:      ca.Name,
-			Namespace: ca.Namespace,
-			Nodes:     make([]nebulaNode, 0),
-		})
-	}
-	nodes, err := m.nebulaClient.LekvaV1().NebulaNodes("").List(context.TODO(), metav1.ListOptions{})
-	if err != nil {
-		return nil, err
-	}
-	for _, node := range nodes.Items {
-		for _, ca := range ret {
-			if ca.Name == node.Spec.CAName {
-				ca.Nodes = append(ca.Nodes, nebulaNode{
-					Name:      node.Name,
-					Namespace: node.Namespace,
-					IP:        node.Spec.IPCidr,
-				})
-			}
-		}
-	}
-	return ret, nil
-}
-
-func (m *Manager) createNode(namespace, name, caNamespace, caName, ipCidr, pubKey string) (string, string, error) {
-	node := &nebulav1.NebulaNode{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      name,
-			Namespace: namespace,
-		},
-		Spec: nebulav1.NebulaNodeSpec{
-			CAName:      caName,
-			CANamespace: caNamespace,
-			IPCidr:      ipCidr,
-			PubKey:      pubKey,
-			SecretName:  fmt.Sprintf("%s-cert", name),
-		},
-	}
-	node, err := m.nebulaClient.LekvaV1().NebulaNodes(namespace).Create(context.TODO(), node, metav1.CreateOptions{})
-	if err != nil {
-		return "", "", err
-	}
-	return node.Namespace, node.Name, nil
-}
-
-func (m *Manager) getNodeCertQR(namespace, name string) ([]byte, error) {
-	node, err := m.nebulaClient.LekvaV1().NebulaNodes(namespace).Get(context.TODO(), name, metav1.GetOptions{})
-	if err != nil {
-		return nil, err
-	}
-	secret, err := m.kubeClient.CoreV1().Secrets(namespace).Get(context.TODO(), node.Spec.SecretName, metav1.GetOptions{})
-	if err != nil {
-		return nil, err
-	}
-	return secret.Data["host.png"], nil
-}
-
-func (m *Manager) getCACertQR(namespace, name string) ([]byte, error) {
-	ca, err := m.nebulaClient.LekvaV1().NebulaCAs(namespace).Get(context.TODO(), name, metav1.GetOptions{})
-	if err != nil {
-		return nil, err
-	}
-	secret, err := m.kubeClient.CoreV1().Secrets(namespace).Get(context.TODO(), ca.Spec.SecretName, metav1.GetOptions{})
-	if err != nil {
-		return nil, err
-	}
-	return secret.Data["ca.png"], nil
 }
 
 type Handler struct {
@@ -151,7 +58,7 @@ func (h *Handler) handleNode(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	namespace := vars["namespace"]
 	name := vars["name"]
-	qr, err := h.mgr.getNodeCertQR(namespace, name)
+	qr, err := h.mgr.GetNodeCertQR(namespace, name)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
@@ -163,7 +70,7 @@ func (h *Handler) handleCA(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	namespace := vars["namespace"]
 	name := vars["name"]
-	qr, err := h.mgr.getCACertQR(namespace, name)
+	qr, err := h.mgr.GetCACertQR(namespace, name)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
@@ -176,7 +83,7 @@ func (h *Handler) handleSignNode(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	_, _, err := h.mgr.createNode(
+	_, _, err := h.mgr.CreateNode(
 		r.FormValue("node-namespace"),
 		r.FormValue("node-name"),
 		r.FormValue("ca-namespace"),
@@ -189,6 +96,66 @@ func (h *Handler) handleSignNode(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	http.Redirect(w, r, "/", http.StatusSeeOther)
+}
+
+func (h *Handler) getNextIP(w http.ResponseWriter, r *http.Request) {
+	ip, err := h.mgr.getNextIP()
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	fmt.Fprint(w, ip)
+}
+
+type signReq struct {
+	Message []byte `json:"message"`
+}
+
+type signResp struct {
+	Signature []byte `json:"signature"`
+}
+
+func (h *Handler) sign(w http.ResponseWriter, r *http.Request) {
+	var req signReq
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	signature, err := h.mgr.Sign(req.Message)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	resp := signResp{
+		signature,
+	}
+	if err := json.NewEncoder(w).Encode(resp); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+}
+
+type verifyReq struct {
+	Message   []byte `json:"message"`
+	Signature []byte `json:"signature"`
+}
+
+func (h *Handler) verify(w http.ResponseWriter, r *http.Request) {
+	var req verifyReq
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	valid, err := h.mgr.VerifySignature(req.Message, req.Signature)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	if !valid {
+		http.Error(w, "Signature could not be verified", http.StatusBadRequest)
+		return
+	}
 }
 
 func main() {
@@ -209,12 +176,17 @@ func main() {
 	mgr := Manager{
 		kubeClient:   kubeClient,
 		nebulaClient: nebulaClient,
+		namespace:    *namespace,
+		caSecretName: *caSecretName,
 	}
 	handler := Handler{
 		mgr:   mgr,
 		tmpls: t,
 	}
 	r := mux.NewRouter()
+	r.HandleFunc("/api/ip", handler.getNextIP)
+	r.HandleFunc("/api/sign", handler.sign)
+	r.HandleFunc("/api/verify", handler.verify)
 	r.HandleFunc("/node/{namespace:[a-zA-z0-9-]+}/{name:[a-zA-z0-9-]+}", handler.handleNode)
 	r.HandleFunc("/ca/{namespace:[a-zA-z0-9-]+}/{name:[a-zA-z0-9-]+}", handler.handleCA)
 	r.HandleFunc("/sign-node", handler.handleSignNode)

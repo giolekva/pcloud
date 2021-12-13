@@ -1,3 +1,7 @@
+domain: example.com
+ingressClassName: pcloud-ingress-public
+certificateIssuer: example-public
+
 certificateAuthority:
   name: "nebula"
   secretName: "ca-nebula-cert"
@@ -8,3 +12,9 @@ lighthouse:
   internalIP: "0.0.0.0"
   externalIP: "0.0.0.0"
   port: "4242"
+
+api:
+  image:
+    repository: giolekva/nebula-api
+    tag: latest
+    pullPolicy: Always

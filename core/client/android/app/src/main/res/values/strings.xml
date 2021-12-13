@@ -1,0 +1,4 @@
+<resources>
+    <string name="app_name">pcloud</string>
+    <string name="scan_qr_code">Scan QR code</string>
+</resources>
