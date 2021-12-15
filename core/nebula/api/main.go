@@ -21,7 +21,7 @@ var port = flag.Int("port", 8080, "Port to listen on.")
 var kubeConfig = flag.String("kubeconfig", "", "Path to a kubeconfig. Only required if out-of-cluster.")
 var masterURL = flag.String("master", "", "The address of the Kubernetes API server. Overrides any value in kubeconfig. Only required if out-of-cluster.")
 var namespace = flag.String("namespace", "", "Namespace where Nebula CA and Node secrets are stored.")
-var caSecretName = flag.String("ca-secret-name", "", "Name of the Nebula CA secret storing certificate information.")
+var caName = flag.String("ca-name", "", "Name of the Nebula CA.")
 
 //go:embed templates/*
 var tmpls embed.FS
@@ -136,13 +136,19 @@ func (h *Handler) sign(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-type verifyReq struct {
+type joinReq struct {
 	Message   []byte `json:"message"`
 	Signature []byte `json:"signature"`
+	Name      string `json:"name"`
+	PublicKey []byte `json:"public_key"`
+	IPCidr    string `json:"ip_cidr"`
 }
 
-func (h *Handler) verify(w http.ResponseWriter, r *http.Request) {
-	var req verifyReq
+type joinResp struct {
+}
+
+func (h *Handler) join(w http.ResponseWriter, r *http.Request) {
+	var req joinReq
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
@@ -154,6 +160,18 @@ func (h *Handler) verify(w http.ResponseWriter, r *http.Request) {
 	}
 	if !valid {
 		http.Error(w, "Signature could not be verified", http.StatusBadRequest)
+		return
+	}
+	_, _, err = h.mgr.CreateNode(
+		*namespace,
+		req.Name,
+		*namespace,
+		*caName,
+		req.IPCidr,
+		string(req.PublicKey),
+	)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 }
@@ -177,7 +195,7 @@ func main() {
 		kubeClient:   kubeClient,
 		nebulaClient: nebulaClient,
 		namespace:    *namespace,
-		caSecretName: *caSecretName,
+		caName:       *caName,
 	}
 	handler := Handler{
 		mgr:   mgr,
@@ -186,7 +204,7 @@ func main() {
 	r := mux.NewRouter()
 	r.HandleFunc("/api/ip", handler.getNextIP)
 	r.HandleFunc("/api/sign", handler.sign)
-	r.HandleFunc("/api/verify", handler.verify)
+	r.HandleFunc("/api/join", handler.join)
 	r.HandleFunc("/node/{namespace:[a-zA-z0-9-]+}/{name:[a-zA-z0-9-]+}", handler.handleNode)
 	r.HandleFunc("/ca/{namespace:[a-zA-z0-9-]+}/{name:[a-zA-z0-9-]+}", handler.handleCA)
 	r.HandleFunc("/sign-node", handler.handleSignNode)

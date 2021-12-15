@@ -40,7 +40,7 @@ spec:
         - nebula-api
         - --port=8080
         - --namespace={{ .Release.Namespace }}
-        - --ca-secret-name={{ .Values.certificateAuthority.secretName }}
+        - --ca-name={{ .Values.certificateAuthority.name }}
         resources:
           requests:
             memory: "10Mi"

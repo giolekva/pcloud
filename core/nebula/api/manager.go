@@ -36,7 +36,7 @@ type Manager struct {
 	kubeClient   kubernetes.Interface
 	nebulaClient clientset.Interface
 	namespace    string
-	caSecretName string
+	caName       string
 }
 
 func (m *Manager) ListAll() ([]*nebulaCA, error) {
@@ -100,11 +100,7 @@ func (m *Manager) GetNodeCertQR(namespace, name string) ([]byte, error) {
 }
 
 func (m *Manager) GetCACertQR(namespace, name string) ([]byte, error) {
-	ca, err := m.nebulaClient.LekvaV1().NebulaCAs(namespace).Get(context.TODO(), name, metav1.GetOptions{})
-	if err != nil {
-		return nil, err
-	}
-	secret, err := m.kubeClient.CoreV1().Secrets(namespace).Get(context.TODO(), ca.Spec.SecretName, metav1.GetOptions{})
+	secret, err := m.getCASecret(namespace, name)
 	if err != nil {
 		return nil, err
 	}
@@ -131,7 +127,7 @@ func (m *Manager) getNextIP() (netaddr.IP, error) {
 }
 
 func (m *Manager) Sign(message []byte) ([]byte, error) {
-	secret, err := m.kubeClient.CoreV1().Secrets(m.namespace).Get(context.TODO(), m.caSecretName, metav1.GetOptions{})
+	secret, err := m.getCASecret(m.namespace, m.caName)
 	if err != nil {
 		return nil, err
 	}
@@ -143,7 +139,7 @@ func (m *Manager) Sign(message []byte) ([]byte, error) {
 }
 
 func (m *Manager) VerifySignature(message, signature []byte) (bool, error) {
-	secret, err := m.kubeClient.CoreV1().Secrets(m.namespace).Get(context.TODO(), m.caSecretName, metav1.GetOptions{})
+	secret, err := m.getCASecret(m.namespace, m.caName)
 	if err != nil {
 		return false, err
 	}
@@ -152,6 +148,14 @@ func (m *Manager) VerifySignature(message, signature []byte) (bool, error) {
 		return false, err
 	}
 	return ed25519.Verify(edPriv.Public().(ed25519.PublicKey), message, signature), nil
+}
+
+func (m *Manager) getCASecret(namespace, name string) (*corev1.Secret, error) {
+	ca, err := m.nebulaClient.LekvaV1().NebulaCAs(namespace).Get(context.TODO(), name, metav1.GetOptions{})
+	if err != nil {
+		return nil, err
+	}
+	return m.kubeClient.CoreV1().Secrets(namespace).Get(context.TODO(), ca.Spec.SecretName, metav1.GetOptions{})
 }
 
 func (m *Manager) getNodeSecret(namespace, name string) (*corev1.Secret, error) {

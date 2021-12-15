@@ -7,9 +7,7 @@ import org.gioui.Gio;
 public class PCloudApp extends Application {
     @Override
     public void onCreate() {
-        System.out.println("fooo");
         super.onCreate();
         Gio.init(this);
-        System.out.println("bar");
     }
 }

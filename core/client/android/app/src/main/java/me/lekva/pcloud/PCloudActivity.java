@@ -27,7 +27,6 @@ public class PCloudActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         view = new GioView(this);
         setContentView(view);
-        qrcodeScanned("yayaya");
     }
 
     @Override
@@ -70,7 +69,7 @@ public class PCloudActivity extends AppCompatActivity {
     public String launchBarcodeScanner() {
         ScanOptions options = new ScanOptions();
         options.setDesiredBarcodeFormats(ScanOptions.QR_CODE);
-        options.setPrompt("Join PCloud network");
+        options.setPrompt("Join PCloud mesh");
         options.setCameraId(0);  // Use a specific camera of the device
         options.setBeepEnabled(true);
         options.setBarcodeImageEnabled(false);

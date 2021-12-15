@@ -1,18 +1,14 @@
 package main
 
 import (
-	"bytes"
-	"encoding/json"
 	"image"
 	"image/color"
-	"image/png"
 
 	"gioui.org/layout"
 	"gioui.org/op/clip"
 	"gioui.org/op/paint"
 	"gioui.org/unit"
 	"gioui.org/widget"
-	"github.com/skip2/go-qrcode"
 )
 
 type (
@@ -21,8 +17,6 @@ type (
 )
 
 type UI struct {
-	vc VPNClient
-
 	invite struct {
 		open widget.Clickable
 		show bool
@@ -36,10 +30,12 @@ type UI struct {
 	}
 }
 
-func NewUI(vc VPNClient) *UI {
-	return &UI{
-		vc: vc,
-	}
+func NewUI() *UI {
+	return &UI{}
+}
+
+func (ui *UI) InviteQRGenerated(img image.Image) {
+	ui.invite.qr = img
 }
 
 func (ui *UI) OnBack() bool {
@@ -59,9 +55,10 @@ func (ui *UI) Layout(gtx C) []UIEvent {
 		ui.join.show = false
 		ui.invite.show = true
 		ui.invite.qr = nil
+		events = append(events, EventGetInviteQRCode{})
 	} else if ui.join.open.Clicked() {
-		ui.invite.show = false
-		ui.join.show = true
+		// ui.invite.show = false
+		// ui.join.show = true
 		events = append(events, EventScanBarcode{})
 	}
 	if ui.invite.show {
@@ -114,11 +111,7 @@ func (ui *UI) layoutActions(gtx C) D {
 
 func (ui *UI) layoutInvite(gtx C) D {
 	if ui.invite.qr == nil {
-		img, err := prepareConfigQRCode(ui.vc)
-		if err != nil {
-			panic(err)
-		}
-		ui.invite.qr = img
+		return ColorBox(gtx, gtx.Constraints.Max, color.NRGBA{})
 	}
 	d := ui.invite.qr.Bounds().Max.Sub(ui.invite.qr.Bounds().Min)
 	return layout.Inset{
@@ -136,38 +129,4 @@ func (ui *UI) layoutJoin(gtx C) D {
 		return ColorBox(gtx, gtx.Constraints.Min, color.NRGBA{R: 255, A: 255})
 	}
 	return ColorBox(gtx, gtx.Constraints.Min, color.NRGBA{R: 255, G: 255, B: 255, A: 255})
-}
-
-// helpers
-
-type qrCodeData struct {
-	VPNApiAddr string `json:"vpn_api_addr"`
-	Message    []byte `json:"message"`
-	Signature  []byte `json:"signature"`
-}
-
-func prepareConfigQRCode(vc VPNClient) (image.Image, error) {
-	message := []byte("Hello PCloud")
-	signature, err := vc.Sign(message)
-	if err != nil {
-		return nil, err
-	}
-	c := qrCodeData{
-		vc.Address(),
-		message,
-		signature,
-	}
-	var data bytes.Buffer
-	if err := json.NewEncoder(&data).Encode(c); err != nil {
-		return nil, err
-	}
-	qr, err := qrcode.Encode(data.String(), qrcode.Medium, 1024)
-	if err != nil {
-		return nil, err
-	}
-	img, err := png.Decode(bytes.NewReader(qr))
-	if err != nil {
-		return nil, err
-	}
-	return img, nil
 }
