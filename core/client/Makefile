@@ -1,5 +1,5 @@
 build:
-	go build -o pcloud github.com/giolekva/pcloud/core/client/cmd/pcloud
+	go build -o pcloud_app github.com/giolekva/pcloud/core/client/cmd/pcloud
 
 aar: export ANDROID_SDK_ROOT=/Users/lekva/Library/Android/sdk/
 aar:

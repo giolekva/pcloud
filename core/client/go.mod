@@ -9,4 +9,5 @@ require (
 	github.com/slackhq/nebula v1.5.1
 	golang.org/x/crypto v0.0.0-20211202192323-5770296d904e
 	golang.org/x/tools v0.1.8-0.20211022200916-316ba0b74098 // indirect
+	sigs.k8s.io/yaml v1.1.0
 )

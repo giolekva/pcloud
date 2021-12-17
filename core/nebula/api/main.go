@@ -2,14 +2,18 @@ package main
 
 import (
 	"embed"
+	"encoding/base64"
 	"encoding/json"
 	"flag"
 	"fmt"
 	"html/template"
+	"io/ioutil"
 	"log"
 	"net/http"
+	"time"
 
 	"github.com/gorilla/mux"
+	"sigs.k8s.io/yaml"
 
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
@@ -22,6 +26,7 @@ var kubeConfig = flag.String("kubeconfig", "", "Path to a kubeconfig. Only requi
 var masterURL = flag.String("master", "", "The address of the Kubernetes API server. Overrides any value in kubeconfig. Only required if out-of-cluster.")
 var namespace = flag.String("namespace", "", "Namespace where Nebula CA and Node secrets are stored.")
 var caName = flag.String("ca-name", "", "Name of the Nebula CA.")
+var configTmpl = flag.String("config-tmpl", "", "Path to the lighthouse configuration template file.")
 
 //go:embed templates/*
 var tmpls embed.FS
@@ -174,10 +179,45 @@ func (h *Handler) join(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
+	for {
+		time.Sleep(1 * time.Second)
+		cfg, err := h.mgr.GetNodeConfig(*namespace, req.Name)
+		if err != nil {
+			fmt.Println(err.Error())
+			continue
+		}
+		cfgBytes, err := yaml.Marshal(cfg)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		cfgB64 := base64.StdEncoding.EncodeToString(cfgBytes)
+		if _, err := fmt.Fprint(w, cfgB64); err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		break
+	}
+}
+
+func loadConfigTemplate(path string) (map[string]interface{}, error) {
+	tmpl, err := ioutil.ReadFile(path)
+	if err != nil {
+		return nil, err
+	}
+	var m map[string]interface{}
+	if err := yaml.Unmarshal(tmpl, &m); err != nil {
+		return nil, err
+	}
+	return m, nil
 }
 
 func main() {
 	flag.Parse()
+	cfgTmpl, err := loadConfigTemplate(*configTmpl)
+	if err != nil {
+		panic(err)
+	}
 	cfg, err := clientcmd.BuildConfigFromFlags(*masterURL, *kubeConfig)
 	if err != nil {
 		panic(err)
@@ -196,6 +236,7 @@ func main() {
 		nebulaClient: nebulaClient,
 		namespace:    *namespace,
 		caName:       *caName,
+		cfgTmpl:      cfgTmpl,
 	}
 	handler := Handler{
 		mgr:   mgr,

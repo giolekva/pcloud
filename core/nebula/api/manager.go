@@ -10,6 +10,7 @@ import (
 
 	"inet.af/netaddr"
 
+	"github.com/jinzhu/copier"
 	"github.com/slackhq/nebula/cert"
 
 	corev1 "k8s.io/api/core/v1"
@@ -37,6 +38,7 @@ type Manager struct {
 	nebulaClient clientset.Interface
 	namespace    string
 	caName       string
+	cfgTmpl      map[string]interface{}
 }
 
 func (m *Manager) ListAll() ([]*nebulaCA, error) {
@@ -89,6 +91,25 @@ func (m *Manager) CreateNode(namespace, name, caNamespace, caName, ipCidr, pubKe
 		return "", "", err
 	}
 	return node.Namespace, node.Name, nil
+}
+
+func (m *Manager) GetNodeConfig(namespace, name string) (map[string]interface{}, error) {
+	secret, err := m.getNodeSecret(namespace, name)
+	if err != nil {
+		return nil, err
+	}
+	var c map[string]interface{}
+	if err := copier.CopyWithOption(&c, m.cfgTmpl, copier.Option{DeepCopy: true}); err != nil {
+		return nil, err
+	}
+	var pki map[string]interface{}
+	var ok bool
+	if pki, ok = c["pki"].(map[string]interface{}); !ok {
+		panic("Should not reach")
+	}
+	pki["ca"] = string(secret.Data["ca.crt"])
+	pki["cert"] = string(secret.Data["host.crt"])
+	return c, nil
 }
 
 func (m *Manager) GetNodeCertQR(namespace, name string) ([]byte, error) {

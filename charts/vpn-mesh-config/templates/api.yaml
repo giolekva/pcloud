@@ -28,6 +28,10 @@ spec:
       labels:
         app: nebula-api
     spec:
+      volumes:
+      - name: config
+        configMap:
+          name: lighthouse-config-template
       containers:
       - name: api
         image: {{ .Values.api.image.repository }}:{{ .Values.api.image.tag }}
@@ -41,6 +45,11 @@ spec:
         - --port=8080
         - --namespace={{ .Release.Namespace }}
         - --ca-name={{ .Values.certificateAuthority.name }}
+        - --config-tmpl=/etc/nebula-api/config/lighthouse.yaml
+        volumeMounts:
+        - name: config
+          mountPath: /etc/nebula-api/config
+          readOnly: true
         resources:
           requests:
             memory: "10Mi"

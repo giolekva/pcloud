@@ -1,0 +1,46 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: lighthouse-config-template
+  namespace: {{ .Release.Namespace }}
+data:
+  lighthouse.yaml: |
+    pki:
+      ca: ""
+      cert: ""
+      key: ""
+    static_host_map:
+      "{{ .Values.lighthouse.internalIP }}": ["{{ .Values.lighthouse.externalIP }}:{{ .Values.lighthouse.port }}"]
+    lighthouse:
+      am_lighthouse: false
+      interval: 60
+    listen:
+      host: "[::]"
+      port: 4242
+    punchy:
+      punch: true
+    cipher: chachapoly
+    tun:
+      disabled: false
+      dev: pcloud0
+      drop_local_broadcast: false
+      drop_multicast: false
+      tx_queue: 500
+      mtu: 1300
+    logging:
+      level: info
+      format: text
+    firewall:
+      conntrack:
+        tcp_timeout: 12m
+        udp_timeout: 3m
+        default_timeout: 10m
+        max_connections: 100000
+      outbound:
+        - port: any
+          proto: any
+          host: any
+      inbound:
+        - port: any
+          proto: any
+          host: any

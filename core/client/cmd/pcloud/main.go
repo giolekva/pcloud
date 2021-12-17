@@ -148,7 +148,7 @@ func (p *processor) JoinNetworkAndConnect(code []byte) {
 	if err != nil {
 		panic(err)
 	}
-	fmt.Printf("-- VPN CONFIG %#v\n", config)
+	fmt.Printf("-- VPN CONFIG %s\n", string(config))
 
 }
 
@@ -162,3 +162,11 @@ func main() {
 	}()
 	app.Main()
 }
+
+// fmt.Println(m["pki"])
+// c := nc.NewC(logrus.StandardLogger())
+// if err := c.LoadString(string(tmpl)); err != nil {
+// 	return nil, err
+// }
+// fmt.Println(c.Settings["pki"])
+// return c, nil
