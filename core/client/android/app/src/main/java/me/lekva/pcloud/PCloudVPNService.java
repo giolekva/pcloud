@@ -1,10 +1,13 @@
 package me.lekva.pcloud;
 
+import android.app.PendingIntent;
 import android.app.Service;
 import android.content.Intent;
 import android.net.VpnService;
+import android.os.Build;
 import android.os.Handler;
 import android.os.Message;
+import android.system.OsConstants;
 
 import androidx.annotation.NonNull;
 
@@ -24,7 +27,7 @@ public class PCloudVPNService extends VpnService implements Handler.Callback {
 
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
-        if (intent != null && intent.getAction().equals(ACTION_DISCONNECT)) {
+        if (intent != null && ACTION_DISCONNECT.equals(intent.getAction())) {
             stopVpn();
             return Service.START_NOT_STICKY;
         } else {
@@ -40,6 +43,7 @@ public class PCloudVPNService extends VpnService implements Handler.Callback {
 
     private void startVpn() {
         System.out.println("--- START");
+        connect();
     }
 
     private void stopVpn() {
@@ -52,4 +56,23 @@ public class PCloudVPNService extends VpnService implements Handler.Callback {
         System.out.println(getString(message.what));
         return true;
     }
+
+    private PendingIntent configIntent() {
+        return PendingIntent.getActivity(this, 0, new Intent(this, PCloudActivity.class), PendingIntent.FLAG_UPDATE_CURRENT);
+    }
+
+    public VpnService.Builder newBuilder() {
+        VpnService.Builder builder = new VpnService.Builder()
+                .setConfigureIntent(configIntent())
+                .allowFamily(OsConstants.AF_INET)
+                .allowFamily(OsConstants.AF_INET6);
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q)
+            builder.setMetered(false); // Inherit the metered status from the underlying networks.
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M)
+            builder.setUnderlyingNetworks(null); // Use all available networks.
+        return builder;
+    }
+
+    private native void connect();
+    private native void disconnect();
 }

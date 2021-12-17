@@ -14,6 +14,8 @@ data:
     lighthouse:
       am_lighthouse: false
       interval: 60
+      hosts:
+      - "{{ .Values.lighthouse.internalIP }}"
     listen:
       host: "[::]"
       port: 4242
@@ -28,7 +30,7 @@ data:
       tx_queue: 500
       mtu: 1300
     logging:
-      level: info
+      level: debug
       format: text
     firewall:
       conntrack:

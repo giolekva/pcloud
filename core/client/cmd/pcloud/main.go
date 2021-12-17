@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"image"
 	"image/png"
+	"time"
 
 	"gioui.org/app"
 	"gioui.org/io/system"
@@ -27,6 +28,9 @@ type processor struct {
 
 	inviteQrCh        chan image.Image
 	inviteQrScannedCh chan []byte
+
+	onConnectCh    chan interface{}
+	onDisconnectCh chan interface{}
 }
 
 func newProcessor() *processor {
@@ -36,11 +40,24 @@ func newProcessor() *processor {
 		ui:                NewUI(),
 		inviteQrCh:        make(chan image.Image, 1),
 		inviteQrScannedCh: make(chan []byte, 1),
+		onConnectCh:       make(chan interface{}, 1),
+		onDisconnectCh:    make(chan interface{}, 1),
 	}
 }
 
 func (p *processor) InviteQRCodeScanned(code []byte) {
 	p.inviteQrScannedCh <- code
+}
+
+func (p *processor) ConnectRequested(service interface{}) {
+	go func() {
+		time.Sleep(1 * time.Second)
+		p.onConnectCh <- service
+	}()
+}
+
+func (p *processor) DisconnectRequested(service interface{}) {
+	p.onDisconnectCh <- service
 }
 
 func (p *processor) run() error {
@@ -78,9 +95,17 @@ func (p *processor) run() error {
 			p.ui.InviteQRGenerated(img)
 			w.Invalidate()
 		case code := <-p.inviteQrScannedCh:
-			go func() {
-				p.JoinNetworkAndConnect(code)
-			}()
+			// go func() {
+			fmt.Println("00000000")
+			p.JoinNetworkAndConnect(code)
+			fmt.Println("00000000")
+			// }()
+		case s := <-p.onConnectCh:
+			fmt.Println("--- 1111111111")
+			if err := p.app.Connect(s); err != nil {
+				panic(err)
+			}
+			fmt.Println("--- 1111111111")
 		}
 	}
 	return nil
@@ -148,8 +173,9 @@ func (p *processor) JoinNetworkAndConnect(code []byte) {
 	if err != nil {
 		panic(err)
 	}
-	fmt.Printf("-- VPN CONFIG %s\n", string(config))
-
+	if err := p.app.StartVPN(config); err != nil {
+		panic(err)
+	}
 }
 
 func main() {

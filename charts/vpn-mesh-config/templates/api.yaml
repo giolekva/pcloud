@@ -27,6 +27,8 @@ spec:
     metadata:
       labels:
         app: nebula-api
+      annotations:
+        checksum/config: {{ include (print $.Template.BasePath "/lighthouse-config-template.yaml") . | sha256sum }}
     spec:
       volumes:
       - name: config

@@ -20,3 +20,11 @@ func (a *darwinApp) LaunchBarcodeScanner() error {
 func (a *darwinApp) OnView(e app.ViewEvent) error {
 	return nil
 }
+
+func (a *darwinApp) StartVPN(config []byte) error {
+	return nil
+}
+
+func (a *darwinApp) Connect(serv interface{}) error {
+	return nil
+}

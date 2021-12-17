@@ -1,6 +1,8 @@
 package me.lekva.pcloud;
 
+import android.content.Intent;
 import android.content.res.Configuration;
+import android.net.VpnService;
 import android.os.Bundle;
 
 import androidx.activity.result.ActivityResultLauncher;
@@ -13,6 +15,8 @@ import com.journeyapps.barcodescanner.ScanOptions;
 import org.gioui.GioView;
 
 public class PCloudActivity extends AppCompatActivity {
+    private static final int VPN_START_CODE = 0x10;
+
     private GioView view;
 
     private final ActivityResultLauncher<ScanOptions> barcodeLauncher = registerForActivityResult(new ScanContract(),
@@ -74,6 +78,20 @@ public class PCloudActivity extends AppCompatActivity {
         options.setBeepEnabled(true);
         options.setBarcodeImageEnabled(false);
         barcodeLauncher.launch(options);
+        return null;
+    }
+
+    public String startVpn(String ipCidr) {
+        Intent intent = VpnService.prepare(this);
+        if (intent != null) {
+            System.out.println("#### STARTVPN");
+            intent.setAction(PCloudVPNService.ACTION_CONNECT);
+            startActivityForResult(intent, VPN_START_CODE);
+        } else {
+            intent = new Intent(this, PCloudVPNService.class);
+            startService(intent);
+        }
+
         return null;
     }
 
