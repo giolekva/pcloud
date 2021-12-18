@@ -7,7 +7,6 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"io"
 	"net/http"
 
@@ -112,7 +111,6 @@ func (c *directVPNClient) Join(apiAddr string, message, signature []byte) ([]byt
 		return nil, err
 	}
 	cfgYaml := cfgYamlB.Bytes()
-	fmt.Println(string(cfgYaml))
 	var cfgMap map[string]interface{}
 	if err := yaml.Unmarshal(cfgYaml, &cfgMap); err != nil {
 		return nil, err
@@ -133,6 +131,5 @@ func x25519Keypair() ([]byte, []byte, error) {
 		return nil, nil, err
 	}
 	curve25519.ScalarBaseMult(&pubkey, &privkey)
-	fmt.Println()
 	return pubkey[:], privkey[:], nil
 }

@@ -3,7 +3,6 @@ package main
 import (
 	"errors"
 	"fmt"
-	"time"
 	"unsafe"
 
 	"gioui.org/app"
@@ -84,16 +83,12 @@ func (a *androidApp) contextForView(view jni.Object) (jni.Object, error) {
 }
 
 func (a *androidApp) StartVPN(config []byte) error {
-	fmt.Println("2222222")
 	a.nebulaConfig = config
-	fmt.Println(string(a.nebulaConfig))
 	return jni.Do(a.jvm, func(env *jni.Env) error {
-		fmt.Println(123123)
 		cls := jni.GetObjectClass(env, a.activity)
 		m := jni.GetMethodID(env, cls, "startVpn", "(Ljava/lang/String;)Ljava/lang/String;")
 		jConfig := jni.JavaString(env, string(config))
 		_, err := jni.CallObjectMethod(env, a.activity, m, jni.Value(jConfig))
-		fmt.Println(123123123)
 		return err
 
 	})
@@ -144,14 +139,6 @@ func (a *androidApp) buildVPNConfigurationAndConnect() error {
 	if string(a.nebulaConfig) == "" {
 		return nil
 	}
-	fmt.Println(333333333)
-	fmt.Println(string(a.nebulaConfig))
-	// return nil
-	// if err := a.callVoidMethod(a.appCtx, "prepareVPN", "(Landroid/app/Activity;I)V",
-	// 	jni.Value(act), jni.Value(requestPrepareVPN)); err != nil {
-	// 	return nil
-	// }
-
 	config := nc.NewC(logrus.StandardLogger())
 	if err := config.LoadString(string(a.nebulaConfig)); err != nil {
 		return err
@@ -161,24 +148,13 @@ func (a *androidApp) buildVPNConfigurationAndConnect() error {
 	if err != nil {
 		panic(err)
 	}
-	t := time.Now()
-	fmt.Println("#########3")
-	fmt.Println(t.String())
-	fmt.Println(hostCert.Details.NotBefore.String())
-	fmt.Println(hostCert.Details.NotAfter.String())
-	fmt.Println(t.Before(hostCert.Details.NotBefore))
-	fmt.Println(t.After(hostCert.Details.NotAfter))
-	fmt.Println("#########3")
-	// return nil
 	return jni.Do(a.jvm, func(env *jni.Env) error {
-		fmt.Println("---------")
 		cls := jni.GetObjectClass(env, a.service)
 		m := jni.GetMethodID(env, cls, "newBuilder", "()Landroid/net/VpnService$Builder;")
 		b, err := jni.CallObjectMethod(env, a.service, m)
 		if err != nil {
 			return fmt.Errorf("PCloudVPNService.newBuilder: %v", err)
 		}
-		fmt.Println("---------")
 		bcls := jni.GetObjectClass(env, b)
 		addAddress := jni.GetMethodID(env, bcls, "addAddress", "(Ljava/lang/String;I)Landroid/net/VpnService$Builder;")
 		addRoute := jni.GetMethodID(env, bcls, "addRoute", "(Ljava/lang/String;I)Landroid/net/VpnService$Builder;")
@@ -229,7 +205,6 @@ func (a *androidApp) buildVPNConfigurationAndConnect() error {
 			return err
 		}
 		fd := int(tunFD)
-		fmt.Println("===========")
 		ctrl, err := nebula.Main(config, false, "pcloud", logrus.StandardLogger(), &fd)
 		if err != nil {
 			return err

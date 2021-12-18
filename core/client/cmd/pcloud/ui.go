@@ -9,6 +9,7 @@ import (
 	"gioui.org/op/paint"
 	"gioui.org/unit"
 	"gioui.org/widget"
+	"gioui.org/widget/material"
 )
 
 type (
@@ -17,6 +18,7 @@ type (
 )
 
 type UI struct {
+	th     *material.Theme
 	invite struct {
 		open widget.Clickable
 		show bool
@@ -30,8 +32,8 @@ type UI struct {
 	}
 }
 
-func NewUI() *UI {
-	return &UI{}
+func NewUI(th *material.Theme) *UI {
+	return &UI{th: th}
 }
 
 func (ui *UI) InviteQRGenerated(img image.Image) {
@@ -96,15 +98,10 @@ func (ui *UI) layoutMain(gtx C) D {
 func (ui *UI) layoutActions(gtx C) D {
 	return layout.Flex{Axis: layout.Horizontal}.Layout(gtx,
 		layout.Flexed(1, func(gtx C) D {
-			return ui.invite.open.Layout(gtx, func(gtx C) D {
-				return ColorBox(gtx, gtx.Constraints.Min, color.NRGBA{R: 255, A: 255})
-			})
-
+			return material.Button(ui.th, &ui.invite.open, "Invite").Layout(gtx)
 		}),
 		layout.Flexed(1, func(gtx C) D {
-			return ui.join.open.Layout(gtx, func(gtx C) D {
-				return ColorBox(gtx, gtx.Constraints.Min, color.NRGBA{G: 128, A: 255})
-			})
+			return material.Button(ui.th, &ui.join.open, "Join").Layout(gtx)
 		}),
 	)
 }

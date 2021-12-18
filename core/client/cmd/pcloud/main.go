@@ -10,10 +10,12 @@ import (
 	"time"
 
 	"gioui.org/app"
+	"gioui.org/font/gofont"
 	"gioui.org/io/system"
 	"gioui.org/layout"
 	"gioui.org/op"
 	"gioui.org/unit"
+	"gioui.org/widget/material"
 	"github.com/skip2/go-qrcode"
 )
 
@@ -34,10 +36,11 @@ type processor struct {
 }
 
 func newProcessor() *processor {
+	th := material.NewTheme(gofont.Collection())
 	return &processor{
 		vc:                NewDirectVPNClient(*vpnApiAddr),
 		app:               createApp(),
-		ui:                NewUI(),
+		ui:                NewUI(th),
 		inviteQrCh:        make(chan image.Image, 1),
 		inviteQrScannedCh: make(chan []byte, 1),
 		onConnectCh:       make(chan interface{}, 1),
@@ -95,17 +98,11 @@ func (p *processor) run() error {
 			p.ui.InviteQRGenerated(img)
 			w.Invalidate()
 		case code := <-p.inviteQrScannedCh:
-			// go func() {
-			fmt.Println("00000000")
 			p.JoinNetworkAndConnect(code)
-			fmt.Println("00000000")
-			// }()
 		case s := <-p.onConnectCh:
-			fmt.Println("--- 1111111111")
 			if err := p.app.Connect(s); err != nil {
-				panic(err)
+				return err
 			}
-			fmt.Println("--- 1111111111")
 		}
 	}
 	return nil
