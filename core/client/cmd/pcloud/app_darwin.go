@@ -21,10 +21,18 @@ func (a *darwinApp) OnView(e app.ViewEvent) error {
 	return nil
 }
 
-func (a *darwinApp) StartVPN(config []byte) error {
+func (a *darwinApp) Connect(config Config) error {
 	return nil
 }
 
-func (a *darwinApp) Connect(serv interface{}) error {
+func (a *darwinApp) UpdateService(serv interface{}) error {
+	return nil
+}
+
+func (a *darwinApp) TriggerService() error {
+	return nil
+}
+
+func (a *darwinApp) CreateStorage() Storage {
 	return nil
 }

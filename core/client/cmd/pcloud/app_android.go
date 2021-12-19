@@ -14,12 +14,11 @@ import (
 )
 
 type androidApp struct {
-	jvm          *jni.JVM
-	appCtx       jni.Object // PCloudApp
-	activity     jni.Object // PCloudActivity
-	service      jni.Object // PCloudVPNService
-	nebulaConfig []byte
-	ctrl         *nebula.Control
+	jvm      *jni.JVM
+	appCtx   jni.Object // PCloudApp
+	activity jni.Object // PCloudActivity
+	service  jni.Object // PCloudVPNService
+	ctrl     *nebula.Control
 }
 
 func createApp() App {
@@ -27,6 +26,10 @@ func createApp() App {
 		jvm:    (*jni.JVM)(unsafe.Pointer(app.JavaVM())),
 		appCtx: jni.Object(app.AppContext()),
 	}
+}
+
+func (a *androidApp) CreateStorage() Storage {
+	return CreateStorage(a.jvm, a.appCtx)
 }
 
 func (a *androidApp) LaunchBarcodeScanner() error {
@@ -82,24 +85,20 @@ func (a *androidApp) contextForView(view jni.Object) (jni.Object, error) {
 	return ctx, nil
 }
 
-func (a *androidApp) StartVPN(config []byte) error {
-	a.nebulaConfig = config
+func (a *androidApp) TriggerService() error {
 	return jni.Do(a.jvm, func(env *jni.Env) error {
 		cls := jni.GetObjectClass(env, a.activity)
-		m := jni.GetMethodID(env, cls, "startVpn", "(Ljava/lang/String;)Ljava/lang/String;")
-		jConfig := jni.JavaString(env, string(config))
-		_, err := jni.CallObjectMethod(env, a.activity, m, jni.Value(jConfig))
-		return err
-
+		m := jni.GetMethodID(env, cls, "startVpn", "()V")
+		return jni.CallVoidMethod(env, a.activity, m)
 	})
 }
 
-func (a *androidApp) Connect(serv interface{}) error {
+func (a *androidApp) UpdateService(serv interface{}) error {
 	s, ok := serv.(jni.Object)
 	if !ok {
 		return fmt.Errorf("Unexpected service type: %T", serv)
 	}
-	jni.Do(a.jvm, func(env *jni.Env) error {
+	return jni.Do(a.jvm, func(env *jni.Env) error {
 		if jni.IsSameObject(env, s, a.service) {
 			// We already have a reference.
 			jni.DeleteGlobalRef(env, s)
@@ -132,18 +131,17 @@ func (a *androidApp) Connect(serv interface{}) error {
 		a.service = s
 		return nil
 	})
-	return a.buildVPNConfigurationAndConnect()
 }
 
-func (a *androidApp) buildVPNConfigurationAndConnect() error {
-	if string(a.nebulaConfig) == "" {
+func (a *androidApp) Connect(config Config) error {
+	if config.Network == nil {
 		return nil
 	}
-	config := nc.NewC(logrus.StandardLogger())
-	if err := config.LoadString(string(a.nebulaConfig)); err != nil {
+	nebulaConfig := nc.NewC(logrus.StandardLogger())
+	if err := nebulaConfig.LoadString(string(config.Network)); err != nil {
 		return err
 	}
-	pki := config.GetMap("pki", nil)
+	pki := nebulaConfig.GetMap("pki", nil)
 	hostCert, _, err := cert.UnmarshalNebulaCertificateFromPEM([]byte(pki["cert"].(string)))
 	if err != nil {
 		panic(err)
@@ -177,7 +175,7 @@ func (a *androidApp) buildVPNConfigurationAndConnect() error {
 				jni.Value(jni.JavaString(env, ip)),
 				jni.Value(jni.Value(prefix)))
 		}
-		tun := config.GetMap("tun", nil)
+		tun := nebulaConfig.GetMap("tun", nil)
 		setMtu := jni.GetMethodID(env, bcls, "setMtu", "(I)Landroid/net/VpnService$Builder;")
 		if _, err := jni.CallObjectMethod(env, b, setMtu, jni.Value(tun["mtu"].(int))); err != nil {
 			return err
@@ -205,7 +203,7 @@ func (a *androidApp) buildVPNConfigurationAndConnect() error {
 			return err
 		}
 		fd := int(tunFD)
-		ctrl, err := nebula.Main(config, false, "pcloud", logrus.StandardLogger(), &fd)
+		ctrl, err := nebula.Main(nebulaConfig, false, "pcloud", logrus.StandardLogger(), &fd)
 		if err != nil {
 			return err
 		}

@@ -5,6 +5,8 @@ import "gioui.org/app"
 type App interface {
 	LaunchBarcodeScanner() error
 	OnView(app.ViewEvent) error
-	StartVPN(config []byte) error
-	Connect(service interface{}) error
+	UpdateService(service interface{}) error
+	TriggerService() error
+	Connect(config Config) error
+	CreateStorage() Storage
 }

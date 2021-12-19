@@ -96,12 +96,16 @@ func (ui *UI) layoutMain(gtx C) D {
 }
 
 func (ui *UI) layoutActions(gtx C) D {
-	return layout.Flex{Axis: layout.Horizontal}.Layout(gtx,
+	return layout.Flex{Axis: layout.Horizontal, Spacing: layout.SpaceAround, WeightSum: 2.2}.Layout(gtx,
 		layout.Flexed(1, func(gtx C) D {
-			return material.Button(ui.th, &ui.invite.open, "Invite").Layout(gtx)
+			b := material.Button(ui.th, &ui.invite.open, "Invite")
+			b.CornerRadius = unit.Px(20)
+			return b.Layout(gtx)
 		}),
 		layout.Flexed(1, func(gtx C) D {
-			return material.Button(ui.th, &ui.join.open, "Join").Layout(gtx)
+			b := material.Button(ui.th, &ui.join.open, "Join")
+			b.CornerRadius = unit.Px(20)
+			return b.Layout(gtx)
 		}),
 	)
 }

@@ -6,7 +6,6 @@ import (
 	"crypto/tls"
 	"encoding/base64"
 	"encoding/json"
-	"errors"
 	"io"
 	"net/http"
 
@@ -16,8 +15,7 @@ import (
 )
 
 type VPNClient interface {
-	Address() string
-	Sign(message []byte) ([]byte, error)
+	Sign(apiAddr string, message []byte) ([]byte, error)
 	Join(apiAddr string, message, signature []byte) ([]byte, error)
 }
 
@@ -29,10 +27,6 @@ func NewDirectVPNClient(addr string) VPNClient {
 	return &directVPNClient{addr}
 }
 
-func (c *directVPNClient) Address() string {
-	return c.addr
-}
-
 type signReq struct {
 	Message []byte `json:"message"`
 }
@@ -41,7 +35,7 @@ type signResp struct {
 	Signature []byte `json:"signature"`
 }
 
-func (c *directVPNClient) Sign(message []byte) ([]byte, error) {
+func (c *directVPNClient) Sign(apiAddr string, message []byte) ([]byte, error) {
 	var data bytes.Buffer
 	if err := json.NewEncoder(&data).Encode(signReq{message}); err != nil {
 		return nil, err
@@ -52,7 +46,7 @@ func (c *directVPNClient) Sign(message []byte) ([]byte, error) {
 			TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
 		},
 	}
-	r, err := client.Post(c.addr+"/api/sign", "application/json", &data)
+	r, err := client.Post(apiAddr+"/api/sign", "application/json", &data)
 	if err != nil {
 		return nil, err
 	}
@@ -76,9 +70,6 @@ type joinResp struct {
 }
 
 func (c *directVPNClient) Join(apiAddr string, message, signature []byte) ([]byte, error) {
-	if c.addr != "" {
-		return nil, errors.New("Already joined")
-	}
 	pubKey, privKey, err := x25519Keypair()
 	if err != nil {
 		return nil, err
@@ -121,7 +112,6 @@ func (c *directVPNClient) Join(apiAddr string, message, signature []byte) ([]byt
 		panic("Must not reach")
 	}
 	pki["key"] = string(cert.MarshalX25519PrivateKey(privKey))
-	c.addr = apiAddr
 	return yaml.Marshal(cfgMap)
 }
 

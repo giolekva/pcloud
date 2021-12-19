@@ -47,4 +47,5 @@ dependencies {
     implementation 'androidx.camera:camera-core:1.1.0-alpha11'
     implementation 'androidx.camera:camera-lifecycle:1.1.0-alpha11'
     implementation 'androidx.camera:camera-view:1.0.0-alpha31'
+    implementation "androidx.security:security-crypto:1.1.0-alpha03"
 }

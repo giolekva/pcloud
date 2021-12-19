@@ -26,6 +26,7 @@ var p *processor
 type processor struct {
 	vc  VPNClient
 	app App
+	st  Storage
 	ui  *UI
 
 	inviteQrCh        chan image.Image
@@ -33,18 +34,23 @@ type processor struct {
 
 	onConnectCh    chan interface{}
 	onDisconnectCh chan interface{}
+
+	onConfigCh chan struct{}
 }
 
 func newProcessor() *processor {
 	th := material.NewTheme(gofont.Collection())
+	app := createApp()
 	return &processor{
 		vc:                NewDirectVPNClient(*vpnApiAddr),
-		app:               createApp(),
+		app:               app,
+		st:                app.CreateStorage(),
 		ui:                NewUI(th),
 		inviteQrCh:        make(chan image.Image, 1),
 		inviteQrScannedCh: make(chan []byte, 1),
 		onConnectCh:       make(chan interface{}, 1),
 		onDisconnectCh:    make(chan interface{}, 1),
+		onConfigCh:        make(chan struct{}, 1),
 	}
 }
 
@@ -79,6 +85,13 @@ func (p *processor) run() error {
 				} else {
 					w.Invalidate()
 				}
+				if config, err := p.st.Get(); err != nil {
+					return err
+				} else {
+					if config.Network != nil {
+						p.onConfigCh <- struct{}{}
+					}
+				}
 			case *system.CommandEvent:
 				if e.Type == system.CommandBack {
 					if p.ui.OnBack() {
@@ -98,10 +111,23 @@ func (p *processor) run() error {
 			p.ui.InviteQRGenerated(img)
 			w.Invalidate()
 		case code := <-p.inviteQrScannedCh:
-			p.JoinNetworkAndConnect(code)
-		case s := <-p.onConnectCh:
-			if err := p.app.Connect(s); err != nil {
+			if err := p.JoinAndGetNetworkConfig(code); err != nil {
 				return err
+			}
+		case <-p.onConfigCh:
+			if err := p.app.TriggerService(); err != nil {
+				return err
+			}
+		case s := <-p.onConnectCh:
+			if err := p.app.UpdateService(s); err != nil {
+				return err
+			}
+			if config, err := p.st.Get(); err != nil {
+				return err
+			} else {
+				if err := p.app.Connect(config); err != nil {
+					return err
+				}
 			}
 		}
 	}
@@ -136,13 +162,17 @@ type qrCodeData struct {
 }
 
 func (p *processor) generateInviteQRCode() (image.Image, error) {
+	config, err := p.st.Get()
+	if err != nil {
+		return nil, err
+	}
 	message := []byte("Hello PCloud")
-	signature, err := p.vc.Sign(message)
+	signature, err := p.vc.Sign(config.ApiAddr, message)
 	if err != nil {
 		return nil, err
 	}
 	c := qrCodeData{
-		p.vc.Address(),
+		config.ApiAddr,
 		message,
 		signature,
 	}
@@ -161,18 +191,20 @@ func (p *processor) generateInviteQRCode() (image.Image, error) {
 	return img, nil
 }
 
-func (p *processor) JoinNetworkAndConnect(code []byte) {
+func (p *processor) JoinAndGetNetworkConfig(code []byte) error {
 	var invite qrCodeData
 	if err := json.NewDecoder(bytes.NewReader(code)).Decode(&invite); err != nil {
 		panic(err)
 	}
-	config, err := p.vc.Join(invite.VPNApiAddr, invite.Message, invite.Signature)
+	network, err := p.vc.Join(invite.VPNApiAddr, invite.Message, invite.Signature)
 	if err != nil {
-		panic(err)
+		return err
 	}
-	if err := p.app.StartVPN(config); err != nil {
-		panic(err)
+	if err := p.st.Store(Config{invite.VPNApiAddr, network}); err != nil {
+		return err
 	}
+	p.onConfigCh <- struct{}{}
+	return nil
 }
 
 func main() {
@@ -185,11 +217,3 @@ func main() {
 	}()
 	app.Main()
 }
-
-// fmt.Println(m["pki"])
-// c := nc.NewC(logrus.StandardLogger())
-// if err := c.LoadString(string(tmpl)); err != nil {
-// 	return nil, err
-// }
-// fmt.Println(c.Settings["pki"])
-// return c, nil

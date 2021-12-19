@@ -10,10 +10,14 @@ import android.os.Message;
 import android.system.OsConstants;
 
 import androidx.annotation.NonNull;
+import androidx.annotation.RequiresApi;
+import androidx.core.app.NotificationCompat;
 
 public class PCloudVPNService extends VpnService implements Handler.Callback {
     public static final String ACTION_CONNECT = "CONNECT";
     public static final String ACTION_DISCONNECT = "DISCONNECT";
+
+    private PendingIntent configureIntent;
 
     private boolean running = false;
     private Handler handler = null;
@@ -23,6 +27,9 @@ public class PCloudVPNService extends VpnService implements Handler.Callback {
         if (handler == null) {
             handler = new Handler(this);
         }
+
+        configureIntent = PendingIntent.getActivity(this, 0, new Intent(this, PCloudActivity.class),
+                PendingIntent.FLAG_UPDATE_CURRENT);
     }
 
     @Override
@@ -41,8 +48,10 @@ public class PCloudVPNService extends VpnService implements Handler.Callback {
         stopVpn();
     }
 
+    @RequiresApi(api = Build.VERSION_CODES.O)
     private void startVpn() {
         System.out.println("--- START");
+        updateForegroundNotification();
         connect();
     }
 
@@ -71,6 +80,15 @@ public class PCloudVPNService extends VpnService implements Handler.Callback {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M)
             builder.setUnderlyingNetworks(null); // Use all available networks.
         return builder;
+    }
+
+    private void updateForegroundNotification() {
+        NotificationCompat.Builder builder = new NotificationCompat.Builder(this, PCloudApp.STATUS_CHANNEL_ID)
+                .setContentTitle("PCloud")
+                .setContentText("hiiii")
+                .setContentIntent(configureIntent)
+                .setPriority(NotificationCompat.PRIORITY_LOW);
+        startForeground(PCloudApp.STATUS_NOTIFICATION_ID, builder.build());
     }
 
     private native void connect();

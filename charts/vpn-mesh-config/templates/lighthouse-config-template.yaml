@@ -28,7 +28,7 @@ data:
       drop_local_broadcast: false
       drop_multicast: false
       tx_queue: 500
-      mtu: 1300
+      mtu: 576
     logging:
       level: debug
       format: text

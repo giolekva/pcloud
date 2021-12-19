@@ -81,18 +81,15 @@ public class PCloudActivity extends AppCompatActivity {
         return null;
     }
 
-    public String startVpn(String ipCidr) {
+    public void startVpn() {
         Intent intent = VpnService.prepare(this);
         if (intent != null) {
-            System.out.println("#### STARTVPN");
             intent.setAction(PCloudVPNService.ACTION_CONNECT);
             startActivityForResult(intent, VPN_START_CODE);
         } else {
             intent = new Intent(this, PCloudVPNService.class);
             startService(intent);
         }
-
-        return null;
     }
 
     private native void qrcodeScanned(String contents);
