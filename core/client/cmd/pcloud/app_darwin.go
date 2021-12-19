@@ -36,3 +36,7 @@ func (a *darwinApp) TriggerService() error {
 func (a *darwinApp) CreateStorage() Storage {
 	return nil
 }
+
+func (a *darwinApp) GetHostname() (string, error) {
+	return "", nil
+}

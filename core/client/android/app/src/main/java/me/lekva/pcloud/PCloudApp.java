@@ -4,6 +4,7 @@ import android.app.Application;
 import android.app.NotificationChannel;
 import android.content.SharedPreferences;
 import android.os.Build;
+import android.provider.Settings;
 
 import androidx.core.app.NotificationManagerCompat;
 import androidx.security.crypto.EncryptedSharedPreferences;
@@ -38,6 +39,39 @@ public class PCloudApp extends Application {
         NotificationManagerCompat nm = NotificationManagerCompat.from(this);
         nm.createNotificationChannel(channel);
     }
+
+    String getHostname() {
+        String userConfiguredDeviceName = getUserConfiguredDeviceName();
+        if (!isEmpty(userConfiguredDeviceName)) return userConfiguredDeviceName;
+        return getModelName();
+    }
+
+    private String getUserConfiguredDeviceName() {
+        String nameFromSystemBluetooth = Settings.System.getString(getContentResolver(), "bluetooth_name");
+        String nameFromSecureBluetooth = Settings.Secure.getString(getContentResolver(), "bluetooth_name");
+        String nameFromSystemDevice = Settings.Secure.getString(getContentResolver(), "device_name");
+        if (!isEmpty(nameFromSystemBluetooth)) return nameFromSystemBluetooth;
+        if (!isEmpty(nameFromSecureBluetooth)) return nameFromSecureBluetooth;
+        if (!isEmpty(nameFromSystemDevice)) return nameFromSystemDevice;
+        return null;
+    }
+
+    String getModelName() {
+        String manu = Build.MANUFACTURER;
+        String model = Build.MODEL;
+        // Strip manufacturer from model.
+        int idx = model.toLowerCase().indexOf(manu.toLowerCase());
+        if (idx != -1) {
+            model = model.substring(idx + manu.length());
+            model = model.trim();
+        }
+        return manu + " " + model;
+    }
+
+    private static boolean isEmpty(String str) {
+        return str == null || str.length() == 0;
+    }
+
 
     // encryptToPref a byte array of data using the Jetpack Security
     // library and writes it to a global encrypted preference store.

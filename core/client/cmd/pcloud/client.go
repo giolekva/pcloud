@@ -16,7 +16,7 @@ import (
 
 type VPNClient interface {
 	Sign(apiAddr string, message []byte) ([]byte, error)
-	Join(apiAddr string, message, signature []byte) ([]byte, error)
+	Join(apiAddr, hostname string, message, signature []byte) ([]byte, error)
 }
 
 type directVPNClient struct {
@@ -69,7 +69,7 @@ type joinResp struct {
 	cfgYamlB64 string
 }
 
-func (c *directVPNClient) Join(apiAddr string, message, signature []byte) ([]byte, error) {
+func (c *directVPNClient) Join(apiAddr, hostname string, message, signature []byte) ([]byte, error) {
 	pubKey, privKey, err := x25519Keypair()
 	if err != nil {
 		return nil, err
@@ -77,7 +77,7 @@ func (c *directVPNClient) Join(apiAddr string, message, signature []byte) ([]byt
 	req := joinReq{
 		message,
 		signature,
-		"test",
+		hostname,
 		cert.MarshalX25519PublicKey(pubKey),
 		"111.0.0.13/24",
 	}

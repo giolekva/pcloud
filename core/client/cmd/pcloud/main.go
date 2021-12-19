@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"image"
 	"image/png"
+	"strings"
 	"time"
 
 	"gioui.org/app"
@@ -194,9 +195,15 @@ func (p *processor) generateInviteQRCode() (image.Image, error) {
 func (p *processor) JoinAndGetNetworkConfig(code []byte) error {
 	var invite qrCodeData
 	if err := json.NewDecoder(bytes.NewReader(code)).Decode(&invite); err != nil {
-		panic(err)
+		return err
 	}
-	network, err := p.vc.Join(invite.VPNApiAddr, invite.Message, invite.Signature)
+	hostname, err := p.app.GetHostname()
+	if err != nil {
+		return err
+	}
+	hostname = strings.ToLower(strings.ReplaceAll(hostname, " ", "-"))
+	fmt.Printf("------ %s\n", hostname)
+	network, err := p.vc.Join(invite.VPNApiAddr, hostname, invite.Message, invite.Signature)
 	if err != nil {
 		return err
 	}

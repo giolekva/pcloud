@@ -9,4 +9,5 @@ type App interface {
 	TriggerService() error
 	Connect(config Config) error
 	CreateStorage() Storage
+	GetHostname() (string, error)
 }

@@ -213,3 +213,18 @@ func (a *androidApp) Connect(config Config) error {
 	})
 
 }
+
+func (a *androidApp) GetHostname() (string, error) {
+	var hostname string
+	err := jni.Do(a.jvm, func(env *jni.Env) error {
+		cls := jni.GetObjectClass(env, a.appCtx)
+		m := jni.GetMethodID(env, cls, "getHostname", "()Ljava/lang/String;")
+		jHostname, err := jni.CallObjectMethod(env, a.appCtx, m)
+		if err != nil {
+			return err
+		}
+		hostname = jni.GoString(env, jni.String(jHostname))
+		return nil
+	})
+	return hostname, err
+}
