@@ -55,6 +55,7 @@ type NebulaNodeSpec struct {
 	CANamespace string `json:"caNamespace"`
 	IPCidr      string `json:"ipCidr"`
 	PubKey      string `json:"pubKey"`
+	EncPubKey   string `json:"encPubKey"`
 	SecretName  string `json:"secretName"`
 }
 

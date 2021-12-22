@@ -2,12 +2,13 @@ module github.com/giolekva/pcloud/core/nebula/api
 
 go 1.17
 
+replace github.com/giolekva/pcloud/core/nebula/controller => ../controller
+
 require (
 	github.com/giolekva/pcloud/core/nebula/controller v0.0.0-20211209144208-c054df13a2a1
 	github.com/gorilla/mux v1.8.0
 	github.com/jinzhu/copier v0.3.4
 	github.com/slackhq/nebula v1.5.0
-	inet.af/netaddr v0.0.0-20211027220019-c74959edd3b6
 	k8s.io/api v0.23.0
 	k8s.io/apimachinery v0.23.0
 	k8s.io/client-go v0.23.0
@@ -27,8 +28,6 @@ require (
 	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
 	github.com/modern-go/reflect2 v1.0.2 // indirect
 	github.com/spf13/pflag v1.0.5 // indirect
-	go4.org/intern v0.0.0-20211027215823-ae77deb06f29 // indirect
-	go4.org/unsafe/assume-no-moving-gc v0.0.0-20211027215541-db492cf91b37 // indirect
 	golang.org/x/crypto v0.0.0-20210921155107-089bfa567519 // indirect
 	golang.org/x/net v0.0.0-20211101193420-4a448f8816b3 // indirect
 	golang.org/x/oauth2 v0.0.0-20210819190943-2bc19b11175f // indirect

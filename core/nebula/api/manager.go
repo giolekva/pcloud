@@ -5,10 +5,10 @@ import (
 	"crypto"
 	"crypto/ed25519"
 	"crypto/rand"
-	"errors"
+	"crypto/rsa"
+	"crypto/x509"
+	"encoding/base64"
 	"fmt"
-
-	"inet.af/netaddr"
 
 	"github.com/jinzhu/copier"
 	"github.com/slackhq/nebula/cert"
@@ -72,7 +72,7 @@ func (m *Manager) ListAll() ([]*nebulaCA, error) {
 	return ret, nil
 }
 
-func (m *Manager) CreateNode(namespace, name, caNamespace, caName, ipCidr, pubKey string) (string, string, error) {
+func (m *Manager) CreateNode(namespace, name, caNamespace, caName, ipCidr, pubKey string, encPubKey []byte) (string, string, error) {
 	node := &nebulav1.NebulaNode{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      name,
@@ -85,6 +85,9 @@ func (m *Manager) CreateNode(namespace, name, caNamespace, caName, ipCidr, pubKe
 			PubKey:      pubKey,
 			SecretName:  fmt.Sprintf("%s-cert", name),
 		},
+	}
+	if encPubKey != nil {
+		node.Spec.EncPubKey = base64.StdEncoding.EncodeToString(encPubKey)
 	}
 	node, err := m.nebulaClient.LekvaV1().NebulaNodes(namespace).Create(context.TODO(), node, metav1.CreateOptions{})
 	if err != nil {
@@ -128,25 +131,6 @@ func (m *Manager) GetCACertQR(namespace, name string) ([]byte, error) {
 	return secret.Data["ca.png"], nil
 }
 
-func (m *Manager) getNextIP() (netaddr.IP, error) {
-	nodes, err := m.nebulaClient.LekvaV1().NebulaNodes(m.namespace).List(context.TODO(), metav1.ListOptions{})
-	if err != nil {
-		return netaddr.IP{}, err
-	}
-	var max netaddr.IP
-	for _, node := range nodes.Items {
-		ip := netaddr.MustParseIPPrefix(node.Spec.IPCidr)
-		if max.Less(ip.IP()) {
-			max = ip.IP()
-		}
-	}
-	n := max.Next()
-	if n.IsZero() {
-		return n, errors.New("IP address range exhausted")
-	}
-	return n, nil
-}
-
 func (m *Manager) Sign(message []byte) ([]byte, error) {
 	secret, err := m.getCASecret(m.namespace, m.caName)
 	if err != nil {
@@ -185,4 +169,16 @@ func (m *Manager) getNodeSecret(namespace, name string) (*corev1.Secret, error) 
 		return nil, err
 	}
 	return m.kubeClient.CoreV1().Secrets(namespace).Get(context.TODO(), node.Spec.SecretName, metav1.GetOptions{})
+}
+
+func (m *Manager) GetNodeEncryptionPublicKey(namespace, name string) (*rsa.PublicKey, error) {
+	node, err := m.nebulaClient.LekvaV1().NebulaNodes(namespace).Get(context.TODO(), name, metav1.GetOptions{})
+	if err != nil {
+		return nil, err
+	}
+	k, err := base64.StdEncoding.DecodeString(node.Spec.EncPubKey)
+	if err != nil {
+		return nil, err
+	}
+	return x509.ParsePKCS1PublicKey(k)
 }

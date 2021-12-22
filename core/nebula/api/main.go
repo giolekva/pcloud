@@ -1,12 +1,18 @@
 package main
 
 import (
+	"crypto/aes"
+	"crypto/cipher"
+	"crypto/rand"
+	"crypto/rsa"
+	"crypto/sha256"
 	"embed"
 	"encoding/base64"
 	"encoding/json"
 	"flag"
 	"fmt"
 	"html/template"
+	"io"
 	"io/ioutil"
 	"log"
 	"net/http"
@@ -83,35 +89,6 @@ func (h *Handler) handleCA(w http.ResponseWriter, r *http.Request) {
 	w.Write(qr)
 }
 
-func (h *Handler) handleSignNode(w http.ResponseWriter, r *http.Request) {
-	if err := r.ParseForm(); err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
-	}
-	_, _, err := h.mgr.CreateNode(
-		r.FormValue("node-namespace"),
-		r.FormValue("node-name"),
-		r.FormValue("ca-namespace"),
-		r.FormValue("ca-name"),
-		r.FormValue("ip-cidr"),
-		r.FormValue("pub-key"),
-	)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-	http.Redirect(w, r, "/", http.StatusSeeOther)
-}
-
-func (h *Handler) getNextIP(w http.ResponseWriter, r *http.Request) {
-	ip, err := h.mgr.getNextIP()
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-	fmt.Fprint(w, ip)
-}
-
 type signReq struct {
 	Message []byte `json:"message"`
 }
@@ -149,9 +126,6 @@ type joinReq struct {
 	IPCidr    string `json:"ip_cidr"`
 }
 
-type joinResp struct {
-}
-
 func (h *Handler) join(w http.ResponseWriter, r *http.Request) {
 	var req joinReq
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -174,6 +148,7 @@ func (h *Handler) join(w http.ResponseWriter, r *http.Request) {
 		*caName,
 		req.IPCidr,
 		string(req.PublicKey),
+		nil,
 	)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -197,6 +172,111 @@ func (h *Handler) join(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		break
+	}
+}
+
+type getResp struct {
+	Key   []byte `json:"key"`
+	Nonce []byte `json:"nonce"`
+	Data  []byte `json:"data"`
+}
+
+func (h *Handler) get(w http.ResponseWriter, r *http.Request) {
+	fmt.Println("##### GET")
+	vars := mux.Vars(r)
+	pubKey, err := h.mgr.GetNodeEncryptionPublicKey(*namespace, vars["name"])
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	fmt.Println("Got key")
+	key := make([]byte, 32)
+	if _, err := io.ReadFull(rand.Reader, key); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	block, err := aes.NewCipher(key)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	aesgcm, err := cipher.NewGCM(block)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	nonce := make([]byte, 12)
+	if _, err := io.ReadFull(rand.Reader, nonce); err != nil {
+		panic(err.Error())
+	}
+	for {
+		time.Sleep(1 * time.Second)
+		cfg, err := h.mgr.GetNodeConfig(*namespace, vars["name"])
+		if err != nil {
+			fmt.Println(err.Error())
+			continue
+		}
+		cfgBytes, err := yaml.Marshal(cfg)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		cfgEnc := aesgcm.Seal(nil, nonce, cfgBytes, nil)
+		keyEnc, err := rsa.EncryptOAEP(sha256.New(), rand.Reader, pubKey, key, []byte(""))
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		nonceEnc, err := rsa.EncryptOAEP(sha256.New(), rand.Reader, pubKey, nonce, []byte(""))
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		resp := getResp{
+			Key:   keyEnc,
+			Nonce: nonceEnc,
+			Data:  cfgEnc,
+		}
+		if err := json.NewEncoder(w).Encode(&resp); err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		break
+	}
+}
+
+type approveReq struct {
+	EncPublicKey []byte `json:"enc_public_key"`
+	Name         string `json:"name"`
+	NetPublicKey []byte `json:"net_public_key"`
+	IPCidr       string `json:"ip_cidr"`
+}
+
+type approveResp struct {
+}
+
+func (h *Handler) approve(w http.ResponseWriter, r *http.Request) {
+	var req approveReq
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	fmt.Println("---- APPROVE")
+	fmt.Printf("%#v\n", req)
+	_, _, err := h.mgr.CreateNode(
+		*namespace,
+		req.Name,
+		*namespace,
+		*caName,
+		req.IPCidr,
+		string(req.NetPublicKey),
+		req.EncPublicKey,
+	)
+	if err != nil {
+		fmt.Println(err.Error())
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
 	}
 }
 
@@ -243,12 +323,12 @@ func main() {
 		tmpls: t,
 	}
 	r := mux.NewRouter()
-	r.HandleFunc("/api/ip", handler.getNextIP)
 	r.HandleFunc("/api/sign", handler.sign)
 	r.HandleFunc("/api/join", handler.join)
+	r.HandleFunc("/api/approve", handler.approve)
+	r.HandleFunc("/api/get/{name:[a-zA-z0-9-]+}", handler.get)
 	r.HandleFunc("/node/{namespace:[a-zA-z0-9-]+}/{name:[a-zA-z0-9-]+}", handler.handleNode)
 	r.HandleFunc("/ca/{namespace:[a-zA-z0-9-]+}/{name:[a-zA-z0-9-]+}", handler.handleCA)
-	r.HandleFunc("/sign-node", handler.handleSignNode)
 	r.HandleFunc("/", handler.handleIndex)
 	http.Handle("/", r)
 	fmt.Printf("Starting HTTP server on port: %d\n", *port)

@@ -3,6 +3,7 @@ package main
 import "gioui.org/app"
 
 type App interface {
+	Capabilities() DeviceCapabilities
 	LaunchBarcodeScanner() error
 	OnView(app.ViewEvent) error
 	UpdateService(service interface{}) error

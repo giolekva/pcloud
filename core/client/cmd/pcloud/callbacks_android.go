@@ -15,7 +15,7 @@ import "C"
 func Java_me_lekva_pcloud_PCloudActivity_qrcodeScanned(env *C.JNIEnv, this C.jobject, contents C.jobject) {
 	jenv := (*jni.Env)(unsafe.Pointer(env))
 	code := jni.GoString(jenv, jni.String(contents))
-	p.InviteQRCodeScanned([]byte(code))
+	p.QRCodeScanned([]byte(code))
 }
 
 //export Java_me_lekva_pcloud_PCloudVPNService_connect
