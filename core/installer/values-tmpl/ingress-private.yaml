@@ -1,0 +1,71 @@
+apiVersion: helm.toolkit.fluxcd.io/v2beta1
+kind: HelmRelease
+metadata:
+  name: ingress-private
+  namespace: {{ .Values.NamespacePrefix }}ingress-private
+spec:
+  chart:
+    spec:
+      chart: ingress-nginx
+      version: 4.0.3
+      sourceRef:
+        kind: HelmRepository
+        name: ingress-nginx
+        namespace: {{ .Values.Id }}
+  dependsOn:
+  - name: vpn-mesh-config
+    namespace: {{ .Values.NamespacePrefix }}ingress-private
+  interval: 1m0s
+  values:
+    fullnameOverride: {{ .Values.Id }}-nginx-private
+    controller:
+      service:
+        enabled: true
+        type: ClusterIP
+      ingressClassByName: true
+      ingressClassResource:
+        name: {{ .Values.Id }}-ingress-private
+        enabled: true
+        default: false
+        controllerValue: k8s.io/{{ .Values.Id }}-ingress-private
+      extraArgs:
+        default-ssl-certificate: "{{ .Values.Id }}-ingress-private/cert-wildcard.p.{{ .Values.Domain }}"
+      extraVolumes:
+      - name: lighthouse-cert
+        secret:
+          secretName: node-lighthouse-cert
+      - name: config
+        configMap:
+          name: lighthouse-config
+      extraContainers:
+      - name: lighthouse
+        image: giolekva/nebula:latest
+        imagePullPolicy: IfNotPresent
+        securityContext:
+          privileged: true
+          capabilities:
+            add:
+            - NET_ADMIN
+        ports:
+        - name: nebula
+          containerPort: {{ .Values.LighthouseMainPort }}
+          protocol: UDP
+        command:
+        - nebula
+        - --config=/etc/nebula/config/lighthouse.yaml
+        volumeMounts:
+        - name: lighthouse-cert
+          mountPath: /etc/nebula/lighthouse
+        - name: config
+          mountPath: /etc/nebula/config
+      config:
+        bind-address: {{ .Values.LighthouseMainIP }}
+        proxy-body-size: 0
+    udp:
+      "53": "{{ .Values.NamespacePrefix }}app-pihole/pihole-dns-udp:53"
+    tcp:
+      "53": "{{ .Values.NamespacePrefix }}app-pihole/pihole-dns-tcp:53"
+      "143": "{{ .Values.NamespacePrefix }}app-maddy/maddy:143"
+      "465": "{{ .Values.NamespacePrefix }}app-maddy/maddy:465"
+      "587": "{{ .Values.NamespacePrefix }}app-maddy/maddy:587"
+      "993": "{{ .Values.NamespacePrefix }}app-maddy/maddy:993"

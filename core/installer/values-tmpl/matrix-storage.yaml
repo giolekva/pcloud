@@ -1,0 +1,42 @@
+apiVersion: helm.toolkit.fluxcd.io/v2beta1
+kind: HelmRelease
+metadata:
+  name: matrix-storage
+  namespace: {{ .Values.NamespacePrefix }}app-matrix
+spec:
+  chart:
+    spec:
+      chart: postgresql
+      version: 10.13.5
+      sourceRef:
+        kind: HelmRepository
+        name: bitnami
+        namespace: {{ .Values.Id }}
+  dependsOn:
+  - name: namespaces
+    namespace: {{ .Values.Id }}
+  interval: 1m0s
+  values:
+    fullnameOverride: postgres
+    image:
+      repository: arm64v8/postgres
+      tag: 13.4
+    service:
+      type: ClusterIP
+      port: 5432
+    postgresqlPassword: psswd
+    initdbScripts:
+      createdb.sh: |
+        #!/bin/sh
+        createdb -U postgres --encoding=UTF8 --locale=C --template=template0 --owner=postgres matrix
+    persistence:
+      size: {{ .Values.MatrixStorageSize }}
+    securityContext:
+      enabled: true
+      fsGroup: 0
+    containerSecurityContext:
+      enabled: true
+      runAsUser: 0
+    volumePermissions:
+      securityContext:
+        runAsUser: 0

@@ -1,0 +1,296 @@
+apiVersion: helm.toolkit.fluxcd.io/v2beta1
+kind: HelmRelease
+metadata:
+  name: core-auth
+  namespace: {{ .Values.NamespacePrefix }}core-auth
+spec:
+  chart:
+    spec:
+      chart: charts/auth
+      sourceRef:
+        kind: GitRepository
+        name: pcloud
+        namespace: {{ .Values.Id }}
+  dependsOn:
+  - name: core-auth-storage
+    namespace: {{ .Values.NamespacePrefix }}core-auth
+  interval: 1m0s
+  values:
+    kratos:
+      fullnameOverride: kratos
+      image:
+        repository: giolekva/ory-kratos
+        tag: latest
+        pullPolicy: Always
+      service:
+        admin:
+          enabled: true
+          type: ClusterIP
+          port: 80
+          name: http
+        public:
+          enabled: true
+          type: ClusterIP
+          port: 80
+          name: http
+      ingress:
+        admin:
+          enabled: true
+          className: {{ .Values.Id }}-ingress-private
+          hosts:
+          - host: kratos.p.{{ .Values.Domain }}
+            paths:
+            - path: /
+              pathType: Prefix
+          tls:
+          - hosts:
+            - kratos.p.{{ .Values.Domain }}
+        public:
+          enabled: true
+          className: {{ .Values.PCloudEnvName }}-ingress-public
+          hosts:
+          - host: accounts.{{ .Values.Domain }}
+            paths:
+            - path: /
+              pathType: Prefix
+          tls:
+          - hosts:
+            - accounts.{{ .Values.Domain }}
+            secretName: cert-accounts.{{ .Values.Domain }}
+      secret:
+        enabled: true
+      kratos:
+        autoMigrate: true
+        development: false
+        config:
+          version: v0.7.1-alpha.1
+          dsn: postgres://postgres:psswd@postgres:5432/kratos?sslmode=disable&max_conns=20&max_idle_conns=4
+          serve:
+            public:
+              base_url: https://accounts.{{ .Values.Domain }}
+              cors:
+                enabled: true
+                debug: false
+                allow_credentials: true
+                allowed_origins:
+                - https://{{ .Values.Domain }}
+                - https://*.{{ .Values.Domain }}
+            admin:
+              base_url: https://kratos.p.{{ .Values.Domain }}/
+          selfservice:
+            default_browser_return_url: https://accounts-ui.{{ .Values.Domain }}
+            whitelisted_return_urls:
+              - https://accounts-ui.{{ .Values.Domain }}
+            methods:
+              password:
+                enabled: true
+            flows:
+              error:
+                ui_url: https://accounts-ui.{{ .Values.Domain }}/error
+              settings:
+                ui_url: https://accounts-ui.{{ .Values.Domain }}/settings
+                privileged_session_max_age: 15m
+              recovery:
+                enabled: false
+              verification:
+                enabled: false
+              logout:
+                after:
+                  default_browser_return_url: https://accounts-ui.{{ .Values.Domain }}/login
+              login:
+                ui_url: https://accounts-ui.{{ .Values.Domain }}/login
+                lifespan: 10m
+                after:
+                  password:
+                    default_browser_return_url: https://accounts-ui.{{ .Values.Domain }}/
+              registration:
+                lifespan: 10m
+                ui_url: https://accounts-ui.{{ .Values.Domain }}/registration
+                after:
+                  password:
+                    hooks:
+                      -
+                        hook: session
+                    default_browser_return_url: https://accounts-ui.{{ .Values.Domain }}/
+          log:
+            level: debug
+            format: text
+            leak_sensitive_values: true
+          cookies:
+            path: /
+            same_site: None
+            domain: {{ .Values.Domain }}
+          secrets:
+            cookie:
+              - PLEASE-CHANGE-ME-I-AM-VERY-INSECURE
+            # cipher:
+            #   - 32-LONG-SECRET-NOT-SECURE-AT-ALL
+          # ciphers:
+          #   algorithm: xchacha20-poly1305
+          hashers:
+            argon2:
+              parallelism: 1
+              memory: 128MB
+              iterations: 2
+              salt_length: 16
+              key_length: 16
+          identity:
+            default_schema_url: file:///etc/config/identity.schema.json
+          courier:
+            smtp:
+              connection_uri: smtps://test-z1VmkYfYPjgdPRgPFgmeZ31esT9rUgS%40{{ .Values.Domain }}:iW%213Kk%5EPPLFrZa%24%21bbpTPN9Wv3b8mvwS6ZJvMLtce%23A2%2A4MotD@mx1.{{ .Values.Domain }}
+        identitySchemas:
+          "identity.schema.json": |
+            {
+              "$id": "https://schemas.ory.sh/presets/kratos/quickstart/email-password/identity.schema.json",
+              "$schema": "http://json-schema.org/draft-07/schema#",
+              "title": "User",
+              "type": "object",
+              "properties": {
+                "traits": {
+                  "type": "object",
+                  "properties": {
+                    "username": {
+                      "type": "string",
+                      "format": "username",
+                      "title": "Username",
+                      "minLength": 3,
+                      "ory.sh/kratos": {
+                        "credentials": {
+                          "password": {
+                            "identifier": true
+                          }
+                        }
+                      }
+                    }
+                  },
+                  "additionalProperties": false
+                }
+              }
+            }
+    hydra:
+      fullnameOverride: hydra
+      image:
+        repository: giolekva/ory-hydra
+        tag: latest
+        pullPolicy: Always
+      service:
+        admin:
+          enabled: true
+          type: ClusterIP
+          port: 80
+          name: http
+        public:
+          enabled: true
+          type: ClusterIP
+          port: 80
+          name: http
+      ingress:
+        admin:
+          enabled: true
+          className: {{ .Values.Id }}-ingress-private
+          hosts:
+          - host: hydra.p.{{ .Values.Domain }}
+            paths:
+            - path: /
+              pathType: Prefix
+          tls:
+          - hosts:
+            - hydra.p.{{ .Values.Domain }}
+        public:
+          enabled: true
+          className: {{ .Values.PCloudEnvName }}-ingress-public
+          hosts:
+          - host: hydra.{{ .Values.Domain }}
+            paths:
+            - path: /
+              pathType: Prefix
+          tls:
+          - hosts:
+            - hydra.{{ .Values.Domain }}
+            secretName: cert-hydra.{{ .Values.Domain }}
+      secret:
+        enabled: true
+      maester:
+        enabled: false
+        hydraFullnameOverride: hydra
+      hydra-maester:
+        fullnameOverride: {{ .Values.Id }}-hydra-maester
+        image:
+          repository: giolekva/ory-hydra-maester
+          tag: latest
+          pullPolicy: IfNotPresent
+        adminService:
+          name: hydra
+          port: 80
+      hydra:
+        autoMigrate: true
+        config:
+          version: v1.10.6
+          dsn: postgres://postgres:psswd@postgres:5432/kratos?sslmode=disable&max_conns=20&max_idle_conns=4
+          serve:
+            cookies:
+              same_site_mode: None
+            public:
+              cors:
+                enabled: true
+                debug: false
+                allow_credentials: true
+                allowed_origins:
+                  - https://{{ .Values.Domain }}
+                  - https://*.{{ .Values.Domain }}
+            admin:
+              # host: localhost
+              cors:
+                allowed_origins:
+                  - https://hydra.p.{{ .Values.Domain }}
+              tls:
+                allow_termination_from:
+                  - 0.0.0.0/0
+                  - 10.42.0.0/16
+                  - 10.43.0.0/16
+                  - {{ .Values.LighthouseMainIP }}/32
+            tls:
+              allow_termination_from:
+                - 0.0.0.0/0
+                - 10.42.0.0/16
+                - 10.43.0.0/16
+                - {{ .Values.LighthouseMainIP }}/32
+          urls:
+            self:
+              public: https://hydra.{{ .Values.Domain }}
+              issuer: https://hydra.{{ .Values.Domain }}
+            consent: https://accounts-ui.{{ .Values.Domain }}/consent
+            login: https://accounts-ui.{{ .Values.Domain }}/login
+            logout: https://accounts-ui.{{ .Values.Domain }}/logout
+          secrets:
+            system:
+              - youReallyNeedToChangeThis
+          oidc:
+            subject_identifiers:
+              supported_types:
+                - pairwise
+                - public
+              pairwise:
+                salt: youReallyNeedToChangeThis
+          log:
+            level: trace
+            leak_sensitive_values: false
+    ui:
+      certificateIssuer: {{ .Values.Id }}-public
+      ingressClassName: {{ .Values.PCloudEnvName }}-ingress-public
+      domain: {{ .Values.Domain }}
+      internalDomain: p.{{ .Values.Domain }}
+      nebula:
+        lighthouse:
+          name: ui-lighthouse
+          internalIP: {{ .Values.LighthouseMainIP }}
+          externalIP: {{ .Values.PublicIP }}
+          port: "{{ .Values.LighthouseMainPort }}"
+        node:
+          name: ui
+          ipCidr: {{ .Values.LighthouseAuthUIIP }}/24
+          secretName: node-ui-cert
+        certificateAuthority:
+          name: {{ .Values.Id }}
+          namespace: {{ .Values.NamespacePrefix }}ingress-private

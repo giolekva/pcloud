@@ -1,0 +1,27 @@
+apiVersion: helm.toolkit.fluxcd.io/v2beta1
+kind: HelmRelease
+metadata:
+  name: vaultwarden
+  namespace: {{ .Values.NamespacePrefix }}app-vaultwarden
+spec:
+  chart:
+    spec:
+      chart: charts/vaultwarden
+      sourceRef:
+        kind: GitRepository
+        name: pcloud
+        namespace: {{ .Values.Id }}
+  dependsOn:
+    - name: namespaces
+      namespace: {{ .Values.Id }}
+  interval: 1m0s
+  values:
+    image:
+      repository: vaultwarden/server
+      tag: 1.22.2
+      pullPolicy: IfNotPresent
+    storage:
+      size: 1Gi
+    domain: bitwarden.p.{{ .Values.Domain }}
+    certificateIssuer: {{ .Values.Id }}-private
+    ingressClassName: {{ .Values.Id }}-ingress-private

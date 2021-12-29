@@ -1,0 +1,36 @@
+apiVersion: helm.toolkit.fluxcd.io/v2beta1
+kind: HelmRelease
+metadata:
+  name: certificate-issuer
+  namespace: {{ .Values.NamespacePrefix }}ingress-private
+spec:
+  chart:
+    spec:
+      chart: charts/certificate-issuer
+      sourceRef:
+        kind: GitRepository
+        name: pcloud
+        namespace: {{ .Values.Id }}
+  dependsOn:
+  - name: ingress-private
+    namespace: {{ .Values.NamespacePrefix }}ingress-private
+  interval: 1m0s
+  values:
+    pcloudInstanceId: {{ .Values.Id }}
+    certManager:
+      namespace: {{ .Values.PCloudEnvName }}-cert-manager
+      gandiWebhookSecretReader: {{ .Values.PCloudEnvName }}-cert-manager-webhook-gandi
+    public:
+      name: {{ .Values.Id }}-public
+      server: https://acme-v02.api.letsencrypt.org/directory
+      domain: {{ .Values.Domain }}
+      stagingServer: https://acme-staging-v02.api.letsencrypt.org/directory
+      contactEmail: {{ .Values.ContactEmail }}
+      ingressClass: {{ .Values.PCloudEnvName }}-ingress-public
+    private:
+      name: {{ .Values.Id }}-private
+      server: https://acme-v02.api.letsencrypt.org/directory
+      domain: p.{{ .Values.Domain }}
+      contactEmail: {{ .Values.ContactEmail }}
+      ingressClassName: {{ .Values.Id }}-ingress-private
+      gandiAPIToken: {{ .Values.GandiAPIToken }}

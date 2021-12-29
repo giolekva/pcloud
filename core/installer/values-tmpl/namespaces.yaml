@@ -1,0 +1,24 @@
+apiVersion: helm.toolkit.fluxcd.io/v2beta1
+kind: HelmRelease
+metadata:
+  name: namespaces
+  namespace: {{ .Values.Id }}
+spec:
+  chart:
+    spec:
+      chart: charts/namespaces
+      sourceRef:
+        kind: GitRepository
+        name: pcloud
+        namespace: {{ .Values.Id }}
+  interval: 1m0s
+  values:
+    pcloudInstanceId: {{ .Values.Id }}
+    namespacePrefix: {{ .Values.NamespacePrefix }}
+    namespaces:
+    - app-maddy
+    - app-matrix
+    - app-pihole
+    - app-vaultwarden
+    - core-auth
+    - ingress-private

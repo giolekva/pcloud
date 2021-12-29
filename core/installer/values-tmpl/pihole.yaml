@@ -1,0 +1,57 @@
+apiVersion: helm.toolkit.fluxcd.io/v2beta1
+kind: HelmRelease
+metadata:
+  name: pihole
+  namespace: {{ .Values.NamespacePrefix }}app-pihole
+spec:
+  chart:
+    spec:
+      chart: charts/pihole
+      sourceRef:
+        kind: GitRepository
+        name: pcloud
+        namespace: {{ .Values.Id }}
+  dependsOn:
+    - name: namespaces
+      namespace: {{ .Values.Id }}
+  interval: 1m0s
+  values:
+    domain: pihole.p.{{ .Values.Domain }}
+    pihole:
+      image:
+        repository: "pihole/pihole"
+        tag: v5.8.1
+      persistentVolumeClaim:
+        enabled: true
+        size: 5Gi
+      adminPassword: admin
+      ingress:
+        enabled: false
+      serviceDhcp:
+        enabled: false
+      serviceDns:
+        type: ClusterIP
+      serviceWeb:
+        type: ClusterIP
+        http:
+          enabled: true
+        https:
+          enabled: false
+      virtualHost: pihole.p.{{ .Values.Domain }}
+      resources:
+        requests:
+          cpu: "250m"
+          memory: "100M"
+        limits:
+          cpu: "500m"
+          memory: "250M"
+    oauth2:
+      clientId: pihole
+      clientSecret: {{ .Values.PiholeOAuth2ClientSecret }}
+      cookieSecret: {{ .Values.PiholeOAuth2CookieSecret }}
+      secretName: oauth2-secret
+      configName: oauth2-proxy
+      hydraAdmin: http://hydra-admin.{{ .Values.NamespacePrefix}}core-auth.svc.cluster.local
+    hydraPublic: https://hydra.{{ .Values.Domain }}/
+    profileUrl: https://accounts-ui.{{ .Values.Domain }}
+    ingressClassName: {{ .Values.Id }}-ingress-private
