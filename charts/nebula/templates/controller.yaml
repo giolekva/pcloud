@@ -19,7 +19,6 @@ spec:
         imagePullPolicy: {{ .Values.controller.image.pullPolicy }}
         command:
         - nebula-controller
-        - --nebula-cert=nebula-cert
       tolerations:
       - key: "pcloud"
         operator: "Equal"

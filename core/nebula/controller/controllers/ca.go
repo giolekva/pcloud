@@ -3,10 +3,6 @@ package controllers
 import (
 	"context"
 	"fmt"
-	"io/ioutil"
-	"os"
-	"os/exec"
-	"path/filepath"
 	"time"
 
 	corev1 "k8s.io/api/core/v1"
@@ -47,16 +43,13 @@ type NebulaController struct {
 	secretLister corev1listers.SecretLister
 	secretSynced cache.InformerSynced
 	workqueue    workqueue.RateLimitingInterface
-
-	nebulaCert string
 }
 
 func NewNebulaController(kubeClient kubernetes.Interface,
 	nebulaClient clientset.Interface,
 	caInformer informers.NebulaCAInformer,
 	nodeInformer informers.NebulaNodeInformer,
-	secretInformer corev1informers.SecretInformer,
-	nebulaCert string) *NebulaController {
+	secretInformer corev1informers.SecretInformer) *NebulaController {
 	c := &NebulaController{
 		kubeClient:   kubeClient,
 		nebulaClient: nebulaClient,
@@ -67,7 +60,6 @@ func NewNebulaController(kubeClient kubernetes.Interface,
 		secretLister: secretInformer.Lister(),
 		secretSynced: secretInformer.Informer().HasSynced,
 		workqueue:    workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "Nebula"),
-		nebulaCert:   nebulaCert,
 	}
 
 	caInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
@@ -186,17 +178,20 @@ func (c *NebulaController) processCAWithKey(key string) error {
 		fmt.Printf("%s CA is already in Ready state\n", ca.Name)
 		return nil
 	}
-	keyDir, err := generateCAKey(ca.Name, c.nebulaCert)
+	privKey, cert, err := CreateCertificateAuthority(apiAddr(ca.Name), ca.Name)
 	if err != nil {
 		return err
 	}
-	defer os.RemoveAll(keyDir)
-	secret, err := createSecretFromDir(keyDir)
-	if err != nil {
-		return err
+	secret := &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: ca.Spec.SecretName,
+		},
+		Immutable: &secretImmutable,
+		Data: map[string][]byte{
+			"ca.key": privKey,
+			"ca.crt": cert,
+		},
 	}
-	secret.Immutable = &secretImmutable
-	secret.Name = ca.Spec.SecretName
 	_, err = c.kubeClient.CoreV1().Secrets(namespace).Create(context.TODO(), secret, metav1.CreateOptions{})
 	if err != nil {
 		return err
@@ -239,32 +234,25 @@ func (c *NebulaController) processNodeWithKey(key string) error {
 		}
 		return err
 	}
-	dir, err := extractSecret(caSecret)
+	var pubKey []byte
+	if node.Spec.PubKey != "" {
+		pubKey = []byte(node.Spec.PubKey)
+	}
+	privKey, nodeCert, err := SignNebulaNode(apiAddr(ca.Name), caSecret.Data["ca.key"], caSecret.Data["ca.crt"], node.Name, pubKey, node.Spec.IPCidr)
 	if err != nil {
 		return err
 	}
-	if node.Spec.PubKey == "" {
-		if err := generateNodeKey(node.Name, node.Spec.IPCidr, dir, c.nebulaCert); err != nil {
-			return err
-		}
-	} else {
-		if err := generateNodeKeyFromPub(node.Name, node.Spec.IPCidr, node.Spec.PubKey, dir, c.nebulaCert); err != nil {
-			return err
-		}
+	secret := &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: node.Spec.SecretName,
+		},
+		Immutable: &secretImmutable,
+		Data: map[string][]byte{
+			"ca.crt":   caSecret.Data["ca.crt"],
+			"host.crt": nodeCert,
+			"host.key": privKey,
+		},
 	}
-	defer os.RemoveAll(dir)
-	if err := os.Remove(filepath.Join(dir, "ca.key")); err != nil {
-		return err
-	}
-	if err := os.Remove(filepath.Join(dir, "ca.png")); err != nil {
-		return err
-	}
-	secret, err := createSecretFromDir(dir)
-	if err != nil {
-		return err
-	}
-	secret.Immutable = &secretImmutable
-	secret.Name = node.Spec.SecretName
 	_, err = c.kubeClient.CoreV1().Secrets(namespace).Create(context.TODO(), secret, metav1.CreateOptions{})
 	if err != nil {
 		return err
@@ -292,88 +280,7 @@ func (c *NebulaController) updateNodeStatus(node *nebulav1.NebulaNode, state neb
 	return err
 }
 
-func createSecretFromDir(path string) (*corev1.Secret, error) {
-	all, err := ioutil.ReadDir(path)
-	if err != nil {
-		return nil, err
-	}
-	secret := &corev1.Secret{
-		Data: make(map[string][]byte),
-	}
-	for _, f := range all {
-		if f.IsDir() {
-			continue
-		}
-		d, err := ioutil.ReadFile(filepath.Join(path, f.Name()))
-		if err != nil {
-			return nil, err
-		}
-		secret.Data[f.Name()] = d
-	}
-	return secret, nil
-}
-
-func extractSecret(secret *corev1.Secret) (string, error) {
-	tmp, err := os.MkdirTemp("", secret.Name)
-	if err != nil {
-		return "", err
-	}
-	for name, data := range secret.Data {
-		if err := ioutil.WriteFile(filepath.Join(tmp, name), data, 0644); err != nil {
-			defer os.RemoveAll(tmp)
-			return "", err
-		}
-	}
-	return tmp, nil
-}
-
-func generateCAKey(name, nebulaCert string) (string, error) {
-	tmp, err := os.MkdirTemp("", name)
-	if err != nil {
-		return "", err
-	}
-	cmd := exec.Command(nebulaCert, "ca",
-		"-name", name,
-		"-out-key", filepath.Join(tmp, "ca.key"),
-		"-out-crt", filepath.Join(tmp, "ca.crt"),
-		"-out-qr", filepath.Join(tmp, "ca.png"))
-	if d, err := cmd.CombinedOutput(); err != nil {
-		return "", fmt.Errorf(string(d))
-	}
-	return tmp, nil
-}
-
-func generateNodeKeyFromPub(name, ip, pubKey, dir, nebulaCert string) error {
-	hostPub := filepath.Join(dir, "host.pub")
-	if err := ioutil.WriteFile(hostPub, []byte(pubKey), 0644); err != nil {
-		return err
-	}
-	defer os.Remove(hostPub)
-	cmd := exec.Command(nebulaCert, "sign",
-		"-ca-crt", filepath.Join(dir, "ca.crt"),
-		"-ca-key", filepath.Join(dir, "ca.key"),
-		"-name", name,
-		"-ip", ip,
-		"-in-pub", hostPub,
-		"-out-crt", filepath.Join(dir, "host.crt"),
-		"-out-qr", filepath.Join(dir, "host.png"))
-	if _, err := cmd.CombinedOutput(); err != nil {
-		return err
-	}
-	return nil
-}
-
-func generateNodeKey(name, ip, dir, nebulaCert string) error {
-	cmd := exec.Command(nebulaCert, "sign",
-		"-ca-crt", filepath.Join(dir, "ca.crt"),
-		"-ca-key", filepath.Join(dir, "ca.key"),
-		"-name", name,
-		"-ip", ip,
-		"-out-key", filepath.Join(dir, "host.key"),
-		"-out-crt", filepath.Join(dir, "host.crt"),
-		"-out-qr", filepath.Join(dir, "host.png"))
-	if _, err := cmd.CombinedOutput(); err != nil {
-		return err
-	}
-	return nil
+// TODO(giolekva): maybe pass by flag?
+func apiAddr(ca string) string {
+	return fmt.Sprintf("http://nebula-api.%s-ingress-private.svc.cluster.local", ca)
 }

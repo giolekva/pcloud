@@ -19,7 +19,6 @@ import (
 
 var kubeConfig = flag.String("kubeconfig", "", "Path to a kubeconfig. Only required if out-of-cluster.")
 var masterURL = flag.String("master", "", "The address of the Kubernetes API server. Overrides any value in kubeconfig. Only required if out-of-cluster.")
-var nebulaCert = flag.String("nebula-cert", "", "Path to the nebula-cert binary.")
 
 func main() {
 	flag.Parse()
@@ -40,8 +39,7 @@ func main() {
 		nebulaClient,
 		nebulaInformerFactory.Lekva().V1().NebulaCAs(),
 		nebulaInformerFactory.Lekva().V1().NebulaNodes(),
-		kubeInformerFactory.Core().V1().Secrets(),
-		*nebulaCert)
+		kubeInformerFactory.Core().V1().Secrets())
 	stopCh := make(chan struct{})
 	kubeInformerFactory.Start(stopCh)
 	nebulaInformerFactory.Start(stopCh)

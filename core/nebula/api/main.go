@@ -15,6 +15,7 @@ import (
 	"io"
 	"io/ioutil"
 	"log"
+	"net"
 	"net/http"
 	"time"
 
@@ -262,8 +263,6 @@ func (h *Handler) approve(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	fmt.Println("---- APPROVE")
-	fmt.Printf("%#v\n", req)
 	_, _, err := h.mgr.CreateNode(
 		*namespace,
 		req.Name,
@@ -275,6 +274,59 @@ func (h *Handler) approve(w http.ResponseWriter, r *http.Request) {
 	)
 	if err != nil {
 		fmt.Println(err.Error())
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+}
+
+type processCAReq struct {
+	Name string `json:"name"`
+}
+
+func (h *Handler) processCA(w http.ResponseWriter, r *http.Request) {
+	var req processCAReq
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	ca, err := CreateCertificateAuthority(req.Name)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if err := json.NewEncoder(w).Encode(ca); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+}
+
+type processNodeReq struct {
+	CAPrivateKey  []byte `json:"ca_private_key"`
+	CACert        []byte `json:"ca_certificate"`
+	NodeName      string `json:"node_name"`
+	NodePublicKey []byte `json:"node_public_key,omitempty"`
+	NodeIPCidr    string `json:"node_ip_cidr"`
+}
+
+func (h *Handler) processNode(w http.ResponseWriter, r *http.Request) {
+	var req processNodeReq
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	_, ipNet, err := net.ParseCIDR(req.NodeIPCidr)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	node, err := SignNebulaNode(req.CAPrivateKey, req.CACert, req.NodeName, req.NodePublicKey, ipNet)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if err := json.NewEncoder(w).Encode(node); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -327,6 +379,8 @@ func main() {
 	r.HandleFunc("/api/join", handler.join)
 	r.HandleFunc("/api/approve", handler.approve)
 	r.HandleFunc("/api/get/{name:[a-zA-z0-9-]+}", handler.get)
+	r.HandleFunc("/api/process/authority", handler.processCA)
+	r.HandleFunc("/api/process/node", handler.processNode)
 	r.HandleFunc("/node/{namespace:[a-zA-z0-9-]+}/{name:[a-zA-z0-9-]+}", handler.handleNode)
 	r.HandleFunc("/ca/{namespace:[a-zA-z0-9-]+}/{name:[a-zA-z0-9-]+}", handler.handleCA)
 	r.HandleFunc("/", handler.handleIndex)
