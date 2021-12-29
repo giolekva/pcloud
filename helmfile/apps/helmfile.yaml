@@ -557,7 +557,6 @@ environments:
     - namespacePrefix: shveli-
     - domain: shve.li
     - contactEmail: giolekva@gmail.com
-    - certManagerNamespace: cert-manager
     - mxHostname: mail.lekva.me
     - mailGatewayAddress: "tcp://maddy.pcloud-mail-gateway.svc.cluster.local:587"
     - matrixStorageSize: 10Gi
@@ -574,7 +573,6 @@ environments:
     - namespacePrefix: lekva-
     - domain: lekva.me
     - contactEmail: giolekva@gmail.com
-    - certManagerNamespace: cert-manager
     - mxHostname: mail.lekva.me
     - mailGatewayAddress: "tcp://maddy.pcloud-mail-gateway.svc.cluster.local:587"
     - matrixStorageSize: 100Gi
