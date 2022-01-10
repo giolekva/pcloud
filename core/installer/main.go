@@ -75,14 +75,7 @@ func installCmdRun(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		log.Fatal(err)
 	}
-	apps := []App{
-		CreateAppIngressPrivate(tmpls),
-		CreateAppCoreAuth(tmpls),
-		CreateAppVaultwarden(tmpls),
-		CreateAppMatrix(tmpls),
-		CreateAppPihole(tmpls),
-		CreateAppMaddy(tmpls),
-	}
+	apps := CreateAllApps(tmpls)
 	for _, a := range apps {
 		if a.Name == installFlags.appName {
 			for _, t := range a.Templates {

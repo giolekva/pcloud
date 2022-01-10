@@ -13,6 +13,8 @@ repositories:
   url: https://charts.longhorn.io
 - name: ory
   url: https://k8s.ory.sh/helm/charts
+- name: csi-driver-smb
+  url: https://raw.githubusercontent.com/kubernetes-csi/csi-driver-smb/master/charts
 
 helmDefaults:
   tillerless: true
@@ -59,8 +61,11 @@ releases:
         controllerValue: k8s.io/{{ .Values.name }}-ingress-public
       config:
         proxy-body-size: 100M
+  - udp:
+      6881: "lekva-app-torrent:torrent:6881" # TODO(giolekva): namespace
   - tcp:
       25: {{ .Values.name }}-mail-gateway/maddy:25
+      6881: "lekva-app-torrent:torrent:6881" # TODO(giolekva): namespace
 - name: kubed
   chart: appscode/kubed
   version: v0.12.0
@@ -207,6 +212,10 @@ releases:
         repository: giolekva/nebula-web
         tag: latest
         pullPolicy: Always
+- name: csi-driver-smb
+  chart: csi-driver-smb/csi-driver-smb
+  version: v1.5.0
+  namespace: pcloud-csi-driver-smb
 
 environments:
   prod:

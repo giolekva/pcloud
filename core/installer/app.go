@@ -7,6 +7,19 @@ type App struct {
 	Templates []*template.Template
 }
 
+func CreateAllApps(tmpls *template.Template) []App {
+	return []App{
+		CreateAppIngressPrivate(tmpls),
+		CreateAppCoreAuth(tmpls),
+		CreateAppVaultwarden(tmpls),
+		CreateAppMatrix(tmpls),
+		CreateAppPihole(tmpls),
+		CreateAppMaddy(tmpls),
+		CreateAppQBittorrent(tmpls),
+		CreateAppJellyfin(tmpls),
+	}
+}
+
 func CreateAppIngressPrivate(tmpls *template.Template) App {
 	return App{
 		"ingress-private",
@@ -61,6 +74,24 @@ func CreateAppMaddy(tmpls *template.Template) App {
 		"maddy",
 		[]*template.Template{
 			tmpls.Lookup("maddy.yaml"),
+		},
+	}
+}
+
+func CreateAppQBittorrent(tmpls *template.Template) App {
+	return App{
+		"qbittorrent",
+		[]*template.Template{
+			tmpls.Lookup("qbittorrent.yaml"),
+		},
+	}
+}
+
+func CreateAppJellyfin(tmpls *template.Template) App {
+	return App{
+		"jellyfin",
+		[]*template.Template{
+			tmpls.Lookup("jellyfin.yaml"),
 		},
 	}
 }

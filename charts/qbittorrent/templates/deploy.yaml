@@ -1,0 +1,88 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: torrent
+  namespace: {{ .Release.Namespace }}
+spec:
+  type: ClusterIP
+  selector:
+    app: torrent
+  ports:
+  - name: http
+    port: 80
+    targetPort: http
+    protocol: TCP
+  - name: bittorrent-tcp
+    port: {{ .Values.bittorrent.port }}
+    targetPort: bittorrent
+    protocol: TCP
+  - name: bittorrent-udp
+    port: {{ .Values.bittorrent.port }}
+    targetPort: bittorrent
+    protocol: UDP
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: ingress
+  namespace: {{ .Release.Namespace }}
+spec:
+  ingressClassName: {{ .Values.ingress.className }}
+  tls:
+  - hosts:
+    - {{ .Values.ingress.domain }}
+  rules:
+  - host: {{ .Values.ingress.domain }}
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: torrent
+            port:
+              name: http
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: torrent
+  namespace: {{ .Release.Namespace }}
+spec:
+  selector:
+    matchLabels:
+      app: torrent
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: torrent
+    spec:
+      volumes:
+      - name: data
+        persistentVolumeClaim:
+          claimName: data
+      containers:
+      - name: torrent
+        image: {{ .Values.image.repository }}:{{ .Values.image.tag }}
+        imagePullPolicy: {{ .Values.image.pullPolicy }}
+        ports:
+        - name: http
+          containerPort: {{ .Values.webui.port }}
+          protocol: TCP
+        - name: bittorrent
+          containerPort: {{ .Values.bittorrent.port }}
+        volumeMounts:
+        - name: data
+          mountPath: /downloads
+          readOnly: false
+        # command:
+        # - torrent
+        # - --port=8080
+        # resources:
+        #   requests:
+        #     memory: "10Mi"
+        #     cpu: "10m"
+        #   limits:
+        #     memory: "20Mi"
+        #     cpu: "100m"

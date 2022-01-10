@@ -1,0 +1,10 @@
+apiVersion: v1
+kind: Secret
+metadata:
+  name: qbittorrent-samba-creds
+  annotations:
+    kubed.appscode.com/sync: "pcloud-instance-id={{ .Values.pcloudInstanceId }}"
+type: Opaque
+data:
+  username: {{ .Values.samba.creds.username | b64enc }}
+  password: {{ .Values.samba.creds.password | b64enc }}

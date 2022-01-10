@@ -1,0 +1,22 @@
+apiVersion: helm.toolkit.fluxcd.io/v2beta1
+kind: HelmRelease
+metadata:
+  name: jellyfin
+  namespace: {{ .Values.NamespacePrefix }}app-jellyfin
+spec:
+  chart:
+    spec:
+      chart: charts/jellyfin
+      sourceRef:
+        kind: GitRepository
+        name: pcloud
+        namespace: {{ .Values.Id }}
+  dependsOn:
+    - name: namespaces
+      namespace: {{ .Values.Id }}
+  interval: 1m0s
+  values:
+    pcloudInstanceId: {{ .Values.Id }}
+    ingress:
+      className: {{ .Values.Id }}-ingress-private
+      domain: jellyfin.p.{{ .Values.Domain }}

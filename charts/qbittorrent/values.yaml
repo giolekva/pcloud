@@ -1,0 +1,22 @@
+pcloudInstanceId: example
+image:
+  repository: lscr.io/linuxserver/qbittorrent
+  tag: latest
+  pullPolicy: IfNotPresent
+ingress:
+  className: example-private
+  domain: utorrent.p.example.com
+webui:
+  port: 8080
+bittorrent:
+  port: 6881
+storage:
+  size: 100Gi
+samba:
+  image:
+    repository: dperson/samba
+    tag: latest
+    pullPolicy: IfNotPresent
+  creds:
+    username: foo
+    password: bar

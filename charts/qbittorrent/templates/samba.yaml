@@ -1,0 +1,79 @@
+kind: Service
+apiVersion: v1
+metadata:
+  name: samba
+  labels:
+    app: samba
+spec:
+  type: LoadBalancer # ClusterIP
+  selector:
+    app: samba
+  ports:
+  - port: 445
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: samba
+  namespace: {{ .Release.Namespace }}
+spec:
+  selector:
+    matchLabels:
+      app: samba
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: samba
+    spec:
+      affinity:
+        podAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+          - labelSelector:
+              matchExpressions:
+              - key: app
+                operator: In
+                values:
+                - torrent
+            topologyKey: "kubernetes.io/hostname"
+      volumes:
+      - name: data
+        persistentVolumeClaim:
+          claimName: data
+      containers:
+      - name: samba
+        image: {{ .Values.samba.image.repository }}:{{ .Values.samba.image.tag }}
+        imagePullPolicy: {{ .Values.samba.image.pullPolicy }}
+        env:
+        - name: PERMISSIONS
+          value: "0777"
+        - name: USERNAME
+          valueFrom:
+            secretKeyRef:
+              name: qbittorrent-samba-creds
+              key: username
+        - name: PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: qbittorrent-samba-creds
+              key: password
+        ports:
+        - containerPort: 139
+        - containerPort: 445
+        volumeMounts:
+        - name: data
+          mountPath: /data
+          readOnly: false
+        args:
+        - -u
+        - $(USERNAME);$(PASSWORD)
+        - -s
+        - share;/data/;yes;no;no;all;none
+        - -p
+        # resources:
+        #   requests:
+        #     memory: "10Mi"
+        #     cpu: "10m"
+        #   limits:
+        #     memory: "20Mi"
+        #     cpu: "100m"

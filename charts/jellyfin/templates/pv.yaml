@@ -1,0 +1,23 @@
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: qbittorrent-data
+spec:
+  capacity:
+    storage: 1000Gi
+  accessModes:
+    - ReadWriteOnce
+  persistentVolumeReclaimPolicy: Retain
+  mountOptions:
+    - dir_mode=0777
+    - file_mode=0777
+    - vers=3.0
+  csi:
+    driver: smb.csi.k8s.io
+    readOnly: false
+    volumeHandle: {{ .Values.pcloudInstanceId }}-qbittorrent-data
+    volumeAttributes:
+      source: "//samba.lekva-app-torrent.svc.cluster.local/share"
+    nodeStageSecretRef:
+      name: qbittorrent-samba-creds
+      namespace: lekva-app-jellyfin

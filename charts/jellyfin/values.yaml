@@ -1,0 +1,11 @@
+pcloudInstanceId: example
+image:
+  repository: jellyfin/jellyfin
+  tag: latest
+  pullPolicy: IfNotPresent
+ingress:
+  className: example-ingress-private
+  domain: jellyfin.p.example.com
+storage:
+  configSize: 10Gi
+  cacheSize: 20Gi
