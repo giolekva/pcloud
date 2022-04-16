@@ -156,7 +156,7 @@ releases:
       effect: "NoSchedule"
 - name: longhorn
   chart: longhorn/longhorn
-  version: v1.1.2
+  version: v1.2.4
   # TODO(giolekva): pcloud-storage-longhorn ? https://github.com/longhorn/longhorn/issues/2034
   namespace: longhorn-system
   values:
