@@ -24,7 +24,7 @@ helmDefaults:
 releases:
 - name: metallb
   chart: metallb/metallb
-  version: 0.11.0
+  version: 0.12.1
   namespace: {{ .Values.name }}-networking-metallb
   values:
   - fullnameOverride: {{ .Values.name }}-metallb
@@ -37,12 +37,12 @@ releases:
   - controller:
       image:
         repository: quay.io/metallb/controller
-        tag: v0.11
+        tag: v0.12.1
         pullPolicy: IfNotPresent
   - speaker:
       image:
         repository: quay.io/metallb/speaker
-        tag: v0.11
+        tag: v0.12.1
         pullPolicy: IfNotPresent
 - name: ingress-public
   chart: ingress-nginx/ingress-nginx
