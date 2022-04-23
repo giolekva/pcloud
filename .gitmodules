@@ -1,3 +1,6 @@
 [submodule "apps/maddy"]
 	path = apps/maddy/maddy
 	url = https://github.com/foxcpp/maddy.git
+[submodule "charts/netmaker"]
+	path = charts/netmaker
+	url = git@github.com:gravitl/netmaker-helm.git
