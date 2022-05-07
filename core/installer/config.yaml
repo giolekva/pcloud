@@ -1,0 +1,41 @@
+# The name of the server to show in the TUI.
+name: PCloud
+
+# The host and port to display in the TUI. You may want to change this if your
+# server is accessible from a different host and/or port that what it's
+# actually listening on (for example, if it's behind a reverse proxy).
+host: localhost
+port: 22
+
+# Access level for anonymous users. Options are: admin-access, read-write,
+# read-only, and no-access.
+anon-access: no-access
+
+# You can grant read-only access to users without private keys. Any password
+# will be accepted.
+allow-keyless: false
+
+# Customize repo display in the menu.
+repos:
+  - name: Home
+    repo: config
+    private: true
+    note: "Configuration and content repo for this server"
+
+# Authorized users. Admins have full access to all repos. Users can read all
+# repos and push to their collab-repos.
+users:
+  - name: Admin
+    admin: true
+    public-keys:
+      {{ range . }}
+      - {{ . }}
+      {{ end }}
+
+
+#   - name: Example User
+#     collab-repos:
+#       - REPO
+#     public-keys:
+#       - ssh-ed25519 AAAA... # redacted
+#       - ssh-rsa AAAAB3Nz... # redacted

@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: access-keys
+  namespace: {{ .Release.Namespace }}
+data:
+  private.key: {{ toYaml .Values.privateKey | indent 2 }}

@@ -1,0 +1,6 @@
+apiVersion: v2
+name: soft-serve
+description: A Helm chart for git server to store PCloud configuration
+type: application
+version: 0.0.1
+appVersion: "0.0.1"

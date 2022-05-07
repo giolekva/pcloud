@@ -1,0 +1,8 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: keys
+  namespace: {{ .Release.Namespace }}
+data:
+  key: {{ toYaml .Values.privateKey | indent 2 }}
+  key.pub: {{ toYaml .Values.publicKey | indent 2 }}

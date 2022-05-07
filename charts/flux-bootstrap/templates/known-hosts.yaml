@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: known-hosts
+  namespace: {{ .Release.Namespace }}
+data:
+  known_hosts: {{ printf "%s %s" .Values.repositoryHost .Values.repositoryHostPublicKey | toYaml | indent 2 }}

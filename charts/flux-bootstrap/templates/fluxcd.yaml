@@ -1,0 +1,36 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: fluxcd-bootstrap
+  namespace: {{ .Release.Namespace }}
+spec:
+  template:
+    spec:
+      volumes:
+      - name: access-keys
+        configMap:
+          name: access-keys
+      - name: known-hosts
+        configMap:
+          name: known-hosts
+      containers:
+      - name: fluxcd
+        image: {{ .Values.image.repository }}:{{ .Values.image.tag }}
+        imagePullPolicy: {{ .Values.image.pullPolicy }}
+        volumeMounts:
+        - name: access-keys
+          mountPath: /access-keys
+        - name: known-hosts
+          mountPath: /.ssh
+        env:
+        - name: SSH_KNOWN_HOSTS
+          value: /.ssh/known_hosts
+        command: ["./flux", "bootstrap", "git",
+        "--namespace={{ .Values.installationNamespace}}",
+        "--url={{ .Values.repositoryAddress }}",
+        "--branch={{ .Values.repository.branch }}",
+        "--path={{ .Values.repository.path }}",
+        "--private-key-file=/access-keys/private.key",
+        "--ssh-key-algorithm=ed25519",
+        "--verbose"]
+      restartPolicy: Never

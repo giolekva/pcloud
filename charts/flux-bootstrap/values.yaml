@@ -1,0 +1,13 @@
+image:
+  repository: giolekva/flux
+  tag: latest
+  pullPolicy: Always
+repositoryAddress: ""
+repositoryHost: ""
+positoryHostPublicKey: ""
+repository:
+  address: ssh://git@<host>/<org>/<repository>
+  branch: master
+  path: /
+privateKey: ""
+installationNamespace: pcloud-flux

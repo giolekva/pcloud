@@ -1,0 +1,47 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: soft-serve
+  namespace: {{ .Release.Namespace }}
+spec:
+  selector:
+    matchLabels:
+      app: soft-serve
+  serviceName: soft-serve
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: soft-serve
+    spec:
+      volumes:
+      - name: data
+        persistentVolumeClaim:
+          claimName: data
+      - name: keys
+        configMap:
+          name: keys
+      containers:
+      - name: soft-serve
+        image: {{ .Values.image.repository }}:{{ .Values.image.tag }}
+        imagePullPolicy: {{ .Values.image.pullPolicy}}
+        env:
+        - name: SOFT_SERVE_PORT
+          value: "{{ .Values.port }}"
+        - name: SOFT_SERVE_INITIAL_ADMIN_KEY
+          value: "{{ .Values.adminKey }}"
+        - name: SOFT_SERVE_KEY_PATH
+          value: /.ssh/key
+        - name: SOFT_SERVE_REPO_PATH
+          value: /var/lib/soft-serve/repos
+        ports:
+        - name: ssh
+          containerPort: {{ .Values.port }}
+          protocol: TCP
+        volumeMounts:
+        - name: data
+          mountPath: /var/lib/soft-serve
+          readOnly: false
+        - name: keys
+          mountPath: /.ssh
+          readOnly: true

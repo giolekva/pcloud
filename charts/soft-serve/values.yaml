@@ -1,0 +1,10 @@
+image:
+  repository: charmcli/soft-serve
+  tag: latest
+  pullPolicy: IfNotPresent
+storage:
+  size: 1Gi
+port: 22
+privateKey: ""
+publicKey: ""
+adminKey: ""
