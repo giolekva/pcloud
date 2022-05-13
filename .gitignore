@@ -11,3 +11,5 @@ coverage.txt
 kubeconfig
 cert-*
 secrets.*.dec
+target
+main
