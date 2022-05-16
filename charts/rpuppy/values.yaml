@@ -1,0 +1,4 @@
+image:
+  repository: giolekva/rpuppy-arm
+  tag: latest
+  pullPolicy: Always
