@@ -1,1 +1,1 @@
-*/13 * * * * pcloud /home/pcloud/pcloud-tools/restart-if-no-ssh-login.sh
+*/30 * * * * pcloud /home/pcloud/pcloud-tools/restart-if-no-ssh-login.sh

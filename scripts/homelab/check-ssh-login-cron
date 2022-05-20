@@ -1,1 +1,1 @@
-*/5 * * * * pi /home/pi/homelab/check-ssh-login.sh
+*/10 * * * * pcloud /home/pcloud/pcloud-tools/check-ssh-login.sh
