@@ -32,5 +32,7 @@ spec:
         "--path={{ .Values.repository.path }}",
         "--private-key-file=/access-keys/private.key",
         "--ssh-key-algorithm=ed25519",
+        "--silent",
+        "--watch-all-namespaces",
         "--verbose"]
       restartPolicy: Never

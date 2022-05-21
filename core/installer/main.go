@@ -145,7 +145,7 @@ func installFlux(repoAddr, repoHost, repoHostPubKey, privateKey string) error {
 	installer := action.NewInstall(config)
 	installer.Namespace = "pcloud"
 	installer.CreateNamespace = true
-	installer.ReleaseName = "flux"
+	installer.ReleaseName = "flux4"
 	installer.Wait = true
 	installer.WaitForJobs = true
 	installer.Timeout = 5 * time.Minute
@@ -317,6 +317,32 @@ func createSSHAuthMethod(key []byte) (*gitssh.PublicKeys, error) {
 	}, nil
 }
 
+func reloadConfig(addr string, clientPrivKey []byte, serverPubKey string) error {
+	signer, err := ssh.ParsePrivateKey(clientPrivKey)
+	if err != nil {
+		return err
+	}
+	config := &ssh.ClientConfig{
+		Auth: []ssh.AuthMethod{
+			ssh.PublicKeys(signer),
+		},
+		HostKeyCallback: func(hostname string, remote net.Addr, key ssh.PublicKey) error {
+			fmt.Printf("## %s || %s -- \n", serverPubKey, ssh.MarshalAuthorizedKey(key))
+			return nil
+		},
+	}
+	client, err := ssh.Dial("tcp", addr, config)
+	if err != nil {
+		return err
+	}
+	session, err := client.NewSession()
+	if err != nil {
+		return err
+	}
+	defer session.Close()
+	return session.Run("reload")
+}
+
 func bootstrapCmdRun(cmd *cobra.Command, args []string) error {
 	adminPubKey, adminPrivKey, err := readAdminKeys()
 	if err != nil {
@@ -342,16 +368,24 @@ func bootstrapCmdRun(cmd *cobra.Command, args []string) error {
 		fmt.Printf("-- %s || %s -- \n", softServePub, ssh.MarshalAuthorizedKey(key))
 		return nil
 	}
+	fmt.Println("Installing SoftServe")
 	if err := installSoftServe(softServePub, softServePriv, string(adminPubKey)); err != nil {
 		return err
 	}
-	time.Sleep(10 * time.Second)
+	time.Sleep(30 * time.Second)
+	fmt.Println("Overwriting config")
 	if err := overwriteConfigRepo("ssh://192.168.0.208:22/config", auth, config); err != nil {
 		return err
 	}
+	fmt.Println("Reloading config")
+	if err := reloadConfig("192.168.0.208:22", adminPrivKey, softServePub); err != nil {
+		return err
+	}
+	fmt.Println("Creating /pcloud repo")
 	if err := createRepo("ssh://192.168.0.208:22/pcloud", "PCloud System\n", auth); err != nil {
 		return err
 	}
+	fmt.Println("Installing Flux")
 	if err := installFlux("ssh://soft-serve.pcloud.svc.cluster.local:22/pcloud", "soft-serve.pcloud.svc.cluster.local", softServePub, fluxPriv); err != nil {
 		return err
 	}
