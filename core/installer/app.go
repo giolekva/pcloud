@@ -1,13 +1,24 @@
-package main
+package installer
 
-import "text/template"
+import (
+	"embed"
+	"log"
+	"text/template"
+)
 
 type App struct {
 	Name      string
 	Templates []*template.Template
 }
 
-func CreateAllApps(tmpls *template.Template) []App {
+//go:embed values-tmpl
+var valuesTmpls embed.FS
+
+func CreateAllApps() []App {
+	tmpls, err := template.ParseFS(valuesTmpls, "values-tmpl/*.yaml")
+	if err != nil {
+		log.Fatal(err)
+	}
 	return []App{
 		CreateAppIngressPrivate(tmpls),
 		CreateAppCoreAuth(tmpls),

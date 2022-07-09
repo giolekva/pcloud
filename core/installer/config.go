@@ -1,4 +1,4 @@
-package main
+package installer
 
 type Config struct {
 	Values Values `json:"values"`
