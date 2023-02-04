@@ -1,0 +1,116 @@
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: headscale.{{ .Values.domain }}
+  namespace: {{ .Release.Namespace }}
+  annotations:
+    helm.sh/resource-policy: keep
+spec:
+  dnsNames:
+  - 'headscale.{{ .Values.domain }}'
+  issuerRef:
+    name: {{ .Values.certificateIssuer }}
+    kind: ClusterIssuer
+  secretName: cert-headscale.{{ .Values.domain }}
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: ingress
+  namespace: {{ .Release.Namespace }}
+spec:
+  ingressClassName: {{ .Values.ingressClassName }}
+  tls:
+  - hosts:
+    - headscale.{{ .Values.domain }}
+    secretName: cert-headscale.{{ .Values.domain }}
+  rules:
+  - host: headscale.{{ .Values.domain }}
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: headscale
+            port:
+              name: http
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: headscale
+  namespace: {{ .Release.Namespace }}
+spec:
+  type: LoadBalancer
+  selector:
+    app: headscale
+  ports:
+  - name: http
+    port: 80
+    targetPort: http
+    protocol: TCP
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: data
+  namespace: {{ .Release.Namespace }}
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: {{ .Values.storage.size }}
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: headscale
+  namespace: {{ .Release.Namespace }}
+spec:
+  selector:
+    matchLabels:
+      app: headscale
+  serviceName: headscale
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: headscale
+    spec:
+      volumes:
+      - name: data
+        persistentVolumeClaim:
+          claimName: data
+      - name: config
+        configMap:
+          name: config
+      containers:
+      - name: headscale
+        image: {{ .Values.image.repository }}:{{ .Values.image.tag }}
+        imagePullPolicy: {{ .Values.image.pullPolicy }}
+        ports:
+        - name: http
+          containerPort: 8080
+          protocol: TCP
+        command: ["headscale", "--config=/headscale/config/config.yaml", "serve"]
+        resources:
+      #     requests:
+      #       memory: "10Mi"
+      #       cpu: "10m"
+      #     limits:
+      #       memory: "20Mi"
+      #       cpu: "100m"
+      # tolerations:
+      # - key: "pcloud"
+      #   operator: "Equal"
+      #   value: "role"
+      #   effect: "NoSchedule"
+        volumeMounts:
+        - name: data
+          mountPath: /headscale/data
+          readOnly: false
+        - name: config
+          mountPath: /headscale/config
+          readOnly: true

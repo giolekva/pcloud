@@ -1,0 +1,6 @@
+apiVersion: v2
+name: headscale
+description: A Helm chart to run Headscale on PCloud
+type: application
+version: 0.0.1
+appVersion: "0.0.1"

@@ -1,0 +1,9 @@
+image:
+  repository: headscale/headscale
+  tag: 0.17
+  pullPolicy: IfNotPresent
+storage:
+  size: 5Gi
+ingressClassName: pcloud-ingress-public
+certificateIssuer: lekva-public
+domain: lekva.me
