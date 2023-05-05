@@ -3,6 +3,8 @@ kind: Service
 metadata:
   name: soft-serve
   namespace: {{ .Release.Namespace }}
+  annotations:
+    metallb.universe.tf/loadBalancerIPs: {{ .Values.reservedIP }}
 spec:
   type: LoadBalancer
   selector:

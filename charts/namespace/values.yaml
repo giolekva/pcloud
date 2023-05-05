@@ -1,0 +1,4 @@
+name: example
+labels:
+- foo
+- bar

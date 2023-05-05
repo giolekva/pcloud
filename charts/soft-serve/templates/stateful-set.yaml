@@ -26,13 +26,13 @@ spec:
         image: {{ .Values.image.repository }}:{{ .Values.image.tag }}
         imagePullPolicy: {{ .Values.image.pullPolicy}}
         env:
-        - name: SOFT_SERVE_PORT
-          value: "{{ .Values.port }}"
-        - name: SOFT_SERVE_INITIAL_ADMIN_KEY
+        - name: SOFT_SERVE_SSH_LISTEN_ADDR
+          value: ":{{ .Values.port }}"
+        - name: SOFT_SERVE_INITIAL_ADMIN_KEYS
           value: "{{ .Values.adminKey }}"
-        - name: SOFT_SERVE_KEY_PATH
+        - name: SOFT_SERVE_SSH_KEY_PATH
           value: /.ssh/key
-        - name: SOFT_SERVE_REPO_PATH
+        - name: SOFT_SERVE_DATA_PATH
           value: /var/lib/soft-serve/repos
         ports:
         - name: ssh
