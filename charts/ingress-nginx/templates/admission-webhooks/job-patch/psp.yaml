@@ -1,3 +1,4 @@
+{{- if (semverCompare "<1.25.0-0" .Capabilities.KubeVersion.Version) }}
 {{- if and .Values.controller.admissionWebhooks.enabled .Values.controller.admissionWebhooks.patch.enabled .Values.podSecurityPolicy.enabled (empty .Values.controller.admissionWebhooks.existingPsp) -}}
 apiVersion: policy/v1beta1
 kind: PodSecurityPolicy
@@ -9,6 +10,9 @@ metadata:
   labels:
     {{- include "ingress-nginx.labels" . | nindent 4 }}
     app.kubernetes.io/component: admission-webhook
+    {{- with .Values.controller.admissionWebhooks.patch.labels }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
 spec:
   allowPrivilegeEscalation: false
   fsGroup:
@@ -33,4 +37,5 @@ spec:
   - projected
   - secret
   - downwardAPI
+{{- end }}
 {{- end }}

@@ -1,10 +1,13 @@
 {{- if and .Values.defaultBackend.enabled .Values.defaultBackend.autoscaling.enabled }}
-apiVersion: autoscaling/v2beta1
+apiVersion: {{ .Values.defaultBackend.autoscaling.apiVersion }}
 kind: HorizontalPodAutoscaler
 metadata:
   labels:
     {{- include "ingress-nginx.labels" . | nindent 4 }}
     app.kubernetes.io/component: default-backend
+    {{- with .Values.defaultBackend.labels }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
   name: {{ template "ingress-nginx.defaultBackend.fullname" . }}
   namespace: {{ .Release.Namespace }}
 spec:
@@ -19,12 +22,16 @@ spec:
     - type: Resource
       resource:
         name: cpu
-        targetAverageUtilization: {{ . }}
+        target:
+          type: Utilization
+          averageUtilization: {{ . }}
 {{- end }}
 {{- with .Values.defaultBackend.autoscaling.targetMemoryUtilizationPercentage }}
     - type: Resource
       resource:
         name: memory
-        targetAverageUtilization: {{ . }}
+        target:
+          type: Utilization
+          averageUtilization: {{ . }}
 {{- end }}
 {{- end }}
