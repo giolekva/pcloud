@@ -31,9 +31,9 @@ kind: Ingress
 metadata:
   name: ingress
   namespace: {{ .Release.Namespace }}
-  # annotations:
+  annotations:
+    acme.cert-manager.io/http01-edit-in-place: "true"
   #   cert-manager.io/cluster-issuer: "letsencrypt-prod"
-  #   acme.cert-manager.io/http01-edit-in-place: "true"
 spec:
   ingressClassName: {{ .Values.ingressClassName }}
   tls:
