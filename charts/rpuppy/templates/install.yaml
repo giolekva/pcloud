@@ -4,7 +4,7 @@ metadata:
   name: rpuppy
   namespace: {{ .Release.Namespace }}
 spec:
-  type: LoadBalancer
+  type: ClusterIP
   selector:
     app: rpuppy
   ports:
@@ -12,32 +12,45 @@ spec:
     port: 80
     targetPort: http
     protocol: TCP
-# ---
-# apiVersion: networking.k8s.io/v1
-# kind: Ingress
-# metadata:
-#   name: ingress
-#   namespace: {{ .Release.Namespace }}
-#   annotations:
-#     cert-manager.io/cluster-issuer: "letsencrypt-prod"
-#     acme.cert-manager.io/http01-edit-in-place: "true"
-# spec:
-#   ingressClassName: nginx
-#   tls:
-#   - hosts:
-#     - woof.lekva.me
-#     secretName: cert-woof.lekva.me
-#   rules:
-#   - host: woof.lekva.me
-#     http:
-#       paths:
-#       - path: /
-#         pathType: Prefix
-#         backend:
-#           service:
-#             name: rpuppy
-#             port:
-#               name: http
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: rpuppy
+  namespace: {{ .Release.Namespace }}
+spec:
+  secretName: cert-rpuppy
+  dnsNames:
+    - {{ .Values.domain }}
+  issuerRef:
+    kind: ClusterIssuer
+    name: {{ .Values.certificateIssuer}}
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: ingress
+  namespace: {{ .Release.Namespace }}
+  # annotations:
+  #   cert-manager.io/cluster-issuer: "letsencrypt-prod"
+  #   acme.cert-manager.io/http01-edit-in-place: "true"
+spec:
+  ingressClassName: {{ .Values.ingressClassName }}
+  tls:
+  - hosts:
+    - {{ .Values.domain }}
+    secretName: cert-rpuppy
+  rules:
+  - host: {{ .Values.domain }}
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: rpuppy
+            port:
+              name: http
 ---
 apiVersion: apps/v1
 kind: Deployment
