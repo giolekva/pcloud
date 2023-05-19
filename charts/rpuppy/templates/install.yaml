@@ -12,19 +12,21 @@ spec:
     port: 80
     targetPort: http
     protocol: TCP
----
-apiVersion: cert-manager.io/v1
-kind: Certificate
-metadata:
-  name: rpuppy
-  namespace: {{ .Release.Namespace }}
-spec:
-  secretName: cert-rpuppy
-  dnsNames:
-    - {{ .Values.domain }}
-  issuerRef:
-    kind: ClusterIssuer
-    name: {{ .Values.certificateIssuer}}
+# ---
+# apiVersion: cert-manager.io/v1
+# kind: Certificate
+# metadata:
+#   name: rpuppy
+#   namespace: {{ .Release.Namespace }}
+#   # annotations:
+#   #   helm.sh/resource-policy: keep
+# spec:
+#   secretName: cert-rpuppy
+#   dnsNames:
+#   - {{ .Values.domain }}
+#   issuerRef:
+#     kind: ClusterIssuer
+#     name: {{ .Values.certificateIssuer}}
 ---
 apiVersion: networking.k8s.io/v1
 kind: Ingress
@@ -33,7 +35,8 @@ metadata:
   namespace: {{ .Release.Namespace }}
   annotations:
     acme.cert-manager.io/http01-edit-in-place: "true"
-  #   cert-manager.io/cluster-issuer: "letsencrypt-prod"
+    acme.cert-manager.io/http01-ingress-class: {{ .Values.ingressClassName }}
+    cert-manager.io/cluster-issuer: {{ .Values.certificateIssuer}}
 spec:
   ingressClassName: {{ .Values.ingressClassName }}
   tls:
