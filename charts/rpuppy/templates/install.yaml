@@ -35,7 +35,7 @@ metadata:
   namespace: {{ .Release.Namespace }}
   annotations:
     acme.cert-manager.io/http01-edit-in-place: "true"
-    acme.cert-manager.io/http01-ingress-class: {{ .Values.ingressClassName }}
+    # acme.cert-manager.io/http01-ingress-class: {{ .Values.ingressClassName }}
     cert-manager.io/cluster-issuer: {{ .Values.certificateIssuer}}
 spec:
   ingressClassName: {{ .Values.ingressClassName }}
