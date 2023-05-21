@@ -39,6 +39,34 @@ spec:
             port:
               name: http
 ---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  annotations:
+    acme.cert-manager.io/http01-edit-in-place: "true"
+    cert-manager.io/cluster-issuer: {{ .Values.certificateIssuer}}
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/backend-protocol: "GRPC"
+  name: ingress-grpc
+  namespace: {{ .Release.Namespace }}
+spec:
+  ingressClassName: {{ .Values.ingressClassName }}
+  tls:
+  - hosts:
+    - grpc.headscale.{{ .Values.domain }}
+    secretName: cert-headscale.{{ .Values.domain }}
+  rules:
+  - host: grpc.headscale.{{ .Values.domain }}
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: headscale
+            port:
+              number: grpc
+---
 apiVersion: v1
 kind: Service
 metadata:

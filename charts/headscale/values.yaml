@@ -1,6 +1,6 @@
 image:
   repository: headscale/headscale
-  tag: 0.17
+  tag: 0.22.3
   pullPolicy: IfNotPresent
 storage:
   size: 5Gi
