@@ -65,7 +65,7 @@ spec:
           service:
             name: headscale
             port:
-              number: grpc
+              name: grpc
 ---
 apiVersion: v1
 kind: Service
@@ -80,6 +80,10 @@ spec:
   - name: http
     port: 80
     targetPort: http
+    protocol: TCP
+  - name: grpc
+    port: 50443
+    targetPort: grpc
     protocol: TCP
 ---
 apiVersion: v1
@@ -124,6 +128,9 @@ spec:
         ports:
         - name: http
           containerPort: 8080
+          protocol: TCP
+        - name: grpc
+          containerPort: 50443
           protocol: TCP
         command: ["headscale", "--config=/headscale/config/config.yaml", "serve"]
         resources:
