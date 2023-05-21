@@ -1,23 +1,26 @@
-apiVersion: cert-manager.io/v1
-kind: Certificate
-metadata:
-  name: headscale.{{ .Values.domain }}
-  namespace: {{ .Release.Namespace }}
-  annotations:
-    helm.sh/resource-policy: keep
-spec:
-  dnsNames:
-  - 'headscale.{{ .Values.domain }}'
-  issuerRef:
-    name: {{ .Values.certificateIssuer }}
-    kind: ClusterIssuer
-  secretName: cert-headscale.{{ .Values.domain }}
----
+# apiVersion: cert-manager.io/v1
+# kind: Certificate
+# metadata:
+#   name: headscale.{{ .Values.domain }}
+#   namespace: {{ .Release.Namespace }}
+#   annotations:
+#     helm.sh/resource-policy: keep
+# spec:
+#   dnsNames:
+#   - 'headscale.{{ .Values.domain }}'
+#   issuerRef:
+#     name: {{ .Values.certificateIssuer }}
+#     kind: ClusterIssuer
+#   secretName: cert-headscale.{{ .Values.domain }}
+# ---
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: ingress
   namespace: {{ .Release.Namespace }}
+  annotations:
+    acme.cert-manager.io/http01-edit-in-place: "true"
+    cert-manager.io/cluster-issuer: {{ .Values.certificateIssuer}}
 spec:
   ingressClassName: {{ .Values.ingressClassName }}
   tls:
