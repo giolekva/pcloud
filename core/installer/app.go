@@ -20,6 +20,7 @@ func CreateAllApps() []App {
 		log.Fatal(err)
 	}
 	return []App{
+		// CreateAppIngressPublic(tmpls),
 		CreateAppIngressPrivate(tmpls),
 		CreateAppCoreAuth(tmpls),
 		CreateAppVaultwarden(tmpls),
@@ -28,6 +29,17 @@ func CreateAllApps() []App {
 		CreateAppMaddy(tmpls),
 		CreateAppQBittorrent(tmpls),
 		CreateAppJellyfin(tmpls),
+		CreateAppRpuppy(tmpls),
+		CreateAppHeadscale(tmpls),
+	}
+}
+
+func CreateAppIngressPublic(tmpls *template.Template) App {
+	return App{
+		"ingress-public",
+		[]*template.Template{
+			tmpls.Lookup("ingress-public.yaml"),
+		},
 	}
 }
 
@@ -35,7 +47,7 @@ func CreateAppIngressPrivate(tmpls *template.Template) App {
 	return App{
 		"ingress-private",
 		[]*template.Template{
-			tmpls.Lookup("vpn-mesh-config.yaml"),
+			// tmpls.Lookup("vpn-mesh-config.yaml"),
 			tmpls.Lookup("ingress-private.yaml"),
 			tmpls.Lookup("certificate-issuer.yaml"),
 		},
@@ -103,6 +115,24 @@ func CreateAppJellyfin(tmpls *template.Template) App {
 		"jellyfin",
 		[]*template.Template{
 			tmpls.Lookup("jellyfin.yaml"),
+		},
+	}
+}
+
+func CreateAppRpuppy(tmpls *template.Template) App {
+	return App{
+		"rpuppy",
+		[]*template.Template{
+			tmpls.Lookup("rpuppy.yaml"),
+		},
+	}
+}
+
+func CreateAppHeadscale(tmpls *template.Template) App {
+	return App{
+		"headscale",
+		[]*template.Template{
+			tmpls.Lookup("headscale.yaml"),
 		},
 	}
 }

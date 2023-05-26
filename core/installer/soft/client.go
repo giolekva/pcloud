@@ -10,7 +10,7 @@ import (
 
 	"github.com/go-git/go-billy/v5/memfs"
 	"github.com/go-git/go-git/v5"
-	"github.com/go-git/go-git/v5/config"
+	// "github.com/go-git/go-git/v5/config"
 	"github.com/go-git/go-git/v5/plumbing"
 	"github.com/go-git/go-git/v5/plumbing/object"
 	gitssh "github.com/go-git/go-git/v5/plumbing/transport/ssh"
@@ -31,7 +31,7 @@ func NewClient(ip string, port int, clientPrivateKey []byte, log *log.Logger) (*
 	if err != nil {
 		return nil, err
 	}
-	log.SetPrefix("SOFT-SERVE")
+	log.SetPrefix("SOFT-SERVE: ")
 	return &Client{
 		ip,
 		port,
@@ -40,31 +40,21 @@ func NewClient(ip string, port int, clientPrivateKey []byte, log *log.Logger) (*
 	}, nil
 }
 
-func (ss *Client) UpdateConfig(config Config, reason string) error {
-	log.Print("Updating configuration")
-	configBytes, err := yaml.Marshal(config)
-	if err != nil {
+func (ss *Client) AddUser(name, pubKey string) error {
+	log.Printf("Adding user %s", name)
+	if err := ss.RunCommand(fmt.Sprintf("user create %s", name)); err != nil {
 		return err
 	}
-	repo, err := ss.cloneRepository("config")
-	if err != nil {
-		return err
-	}
-	wt, err := repo.Worktree()
-	if err != nil {
-		return err
-	}
-	if err := ss.writeFile(wt, "config.yaml", string(configBytes)); err != nil {
-		return err
-	}
-	if err := ss.commit(wt, reason); err != nil {
-		return nil
-	}
-	return ss.push(repo)
+	return ss.RunCommand(fmt.Sprintf("user add-pubkey %s %s", name, pubKey))
 }
 
-func (ss *Client) ReloadConfig() error {
-	log.Print("Reloading configuration")
+func (ss *Client) MakeUserAdmin(name string) error {
+	log.Printf("Making user %s admin", name)
+	return ss.RunCommand(fmt.Sprintf("user set-admin %s true", name))
+}
+
+func (ss *Client) RunCommand(cmd string) error {
+	log.Printf("Running command %s", cmd)
 	client, err := ssh.Dial("tcp", ss.addressSSH(), ss.sshClientConfig())
 	if err != nil {
 		return err
@@ -74,32 +64,17 @@ func (ss *Client) ReloadConfig() error {
 		return err
 	}
 	defer session.Close()
-	return session.Run("reload")
+	return session.Run(cmd)
 }
 
 func (ss *Client) AddRepository(name, readme string) error {
 	log.Printf("Adding repository %s", name)
-	repo, err := git.Init(memory.NewStorage(), memfs.New())
-	if err != nil {
-		return err
-	}
-	wt, err := repo.Worktree()
-	if err != nil {
-		return err
-	}
-	if err := ss.writeFile(wt, "README.md", readme); err != nil {
-		return err
-	}
-	if err := ss.commit(wt, "init"); err != nil {
-		return err
-	}
-	if _, err := repo.CreateRemote(&config.RemoteConfig{
-		Name: "soft",
-		URLs: []string{ss.repoPathByName(name)},
-	}); err != nil {
-		return err
-	}
-	return ss.push(repo)
+	return ss.RunCommand(fmt.Sprintf("repo create %s -d \"%s\"", name, readme))
+}
+
+func (ss *Client) AddCollaborator(repo, user string) error {
+	log.Printf("Adding collaborator %s %s", repo, user)
+	return ss.RunCommand(fmt.Sprintf("repo collab add %s %s", repo, user))
 }
 
 func (ss *Client) CreateRepository(name string) error {
@@ -152,10 +127,10 @@ func (ss *Client) CreateRepository(name string) error {
 	if err := ss.writeFile(wt, "config.yaml", string(configBytes)); err != nil {
 		return err
 	}
-	if err := ss.commit(wt, fmt.Sprintf("add-repo: %s", name)); err != nil {
+	if err := ss.Commit(wt, fmt.Sprintf("add-repo: %s", name)); err != nil {
 		return err
 	}
-	return ss.push(configRepo)
+	return ss.Push(configRepo)
 }
 
 func (ss *Client) getConfigRepo() (*git.Repository, error) {
@@ -174,7 +149,7 @@ func (ss *Client) repoPathByName(name string) string {
 	return fmt.Sprintf("%s/%s", ss.addressGit(), name)
 }
 
-func (ss *Client) commit(wt *git.Worktree, message string) error {
+func (ss *Client) Commit(wt *git.Worktree, message string) error {
 	_, err := wt.Commit(message, &git.CommitOptions{
 		Author: &object.Signature{
 			Name:  "pcloud",
@@ -185,7 +160,7 @@ func (ss *Client) commit(wt *git.Worktree, message string) error {
 	return err
 }
 
-func (ss *Client) push(repo *git.Repository) error {
+func (ss *Client) Push(repo *git.Repository) error {
 	return repo.Push(&git.PushOptions{
 		RemoteName: "soft",
 		Auth:       ss.authGit(),
@@ -205,7 +180,7 @@ func (ss *Client) writeFile(wt *git.Worktree, path, contents string) error {
 	return err
 }
 
-func (ss *Client) cloneRepository(name string) (*git.Repository, error) {
+func (ss *Client) CloneRepository(name string) (*git.Repository, error) {
 	return git.Clone(memory.NewStorage(), memfs.New(), &git.CloneOptions{
 		URL:             ss.repoPathByName(name),
 		Auth:            ss.authGit(),
@@ -227,6 +202,24 @@ func (ss *Client) authGit() *gitssh.PublicKeys {
 	}
 }
 
+func (ss *Client) GetPublicKey() ([]byte, error) {
+	var ret []byte
+	config := &ssh.ClientConfig{
+		Auth: []ssh.AuthMethod{
+			ssh.PublicKeys(ss.signer),
+		},
+		HostKeyCallback: func(hostname string, remote net.Addr, key ssh.PublicKey) error {
+			ret = ssh.MarshalAuthorizedKey(key)
+			return nil
+		},
+	}
+	_, err := ssh.Dial("tcp", ss.addressSSH(), config)
+	if err != nil {
+		return nil, err
+	}
+	return ret, nil
+}
+
 func (ss *Client) sshClientConfig() *ssh.ClientConfig {
 	return &ssh.ClientConfig{
 		Auth: []ssh.AuthMethod{
@@ -235,6 +228,7 @@ func (ss *Client) sshClientConfig() *ssh.ClientConfig {
 		HostKeyCallback: func(hostname string, remote net.Addr, key ssh.PublicKey) error {
 			// TODO(giolekva): verify server public key
 			// fmt.Printf("## %s || %s -- \n", serverPubKey, ssh.MarshalAuthorizedKey(key))
+			fmt.Printf("%s %s %s", hostname, remote, ssh.MarshalAuthorizedKey(key))
 			return nil
 		},
 	}

@@ -1,0 +1,14 @@
+apiVersion: source.toolkit.fluxcd.io/v1beta2
+kind: GitRepository
+metadata:
+  name: {{ .Name }}
+  namespace: {{ .Name }}
+spec:
+  gitImplementation: go-git
+  interval: 1m0s
+  ref:
+    branch: master
+  secretRef:
+    name: {{ .Name }}
+  timeout: 60s
+  url: ssh://{{ .GitHost }}/{{ .Name }}
