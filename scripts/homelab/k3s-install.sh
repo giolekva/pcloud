@@ -2,18 +2,34 @@
 
 USER=pcloud
 
-K3S_VERSION="v1.23.5+k3s1"
+K3S_VERSION="v1.26.3+k3s1"
 
-MASTER="192.168.0.111"
-WORKERS=("192.168.0.112" "192.168.0.113" "192.168.0.114" "192.168.0.116")
+MASTER_INIT="192.168.0.11"
+MASTERS=()
+WORKERS=("192.168.0.12" "192.168.0.13" "192.168.0.14" "192.168.0.15")
 
 k3sup install \
       --k3s-channel stable \
-      --cluster \
       --user $USER \
-      --ip $MASTER \
+      --ip $MASTER_INIT \
       --k3s-version $K3S_VERSION \
-      --k3s-extra-args "--node-taint pcloud=role:NoSchedule --disable traefik --disable local-storage --disable servicelb --kube-proxy-arg proxy-mode=ipvs --kube-proxy-arg ipvs-strict-arp --flannel-backend host-gw"
+      --k3s-extra-args "--disable traefik --disable local-storage --disable servicelb --kube-proxy-arg proxy-mode=ipvs --kube-proxy-arg ipvs-strict-arp --flannel-backend host-gw"
+
+      --cluster \
+
+for IP in "${MASTERS[@]}";
+do
+    k3sup join \
+	  --k3s-channel stable \
+	  --server \
+	  --user $USER \
+	  --ip $IP \
+	  --server-user $USER \
+	  --server-ip $MASTER_INIT \
+	  --k3s-version $K3S_VERSION \
+	  --k3s-extra-args "--disable traefik --disable local-storage --disable servicelb --kube-proxy-arg proxy-mode=ipvs --kube-proxy-arg ipvs-strict-arp --flannel-backend host-gw"
+done
+
 
 for IP in "${WORKERS[@]}";
 do
@@ -22,6 +38,6 @@ do
       --ip $IP \
       --user $USER \
       --server-user $USER \
-      --server-ip $MASTER \
+      --server-ip $MASTER_INIT \
       --k3s-version $K3S_VERSION
 done
