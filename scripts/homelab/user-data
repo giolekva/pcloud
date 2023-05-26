@@ -1,0 +1,26 @@
+#cloud-config
+hostname: PCLOUD_HOSTNAME
+manage_etc_hosts: true
+ssh_pwauth: false
+package_update: true
+package_upgrade: true
+growpart:
+  mode: false
+resize_rootfs: false
+users:
+  - name: pcloud
+    primary-group: users
+    groups: users, sudo
+    shell: /bin/bash
+    sudo: ALL=(ALL) NOPASSWD:ALL
+    ssh-import-id: None
+    lock_passwd: true
+    ssh-authorized-keys:
+      - ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABgQC/ZRj0QJ0j+3udh0ANN9mJyEzrATZIOAHfNikDMpSHqrVbPZqpeHGbdYrSksCvXPXfissIZoYU4CCXX007jY0W6e1mPf1nObYh2eUT1dHo/8UtGaf9nYk+kEGU/k3utN4Uzkxa13IFh9pYERX+o0Ad3X5wh0vi5hjOBAJVKOCD9d3aipeR9piUb+qrkFDXf9fozMFn7D9nALkpJBVuGxwl/76f8K6hRxBEmPqZwIMfklzX15nRdLEcsGFJpYLYXsonbr1P3moMJFBBbQFv6M6JO9rrwA+swXpWMoScI7m/nziSEPLAb+ziv+/OyhqzeC9CQner73V0m8+2DmtcgTuSe1qHRtOScPyIjBfxoXaUx1IUkgq1NXt8k+EBO2mxnVpKdyDCvwT1Tb7088P8f8cSLtUOmUdEiAhB8bfQFprzm2KrlufenfhMvdvQPU4VfWlkQ4smLYt2yVaaXoxZMy5yD3X6LFurNXwee/Gn6di+DWqsASAOsmpsNgSCGhT8wxM= lekva@gl-mbp-m1-max.local
+packages:
+  - emacs
+  - open-iscsi
+  - linux-modules-extra-raspi
+runcmd:
+  - apt autoremove -y --purge snapd
+  - echo "\nalias e='emacs -nw'\n" >> /home/pcloud/.bash_profile

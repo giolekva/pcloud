@@ -8,12 +8,12 @@ ethernets:
 #     gateway4: 192.168.0.10
 #     nameservers:
 #       addresses: [8.8.8.8, 8.8.4.4]
-# wifis:
-#   wlan0:
-#     dhcp4: yes
-#     dhcp6: no
-#     nameservers:
-#       addresses: [8.8.8.8, 8.8.4.4]
-#     access-points:
-#       "gl-iphone":
-#         password: "lekva12345"
+wifis:
+  wlan0:
+    dhcp4: true
+    dhcp6: false
+    # nameservers:
+    #   addresses: [8.8.8.8, 8.8.4.4]
+    access-points:
+      "28":
+        password: "0987654321"

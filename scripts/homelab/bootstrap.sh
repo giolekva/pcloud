@@ -1,4 +1,8 @@
 DRIVE_NAME=$1
+HOST_NAME=$2
+
+USER_DATA=`cat user-data`
+echo "${USER_DATA/PCLOUD_HOSTNAME/$HOST_NAME}" > user-data-tmp
 
 sudo parted $DRIVE_NAME mklabel gpt
 sudo parted $DRIVE_NAME mkpart primary fat32 0% 1GB
@@ -13,7 +17,7 @@ sudo mkdir /mnt/boot-img
 sudo mkdir /mnt/rootfs-img
 sudo mkdir /mnt/boot-drive
 sudo mkdir /mnt/rootfs-drive
-LOOP_DEVICE=$(sudo losetup -fP --show ubuntu-21.04-server-arm64-raspi.img)
+LOOP_DEVICE=$(sudo losetup -fP --show ubuntu-22.04.1-preinstalled-server-arm64+raspi.img)
 sudo mount -o noatime "${LOOP_DEVICE}p1" /mnt/boot-img
 sudo mount -o noatime "${LOOP_DEVICE}p2" /mnt/rootfs-img
 sudo mount -o noatime "${DRIVE_NAME}1" /mnt/boot-drive
@@ -21,9 +25,11 @@ sudo mount -o noatime "${DRIVE_NAME}2" /mnt/rootfs-drive
 sudo rsync -axv /mnt/boot-img/ /mnt/boot-drive
 sudo rsync -axv /mnt/rootfs-img/ /mnt/rootfs-drive
 sudo touch /mnt/boot-drive/ssh
-sudo cp -f user-data-rpi111 /mnt/boot-drive/user-data
-sudo cp -f network-config-rpi111 /mnt/boot-drive/network-config
+sudo cp -f user-data-tmp /mnt/boot-drive/user-data
+sudo cp -f network-config /mnt/boot-drive/network-config
 sudo umount /mnt/boot-img
 sudo umount /mnt/rootfs-img
 sudo umount /mnt/boot-drive
 sudo umount /mnt/rootfs-drive
+
+rm user-data-tmp
