@@ -74,63 +74,62 @@ func bootstrapCmd() *cobra.Command {
 }
 
 func bootstrapCmdRun(cmd *cobra.Command, args []string) error {
-		adminPubKey, adminPrivKey, err := readAdminKeys()
-		if err != nil {
-			return err
-		}
-		fluxPub, fluxPriv, err := installer.GenerateSSHKeys()
-		if err != nil {
-			return err
-		}
-		softServePub, softServePriv, err := installer.GenerateSSHKeys()
-		if err != nil {
-			return err
-		}
-		if err := installMetallbNamespace(); err != nil {
-			return err
-		}
-		if err := installMetallb(); err != nil {
-			return err
-		}
-		time.Sleep(3 * time.Minute)
-		if err := installMetallbConfig(); err != nil {
-			return err
-		}
-		if err := installLonghorn(); err != nil {
-			return err
-		}
-		if err := installSoftServe(softServePub, softServePriv, string(adminPubKey)); err != nil {
-			return err
-		}
-		time.Sleep(30 * time.Second)
-		ss, err := soft.NewClient(bootstrapFlags.softServeIP, 22, adminPrivKey, log.Default())
-		if err != nil {
-			return err
-		}
-		if err := ss.AddUser("flux", fluxPub); err != nil {
-			return err
-		}
-		if err := ss.MakeUserAdmin("flux"); err != nil {
-			return err
-		}
-		fmt.Println("Creating /pcloud repo")
-		if err := ss.AddRepository("pcloud", "# PCloud Systems\n"); err != nil {
-			return err
-		}
-		fmt.Println("Installing Flux")
-		if err := installFlux("ssh://soft-serve.pcloud.svc.cluster.local:22/pcloud", "soft-serve.pcloud.svc.cluster.local", softServePub, fluxPriv); err != nil {
-			return err
-		}
-		// TODO(giolekva): everything below must be installed using Flux
-		if err := installIngressPublic(); err != nil {
-			return err
-		}
-		if err := installCertManager(); err != nil {
-			return err
-		}
-		if err := installCertManagerWebhookGandi(); err != nil {
-			return err
-		}
+	adminPubKey, adminPrivKey, err := readAdminKeys()
+	if err != nil {
+		return err
+	}
+	fluxPub, fluxPriv, err := installer.GenerateSSHKeys()
+	if err != nil {
+		return err
+	}
+	softServePub, softServePriv, err := installer.GenerateSSHKeys()
+	if err != nil {
+		return err
+	}
+	if err := installMetallbNamespace(); err != nil {
+		return err
+	}
+	if err := installMetallb(); err != nil {
+		return err
+	}
+	time.Sleep(3 * time.Minute)
+	if err := installMetallbConfig(); err != nil {
+		return err
+	}
+	if err := installLonghorn(); err != nil {
+		return err
+	}
+	if err := installSoftServe(softServePub, softServePriv, string(adminPubKey)); err != nil {
+		return err
+	}
+	time.Sleep(30 * time.Second)
+	ss, err := soft.NewClient(bootstrapFlags.softServeIP, 22, adminPrivKey, log.Default())
+	if err != nil {
+		return err
+	}
+	if err := ss.AddUser("flux", fluxPub); err != nil {
+		return err
+	}
+	if err := ss.MakeUserAdmin("flux"); err != nil {
+		return err
+	}
+	fmt.Println("Creating /pcloud repo")
+	if err := ss.AddRepository("pcloud", "# PCloud Systems\n"); err != nil {
+		return err
+	}
+	fmt.Println("Installing Flux")
+	if err := installFlux("ssh://soft-serve.pcloud.svc.cluster.local:22/pcloud", "soft-serve.pcloud.svc.cluster.local", softServePub, fluxPriv); err != nil {
+		return err
+	}
+	// TODO(giolekva): everything below must be installed using Flux
+	if err := installIngressPublic(); err != nil {
+		return err
+	}
+	if err := installCertManager(); err != nil {
+		return err
+	}
+	if err := installCertManagerWebhookGandi(); err != nil {
+		return err
 	}
 	return nil
 }
