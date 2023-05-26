@@ -1,59 +1,73 @@
 package installer
 
 import (
+	"fmt"
 	"io/fs"
+	"net"
+	"time"
 
+	"golang.org/x/crypto/ssh"
 	"golang.org/x/exp/slices"
 
-	"github.com/go-git/go-billy/v5"
 	"github.com/go-git/go-billy/v5/util"
+	"github.com/go-git/go-git/v5"
+	"github.com/go-git/go-git/v5/plumbing/object"
+	gitssh "github.com/go-git/go-git/v5/plumbing/transport/ssh"
 )
 
+const appDirName = "apps"
+const configFileName = "config.yaml"
 const kustomizationFileName = "kustomization.yaml"
 
-type AppRepository interface {
-	Find(name string) (*App, error)
-}
-
 type AppManager struct {
-	fs       billy.Filesystem
-	config   Config
-	appRepo  AppRepository
-	rootKust *Kustomization
+	repo   *git.Repository
+	signer ssh.Signer
 }
 
-func NewAppManager(fs billy.Filesystem, config Config, appRepo AppRepository) (*AppManager, error) {
-	rootKustF, err := fs.Open(kustomizationFileName)
+// func NewAppManager(repo *git.Repository, fs billy.Filesystem, config Config, appRepo AppRepository) (*AppManager, error) {
+func NewAppManager(repo *git.Repository, signer ssh.Signer) (*AppManager, error) {
+	return &AppManager{
+		repo,
+		signer,
+	}, nil
+}
+
+func (m *AppManager) Install(app App) error {
+	wt, err := m.repo.Worktree()
 	if err != nil {
-		return nil, err
+		return err
+	}
+	configF, err := wt.Filesystem.Open(configFileName)
+	if err != nil {
+		return err
+	}
+	defer configF.Close()
+	config, err := ReadConfig(configF)
+	if err != nil {
+		return err
+	}
+	appsRoot, err := wt.Filesystem.Chroot(appDirName)
+	if err != nil {
+		return err
+	}
+	rootKustF, err := appsRoot.Open(kustomizationFileName)
+	if err != nil {
+		return err
 	}
 	defer rootKustF.Close()
 	rootKust, err := ReadKustomization(rootKustF)
 	if err != nil {
-		return nil, err
-	}
-	return &AppManager{
-		fs,
-		config,
-		appRepo,
-		rootKust,
-	}, nil
-}
-
-func (m *AppManager) Install(name string) error {
-	app, err := m.appRepo.Find(name)
-	if err != nil {
-		return nil
-	}
-	if err := util.RemoveAll(m.fs, name); err != nil {
 		return err
 	}
-	if err := m.fs.MkdirAll(name, fs.ModePerm); err != nil {
-		return nil
-	}
-	appRoot, err := m.fs.Chroot(name)
+	appRoot, err := appsRoot.Chroot(app.Name)
 	if err != nil {
 		return err
+	}
+	if err := util.RemoveAll(appRoot, app.Name); err != nil {
+		return err
+	}
+	if err := appRoot.MkdirAll(app.Name, fs.ModePerm); err != nil {
+		return nil
 	}
 	appKust := NewKustomization()
 	for _, t := range app.Templates {
@@ -62,7 +76,7 @@ func (m *AppManager) Install(name string) error {
 			return err
 		}
 		defer out.Close()
-		if err := t.Execute(out, m.config); err != nil {
+		if err := t.Execute(out, config); err != nil {
 			return err
 		}
 		appKust.Resources = append(appKust.Resources, t.Name())
@@ -75,14 +89,44 @@ func (m *AppManager) Install(name string) error {
 	if err := appKust.Write(appKustF); err != nil {
 		return err
 	}
-	if slices.Contains(m.rootKust.Resources, name) {
-		return nil
+	if !slices.Contains(rootKust.Resources, app.Name) {
+		rootKust.Resources = append(rootKust.Resources, app.Name)
+		rootKustFW, err := appsRoot.Create(kustomizationFileName)
+		if err != nil {
+			return err
+		}
+		defer rootKustFW.Close()
+		if err := rootKust.Write(rootKustFW); err != nil {
+			return err
+		}
 	}
-	m.rootKust.Resources = append(m.rootKust.Resources, name)
-	rootKustF, err := m.fs.Create(kustomizationFileName)
-	if err != nil {
+	// Commit and push
+	if err := wt.AddGlob("*"); err != nil {
 		return err
 	}
-	defer rootKustF.Close()
-	return m.rootKust.Write(rootKustF)
+	if _, err := wt.Commit(fmt.Sprintf("install: %s", app.Name), &git.CommitOptions{
+		Author: &object.Signature{
+			Name: "pcloud-appmanager",
+			When: time.Now(),
+		},
+	}); err != nil {
+		return err
+	}
+	return m.repo.Push(&git.PushOptions{
+		RemoteName: "origin",
+		Auth:       auth(m.signer),
+	})
+}
+
+func auth(signer ssh.Signer) *gitssh.PublicKeys {
+	return &gitssh.PublicKeys{
+		Signer: signer,
+		HostKeyCallbackHelper: gitssh.HostKeyCallbackHelper{
+			HostKeyCallback: func(hostname string, remote net.Addr, key ssh.PublicKey) error {
+				// TODO(giolekva): verify server public key
+				// fmt.Printf("## %s || %s -- \n", serverPubKey, ssh.MarshalAuthorizedKey(key))
+				return nil
+			},
+		},
+	}
 }

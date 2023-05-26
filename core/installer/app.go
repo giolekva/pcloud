@@ -2,17 +2,41 @@ package installer
 
 import (
 	"embed"
+	"fmt"
 	"log"
 	"text/template"
 )
+
+//go:embed values-tmpl
+var valuesTmpls embed.FS
 
 type App struct {
 	Name      string
 	Templates []*template.Template
 }
 
-//go:embed values-tmpl
-var valuesTmpls embed.FS
+type AppRepository interface {
+	Find(name string) (*App, error)
+}
+
+type InMemoryAppRepository struct {
+	apps []App
+}
+
+func NewInMemoryAppRepository(apps []App) AppRepository {
+	return &InMemoryAppRepository{
+		apps,
+	}
+}
+
+func (r InMemoryAppRepository) Find(name string) (*App, error) {
+	for _, a := range r.apps {
+		if a.Name == name {
+			return &a, nil
+		}
+	}
+	return nil, fmt.Errorf("Application not found: %s", name)
+}
 
 func CreateAllApps() []App {
 	tmpls, err := template.ParseFS(valuesTmpls, "values-tmpl/*.yaml")

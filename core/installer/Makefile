@@ -14,4 +14,4 @@ create_env:
 	./pcloud create-env --admin-priv-key=/Users/lekva/.ssh/id_rsa --name=foo
 
 rpuppy:
-	./pcloud install --ssh-key=/Users/lekva/.ssh/id_rsa --config=/Users/lekva/dev/src/pcloud/priv/lekva.yaml --app=rpuppy --repo-addr=ssh://localhost:2222/lekva
+	./pcloud install --ssh-key=/Users/lekva/.ssh/id_rsa --app=rpuppy --repo-addr=ssh://localhost:2222/lekva

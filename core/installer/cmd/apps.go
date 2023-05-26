@@ -1,28 +1,22 @@
 package main
 
 import (
-	"fmt"
-	"io/ioutil"
 	"net"
 	"os"
-	"time"
 
 	"github.com/giolekva/pcloud/core/installer"
 	"github.com/go-git/go-billy/v5/memfs"
 	"github.com/go-git/go-git/v5"
-	"github.com/go-git/go-git/v5/plumbing/object"
 	gitssh "github.com/go-git/go-git/v5/plumbing/transport/ssh"
 	"github.com/go-git/go-git/v5/storage/memory"
 	"github.com/spf13/cobra"
 	"golang.org/x/crypto/ssh"
-	"sigs.k8s.io/yaml"
 )
 
 const appDirName = "apps"
 
 var installFlags struct {
 	sshKey   string
-	config   string
 	appName  string
 	repoAddr string
 }
@@ -35,12 +29,6 @@ func installCmd() *cobra.Command {
 	cmd.Flags().StringVar(
 		&installFlags.sshKey,
 		"ssh-key",
-		"",
-		"",
-	)
-	cmd.Flags().StringVar(
-		&installFlags.config,
-		"config",
 		"",
 		"",
 	)
@@ -59,30 +47,7 @@ func installCmd() *cobra.Command {
 	return cmd
 }
 
-type inMemoryAppRepository struct {
-	apps []installer.App
-}
-
-func NewInMemoryAppRepository(apps []installer.App) installer.AppRepository {
-	return &inMemoryAppRepository{
-		apps,
-	}
-}
-
-func (r inMemoryAppRepository) Find(name string) (*installer.App, error) {
-	for _, a := range r.apps {
-		if a.Name == name {
-			return &a, nil
-		}
-	}
-	return nil, fmt.Errorf("Application not found: %s", name)
-}
-
 func installCmdRun(cmd *cobra.Command, args []string) error {
-	cfg, err := readConfig(installFlags.config)
-	if err != nil {
-		return err
-	}
 	sshKey, err := os.ReadFile(installFlags.sshKey)
 	if err != nil {
 		return err
@@ -95,58 +60,19 @@ func installCmdRun(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-	wt, err := repo.Worktree()
-	if err != nil {
-		return err
-	}
-	appRoot, err := wt.Filesystem.Chroot(appDirName)
-	if err != nil {
-		return err
-	}
 	m, err := installer.NewAppManager(
-		appRoot,
-		cfg,
-		NewInMemoryAppRepository(installer.CreateAllApps()),
+		repo,
+		signer,
 	)
 	if err != nil {
 		return err
 	}
-	if err := m.Install(installFlags.appName); err != nil {
-		return err
-	}
-	if st, err := wt.Status(); err != nil {
-		return err
-	} else {
-		fmt.Printf("%+v\n", st)
-	}
-	wt.AddGlob("*")
-	if st, err := wt.Status(); err != nil {
-		return err
-	} else {
-		fmt.Printf("%+v\n", st)
-	}
-	if _, err := wt.Commit(fmt.Sprintf("install: %s", installFlags.appName), &git.CommitOptions{
-		Author: &object.Signature{
-			Name: "pcloud-appmanager",
-			When: time.Now(),
-		},
-	}); err != nil {
-		return err
-	}
-	return repo.Push(&git.PushOptions{
-		RemoteName: "origin",
-		Auth:       auth(signer),
-	})
-}
-
-func readConfig(config string) (installer.Config, error) {
-	var cfg installer.Config
-	inp, err := ioutil.ReadFile(config)
+	appRepo := installer.NewInMemoryAppRepository(installer.CreateAllApps())
+	app, err := appRepo.Find(installFlags.appName)
 	if err != nil {
-		return cfg, err
+		return err
 	}
-	err = yaml.UnmarshalStrict(inp, &cfg)
-	return cfg, err
+	return m.Install(*app)
 }
 
 func cloneRepo(address string, signer ssh.Signer) (*git.Repository, error) {
