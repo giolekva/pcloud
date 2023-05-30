@@ -2,7 +2,7 @@ apiVersion: helm.toolkit.fluxcd.io/v2beta1
 kind: HelmRelease
 metadata:
   name: headscale
-  namespace: {{ .Values.NamespacePrefix }}app-headscale
+  namespace: {{ .Global.NamespacePrefix }}app-headscale
 spec:
   chart:
     spec:
@@ -10,7 +10,7 @@ spec:
       sourceRef:
         kind: GitRepository
         name: pcloud
-        namespace: {{ .Values.Id }}
+        namespace: {{ .Global.Id }}
   interval: 1m0s
   values:
     image:
@@ -20,5 +20,5 @@ spec:
     storage:
       size: 5Gi
     ingressClassName: pcloud-ingress-public
-    certificateIssuer: lekva-public
-    domain: {{ .Values.Domain }}
+    certificateIssuer: {{ .Global.Id }}-public
+    domain: {{ .Values.Subdomain }}.{{ .Global.Doman }}

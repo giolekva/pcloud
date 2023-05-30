@@ -6,4 +6,4 @@ storage:
   size: 5Gi
 ingressClassName: pcloud-ingress-public
 certificateIssuer: lekva-public
-domain: lekva.me
+domain: headscale.example.com
