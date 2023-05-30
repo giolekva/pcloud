@@ -15,3 +15,6 @@ create_env:
 
 rpuppy:
 	./pcloud install --ssh-key=/Users/lekva/.ssh/id_rsa --app=rpuppy --repo-addr=ssh://localhost:2222/lekva
+
+appmanager:
+	./pcloud appmanager --ssh-key=/Users/lekva/.ssh/id_rsa --repo-addr=ssh://localhost:2222/lekva

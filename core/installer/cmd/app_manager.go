@@ -1,9 +1,19 @@
 package main
 
 import (
+	"bytes"
+	"encoding/json"
+	"fmt"
+	"io/ioutil"
+	"log"
+	"net/http"
+	"net/http/httputil"
+	"net/url"
 	"os"
 
 	"github.com/giolekva/pcloud/core/installer"
+
+	"github.com/labstack/echo/v4"
 	"github.com/spf13/cobra"
 	"golang.org/x/crypto/ssh"
 )
@@ -11,30 +21,37 @@ import (
 var appManagerFlags struct {
 	sshKey   string
 	repoAddr string
+	port     int
 }
 
 func appManagerCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:  "appmanager",
-		RunE: installCmdRun,
+		RunE: appManagerCmdRun,
 	}
 	cmd.Flags().StringVar(
-		&installFlags.sshKey,
+		&appManagerFlags.sshKey,
 		"ssh-key",
 		"",
 		"",
 	)
 	cmd.Flags().StringVar(
-		&installFlags.repoAddr,
+		&appManagerFlags.repoAddr,
 		"repo-addr",
 		"",
+		"",
+	)
+	cmd.Flags().IntVar(
+		&appManagerFlags.port,
+		"port",
+		8080,
 		"",
 	)
 	return cmd
 }
 
 func appManagerCmdRun(cmd *cobra.Command, args []string) error {
-	sshKey, err := os.ReadFile(installFlags.sshKey)
+	sshKey, err := os.ReadFile(appManagerFlags.sshKey)
 	if err != nil {
 		return err
 	}
@@ -42,14 +59,148 @@ func appManagerCmdRun(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-	repo, err := cloneRepo(installFlags.repoAddr, signer)
+	repo, err := cloneRepo(appManagerFlags.repoAddr, signer)
 	if err != nil {
 		return err
 	}
-	_, err = installer.NewAppManager(repo, signer)
+	m, err := installer.NewAppManager(repo, signer)
 	if err != nil {
 		return err
 	}
-	// TODO(gio): start server
+	r := installer.NewInMemoryAppRepository(installer.CreateAllApps())
+	s := &server{
+		port: appManagerFlags.port,
+		m:    m,
+		r:    r,
+	}
+	s.start()
 	return nil
+}
+
+type server struct {
+	port int
+	m    *installer.AppManager
+	r    installer.AppRepository
+}
+
+func (s *server) start() {
+	e := echo.New()
+	e.GET("/api/app-repo", s.handleAppRepo)
+	e.POST("/api/app/:slug/render", s.handleAppRender)
+	e.POST("/api/app/:slug/install", s.handleAppInstall)
+	e.GET("/api/app/:slug", s.handleApp)
+	webapp, err := url.Parse("http://localhost:5173")
+	if err != nil {
+		panic(err)
+	}
+	// var f ff
+	e.Any("/*", echo.WrapHandler(httputil.NewSingleHostReverseProxy(webapp)))
+	// e.Any("/*", echo.WrapHandler(&f))
+	fmt.Printf("Starting HTTP server on port: %d\n", s.port)
+	log.Fatal(e.Start(fmt.Sprintf(":%d", s.port)))
+}
+
+type app struct {
+	Name   string `json:"name"`
+	Slug   string `json:"slug"`
+	Schema string `json:"schema"`
+}
+
+func (s *server) handleAppRepo(c echo.Context) error {
+	all, err := s.r.GetAll()
+	if err != nil {
+		return err
+	}
+	resp := make([]app, len(all))
+	for i, a := range all {
+		resp[i] = app{a.Name, a.Name, a.Schema}
+	}
+	return c.JSON(http.StatusOK, resp)
+}
+
+func (s *server) handleApp(c echo.Context) error {
+	slug := c.Param("slug")
+	a, err := s.r.Find(slug)
+	if err != nil {
+		return err
+	}
+	return c.JSON(http.StatusOK, app{a.Name, a.Name, a.Schema})
+}
+
+type file struct {
+	Name     string `json:"name"`
+	Contents string `json:"contents"`
+}
+
+type rendered struct {
+	Readme string `json:"readme"`
+	Files  []file `json:"files"`
+}
+
+func (s *server) handleAppRender(c echo.Context) error {
+	slug := c.Param("slug")
+	contents, err := ioutil.ReadAll(c.Request().Body)
+	if err != nil {
+		return err
+	}
+	global, err := s.m.Config()
+	if err != nil {
+		return err
+	}
+	var values map[string]any
+	if err := json.Unmarshal(contents, &values); err != nil {
+		return err
+	}
+	all := map[string]any{
+		"Global": global.Values,
+		"Values": values,
+	}
+	a, err := s.r.Find(slug)
+	if err != nil {
+		return err
+	}
+	var readme bytes.Buffer
+	if err := a.Readme.Execute(&readme, all); err != nil {
+		return err
+	}
+	var resp rendered
+	resp.Readme = readme.String()
+	for _, tmpl := range a.Templates {
+		var f bytes.Buffer
+		if err := tmpl.Execute(&f, all); err != nil {
+			fmt.Printf("%+v\n", all)
+			fmt.Println(err.Error())
+			return err
+		} else {
+			resp.Files = append(resp.Files, file{tmpl.Name(), f.String()})
+		}
+	}
+	out, err := json.Marshal(resp)
+	if err != nil {
+		return err
+	}
+	if _, err := c.Response().Writer.Write(out); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *server) handleAppInstall(c echo.Context) error {
+	slug := c.Param("slug")
+	contents, err := ioutil.ReadAll(c.Request().Body)
+	if err != nil {
+		return err
+	}
+	var values map[string]any
+	if err := json.Unmarshal(contents, &values); err != nil {
+		return err
+	}
+	a, err := s.r.Find(slug)
+	if err != nil {
+		return err
+	}
+	if err := s.m.Install(*a, values); err != nil {
+		return err
+	}
+	return c.String(http.StatusOK, "Installed")
 }

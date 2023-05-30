@@ -72,7 +72,7 @@ func installCmdRun(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-	return m.Install(*app)
+	return m.Install(*app, nil)
 }
 
 func cloneRepo(address string, signer ssh.Signer) (*git.Repository, error) {

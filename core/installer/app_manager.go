@@ -13,6 +13,7 @@ import (
 	"github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/plumbing/object"
 	gitssh "github.com/go-git/go-git/v5/plumbing/transport/ssh"
+	"sigs.k8s.io/yaml"
 )
 
 const appDirName = "apps"
@@ -32,19 +33,35 @@ func NewAppManager(repo *git.Repository, signer ssh.Signer) (*AppManager, error)
 	}, nil
 }
 
-func (m *AppManager) Install(app App) error {
+func (m *AppManager) Config() (Config, error) {
 	wt, err := m.repo.Worktree()
 	if err != nil {
-		return err
+		return Config{}, err
 	}
 	configF, err := wt.Filesystem.Open(configFileName)
 	if err != nil {
-		return err
+		return Config{}, err
 	}
 	defer configF.Close()
 	config, err := ReadConfig(configF)
 	if err != nil {
+		return Config{}, err
+	}
+	return config, nil
+}
+
+func (m *AppManager) Install(app App, config map[string]any) error {
+	wt, err := m.repo.Worktree()
+	if err != nil {
 		return err
+	}
+	globalConfig, err := m.Config()
+	if err != nil {
+		return err
+	}
+	all := map[string]any{
+		"Global": globalConfig.Values,
+		"Values": config,
 	}
 	appsRoot, err := wt.Filesystem.Chroot(appDirName)
 	if err != nil {
@@ -76,10 +93,24 @@ func (m *AppManager) Install(app App) error {
 			return err
 		}
 		defer out.Close()
-		if err := t.Execute(out, config); err != nil {
+		if err := t.Execute(out, all); err != nil {
 			return err
 		}
 		appKust.Resources = append(appKust.Resources, t.Name())
+	}
+	{
+		out, err := appRoot.Create(configFileName)
+		if err != nil {
+			return err
+		}
+		defer out.Close()
+		configBytes, err := yaml.Marshal(config)
+		if err != nil {
+			return err
+		}
+		if _, err := out.Write(configBytes); err != nil {
+			return err
+		}
 	}
 	appKustF, err := appRoot.Create(kustomizationFileName)
 	if err != nil {

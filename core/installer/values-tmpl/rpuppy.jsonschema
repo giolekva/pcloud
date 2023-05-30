@@ -1,0 +1,7 @@
+{
+  "type": "object",
+  "properties": {
+    "Subdomain": { "type": "string", "default": "woof" }
+  },
+  "additionalProperties": false
+}

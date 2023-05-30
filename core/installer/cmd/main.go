@@ -25,6 +25,7 @@ func init() {
 	rootCmd.AddCommand(bootstrapCmd())
 	rootCmd.AddCommand(createEnvCmd())
 	rootCmd.AddCommand(installCmd())
+	rootCmd.AddCommand(appManagerCmd())
 }
 
 func main() {

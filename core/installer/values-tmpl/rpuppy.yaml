@@ -2,7 +2,7 @@ apiVersion: helm.toolkit.fluxcd.io/v2beta1
 kind: HelmRelease
 metadata:
   name: rpuppy
-  namespace: {{ .Values.NamespacePrefix }}app-rpuppy
+  namespace: {{ .Global.NamespacePrefix }}app-rpuppy
 spec:
   chart:
     spec:
@@ -10,9 +10,9 @@ spec:
       sourceRef:
         kind: GitRepository
         name: pcloud
-        namespace: {{ .Values.Id }}
+        namespace: {{ .Global.Id }}
   interval: 1m0s
   values:
     ingressClassName: pcloud-ingress-public
-    certificateIssuer: lekva-public
-    domain: woof.{{ .Values.Domain }}
+    certificateIssuer: {{ .Global.Id }}-public
+    domain: {{ .Values.Subdomain }}.{{ .Global.Domain }}
