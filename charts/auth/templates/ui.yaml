@@ -51,7 +51,6 @@ spec:
       labels:
         app: ui
     spec:
-      volumes:
       containers:
       - name: server
         image: giolekva/auth-ui:latest
