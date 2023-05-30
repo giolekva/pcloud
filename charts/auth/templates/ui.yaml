@@ -50,7 +50,6 @@ spec:
     metadata:
       labels:
         app: ui
-m }}
     spec:
       volumes:
       containers:
