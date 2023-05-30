@@ -3,6 +3,7 @@ package installer
 import (
 	"fmt"
 	"io/fs"
+	"io/ioutil"
 	"net"
 	"time"
 
@@ -48,6 +49,25 @@ func (m *AppManager) Config() (Config, error) {
 		return Config{}, err
 	}
 	return config, nil
+}
+
+func (m *AppManager) AppConfig(name string) (map[string]any, error) {
+	wt, err := m.repo.Worktree()
+	if err != nil {
+		return nil, err
+	}
+	configF, err := wt.Filesystem.Open(wt.Filesystem.Join(appDirName, name, configFileName))
+	if err != nil {
+		return nil, err
+	}
+	defer configF.Close()
+	var cfg map[string]any
+	contents, err := ioutil.ReadAll(configF)
+	if err != nil {
+		return cfg, err
+	}
+	err = yaml.UnmarshalStrict(contents, &cfg)
+	return cfg, err
 }
 
 func (m *AppManager) Install(app App, config map[string]any) error {

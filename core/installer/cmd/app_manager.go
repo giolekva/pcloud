@@ -101,9 +101,10 @@ func (s *server) start() {
 }
 
 type app struct {
-	Name   string `json:"name"`
-	Slug   string `json:"slug"`
-	Schema string `json:"schema"`
+	Name   string         `json:"name"`
+	Slug   string         `json:"slug"`
+	Schema string         `json:"schema"`
+	Config map[string]any `json:"config"`
 }
 
 func (s *server) handleAppRepo(c echo.Context) error {
@@ -113,7 +114,8 @@ func (s *server) handleAppRepo(c echo.Context) error {
 	}
 	resp := make([]app, len(all))
 	for i, a := range all {
-		resp[i] = app{a.Name, a.Name, a.Schema}
+		config, _ := s.m.AppConfig(a.Name) // TODO(gio): handle error
+		resp[i] = app{a.Name, a.Name, a.Schema, config}
 	}
 	return c.JSON(http.StatusOK, resp)
 }
@@ -124,7 +126,8 @@ func (s *server) handleApp(c echo.Context) error {
 	if err != nil {
 		return err
 	}
-	return c.JSON(http.StatusOK, app{a.Name, a.Name, a.Schema})
+	config, _ := s.m.AppConfig(a.Name) // TODO(gio): handle error
+	return c.JSON(http.StatusOK, app{a.Name, a.Name, a.Schema, config})
 }
 
 type file struct {
