@@ -6,11 +6,10 @@ metadata:
 spec:
   chart:
     spec:
-      chart: postgresql
-      version: 10.13.5
+      chart: charts/postgresql
       sourceRef:
-        kind: HelmRepository
-        name: bitnami
+        kind: GitRepository
+        name: pcloud
         namespace: {{ .Global.Id }}
   dependsOn:
   - name: namespaces
@@ -20,7 +19,7 @@ spec:
     fullnameOverride: postgres
     image:
       repository: arm64v8/postgres
-      tag: 13.4
+      tag: 15.3
     service:
       type: ClusterIP
       port: 5432
