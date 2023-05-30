@@ -7,7 +7,7 @@ metadata:
     helm.sh/resource-policy: keep
 spec:
   dnsNames:
-  - 'accounts-ui.{{ .Values.ui.domain }}'
+  - "accounts-ui.{{ .Values.ui.domain }}"
   issuerRef:
     name: {{ .Values.ui.certificateIssuer }}
     kind: ClusterIssuer
@@ -22,7 +22,7 @@ metadata:
     helm.sh/resource-policy: keep
 spec:
   dnsNames:
-  - 'accounts.{{ .Values.ui.domain }}'
+  - "accounts.{{ .Values.ui.domain }}"
   issuerRef:
     name: {{ .Values.ui.certificateIssuer }}
     kind: ClusterIssuer
@@ -37,7 +37,7 @@ metadata:
     helm.sh/resource-policy: keep
 spec:
   dnsNames:
-  - 'hydra.{{ .Values.ui.domain }}'
+  - "hydra.{{ .Values.ui.domain }}"
   issuerRef:
     name: {{ .Values.ui.certificateIssuer }}
     kind: ClusterIssuer

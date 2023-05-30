@@ -109,7 +109,7 @@ func CreateAppCoreAuth(fs embed.FS, tmpls *template.Template) App {
 			tmpls.Lookup("core-auth.yaml"),
 		},
 		string(schema),
-		nil,
+		tmpls.Lookup("core-auth.md"),
 	}
 }
 

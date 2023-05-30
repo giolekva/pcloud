@@ -2,7 +2,7 @@ apiVersion: helm.toolkit.fluxcd.io/v2beta1
 kind: HelmRelease
 metadata:
   name: core-auth
-  namespace: {{ .Values.NamespacePrefix }}core-auth
+  namespace: {{ .Global.NamespacePrefix }}core-auth
 spec:
   chart:
     spec:
@@ -10,18 +10,21 @@ spec:
       sourceRef:
         kind: GitRepository
         name: pcloud
-        namespace: {{ .Values.Id }}
+        namespace: {{ .Global.Id }}
   dependsOn:
   - name: core-auth-storage
-    namespace: {{ .Values.NamespacePrefix }}core-auth
+    namespace: {{ .Global.NamespacePrefix }}core-auth
   interval: 1m0s
   values:
     kratos:
       fullnameOverride: kratos
       image:
-        repository: giolekva/ory-kratos
-        tag: latest
-        pullPolicy: Always
+        repository: oryd/kratos
+        tag: v0.13.0
+        pullPolicy: IfNotPresent
+        # repository: giolekva/ory-kratos
+        # tag: latest
+        # pullPolicy: Always
       service:
         admin:
           enabled: true
@@ -36,27 +39,27 @@ spec:
       ingress:
         admin:
           enabled: true
-          className: {{ .Values.Id }}-ingress-private
+          className: {{ .Global.Id }}-ingress-private
           hosts:
-          - host: kratos.p.{{ .Values.Domain }}
+          - host: kratos.p.{{ .Global.Domain }}
             paths:
             - path: /
               pathType: Prefix
           tls:
           - hosts:
-            - kratos.p.{{ .Values.Domain }}
+            - kratos.p.{{ .Global.Domain }}
         public:
           enabled: true
-          className: {{ .Values.PCloudEnvName }}-ingress-public
+          className: {{ .Global.PCloudEnvName }}-ingress-public
           hosts:
-          - host: accounts.{{ .Values.Domain }}
+          - host: accounts.{{ .Global.Domain }}
             paths:
             - path: /
               pathType: Prefix
           tls:
           - hosts:
-            - accounts.{{ .Values.Domain }}
-            secretName: cert-accounts.{{ .Values.Domain }}
+            - accounts.{{ .Global.Domain }}
+            secretName: cert-accounts.{{ .Global.Domain }}
       secret:
         enabled: true
       kratos:
@@ -67,28 +70,28 @@ spec:
           dsn: postgres://postgres:psswd@postgres:5432/kratos?sslmode=disable&max_conns=20&max_idle_conns=4
           serve:
             public:
-              base_url: https://accounts.{{ .Values.Domain }}
+              base_url: https://accounts.{{ .Global.Domain }}
               cors:
                 enabled: true
                 debug: false
                 allow_credentials: true
                 allowed_origins:
-                - https://{{ .Values.Domain }}
-                - https://*.{{ .Values.Domain }}
+                - https://{{ .Global.Domain }}
+                - https://*.{{ .Global.Domain }}
             admin:
-              base_url: https://kratos.p.{{ .Values.Domain }}/
+              base_url: https://kratos.p.{{ .Global.Domain }}/
           selfservice:
-            default_browser_return_url: https://accounts-ui.{{ .Values.Domain }}
+            default_browser_return_url: https://accounts-ui.{{ .Global.Domain }}
             whitelisted_return_urls:
-              - https://accounts-ui.{{ .Values.Domain }}
+              - https://accounts-ui.{{ .Global.Domain }}
             methods:
               password:
                 enabled: true
             flows:
               error:
-                ui_url: https://accounts-ui.{{ .Values.Domain }}/error
+                ui_url: https://accounts-ui.{{ .Global.Domain }}/error
               settings:
-                ui_url: https://accounts-ui.{{ .Values.Domain }}/settings
+                ui_url: https://accounts-ui.{{ .Global.Domain }}/settings
                 privileged_session_max_age: 15m
               recovery:
                 enabled: false
@@ -96,22 +99,22 @@ spec:
                 enabled: false
               logout:
                 after:
-                  default_browser_return_url: https://accounts-ui.{{ .Values.Domain }}/login
+                  default_browser_return_url: https://accounts-ui.{{ .Global.Domain }}/login
               login:
-                ui_url: https://accounts-ui.{{ .Values.Domain }}/login
+                ui_url: https://accounts-ui.{{ .Global.Domain }}/login
                 lifespan: 10m
                 after:
                   password:
-                    default_browser_return_url: https://accounts-ui.{{ .Values.Domain }}/
+                    default_browser_return_url: https://accounts-ui.{{ .Global.Domain }}/
               registration:
                 lifespan: 10m
-                ui_url: https://accounts-ui.{{ .Values.Domain }}/registration
+                ui_url: https://accounts-ui.{{ .Global.Domain }}/registration
                 after:
                   password:
                     hooks:
                       -
                         hook: session
-                    default_browser_return_url: https://accounts-ui.{{ .Values.Domain }}/
+                    default_browser_return_url: https://accounts-ui.{{ .Global.Domain }}/
           log:
             level: debug
             format: text
@@ -119,7 +122,7 @@ spec:
           cookies:
             path: /
             same_site: None
-            domain: {{ .Values.Domain }}
+            domain: {{ .Global.Domain }}
           secrets:
             cookie:
               - PLEASE-CHANGE-ME-I-AM-VERY-INSECURE
@@ -138,7 +141,7 @@ spec:
             default_schema_url: file:///etc/config/identity.schema.json
           courier:
             smtp:
-              connection_uri: smtps://test-z1VmkYfYPjgdPRgPFgmeZ31esT9rUgS%40{{ .Values.Domain }}:iW%213Kk%5EPPLFrZa%24%21bbpTPN9Wv3b8mvwS6ZJvMLtce%23A2%2A4MotD@mx1.{{ .Values.Domain }}
+              connection_uri: smtps://test-z1VmkYfYPjgdPRgPFgmeZ31esT9rUgS%40{{ .Global.Domain }}:iW%213Kk%5EPPLFrZa%24%21bbpTPN9Wv3b8mvwS6ZJvMLtce%23A2%2A4MotD@mx1.{{ .Global.Domain }}
         identitySchemas:
           "identity.schema.json": |
             {
@@ -171,9 +174,12 @@ spec:
     hydra:
       fullnameOverride: hydra
       image:
-        repository: giolekva/ory-hydra
-        tag: latest
-        pullPolicy: Always
+        repository: oryd/hydra
+        tag: v2.1.2
+        pullPolicy: IfNotPresent
+        # repository: giolekva/ory-hydra
+        # tag: latest
+        # pullPolicy: Always
       service:
         admin:
           enabled: true
@@ -188,34 +194,34 @@ spec:
       ingress:
         admin:
           enabled: true
-          className: {{ .Values.Id }}-ingress-private
+          className: {{ .Global.Id }}-ingress-private
           hosts:
-          - host: hydra.p.{{ .Values.Domain }}
+          - host: hydra.p.{{ .Global.Domain }}
             paths:
             - path: /
               pathType: Prefix
           tls:
           - hosts:
-            - hydra.p.{{ .Values.Domain }}
+            - hydra.p.{{ .Global.Domain }}
         public:
           enabled: true
-          className: {{ .Values.PCloudEnvName }}-ingress-public
+          className: {{ .Global.PCloudEnvName }}-ingress-public
           hosts:
-          - host: hydra.{{ .Values.Domain }}
+          - host: hydra.{{ .Global.Domain }}
             paths:
             - path: /
               pathType: Prefix
           tls:
           - hosts:
-            - hydra.{{ .Values.Domain }}
-            secretName: cert-hydra.{{ .Values.Domain }}
+            - hydra.{{ .Global.Domain }}
+            secretName: cert-hydra.{{ .Global.Domain }}
       secret:
         enabled: true
       maester:
         enabled: false
         hydraFullnameOverride: hydra
       hydra-maester:
-        fullnameOverride: {{ .Values.Id }}-hydra-maester
+        fullnameOverride: {{ .Global.Id }}-hydra-maester
         image:
           repository: giolekva/ory-hydra-maester
           tag: latest
@@ -237,32 +243,30 @@ spec:
                 debug: false
                 allow_credentials: true
                 allowed_origins:
-                  - https://{{ .Values.Domain }}
-                  - https://*.{{ .Values.Domain }}
+                  - https://{{ .Global.Domain }}
+                  - https://*.{{ .Global.Domain }}
             admin:
               # host: localhost
               cors:
                 allowed_origins:
-                  - https://hydra.p.{{ .Values.Domain }}
+                  - https://hydra.p.{{ .Global.Domain }}
               tls:
                 allow_termination_from:
                   - 0.0.0.0/0
                   - 10.42.0.0/16
                   - 10.43.0.0/16
-                  - {{ .Values.LighthouseMainIP }}/32
             tls:
               allow_termination_from:
                 - 0.0.0.0/0
                 - 10.42.0.0/16
                 - 10.43.0.0/16
-                - {{ .Values.LighthouseMainIP }}/32
           urls:
             self:
-              public: https://hydra.{{ .Values.Domain }}
-              issuer: https://hydra.{{ .Values.Domain }}
-            consent: https://accounts-ui.{{ .Values.Domain }}/consent
-            login: https://accounts-ui.{{ .Values.Domain }}/login
-            logout: https://accounts-ui.{{ .Values.Domain }}/logout
+              public: https://hydra.{{ .Global.Domain }}
+              issuer: https://hydra.{{ .Global.Domain }}
+            consent: https://accounts-ui.{{ .Global.Domain }}/consent
+            login: https://accounts-ui.{{ .Global.Domain }}/login
+            logout: https://accounts-ui.{{ .Global.Domain }}/logout
           secrets:
             system:
               - youReallyNeedToChangeThis
@@ -277,20 +281,7 @@ spec:
             level: trace
             leak_sensitive_values: false
     ui:
-      certificateIssuer: {{ .Values.Id }}-public
-      ingressClassName: {{ .Values.PCloudEnvName }}-ingress-public
-      domain: {{ .Values.Domain }}
-      internalDomain: p.{{ .Values.Domain }}
-      nebula:
-        lighthouse:
-          name: ui-lighthouse
-          internalIP: {{ .Values.LighthouseMainIP }}
-          externalIP: {{ .Values.PublicIP }}
-          port: "{{ .Values.LighthouseMainPort }}"
-        node:
-          name: ui
-          ipCidr: {{ .Values.LighthouseAuthUIIP }}/24
-          secretName: node-ui-cert
-        certificateAuthority:
-          name: {{ .Values.Id }}
-          namespace: {{ .Values.NamespacePrefix }}ingress-private
+      certificateIssuer: {{ .Global.Id }}-public
+      ingressClassName: {{ .Global.PCloudEnvName }}-ingress-public
+      domain: {{ .Global.Domain }}
+      internalDomain: p.{{ .Global.Domain }}

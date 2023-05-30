@@ -1,9 +1,9 @@
 dependencies:
 - name: kratos
   repository: https://k8s.ory.sh/helm/charts
-  version: 0.20.1
+  version: 0.33.1
 - name: hydra
   repository: https://k8s.ory.sh/helm/charts
-  version: 0.20.1
-digest: sha256:2467fbd505772fa37ee80fdbc7a20cc1fec923702a69176cda04b99311b13e0b
-generated: "2021-11-06T21:20:46.694331+04:00"
+  version: 0.33.1
+digest: sha256:10ebc5a0091aa612b31d13ad09ab3ae9593e876b8dc27edcaf8e2fd553aab832
+generated: "2023-05-30T14:29:25.471201+04:00"
