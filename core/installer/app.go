@@ -230,6 +230,6 @@ func CreateAppHeadscale(fs embed.FS, tmpls *template.Template) App {
 			tmpls.Lookup("headscale.yaml"),
 		},
 		string(schema),
-		nil,
+		tmpls.Lookup("headscale.md"),
 	}
 }

@@ -1,15 +1,7 @@
 {
   "type": "object",
   "properties": {
-    "Values": {
-      "type": "object",
-      "properties": {
-        "NamespacePrefix": { "type": "string" },
-        "Id": { "type": "string" },
-        "Domain": { "type": "string" }
-      },
-      "additionalProperties": false
-    }
+    "Subdomain": { "type": "string" }
   },
   "additionalProperties": false
 }
