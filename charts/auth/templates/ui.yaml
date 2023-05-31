@@ -18,6 +18,9 @@ kind: Ingress
 metadata:
   name: ui
   namespace: {{ .Release.Namespace }}
+  annotations:
+    acme.cert-manager.io/http01-edit-in-place: "true"
+    cert-manager.io/cluster-issuer: {{ .Values.ui.certificateIssuer }}
 spec:
   ingressClassName: {{ .Values.ui.ingressClassName }}
   tls:
