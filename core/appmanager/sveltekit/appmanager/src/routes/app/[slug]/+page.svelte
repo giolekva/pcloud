@@ -59,7 +59,7 @@
 {data.slug}
 <HSplitPane>
     <left slot="left">
-          <SubmitForm schema={data.schema} value={data.config} on:submit={submit} on:value={change} submitText="Install" />
+          <SubmitForm schema={data.schema} value={data.config ?? {}} on:submit={submit} on:value={change} submitText="Install" />
     </left>
     <right slot="right">
         <TabGroup>
