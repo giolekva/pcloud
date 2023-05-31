@@ -1,3 +1,4 @@
+{{- $secret := include "clientSecret" . -}}
 apiVersion: v1
 kind: ConfigMap
 metadata:
