@@ -23,6 +23,7 @@ spec:
             name: headscale
             port:
               name: http
+---
 apiVersion: v1
 kind: Service
 metadata:
