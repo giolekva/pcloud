@@ -1,6 +1,7 @@
 {
   "type": "object",
   "properties": {
+    "Subdomain": { "type": "string" }
   },
   "additionalProperties": false
 }

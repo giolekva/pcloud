@@ -11,9 +11,6 @@ spec:
         kind: GitRepository
         name: pcloud
         namespace: {{ .Global.Id }}
-  dependsOn:
-  - name: namespaces
-    namespace: {{ .Global.Id }}
   interval: 1m0s
   values:
     fullnameOverride: postgres
@@ -23,16 +20,22 @@ spec:
     service:
       type: ClusterIP
       port: 5432
-    postgresqlPassword: psswd
-    postgresqlDatabase: kratos
-    persistence:
-      size: 1Gi
-    securityContext:
-      enabled: true
-      fsGroup: 0
-    containerSecurityContext:
-      enabled: true
-      runAsUser: 0
+    primary:
+      initdb:
+        scripts:
+          init.sql: |
+            CREATE USER kratos WITH PASSWORD 'kratos';
+            CREATE USER hydra WITH PASSWORD 'hydra';
+            CREATE DATABASE kratos WITH OWNER = kratos;
+            CREATE DATABASE hydra WITH OWNER = hydra;
+      persistence:
+        size: 1Gi
+      securityContext:
+        enabled: true
+        fsGroup: 0
+      containerSecurityContext:
+        enabled: true
+        runAsUser: 0
     volumePermissions:
       securityContext:
         runAsUser: 0

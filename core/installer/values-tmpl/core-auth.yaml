@@ -51,6 +51,9 @@ spec:
         public:
           enabled: true
           className: {{ .Global.PCloudEnvName }}-ingress-public
+          annotations:
+            acme.cert-manager.io/http01-edit-in-place: "true"
+            cert-manager.io/cluster-issuer: {{ .Global.Id }}-public
           hosts:
           - host: accounts.{{ .Global.Domain }}
             paths:
@@ -63,11 +66,14 @@ spec:
       secret:
         enabled: true
       kratos:
-        autoMigrate: true
+        automigration:
+          enabled: true
         development: false
+        courier:
+          enabled: false
         config:
           version: v0.7.1-alpha.1
-          dsn: postgres://postgres:psswd@postgres:5432/kratos?sslmode=disable&max_conns=20&max_idle_conns=4
+          dsn: postgres://kratos:kratos@postgres.lekva-core-auth.svc:5432/kratos?sslmode=disable&max_conns=20&max_idle_conns=4
           serve:
             public:
               base_url: https://accounts.{{ .Global.Domain }}
@@ -82,8 +88,8 @@ spec:
               base_url: https://kratos.p.{{ .Global.Domain }}/
           selfservice:
             default_browser_return_url: https://accounts-ui.{{ .Global.Domain }}
-            whitelisted_return_urls:
-              - https://accounts-ui.{{ .Global.Domain }}
+            # whitelisted_return_urls:
+            #   - https://accounts-ui.{{ .Global.Domain }}
             methods:
               password:
                 enabled: true
@@ -138,7 +144,10 @@ spec:
               salt_length: 16
               key_length: 16
           identity:
-            default_schema_url: file:///etc/config/identity.schema.json
+            schemas:
+            - id: user
+              url: file:///etc/config/identity.schema.json
+            default_schema_id: user
           courier:
             smtp:
               connection_uri: smtps://test-z1VmkYfYPjgdPRgPFgmeZ31esT9rUgS%40{{ .Global.Domain }}:iW%213Kk%5EPPLFrZa%24%21bbpTPN9Wv3b8mvwS6ZJvMLtce%23A2%2A4MotD@mx1.{{ .Global.Domain }}
@@ -206,6 +215,9 @@ spec:
         public:
           enabled: true
           className: {{ .Global.PCloudEnvName }}-ingress-public
+          annotations:
+            acme.cert-manager.io/http01-edit-in-place: "true"
+            cert-manager.io/cluster-issuer: {{ .Global.Id }}-public
           hosts:
           - host: hydra.{{ .Global.Domain }}
             paths:
@@ -230,10 +242,11 @@ spec:
           name: hydra
           port: 80
       hydra:
-        autoMigrate: true
+        automigration:
+          enabled: true
         config:
           version: v1.10.6
-          dsn: postgres://postgres:psswd@postgres:5432/kratos?sslmode=disable&max_conns=20&max_idle_conns=4
+          dsn: postgres://hydra:hydra@postgres.lekva-core-auth.svc:5432/hydra?sslmode=disable&max_conns=20&max_idle_conns=4
           serve:
             cookies:
               same_site_mode: None
