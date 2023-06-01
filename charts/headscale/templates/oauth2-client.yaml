@@ -12,9 +12,18 @@ spec:
   scope: "openid profile email"
   secretName: {{ .Values.oauth2.secretName }}
   redirectUris:
-  - https://headscale.{{ .Values.domain }}/oidc/callback
+  - https://{{ .Values.domain }}/oidc/callback
   hydraAdmin:
     url: {{ .Values.oauth2.hydraAdmin }}
     port: 80
-    endpoint: /clients
+    endpoint: /admin/clients
     forwardedProto: https
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: {{ .Values.oauth2.secretName }}
+  namespace: {{ .Release.Namespace }}
+data:
+  client_id: {{ .Values.oauth2.clientId | b64enc}}
+  client_secret: {{ $secret | b64enc }}
