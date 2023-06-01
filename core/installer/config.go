@@ -16,6 +16,7 @@ type Values struct {
 	Id                       string `json:"id,omitempty"`
 	ContactEmail             string `json:"contactEmail,omitempty"`
 	Domain                   string `json:"domain,omitempty"`
+	PrivateDomain            string `json:"privateDomain,omitempty"`
 	PublicIP                 string `json:"publicIP,omitempty"`
 	GandiAPIToken            string `json:"gandiAPIToken,omitempty"`
 	NamespacePrefix          string `json:"namespacePrefix,omitempty"`

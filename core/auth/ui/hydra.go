@@ -41,9 +41,9 @@ func (c *HydraClient) LoginAcceptChallenge(challenge, subject string) (string, e
 	req := &http.Request{
 		Method: http.MethodPut,
 		URL: &url.URL{
-			Scheme:   "https",
+			Scheme:   "http",
 			Host:     c.host,
-			Path:     "/oauth2/auth/requests/login/accept",
+			Path:     "/admin/oauth2/auth/requests/login/accept",
 			RawQuery: fmt.Sprintf("login_challenge=%s", challenge),
 		},
 		Header: map[string][]string{
@@ -75,9 +75,9 @@ func (c *HydraClient) LoginRejectChallenge(challenge, message string) (string, e
 	req := &http.Request{
 		Method: http.MethodPut,
 		URL: &url.URL{
-			Scheme:   "https",
+			Scheme:   "http",
 			Host:     c.host,
-			Path:     "/oauth2/auth/requests/login/reject",
+			Path:     "/admin/oauth2/auth/requests/login/reject",
 			RawQuery: fmt.Sprintf("login_challenge=%s", challenge),
 		},
 		Header: map[string][]string{
@@ -110,7 +110,7 @@ type RequestedConsent struct {
 
 func (c *HydraClient) GetConsentChallenge(challenge string) (RequestedConsent, error) {
 	var consent RequestedConsent
-	resp, err := c.httpClient.Get(fmt.Sprintf("https://%s/oauth2/auth/requests/consent?consent_challenge=%s", c.host, challenge))
+	resp, err := c.httpClient.Get(fmt.Sprintf("http://%s/admin/oauth2/auth/requests/consent?consent_challenge=%s", c.host, challenge))
 	if err != nil {
 		return consent, err
 	}
@@ -140,9 +140,9 @@ func (c *HydraClient) ConsentAccept(challenge string, scopes []string, idToken m
 	req := &http.Request{
 		Method: http.MethodPut,
 		URL: &url.URL{
-			Scheme:   "https",
+			Scheme:   "http",
 			Host:     c.host,
-			Path:     "/oauth2/auth/requests/consent/accept",
+			Path:     "/admin/oauth2/auth/requests/consent/accept",
 			RawQuery: fmt.Sprintf("challenge=%s", challenge),
 		},
 		Header: map[string][]string{

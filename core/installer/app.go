@@ -80,6 +80,7 @@ func CreateAppIngressPublic(fs embed.FS, tmpls *template.Template) App {
 	}
 }
 
+// TODO(gio): service account needs permission to create/update secret
 func CreateAppIngressPrivate(fs embed.FS, tmpls *template.Template) App {
 	schema, err := fs.ReadFile("values-tmpl/ingress-private.jsonschema")
 	if err != nil {
@@ -93,7 +94,7 @@ func CreateAppIngressPrivate(fs embed.FS, tmpls *template.Template) App {
 			tmpls.Lookup("certificate-issuer.yaml"),
 		},
 		string(schema),
-		nil,
+		tmpls.Lookup("ingress-private.md"),
 	}
 }
 
@@ -124,7 +125,7 @@ func CreateAppVaultwarden(fs embed.FS, tmpls *template.Template) App {
 			tmpls.Lookup("vaultwarden.yaml"),
 		},
 		string(schema),
-		nil,
+		tmpls.Lookup("vaultwarden.md"),
 	}
 }
 

@@ -17,7 +17,7 @@ data:
     #
     # https://myheadscale.example.com:443
     #
-    server_url: https://headscale.{{ .Values.domain }}
+    server_url: https://{{ .Values.domain }}
 
     # Address to listen to / bind to on the server
     #
@@ -252,7 +252,7 @@ data:
       # `base_domain` must be a FQDNs, without the trailing dot.
       # The FQDN of the hosts will be
       # `hostname.namespace.base_domain` (e.g., _myhost.mynamespace.example.com_).
-      base_domain: example.com
+      base_domain: {{ .Values.internalBaseDomain }}
 
     # Unix socket used for the CLI to connect without authentication
     # Note: for production you will want to set this to something like:

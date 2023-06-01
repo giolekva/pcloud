@@ -3,6 +3,8 @@ kind: HelmRelease
 metadata:
   name: headscale
   namespace: {{ .Global.NamespacePrefix }}app-headscale
+  annotations:
+    version: 2-with-oidc-hydra-admin
 spec:
   chart:
     spec:
@@ -22,3 +24,10 @@ spec:
     ingressClassName: pcloud-ingress-public
     certificateIssuer: {{ .Global.Id }}-public
     domain: {{ .Values.Subdomain }}.{{ .Global.Domain }}
+    internalBaseDomain: {{ .Global.PrivateDomain }}
+    oauth2:
+      hydraAdmin: http://hydra-admin.{{ .Global.NamespacePrefix }}core-auth.svc.cluster.local
+      hydraPublic: https://hydra.{{ .Global.Domain }}
+      clientId: headscale
+      secretName: oauth2-client-headscale
+

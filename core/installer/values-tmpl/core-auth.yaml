@@ -230,17 +230,15 @@ spec:
       secret:
         enabled: true
       maester:
-        enabled: false
-        hydraFullnameOverride: hydra
+        enabled: true
       hydra-maester:
-        fullnameOverride: {{ .Global.Id }}-hydra-maester
+        adminService:
+          name: hydra-admin
+          port: 80
         image:
           repository: giolekva/ory-hydra-maester
           tag: latest
           pullPolicy: IfNotPresent
-        adminService:
-          name: hydra
-          port: 80
       hydra:
         automigration:
           enabled: true

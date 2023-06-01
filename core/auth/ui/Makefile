@@ -15,5 +15,6 @@ build_amd64: export GOARCH=amd64
 build_amd64:
 	go build -o server_amd64 *.go
 
-push: clean build_arm64 build_amd64
-	docker buildx build --tag=giolekva/auth-ui:latest . --platform=linux/arm64,linux/amd64 --push
+push: clean build_arm64 # build_amd64
+	podman build --tag=giolekva/auth-ui:debug .
+	podman push giolekva/auth-ui:debug

@@ -1,15 +1,8 @@
 {
   "type": "object",
   "properties": {
-    "Values": {
-      "type": "object",
-      "properties": {
-        "NamespacePrefix": { "type": "string" },
-        "Id": { "type": "string" },
-        "Domain": { "type": "string" }
-      },
-      "additionalProperties": false
-    }
+    "GandiAPIToken": { "type": "string" },
+    "TailscaleAuthKey": { "type": "string" }
   },
   "additionalProperties": false
 }
