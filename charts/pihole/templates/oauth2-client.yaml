@@ -15,5 +15,5 @@ spec:
   hydraAdmin:
     url: {{ .Values.oauth2.hydraAdmin }}
     port: 80
-    endpoint: /clients
+    endpoint: /admin/clients
     forwardedProto: https

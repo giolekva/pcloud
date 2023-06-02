@@ -2,7 +2,7 @@ apiVersion: helm.toolkit.fluxcd.io/v2beta1
 kind: HelmRelease
 metadata:
   name: pihole
-  namespace: {{ .Values.NamespacePrefix }}app-pihole
+  namespace: {{ .Global.NamespacePrefix }}app-pihole
 spec:
   chart:
     spec:
@@ -10,13 +10,10 @@ spec:
       sourceRef:
         kind: GitRepository
         name: pcloud
-        namespace: {{ .Values.Id }}
-  dependsOn:
-    - name: namespaces
-      namespace: {{ .Values.Id }}
+        namespace: {{ .Global.Id }}
   interval: 1m0s
   values:
-    domain: pihole.p.{{ .Values.Domain }}
+    domain: {{ .Values.Subdomain}}.{{ .Global.PrivateDomain }}
     pihole:
       image:
         repository: "pihole/pihole"
@@ -37,7 +34,7 @@ spec:
           enabled: true
         https:
           enabled: false
-      virtualHost: pihole.p.{{ .Values.Domain }}
+      virtualHost: {{ .Values.Subdomain }}.{{ .Global.PrivateDomain }}
       resources:
         requests:
           cpu: "250m"
@@ -51,7 +48,7 @@ spec:
       cookieSecret: {{ .Values.PiholeOAuth2CookieSecret }}
       secretName: oauth2-secret
       configName: oauth2-proxy
-      hydraAdmin: http://hydra-admin.{{ .Values.NamespacePrefix}}core-auth.svc.cluster.local
-    hydraPublic: https://hydra.{{ .Values.Domain }}/
-    profileUrl: https://accounts-ui.{{ .Values.Domain }}
-    ingressClassName: {{ .Values.Id }}-ingress-private
+      hydraAdmin: http://hydra-admin.{{ .Global.NamespacePrefix }}core-auth.svc
+    hydraPublic: https://hydra.{{ .Global.Domain }}/
+    profileUrl: https://accounts-ui.{{ .Global.Domain }}
+    ingressClassName: {{ .Global.Id }}-ingress-private

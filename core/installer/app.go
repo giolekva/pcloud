@@ -156,7 +156,7 @@ func CreateAppPihole(fs embed.FS, tmpls *template.Template) App {
 			tmpls.Lookup("pihole.yaml"),
 		},
 		string(schema),
-		nil,
+		tmpls.Lookup("pihole.md"),
 	}
 }
 
