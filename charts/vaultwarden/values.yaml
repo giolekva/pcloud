@@ -1,6 +1,6 @@
 image:
   repository: vaultwarden/server
-  tag: 1.22.2
+  tag: 1.28.1
   pullPolicy: IfNotPresent
 storage:
   size: 1Gi

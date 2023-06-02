@@ -11,17 +11,14 @@ spec:
         kind: GitRepository
         name: pcloud
         namespace: {{ .Global.Id }}
-  dependsOn:
-    - name: namespaces
-      namespace: {{ .Global.Id }}
   interval: 1m0s
   values:
     image:
       repository: vaultwarden/server
-      tag: 1.22.2
+      tag: 1.28.1
       pullPolicy: IfNotPresent
     storage:
-      size: 1Gi
+      size: 3Gi
     domain: {{ .Values.Subdomain }}.{{ .Global.PrivateDomain }}
     certificateIssuer: {{ .Global.Id }}-private
     ingressClassName: {{ .Global.Id }}-ingress-private
