@@ -1,7 +1,7 @@
 pcloudInstanceId: example
 image:
   repository: lscr.io/linuxserver/qbittorrent
-  tag: latest
+  tag: 4.5.3
   pullPolicy: IfNotPresent
 ingress:
   className: example-private
