@@ -1,7 +1,7 @@
 pcloudInstanceId: example
 image:
   repository: jellyfin/jellyfin
-  tag: latest
+  tag: 10.8.10
   pullPolicy: IfNotPresent
 ingress:
   className: example-ingress-private
