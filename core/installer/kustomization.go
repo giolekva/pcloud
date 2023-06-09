@@ -44,3 +44,7 @@ func (k Kustomization) Write(w io.Writer) error {
 	}
 	return nil
 }
+
+func (k *Kustomization) AddResources(names ...string) {
+	k.Resources = append(k.Resources, names...)
+}

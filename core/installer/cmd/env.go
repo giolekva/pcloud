@@ -126,7 +126,7 @@ func createEnvCmdRun(cmd *cobra.Command, args []string) error {
 			return err
 		}
 	}
-	kust.Resources = append(kust.Resources, createEnvFlags.name)
+	kust.AddResources(createEnvFlags.name)
 	ff, err := wt.Filesystem.Create(envKust)
 	if err != nil {
 		return err

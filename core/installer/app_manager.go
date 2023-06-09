@@ -122,7 +122,7 @@ func (m *AppManager) Install(app App, config map[string]any) error {
 		if err := t.Execute(out, all); err != nil {
 			return err
 		}
-		appKust.Resources = append(appKust.Resources, t.Name())
+		appKust.AddResources(t.Name())
 	}
 	{
 		out, err := appRoot.Create(configFileName)
@@ -147,7 +147,7 @@ func (m *AppManager) Install(app App, config map[string]any) error {
 		return err
 	}
 	if !slices.Contains(rootKust.Resources, app.Name) {
-		rootKust.Resources = append(rootKust.Resources, app.Name)
+		rootKust.AddResources(app.Name)
 		rootKustFW, err := appsRoot.Create(kustomizationFileName)
 		if err != nil {
 			return err

@@ -11,7 +11,6 @@ import (
 	"github.com/go-git/go-billy/v5/memfs"
 	"github.com/go-git/go-git/v5"
 	// "github.com/go-git/go-git/v5/config"
-	"github.com/go-git/go-git/v5/plumbing"
 	"github.com/go-git/go-git/v5/plumbing/object"
 	gitssh "github.com/go-git/go-git/v5/plumbing/transport/ssh"
 	"github.com/go-git/go-git/v5/storage/memory"
@@ -22,7 +21,7 @@ import (
 type Client struct {
 	ip     string
 	port   int
-	signer ssh.Signer
+	Signer ssh.Signer
 	log    *log.Logger
 }
 
@@ -87,18 +86,11 @@ func (ss *Client) CreateRepository(name string) error {
 	if err != nil {
 		return err
 	}
-	fmt.Println("aaaa")
-	b, _ := configRepo.Branches()
-	b.ForEach(func(r *plumbing.Reference) error {
-		fmt.Println(r.Name())
-		return nil
-	})
 	if err = wt.Checkout(&git.CheckoutOptions{
 		Branch: "refs/heads/master",
 	}); err != nil {
 		return err
 	}
-	fmt.Println("bbb")
 	f, err := wt.Filesystem.Open("config.yaml")
 	if err != nil {
 		return err
@@ -136,6 +128,18 @@ func (ss *Client) CreateRepository(name string) error {
 func (ss *Client) getConfigRepo() (*git.Repository, error) {
 	return git.Clone(memory.NewStorage(), memfs.New(), &git.CloneOptions{
 		URL:             ss.addressGit(),
+		Auth:            ss.authGit(),
+		RemoteName:      "soft",
+		ReferenceName:   "refs/heads/master",
+		Depth:           1,
+		InsecureSkipTLS: true,
+		Progress:        os.Stdout,
+	})
+}
+
+func (ss *Client) GetRepo(name string) (*git.Repository, error) {
+	return git.Clone(memory.NewStorage(), memfs.New(), &git.CloneOptions{
+		URL:             fmt.Sprintf("%s/%s", ss.addressGit(), name),
 		Auth:            ss.authGit(),
 		RemoteName:      "soft",
 		ReferenceName:   "refs/heads/master",
@@ -191,7 +195,7 @@ func (ss *Client) CloneRepository(name string) (*git.Repository, error) {
 
 func (ss *Client) authGit() *gitssh.PublicKeys {
 	return &gitssh.PublicKeys{
-		Signer: ss.signer,
+		Signer: ss.Signer,
 		HostKeyCallbackHelper: gitssh.HostKeyCallbackHelper{
 			HostKeyCallback: func(hostname string, remote net.Addr, key ssh.PublicKey) error {
 				// TODO(giolekva): verify server public key
@@ -206,7 +210,7 @@ func (ss *Client) GetPublicKey() ([]byte, error) {
 	var ret []byte
 	config := &ssh.ClientConfig{
 		Auth: []ssh.AuthMethod{
-			ssh.PublicKeys(ss.signer),
+			ssh.PublicKeys(ss.Signer),
 		},
 		HostKeyCallback: func(hostname string, remote net.Addr, key ssh.PublicKey) error {
 			ret = ssh.MarshalAuthorizedKey(key)
@@ -223,7 +227,7 @@ func (ss *Client) GetPublicKey() ([]byte, error) {
 func (ss *Client) sshClientConfig() *ssh.ClientConfig {
 	return &ssh.ClientConfig{
 		Auth: []ssh.AuthMethod{
-			ssh.PublicKeys(ss.signer),
+			ssh.PublicKeys(ss.Signer),
 		},
 		HostKeyCallback: func(hostname string, remote net.Addr, key ssh.PublicKey) error {
 			// TODO(giolekva): verify server public key

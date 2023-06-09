@@ -12,12 +12,13 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/giolekva/pcloud/core/installer"
-	"github.com/giolekva/pcloud/core/installer/soft"
 	"github.com/spf13/cobra"
 	"helm.sh/helm/v3/pkg/action"
 	"helm.sh/helm/v3/pkg/chart/loader"
 	"helm.sh/helm/v3/pkg/kube"
+
+	"github.com/giolekva/pcloud/core/installer"
+	"github.com/giolekva/pcloud/core/installer/soft"
 )
 
 var bootstrapFlags struct {
@@ -78,10 +79,6 @@ func bootstrapCmdRun(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-	fluxPub, fluxPriv, err := installer.GenerateSSHKeys()
-	if err != nil {
-		return err
-	}
 	softServePub, softServePriv, err := installer.GenerateSSHKeys()
 	if err != nil {
 		return err
@@ -92,7 +89,7 @@ func bootstrapCmdRun(cmd *cobra.Command, args []string) error {
 	if err := installMetallb(); err != nil {
 		return err
 	}
-	time.Sleep(3 * time.Minute)
+	time.Sleep(1 * time.Minute)
 	if err := installMetallbConfig(); err != nil {
 		return err
 	}
@@ -104,7 +101,11 @@ func bootstrapCmdRun(cmd *cobra.Command, args []string) error {
 		return err
 	}
 	time.Sleep(2 * time.Minute)
-	ss, err := soft.NewClient(bootstrapFlags.softServeIP, 2222, adminPrivKey, log.Default())
+	ss, err := soft.NewClient(bootstrapFlags.softServeIP, 22, adminPrivKey, log.Default())
+	if err != nil {
+		return err
+	}
+	fluxPub, fluxPriv, err := installer.GenerateSSHKeys()
 	if err != nil {
 		return err
 	}
@@ -122,6 +123,13 @@ func bootstrapCmdRun(cmd *cobra.Command, args []string) error {
 	if err := installFlux("ssh://soft-serve.pcloud.svc.cluster.local:22/pcloud", "soft-serve.pcloud.svc.cluster.local", softServePub, fluxPriv); err != nil {
 		return err
 	}
+	pcloudRepo, err := ss.GetRepo("pcloud") // TODO(giolekva): configurable
+	if err != nil {
+		return err
+	}
+	if err := configurePCloudRepo(installer.NewRepoIO(pcloudRepo, ss.Signer)); err != nil {
+		return err
+	}
 	// TODO(giolekva): everything below must be installed using Flux
 	if err := installIngressPublic(); err != nil {
 		return err
@@ -132,6 +140,7 @@ func bootstrapCmdRun(cmd *cobra.Command, args []string) error {
 	if err := installCertManagerWebhookGandi(); err != nil {
 		return err
 	}
+	// TODO(giolekva): ideally should be installed automatically if any of the user installed apps requires it
 	if err := installSmbDriver(); err != nil {
 		return err
 	}
@@ -162,6 +171,7 @@ func installMetallbNamespace() error {
 	installer.Namespace = "pcloud"
 	installer.ReleaseName = "metallb-ns"
 	installer.Wait = true
+	installer.WaitForJobs = true
 	if _, err := installer.RunWithContext(context.TODO(), chart, values); err != nil {
 		return err
 	}
@@ -202,7 +212,8 @@ func installMetallb() error {
 	installer.CreateNamespace = true
 	installer.ReleaseName = "metallb"
 	installer.IncludeCRDs = true
-	// installer.Wait = true
+	installer.Wait = true
+	installer.WaitForJobs = true
 	installer.Timeout = 20 * time.Minute
 	if _, err := installer.RunWithContext(context.TODO(), chart, values); err != nil {
 		return err
@@ -230,6 +241,7 @@ func installMetallbConfig() error {
 	installer.CreateNamespace = true
 	installer.ReleaseName = "metallb-cfg"
 	installer.Wait = true
+	installer.WaitForJobs = true
 	installer.Timeout = 20 * time.Minute
 	if _, err := installer.RunWithContext(context.TODO(), chart, values); err != nil {
 		return err
@@ -268,6 +280,7 @@ func installLonghorn() error {
 	installer.CreateNamespace = true
 	installer.ReleaseName = "longhorn"
 	installer.Wait = true
+	installer.WaitForJobs = true
 	installer.Timeout = 20 * time.Minute
 	if _, err := installer.RunWithContext(context.TODO(), chart, values); err != nil {
 		return err
@@ -296,6 +309,7 @@ func installSoftServe(pubKey, privKey, adminKey string) error {
 	installer.CreateNamespace = true
 	installer.ReleaseName = "soft-serve"
 	installer.Wait = true
+	installer.WaitForJobs = true
 	installer.Timeout = 20 * time.Minute
 	if _, err := installer.RunWithContext(context.TODO(), chart, values); err != nil {
 		return err
@@ -463,6 +477,18 @@ func installSmbDriver() error {
 		return err
 	}
 	return nil
+}
+
+func configurePCloudRepo(repo installer.RepoIO) error {
+	kust := installer.NewKustomization()
+	kust.AddResources("pcloud-flux", "environments")
+	if err := repo.WriteKustomization("kustomization.yaml", kust); err != nil {
+		return err
+	}
+	if err := repo.WriteKustomization("environments/kustomization.yaml", installer.NewKustomization()); err != nil {
+		return err
+	}
+	return repo.CommitAndPush("initialize pcloud directory structure, environments with kustomization.yaml-s")
 }
 
 func createActionConfig(namespace string) (*action.Configuration, error) {
