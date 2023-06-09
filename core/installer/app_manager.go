@@ -26,7 +26,6 @@ type AppManager struct {
 	signer ssh.Signer
 }
 
-// func NewAppManager(repo *git.Repository, fs billy.Filesystem, config Config, appRepo AppRepository) (*AppManager, error) {
 func NewAppManager(repo *git.Repository, signer ssh.Signer) (*AppManager, error) {
 	return &AppManager{
 		repo,
@@ -71,6 +70,13 @@ func (m *AppManager) AppConfig(name string) (map[string]any, error) {
 }
 
 func (m *AppManager) Install(app App, config map[string]any) error {
+	if err := m.repo.Fetch(&git.FetchOptions{
+		RemoteName: "origin",
+		Auth:       auth(m.signer),
+		Force:      true,
+	}); err != nil {
+		return err
+	}
 	wt, err := m.repo.Worktree()
 	if err != nil {
 		return err
