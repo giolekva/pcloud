@@ -11,9 +11,6 @@ spec:
         kind: GitRepository
         name: pcloud
         namespace: {{ .Values.Id }}
-  dependsOn:
-  - name: namespaces
-    namespace: {{ .Values.Id }}
   interval: 1m0s
   values:
     domain: {{ .Values.Domain }}

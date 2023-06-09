@@ -4,6 +4,9 @@ metadata:
   name: certificate-issuer
   namespace: {{ .Global.NamespacePrefix }}ingress-private
 spec:
+  dependsOn:
+  - name: ingress-private
+    namespace: {{ .Global.NamespacePrefix }}ingress-private
   chart:
     spec:
       chart: charts/certificate-issuer
@@ -11,9 +14,6 @@ spec:
         kind: GitRepository
         name: pcloud
         namespace: {{ .Global.Id }}
-  dependsOn:
-  - name: ingress-private
-    namespace: {{ .Global.NamespacePrefix }}ingress-private
   interval: 1m0s
   values:
     pcloudInstanceId: {{ .Global.Id }}

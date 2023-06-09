@@ -1,29 +1,49 @@
 apiVersion: helm.toolkit.fluxcd.io/v2beta1
 kind: HelmRelease
 metadata:
-  name: qbittorrent
-  namespace: {{ .Values.NamespacePrefix }}app-torrent # TODO(giolekva): qbittorrent
+  name: namespaces-qbittorrent
+  namespace: {{ .Global.Id }}
 spec:
+  chart:
+    spec:
+      chart: charts/namespaces
+      sourceRef:
+        kind: GitRepository
+        name: pcloud
+        namespace: {{ .Global.Id }}
+  interval: 1m0s
+  values:
+    pcloudInstanceId: {{ .Global.Id }}
+    namespacePrefix: {{ .Global.NamespacePrefix }}
+    namespaces:
+    - app-qbittorrent
+---
+apiVersion: helm.toolkit.fluxcd.io/v2beta1
+kind: HelmRelease
+metadata:
+  name: qbittorrent
+  namespace: {{ .Global.NamespacePrefix }}app-qbittorrent
+spec:
+  dependsOn:
+    - name: namespaces-qbittorrent
+      namespace: {{ .Global.Id }}
   chart:
     spec:
       chart: charts/qbittorrent
       sourceRef:
         kind: GitRepository
         name: pcloud
-        namespace: {{ .Values.Id }}
-  dependsOn:
-    - name: namespaces
-      namespace: {{ .Values.Id }}
+        namespace: {{ .Global.Id }}
   interval: 1m0s
   values:
-    pcloudInstanceId: {{ .Values.Id }}
+    pcloudInstanceId: {{ .Global.Id }}
     image:
       repository: lscr.io/linuxserver/qbittorrent
-      tag: latest
+      tag: 4.5.3
       pullPolicy: IfNotPresent
     ingress:
-      className: {{ .Values.Id }}-ingress-private
-      domain: torrent.p.{{ .Values.Domain }}
+      className: {{ .Global.Id }}-ingress-private
+      domain: {{ .Values.Subdomain }}.{{ .Global.PrivateDomain }}
     webui:
       port: 8080
     bittorrent:
