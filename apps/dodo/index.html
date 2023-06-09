@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+	<title>dodo Cloud</title>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+
+	<link rel="preconnect" href="https://fonts.googleapis.com">
+	<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+	<link href="https://fonts.googleapis.com/css2?family=Noto+Sans:wght@400;700&family=Roboto:wght@400;700&display=swap" rel="stylesheet">
+	<style>
+@viewport {
+  width: device-width ;
+  zoom: 1.0 ;
+}
+
+@media screen and (max-width:800px) {
+#main {
+  width: 90%;
+}
+	 }
+
+@media screen and (min-width:801px) {
+#main {
+  width: 600px;
+}
+}
+
+
+	  #main {
+      margin: auto;
+	  font-family: 'Noto Sans', sans-serif;
+	  }
+
+	  .text {
+	  text-align: justify;
+	  }
+
+	 h5 {
+		 margin-bottom: 5px;
+	 }
+
+	  #form {
+	  margin-top: 30px;
+	  margin-bottom: 30px;
+	  }
+
+	  #form div.section {
+	  text-align: left;
+	  margin-bottom: 10px;
+	  }
+
+	  .section label {
+	  display: block;
+	  }
+
+	  .section input.text {
+		  width: 50%;
+		  outline: none;
+	  }
+
+	 .section input.text:focus {
+		 border-color: black;
+	 }
+	  .section textarea {
+		  width: 95%;
+		  outline: none;
+	  }
+	 	  .section textarea:focus {
+			  border-color: black;
+	  }
+	  .section input:checked {
+	  accent-color: black;
+	  }
+	</style>
+  </head>
+  <body>
+	<div id="main">
+	  <div id="intro">
+		  <h1>dodo Cloud</h1>
+		  <span class="text">
+			  dodo is a high-level, distributed, and fault-tolerant Operating System giving users control and ownership of their data.
+			  It is capable of running online services (see examples below) within a private network, accessible only to authorized users from any location, or publicly.
+			  <br><br>
+			  App Manager gives users a simple and intuitive UI to install third-party applications. Developers can distribute their paid or free applications via the App Manager ecosystem.
+			  <br><br>
+			  dodo can be deployed either on premises or on rented hardware in the cloud without compromising security.
+			  <br><br>
+			  We are actively developing dodo itself, a few applications to bootstrap the App Manager ecosystem, and paid cloud hosting platform for users who do not want to manually maintain on-prem installation.
+		  </span>
+	  </div>
+	  <div id="form"t>
+		<h3>Fill out the form below to apply for the paid cloud hosting platform waitlist</h3>
+		<form action="/waitlist" method="POST">
+		  <div class="section">
+			<label for="email">
+			  Contact email (you will be contacted at most once)
+			</label>
+			<input type="email" name="email" id="email" placeholder="Required" class="text" required>
+		  </div>
+		  <div class="section">
+			<label>Installation type</label>
+			<label>
+			  <input type="radio" name="installation_type" id="family" value="family" checked>Family</input>
+			</label>
+			<label>
+			  <input type="radio" name="installation_type" id="business" value="business">Business</input>
+			</label>
+		  </div>
+		  <div class="section">
+			<label for="num_members">
+			  Number of members
+			</label>
+			<input type="text" name="num_members" id="num_members" placeholder="Required" class="text" required>
+		  </div>
+
+		  <div class="section">
+			<label>What applications are you interested to run?</label>
+			<label>
+			  <input type="checkbox" name="apps" id="app_vpn" value="app_vpn" checked disabled>Mesh Virtual Private Network *</input>
+			</label>
+			<label>
+			  <input type="checkbox" name="apps" id="app_sso" value="app_sso" checked disabled>Single Sign On *</input>
+			</label>
+			<label>
+			  <input type="checkbox" name="apps" id="app_passw" value="app_passw">Password Manager (<a href="https://bitwarden.com">Bitwarden</a>)</input>
+			</label>
+			<label>
+			  <input type="checkbox" name="apps" id="app_safebrowsing" value="app_safebrowsing">Safe Browsing (<a href="https://pi-hole.net">Pihole</a>, <a href="https://adguard.com">AdGuard</a>, ...)</input>
+			</label>
+			<label>
+			  <input type="checkbox" name="apps" id="app_email" value="app_email">Email (IMAP/SMTP server) with auto generated random addresses</input>
+			</label>
+			<label>
+			  <input type="checkbox" name="apps" id="app_messaging" value="app_messaging">Messaging (<a href="https://matrix.org">Matrix</a>, <a href="https://signal.org">Signal</a>, IRC server, ...)</input>
+			</label>
+			<label>
+			  <input type="checkbox" name="apps" id="app_contacts" value="app_contacts">Contacts</input>
+			</label>
+			<label>
+			  <input type="checkbox" name="apps" id="app_calendar" value="app_calendar">Calendar
+			</label>
+			<label>
+			  <input type="checkbox" name="apps" id="app_photos" value="app_photos">Photos</input>
+			</label>
+			<label>
+			  <input type="checkbox" name="apps" id="app_doc" value="app_doc">Documents</input>
+			</label>
+			<label>
+			  <input type="checkbox" name="apps" id="app_entertainment" value="app_entertainment">Entertainment (<a href="https://jellyfin.org">Jellyfin</a>, <a href="https://www.plex.tv">Plex</a>, ...)</input>
+			</label>
+			<label>
+			  <input type="checkbox" name="apps" id="app_torrent" value="app_torrent">Torrent server optionally connected to entertainment server above</input>
+			</label>
+			<label>
+			  <input type="checkbox" name="apps" id="app_games" value="app_games">Games (<a href="https://www.minecraft.net">Minecraft</a> server, ...)</input>
+			</label>
+			<label>
+			  <input type="checkbox" name="apps" id="app_smarthome" value="app_smarthome">Smart Home (<a href="https://www.home-assistant.io">Home Assistant</a>, ...)</input>
+			</label>
+			<label>
+			  <input type="checkbox" name="apps" id="app_assistant" value="app_assistant">AI Powered Personal Assistant (like Google Assistant)</input>
+			</label>
+			<label>
+			  <input type="checkbox" name="apps" id="app_git" value="app_git">Dev Tools (Git hosting, CI/CD, ...)</input>
+			</label>
+		  </div>
+		  <div class="section">
+			<label for="pay_per_month">
+			  For the package of above selected applications how much are willing to pay per month (US $) per user?
+			</label>
+			<input type="text" name="pay_per_month" id="pay_per_month" placeholder="Required" class="text" required>
+		  </div>
+		  <div class="section">
+			<label>To support development, are you willing to pay full year's payment upfront? (one month free)</label>
+			<label>
+			  <input type="radio" name="pay_full_year" value="true">Yes</input>
+			</label>
+			<label>
+			  <input type="radio" name="pay_full_year" value="false" checked>No</input>
+			</label>
+		  </div>
+		  <div class="section">
+			<label for="thoughts">Share your thoughts (use case)</label>
+			<textarea id="thoughts" name="thoughts" rows="7" maxlength=10000 placeholder="Share your use case, suggestions or thoughts in general"></textarea>
+		  </div>
+		  <input type="submit" value="Apply for waitlist">
+		</form>
+	  </div>
+	  <div id="use-cases">
+		  <h3>Use Cases</h3>
+		  <h5>* Tools for development team</h5>
+		  <span class="text">
+			  With Bitwarden, Matrix, Git server, and builtin VPN services installed on dodo, team members can securely store and share secrets needed to access different services during development or in production, communicate in real-time and organize video calls, host source code, do code reviews, securely and remotely access each other's development machines and production servers.
+		  </span>
+		  <h5>* Family entertainment</h5>
+		  <span class="text">
+			  Family members can access Jellyfin and Minecraft servers setup on dodo via pre-installed VPN service from anywhere in the world.
+		  </span>
+	  </div>
+	  <div id="faq">
+		  <h3>FAQ</h3>
+		  <h5>* What is the goal of this questionnaire?</h5>
+		  <span class="text">
+			  I want to estimate how much interest there is in systems like dodo and prioritize what applications to develop first.
+		  </span>
+		  <h5>* Will dodo be Open Source?</h5>
+		  <span class="text">
+			Yes!
+			dodo is built on top of the existing open-source projects. I did not have to make changes in any of them so far, but once that need arises all modifications will be published.
+			dodo the company will commit to donate some percentage of the revenue back to the community via GitHub Sponsors, Patreon, or other means. Exact details to be determined.
+		  </span>
+		  <h5>* What will the initial dodo start-up look like?</h5>
+		  <span class="text">
+			  Only three parameters are required to bootstrap the dodo instance: static IP address dodo instance will be hosted at, domain name (let's say example.com), and API access token to the domain registry it is managed by. Access to the domain registry is required so that dodo can automatically configure different DNS records for applications later installed on the platform, for example, MX record for SMTP server.<br/>
+			  Given these parameters, dodo will automatically set up VPN infrastructure and expose it on <b>https://vpn</b>.examle.com subdomain. User will be presented with a pre-authenticated key they can use to join the network. They can do so from any of their devices be it MacOS, Linux, Windows, Android, or iOS as VPN client software can be installed on any of them.<br/>
+			  Joined user will be granted administrative privileges and can further tailor dodo to their needs.
+		  </span>
+		  <h5>* Apart from VPN what other core services are included in dodo?</h5>
+		  <span class="text">
+			  During bootstrap dodo will automatically set up services for user and application management. Administrator can create new users for their family/company members and install any application from the App Manager. Users can be grouped, letting administrator set up ACLs on group and/or individual user level. The majority of the applications can be installed with a single click, and dodo will take care of configuring it.
+		  </span>
+		  <h5>* How secure is the system?</h5>
+		  <span class="text">
+			  Applications are separated in isolated environments. Without explicit user consent they neither can access other applications installed on the system, nor communicate with the outside world.
+			  Storage is encrypted and sealed by default.
+		  </span>
+		  <h5>* What is the disaster recovery plan?</h5>
+		  <span class="text">
+			dodo comes with a built-in automated backup and recovery system. Individual applications installed on the platform, and/or the full dodo instance can be configured to be periodically and securely backed up on other dodo instances (for example ones owned by your friends) or on any S3-compatible online storage solution. System configuration is version controlled, which makes it possible to easily roll back changes, like installation of the buggy application.
+		  </span>
+		  <h5>* What if something goes wrong?</h5>
+		  <span class="text">
+			  Like any other personal device user might own, users with enough technical skills will be able to debug and fix an issue themselves. In case they need professional help, they can temporarily grant the support team remote access to their dodo instance via pre-installed VPN service.
+		  </span>
+		  <h5>* How can I access applications installed on dodo?</h5>
+		  <span class="text">
+			During the application installation process you will be able to configure it to be accessible publicly, from within the VPN, or combination of both. dodo automatically generates SSL certificates for your public and private domains using Let's Encrypt. Administrator can configure applications to be accessible only by certain groups of users.
+		  </span>
+		  <h5>* How do you plan to make money?</h5>
+		  <span class="text">
+			The most privacy-conscious users, with enough technical skills, can manually set up and maintain dodo on top of on-prem hardware. And they will be able to do so without paying anyone. But the reality is that most of the users, be it a family or small business installation, do not want to be burdened with the time and energy it takes to maintain the system. The paid cloud hosting platform is the perfect solution for them. Other streams of revenue are backup service, App Manager ecosystem, and paid support for on-prem installations.
+		  </span>
+		  <h5>* Who are your competitors?</h5>
+		  <span class="text">
+			  There already are similar products on the market such as <a href="https://unraid.net">Unraid</a>, <a href="https://www.synology.com">Synology</a>, <a href="https://sandstorm.io">Sandstorm</a>, and others. dodo is similar to them in many ways but has a number of advantages, such as built-in VPN and SSO services, both storage and compute resources being distributed making installed applications fault-tolerant out of the box, and being fully open source.
+		  </span>
+		  <h5>* How was dodo born?</h5>
+		  <span class="text">
+			dodo was born out of the need to actually own personal data I generate online. Internet is full of very useful paid or free-to-use online services, but users are one mistake away from getting locked out of their accounts, effectively losing access to the data in an instant.
+			I spent a couple of months during the 2019 pandemic lockdown building the prototype, and have been automating duct tapes since then on and off.
+		  </span>
+		  <h5>* What is the current state of the project?</h5>
+		  <span class="text">
+			I have built the bootstrapping system to create fully functional dodo instance out of consumer-grade hardware. It automates partitioning disks, setting up the OS on top of them, and grouping them in the cluster. Currently, I am running it on top of the clustered five <a href="https://www.raspberrypi.org">RaspberryPi</a>s. I have implemented core platform services such as VPN, user management, App Manager, and configurations for a few first-party applications: IMAP/SMTP server, Bitwarden, Matrix, Jellyfin, BitTorrent server, Pihole, and Git hosting. I have been using these systems for the last three years.
+		  </span>
+		  <h5>* What is the team behind dodo?</h5>
+		  <span class="text">
+			It has been a one-man band show since its inception. I do plan to establish the team and hire couple of engineers by the end of the year.
+		  </span>
+		  <h5>* Are you looking for partners and/or investors?</h5>
+		  <span class="text">
+			Yes! I plan to work on dodo full-time and establish the company around it, which requires capital. If you are interested in being an early-stage investor or want to get involved in development (either paid or as part of the open source community) please reach out using the form above.
+		  </span>
+	  </div>
+	</div>
+  </body>
+</html>
