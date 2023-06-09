@@ -186,7 +186,7 @@ func CreateAppQBittorrent(fs embed.FS, tmpls *template.Template) App {
 			tmpls.Lookup("qbittorrent.yaml"),
 		},
 		string(schema),
-		nil,
+		tmpls.Lookup("qbittorrent.md"),
 	}
 }
 
