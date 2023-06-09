@@ -99,11 +99,12 @@ func bootstrapCmdRun(cmd *cobra.Command, args []string) error {
 	if err := installLonghorn(); err != nil {
 		return err
 	}
+	time.Sleep(2 * time.Minute)
 	if err := installSoftServe(softServePub, softServePriv, string(adminPubKey)); err != nil {
 		return err
 	}
-	time.Sleep(30 * time.Second)
-	ss, err := soft.NewClient(bootstrapFlags.softServeIP, 22, adminPrivKey, log.Default())
+	time.Sleep(2 * time.Minute)
+	ss, err := soft.NewClient(bootstrapFlags.softServeIP, 2222, adminPrivKey, log.Default())
 	if err != nil {
 		return err
 	}
@@ -114,7 +115,7 @@ func bootstrapCmdRun(cmd *cobra.Command, args []string) error {
 		return err
 	}
 	fmt.Println("Creating /pcloud repo")
-	if err := ss.AddRepository("pcloud", "# PCloud Systems\n"); err != nil {
+	if err := ss.AddRepository("pcloud", "# PCloud Systems"); err != nil {
 		return err
 	}
 	fmt.Println("Installing Flux")
@@ -129,6 +130,9 @@ func bootstrapCmdRun(cmd *cobra.Command, args []string) error {
 		return err
 	}
 	if err := installCertManagerWebhookGandi(); err != nil {
+		return err
+	}
+	if err := installSmbDriver(); err != nil {
 		return err
 	}
 	return nil
@@ -353,6 +357,12 @@ func installIngressPublic() error {
 				"proxy-body-size": "100M",
 			},
 		},
+		"udp": map[string]interface{}{
+			"6881": "lekva-app-qbittorrent/torrent:6881",
+		},
+		"tcp": map[string]interface{}{
+			"6881": "lekva-app-qbittorrent/torrent:6881",
+		},
 	}
 	installer := action.NewInstall(config)
 	installer.Namespace = "pcloud-ingress-public"
@@ -423,6 +433,29 @@ func installCertManagerWebhookGandi() error {
 	installer.Namespace = "pcloud-cert-manager"
 	installer.CreateNamespace = false
 	installer.ReleaseName = "cert-manager-webhook-gandi"
+	installer.Wait = true
+	installer.WaitForJobs = true
+	installer.Timeout = 20 * time.Minute
+	if _, err := installer.RunWithContext(context.TODO(), chart, values); err != nil {
+		return err
+	}
+	return nil
+}
+
+func installSmbDriver() error {
+	config, err := createActionConfig("pcloud-csi-driver-smb")
+	if err != nil {
+		return err
+	}
+	chart, err := loader.Load(filepath.Join(bootstrapFlags.chartsDir, "csi-driver-smb"))
+	if err != nil {
+		return err
+	}
+	values := map[string]interface{}{}
+	installer := action.NewInstall(config)
+	installer.Namespace = "pcloud-csi-driver-smb"
+	installer.CreateNamespace = true
+	installer.ReleaseName = "csi-driver-smb"
 	installer.Wait = true
 	installer.WaitForJobs = true
 	installer.Timeout = 20 * time.Minute
