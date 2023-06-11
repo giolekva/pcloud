@@ -129,7 +129,7 @@ func (ss *Client) getConfigRepo() (*git.Repository, error) {
 	return git.Clone(memory.NewStorage(), memfs.New(), &git.CloneOptions{
 		URL:             ss.addressGit(),
 		Auth:            ss.authGit(),
-		RemoteName:      "soft",
+		RemoteName:      "origin",
 		ReferenceName:   "refs/heads/master",
 		Depth:           1,
 		InsecureSkipTLS: true,
@@ -141,7 +141,7 @@ func (ss *Client) GetRepo(name string) (*git.Repository, error) {
 	return git.Clone(memory.NewStorage(), memfs.New(), &git.CloneOptions{
 		URL:             fmt.Sprintf("%s/%s", ss.addressGit(), name),
 		Auth:            ss.authGit(),
-		RemoteName:      "soft",
+		RemoteName:      "origin",
 		ReferenceName:   "refs/heads/master",
 		Depth:           1,
 		InsecureSkipTLS: true,
@@ -166,7 +166,7 @@ func (ss *Client) Commit(wt *git.Worktree, message string) error {
 
 func (ss *Client) Push(repo *git.Repository) error {
 	return repo.Push(&git.PushOptions{
-		RemoteName: "soft",
+		RemoteName: "origin",
 		Auth:       ss.authGit(),
 	})
 }
@@ -188,7 +188,7 @@ func (ss *Client) CloneRepository(name string) (*git.Repository, error) {
 	return git.Clone(memory.NewStorage(), memfs.New(), &git.CloneOptions{
 		URL:             ss.repoPathByName(name),
 		Auth:            ss.authGit(),
-		RemoteName:      "soft",
+		RemoteName:      "origin",
 		InsecureSkipTLS: true,
 	})
 }

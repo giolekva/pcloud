@@ -1,6 +1,7 @@
 package installer
 
 import (
+	"io"
 	"io/fs"
 	"path/filepath"
 	"time"
@@ -14,6 +15,7 @@ type RepoIO interface {
 	ReadKustomization(path string) (*Kustomization, error)
 	WriteKustomization(path string, kust Kustomization) error
 	CommitAndPush(message string) error
+	Writer(path string) (io.WriteCloser, error)
 }
 
 type repoIO struct {
@@ -41,19 +43,22 @@ func (r *repoIO) ReadKustomization(path string) (*Kustomization, error) {
 	return ReadKustomization(inp)
 }
 
-func (r *repoIO) WriteKustomization(path string, kust Kustomization) error {
+func (r *repoIO) Writer(path string) (io.WriteCloser, error) {
 	wt, err := r.repo.Worktree()
 	if err != nil {
-		return err
+		return nil, err
 	}
 	if err := wt.Filesystem.MkdirAll(filepath.Dir(path), fs.ModePerm); err != nil {
-		return err
+		return nil, err
 	}
-	out, err := wt.Filesystem.Create(path)
+	return wt.Filesystem.Create(path)
+}
+
+func (r *repoIO) WriteKustomization(path string, kust Kustomization) error {
+	out, err := r.Writer(path)
 	if err != nil {
 		return err
 	}
-	defer out.Close()
 	return kust.Write(out)
 }
 
@@ -74,7 +79,7 @@ func (r *repoIO) CommitAndPush(message string) error {
 		return err
 	}
 	return r.repo.Push(&git.PushOptions{
-		RemoteName: "soft", // TODO(giolekva): configurable
+		RemoteName: "origin",
 		Auth:       auth(r.signer),
 	})
 }
