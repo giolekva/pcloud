@@ -46,7 +46,7 @@ func createEnvCmd() *cobra.Command {
 	)
 	cmd.Flags().IntVar(
 		&createEnvFlags.port,
-		"ip",
+		"port",
 		22,
 		"",
 	)
@@ -122,7 +122,6 @@ func createEnvCmdRun(cmd *cobra.Command, args []string) error {
 			return err
 		}
 	}
-	kust.AddResources(createEnvFlags.name)
 	if err := repoIO.WriteKustomization("environments/kustomization.yaml", *kust); err != nil {
 		return err
 	}

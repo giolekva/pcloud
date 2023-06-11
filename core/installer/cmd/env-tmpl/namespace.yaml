@@ -1,0 +1,8 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: {{ .Name }}
+  labels:
+    pcloud-instance-id: {{ .Name }}
+  annotations:
+    helm.sh/resource-policy: keep
