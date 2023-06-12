@@ -2,7 +2,6 @@
   "type": "object",
   "properties": {
     "GandiAPIToken": { "type": "string" },
-    "TailscaleAuthKey": { "type": "string" }
   },
   "additionalProperties": false
 }

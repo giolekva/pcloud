@@ -22,8 +22,9 @@ apiVersion: helm.toolkit.fluxcd.io/v2beta1
 kind: HelmRelease
 metadata:
   name: matrix-storage
-  namespace: {{ .Values.NamespacePrefix }}app-matrix
+  namespace: {{ .Global.Id }}
 spec:
+  targetNamespace: {{ .Global.NamespacePrefix }}app-matrix
   dependsOn:
     - name: namespaces-matrix
       namespace: {{ .Global.Id }}

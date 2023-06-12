@@ -22,8 +22,9 @@ apiVersion: helm.toolkit.fluxcd.io/v2beta1
 kind: HelmRelease
 metadata:
   name: core-auth-storage
-  namespace: {{ .Global.NamespacePrefix }}core-auth
+  namespace: {{ .Global.Id }}
 spec:
+  targetNamespace: {{ .Global.NamespacePrefix }}core-auth
   dependsOn:
     - name: namespaces-core-auth
       namespace: {{ .Global.Id }}

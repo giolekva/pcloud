@@ -22,8 +22,9 @@ apiVersion: helm.toolkit.fluxcd.io/v2beta1
 kind: HelmRelease
 metadata:
   name: pihole
-  namespace: {{ .Global.NamespacePrefix }}app-pihole
+  namespace: {{ .Global.Id }}
 spec:
+  targetNamespace: {{ .Global.NamespacePrefix }}
   dependsOn:
     - name: namespaces-pihole
       namespace: {{ .Global.Id }}

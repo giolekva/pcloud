@@ -21,11 +21,34 @@ spec:
 apiVersion: helm.toolkit.fluxcd.io/v2beta1
 kind: HelmRelease
 metadata:
-  name: ingress-private
-  namespace: {{ .Global.NamespacePrefix }}ingress-private
+  name: volumes-ingress-private
+  namespace: {{ .Global.Id }}
 spec:
+  targetNamespace: {{ .Global.NamespacePrefix }}ingress-private
   dependsOn:
     - name: namespaces-ingress-private
+      namespace: {{ .Global.Id }}
+  chart:
+    spec:
+      chart: charts/volumes
+      sourceRef:
+        kind: GitRepository
+        name: pcloud
+        namespace: {{ .Global.Id }}
+  interval: 1m0s
+  values:
+    name: tailscale
+    size: 1Gi
+---
+apiVersion: helm.toolkit.fluxcd.io/v2beta1
+kind: HelmRelease
+metadata:
+  name: ingress-private
+  namespace: {{ .Global.Id }}
+spec:
+  targetNamespace: {{ .Global.NamespacePrefix }}ingress-private
+  dependsOn:
+    - name: volumes-ingress-private
       namespace: {{ .Global.Id }}
   chart:
     spec:
@@ -49,6 +72,13 @@ spec:
         controllerValue: k8s.io/{{ .Global.Id }}-ingress-private
       extraArgs:
         default-ssl-certificate: "{{ .Global.Id }}-ingress-private/cert-wildcard.p.{{ .Global.Domain }}"
+      extraVolumes:
+      - name: tailscale
+        persistentVolumeClaim:
+          claimName: tailscale
+      extraVolumeMounts:
+      - name: tailscale
+        mountPath: /tailscale-state
       extraContainers:
       - name: tailscale
         image: tailscale/tailscale:v1.42.0
@@ -59,5 +89,9 @@ spec:
             add:
             - NET_ADMIN
         env:
+        - name: TS_KUBE_SECRET
+          value: ""
+        - name: TS_STATE_DIR
+          value: /tailscale-state
         - name: TS_EXTRA_ARGS
           value: --hostname={{ .Global.PCloudEnvName }}-ingress --login-server=headscale.{{ .Global.Domain }} # TODO(gio): take headscale subdomain from configuration

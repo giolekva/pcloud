@@ -2,24 +2,25 @@ apiVersion: helm.toolkit.fluxcd.io/v2beta1
 kind: HelmRelease
 metadata:
   name: matrix
-  namespace: {{ .Values.NamespacePrefix }}app-matrix
+  namespace: {{ .Global.Id }}
 spec:
+  targetNamespace: {{ .Global.NamespacePrefix }}app-matrix
+  dependsOn:
+  - name: matrix-storage
+    namespace: {{ .Global.Id }}
   chart:
     spec:
       chart: charts/matrix
       sourceRef:
         kind: GitRepository
         name: pcloud
-        namespace: {{ .Values.Id }}
-  dependsOn:
-  - name: matrix-storage
-    namespace: {{ .Values.NamespacePrefix }}app-matrix
+        namespace: {{ .Global.Id }}
   interval: 1m0s
   values:
-    domain: {{ .Values.Domain }}
+    domain: {{ .Global.Domain }}
     oauth2:
-      hydraAdmin: http://hydra-admin.{{ .Values.NamespacePrefix}}core-auth.svc.cluster.local
-      hydraPublic: https://hydra.{{ .Values.Domain }}
+      hydraAdmin: http://hydra-admin.{{ .Global.NamespacePrefix }}core-auth.svc.cluster.local
+      hydraPublic: https://hydra.{{ .Global.Domain }}
       clientId: matrix
       clientSecret: {{ .Values.MatrixOAuth2ClientSecret }}
       secretName: oauth2-client
@@ -29,8 +30,8 @@ spec:
       database: matrix
       user: postgres
       password: psswd
-    certificateIssuer: {{ .Values.Id }}-public
-    ingressClassName: {{ .Values.PCloudEnvName }}-ingress-public
+    certificateIssuer: {{ .Global.Id }}-public
+    ingressClassName: {{ .Global.PCloudEnvName }}-ingress-public
     configMerge:
       configName: config-to-merge
       fileName: to-merge.yaml

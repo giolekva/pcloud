@@ -22,8 +22,9 @@ apiVersion: helm.toolkit.fluxcd.io/v2beta1
 kind: HelmRelease
 metadata:
   name: maddy
-  namespace: {{ .Values.NamespacePrefix }}app-maddy
+  namespace: {{ .Global.Id }}
 spec:
+  targetNamespace: {{ .Global.NamespacePrefix }}app-maddy
   dependsOn:
     - name: namespaces-maddy
       namespace: {{ .Global.Id }}

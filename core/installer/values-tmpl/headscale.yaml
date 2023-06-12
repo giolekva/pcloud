@@ -22,10 +22,9 @@ apiVersion: helm.toolkit.fluxcd.io/v2beta1
 kind: HelmRelease
 metadata:
   name: headscale
-  namespace: {{ .Global.NamespacePrefix }}app-headscale
-  annotations:
-    version: 2-with-oidc-hydra-admin
+  namespace: {{ .Global.Id }}
 spec:
+  targetNamespace: {{ .Global.NamespacePrefix }}app-headscale
   dependsOn:
     - name: namespaces-headscale
       namespace: {{ .Global.Id }}

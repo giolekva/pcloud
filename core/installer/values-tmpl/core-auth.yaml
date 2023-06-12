@@ -2,8 +2,12 @@ apiVersion: helm.toolkit.fluxcd.io/v2beta1
 kind: HelmRelease
 metadata:
   name: core-auth
-  namespace: {{ .Global.NamespacePrefix }}core-auth
+  namespace: {{ .Global.Id }}
 spec:
+  targetNamespace: {{ .Global.NamespacePrefix }}core-auth
+  dependsOn:
+  - name: core-auth-storage
+    namespace: {{ .Global.Id }}
   chart:
     spec:
       chart: charts/auth
@@ -11,9 +15,6 @@ spec:
         kind: GitRepository
         name: pcloud
         namespace: {{ .Global.Id }}
-  dependsOn:
-  - name: core-auth-storage
-    namespace: {{ .Global.NamespacePrefix }}core-auth
   interval: 1m0s
   values:
     kratos:

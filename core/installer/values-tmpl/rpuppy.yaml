@@ -22,8 +22,9 @@ apiVersion: helm.toolkit.fluxcd.io/v2beta1
 kind: HelmRelease
 metadata:
   name: rpuppy
-  namespace: {{ .Global.NamespacePrefix }}app-rpuppy
+  namespace: {{ .Global.Id }}
 spec:
+  targetNamespace: {{ .Global.NamespacePrefix }}app-rpuppy
   dependsOn:
     - name: namespaces-rpuppy
       namespace: {{ .Global.Id }}
