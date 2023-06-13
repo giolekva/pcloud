@@ -1,0 +1,41 @@
+apiVersion: helm.toolkit.fluxcd.io/v2beta1
+kind: HelmRelease
+metadata:
+  name: namespaces-tailscale-proxy
+  namespace: {{ .Global.Id }}
+spec:
+  chart:
+    spec:
+      chart: charts/namespaces
+      sourceRef:
+        kind: GitRepository
+        name: pcloud
+        namespace: {{ .Global.Id }}
+  interval: 1m0s
+  values:
+    pcloudInstanceId: {{ .Global.Id }}
+    namespacePrefix: {{ .Global.NamespacePrefix }}
+    namespaces:
+    - tailscale-proxy
+---
+apiVersion: helm.toolkit.fluxcd.io/v2beta1
+kind: HelmRelease
+metadata:
+  name: tailscale-proxy
+  namespace: {{ .Global.Id }}
+spec:
+  targetNamespace: {{ .Global.NamespacePrefix }}tailscale-proxy
+  dependsOn:
+    - name: namespaces-tailscale-proxy
+      namespace: {{ .Global.Id }}
+  chart:
+    spec:
+      chart: charts/tailscale
+      sourceRef:
+        kind: GitRepository
+        name: pcloud
+        namespace: {{ .Global.Id }}
+  interval: 1m0s
+  values:
+    hostname: {{ .Global.PCloudEnvName }}-{{ .Global.Id }}-internal-proxy
+    loginServer: https://headscale.{{ .Global.Domain }} # TODO(gio): take headscale subdomain from configuration
