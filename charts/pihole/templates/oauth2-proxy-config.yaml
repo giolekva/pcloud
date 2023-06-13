@@ -1,8 +1,8 @@
 apiVersion: dodo.cloud.dodo.cloud/v1
 kind: ResourceRenderer
 metadata:
-  name: resourcerenderer-sample
-  namespace: test
+  name: config-renderer
+  namespace: {{ .Release.Namespace }}
 spec:
   secretName: {{ .Values.oauth2.secretName }}
   resourceTemplate: |
@@ -38,8 +38,8 @@ spec:
         pass_host_header = true
 
         ## The OAuth Client ID, Secret
-        client_id = "{{ .Values.oauth2.clientId }}"
-        client_secret = "{{ .Values.oauth2.clientSecret }}"
+        client_id = "{{`{{ .client_id }}`}}"
+        client_secret = "{{`{{ .client_secret }}`}}"
 
         ## Pass OAuth Access token to upstream via "X-Forwarded-Access-Token"
         pass_access_token = false

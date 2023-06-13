@@ -1,8 +1,6 @@
 pihole: {}
 oauth2:
-  clientId: {{ .client_id }}
-  clientSecret: {{ .client_secret }}
-  cookieSecret: ""
+  cookieSecret: "1234123443214321"
   secretName: oauth2-secret
   configName: oauth2-proxy
 domain: pihole.p.example.com

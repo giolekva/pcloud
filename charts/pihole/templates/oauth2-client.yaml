@@ -1,7 +1,7 @@
 apiVersion: hydra.ory.sh/v1alpha1
 kind: OAuth2Client
 metadata:
-  name: {{ .Values.oauth2.clientId }}
+  name: oauth2-client
   namespace: {{ .Release.Namespace }}
 spec:
   grantTypes:
