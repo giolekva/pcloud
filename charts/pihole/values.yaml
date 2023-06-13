@@ -1,7 +1,7 @@
 pihole: {}
 oauth2:
-  clientId: app-pihole
-  clientSecret: ""
+  clientId: {{ .client_id }}
+  clientSecret: {{ .client_secret }}
   cookieSecret: ""
   secretName: oauth2-secret
   configName: oauth2-proxy

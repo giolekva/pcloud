@@ -1,50 +1,58 @@
-apiVersion: v1
-kind: ConfigMap
+apiVersion: dodo.cloud.dodo.cloud/v1
+kind: ResourceRenderer
 metadata:
-  name: {{ .Values.oauth2.configName }}
-  namespace: {{ .Release.Namespace }}
-data:
-  oauth2-proxy.cfg: |
-    http_address = "0.0.0.0:8080"
+  name: resourcerenderer-sample
+  namespace: test
+spec:
+  secretName: {{ .Values.oauth2.secretName }}
+  resourceTemplate: |
+    apiVersion: v1
+    kind: ConfigMap
+    metadata:
+      name: {{ .Values.oauth2.configName }}
+      namespace: {{ .Release.Namespace }}
+    data:
+      oauth2-proxy.cfg: |
+        http_address = "0.0.0.0:8080"
 
-    reverse_proxy = true
+        reverse_proxy = true
 
-    ## the OAuth Redirect URL.
-    # defaults to the "https://" + requested host header + "/oauth2/callback"
-    # redirect_url = "http://pihole.pcloud/oauth2/callback"
+        ## the OAuth Redirect URL.
+        # defaults to the "https://" + requested host header + "/oauth2/callback"
+        # redirect_url = "http://pihole.pcloud/oauth2/callback"
 
-    upstreams = [
-        "http://pihole-web.{{ .Release.Namespace}}.svc"
-    ]
+        upstreams = [
+            "http://pihole-web.{{ .Release.Namespace}}.svc"
+        ]
 
-    email_domains = [
-        "*"
-    ]
+        email_domains = [
+            "*"
+        ]
 
-    standard_logging = false
-    request_logging = false
-    auth_logging = false
+        standard_logging = false
+        request_logging = false
+        auth_logging = false
 
-    pass_basic_auth = true
-    pass_user_headers = true
-    pass_host_header = true
+        pass_basic_auth = true
+        pass_user_headers = true
+        pass_host_header = true
 
-    ## The OAuth Client ID, Secret
-    client_id = "{{ .Values.oauth2.clientId }}"
-    client_secret = "{{ .Values.oauth2.clientSecret }}"
+        ## The OAuth Client ID, Secret
+        client_id = "{{ .Values.oauth2.clientId }}"
+        client_secret = "{{ .Values.oauth2.clientSecret }}"
 
-    ## Pass OAuth Access token to upstream via "X-Forwarded-Access-Token"
-    pass_access_token = false
+        ## Pass OAuth Access token to upstream via "X-Forwarded-Access-Token"
+        pass_access_token = false
 
-    cookie_name = "_oauth2_proxy_pihole"
-    cookie_secret = "{{ .Values.oauth2.cookieSecret }}"
-    cookie_domains = "{{ .Values.domain }}"
-    cookie_expire = "168h"
-    cookie_refresh = "100h"
-    cookie_secure = true
-    cookie_httponly = true
+        cookie_name = "_oauth2_proxy_pihole"
+        cookie_secret = "{{ .Values.oauth2.cookieSecret }}"
+        cookie_domains = "{{ .Values.domain }}"
+        cookie_expire = "168h"
+        cookie_refresh = "100h"
+        cookie_secure = true
+        cookie_httponly = true
 
-    provider = "oidc"
-    oidc_issuer_url = "{{ .Values.hydraPublic }}"
-    provider_display_name = "PCloud"
-    profile_url = "{{ .Values.profileUrl }}"
+        provider = "oidc"
+        oidc_issuer_url = "{{ .Values.hydraPublic }}"
+        provider_display_name = "PCloud"
+        profile_url = "{{ .Values.profileUrl }}"
