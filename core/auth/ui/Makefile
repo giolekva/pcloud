@@ -16,5 +16,5 @@ build_amd64:
 	go build -o server_amd64 *.go
 
 push: clean build_arm64 # build_amd64
-	podman build --tag=giolekva/auth-ui:debug .
-	podman push giolekva/auth-ui:debug
+	podman build --tag=giolekva/auth-ui:latest .
+	podman push giolekva/auth-ui:latest

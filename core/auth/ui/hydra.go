@@ -2,7 +2,7 @@ package main
 
 import (
 	"bytes"
-	"crypto/tls"
+	// "crypto/tls"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -21,9 +21,9 @@ func NewHydraClient(host string) *HydraClient {
 	return &HydraClient{
 		// TODO(giolekva): trust selfsigned-root-ca automatically on pods
 		&http.Client{
-			Transport: &http.Transport{
-				TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
-			},
+			// Transport: &http.Transport{
+			// 	TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+			// },
 		},
 		host,
 	}
