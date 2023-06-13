@@ -1,0 +1,6 @@
+apiVersion: v2
+name: tailscale-proxy
+description: A Helm chart to run tailscale node
+type: application
+version: 0.0.1
+appVersion: "0.0.1"

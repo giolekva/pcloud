@@ -1,0 +1,52 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: tailscale
+  namespace: {{ .Release.Namespace }}
+  annotations:
+    helm.sh/resource-policy: keep
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: tailscale
+  namespace: {{ .Release.Namespace }}
+spec:
+  selector:
+    matchLabels:
+      app: tailscale
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: tailscale
+    spec:
+      volumes:
+      - name: tailscale
+        persistentVolumeClaim:
+          claimName: tailscale
+      containers:
+      - name: tailscale
+        image: {{ .Values.image.repository }}:{{ .Values.image.tag }}
+        imagePullPolicy: {{ .Values.image.pullPolicy }}
+        securityContext:
+          privileged: true
+          capabilities:
+            add:
+            - NET_ADMIN
+        env:
+        - name: TS_KUBE_SECRET
+          value: ""
+        - name: TS_STATE_DIR
+          value: /tailscale-state
+        - name: TS_EXTRA_ARGS
+          value: --hostname={{ .Values.hostname }} --login-server={{ .Values.loginServer }} --advertise-routes=192.168.0.0/24 # TODO(giolekva): routes should be configurable
+        volumeMounts:
+        - name: tailscale
+          mountPath: /tailscale-state
