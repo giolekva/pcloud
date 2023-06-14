@@ -2,6 +2,7 @@
   "type": "object",
   "properties": {
     "GandiAPIToken": { "type": "string" },
+	"ReservedIP": { "type": "string" },
   },
   "additionalProperties": false
 }

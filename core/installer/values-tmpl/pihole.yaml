@@ -24,7 +24,7 @@ metadata:
   name: pihole
   namespace: {{ .Global.Id }}
 spec:
-  targetNamespace: {{ .Global.NamespacePrefix }}
+  targetNamespace: {{ .Global.NamespacePrefix }}app-pihole
   dependsOn:
     - name: namespaces-pihole
       namespace: {{ .Global.Id }}
@@ -39,6 +39,7 @@ spec:
   values:
     domain: {{ .Values.Subdomain}}.{{ .Global.PrivateDomain }}
     pihole:
+      fullnameOverride: pihole
       image:
         repository: "pihole/pihole"
         tag: v5.8.1
@@ -67,12 +68,9 @@ spec:
           cpu: "500m"
           memory: "250M"
     oauth2:
-      clientId: pihole
-      clientSecret: {{ .Values.PiholeOAuth2ClientSecret }}
-      cookieSecret: {{ .Values.PiholeOAuth2CookieSecret }}
       secretName: oauth2-secret
       configName: oauth2-proxy
       hydraAdmin: http://hydra-admin.{{ .Global.NamespacePrefix }}core-auth.svc
-    hydraPublic: https://hydra.{{ .Global.Domain }}/
+    hydraPublic: https://hydra.{{ .Global.Domain }}
     profileUrl: https://accounts-ui.{{ .Global.Domain }}
     ingressClassName: {{ .Global.Id }}-ingress-private

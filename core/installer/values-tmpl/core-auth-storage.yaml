@@ -16,7 +16,7 @@ spec:
     pcloudInstanceId: {{ .Global.Id }}
     namespacePrefix: {{ .Global.NamespacePrefix }}
     namespaces:
-    - app-core-auth
+    - core-auth
 ---
 apiVersion: helm.toolkit.fluxcd.io/v2beta1
 kind: HelmRelease
