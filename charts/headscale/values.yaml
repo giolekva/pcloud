@@ -13,3 +13,8 @@ oauth2:
   hydraPublic: https://hydra.example.com
   secretName: oauth2-client-headscale
 ipAddressPool: example-headscale
+api:
+  image:
+    repository: giolekva/headscale-api
+    tag: latest
+    pullPolicy: Always

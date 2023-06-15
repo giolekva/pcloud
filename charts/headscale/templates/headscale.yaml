@@ -42,6 +42,21 @@ spec:
     protocol: TCP
 ---
 apiVersion: v1
+kind: Service
+metadata:
+  name: headscale-api
+  namespace: {{ .Release.Namespace }}
+spec:
+  type: ClusterIP
+  selector:
+    app: headscale
+  ports:
+  - name: http
+    port: 80
+    targetPort: http-api
+    protocol: TCP
+---
+apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
   name: data
@@ -87,19 +102,28 @@ spec:
         - name: grpc
           containerPort: 50443
           protocol: TCP
-        command: ["headscale", "--config=/headscale/config/config.yaml", "serve"]
-        resources:
-      #     requests:
-      #       memory: "10Mi"
-      #       cpu: "10m"
-      #     limits:
-      #       memory: "20Mi"
-      #       cpu: "100m"
-      # tolerations:
-      # - key: "pcloud"
-      #   operator: "Equal"
-      #   value: "role"
-      #   effect: "NoSchedule"
+        command:
+        - headscale
+        - --config=/headscale/config/config.yaml
+        - serve
+        volumeMounts:
+        - name: data
+          mountPath: /headscale/data
+          readOnly: false
+        - name: config
+          mountPath: /headscale/config
+          readOnly: true
+      - name: headscale-api
+        image: {{ .Values.api.image.repository }}:{{ .Values.api.image.tag }}
+        imagePullPolicy: {{ .Values.api.image.pullPolicy }}
+        ports:
+        - name: http-api
+          containerPort: 9090
+          protocol: TCP
+        command:
+        - headscale-api
+        - --port=9090
+        - --config=/headscale/config/config.yaml
         volumeMounts:
         - name: data
           mountPath: /headscale/data
