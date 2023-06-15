@@ -14,4 +14,4 @@ oauth2:
   clientId: headscale
   clientSecret: ""
   secretName: oauth2-client-headscale
-
+ipAddressPool: example-headscale

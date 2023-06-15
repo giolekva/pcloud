@@ -29,6 +29,8 @@ kind: Service
 metadata:
   name: headscale
   namespace: {{ .Release.Namespace }}
+  annotations:
+    metallb.universe.tf/address-pool: {{ .Values.ipAddressPool }}
 spec:
   type: LoadBalancer
   selector:
