@@ -14,6 +14,7 @@ oauth2:
   secretName: oauth2-client-headscale
 ipAddressPool: example-headscale
 api:
+  port: 8585
   image:
     repository: giolekva/headscale-api
     tag: latest

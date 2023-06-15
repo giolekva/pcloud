@@ -118,11 +118,11 @@ spec:
         imagePullPolicy: {{ .Values.api.image.pullPolicy }}
         ports:
         - name: http-api
-          containerPort: 9090
+          containerPort: {{ .Values.api.port }}
           protocol: TCP
         command:
         - headscale-api
-        - --port=9090
+        - --port={{ .Values.api.port }}
         - --config=/headscale/config/config.yaml
         volumeMounts:
         - name: data
