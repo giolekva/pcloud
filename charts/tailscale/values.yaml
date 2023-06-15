@@ -2,6 +2,8 @@ image:
   repository: tailscale/tailscale
   tag: v1.42.0
   pullPolicy: IfNotPresent
+username: example
 hostname: example-ingress
 loginServer: headscale.example.com
 ipSubnet: 10.1.0.1/24
+preAuthKeySecret: example-key

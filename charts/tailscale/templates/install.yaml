@@ -12,6 +12,17 @@ spec:
     requests:
       storage: 1Gi
 ---
+apiVersion: headscale.dodo.cloud/v1
+kind: HeadscaleUser
+metadata:
+  name: {{ .Values.username }}
+  namespace: {{ .Release.Namespace }}
+spec:
+  name: {{ .Values.username }}
+  preAuthKey:
+    enabled: true
+    secretName: {{ .Values.preAuthKeySecret }}
+---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -45,8 +56,17 @@ spec:
           value: ""
         - name: TS_STATE_DIR
           value: /tailscale-state
+        - name: TS_AUTHKEY
+          valueFrom:
+            secretKeyRef:
+              name: {{ .Values.preAuthKeySecret }}
+              key: key
+        - name: TS_HOSTNAME
+          value: {{ .Values.hostname }}
+        - name: TS_ROUTES
+          value: {{ .Values.ipSubnet }}
         - name: TS_EXTRA_ARGS
-          value: --hostname={{ .Values.hostname }} --login-server={{ .Values.loginServer }} --advertise-routes={{ .Values.ipSubnet }}
+          value: --hostname= --login-server={{ .Values.loginServer }}
         volumeMounts:
         - name: tailscale
           mountPath: /tailscale-state
