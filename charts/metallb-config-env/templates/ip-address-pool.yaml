@@ -1,0 +1,47 @@
+apiVersion: metallb.io/v1beta1
+kind: IPAddressPool
+metadata:
+  name: {{ .Values.id }}
+  namespace: metallb-system
+spec:
+  addresses:
+  - {{ .Values.rest.from }}-{{ .Values.rest.to }}
+---
+apiVersion: metallb.io/v1beta1
+kind: IPAddressPool
+metadata:
+  name: {{ .Values.id }}-ingress-private
+  namespace: metallb-system
+spec:
+  addresses:
+  - {{ .Values.ingressPrivate }}-{{ .Values.ingressPrivate }}
+---
+apiVersion: metallb.io/v1beta1
+kind: IPAddressPool
+metadata:
+  name: {{ .Values.id }}-headscale
+  namespace: metallb-system
+spec:
+  addresses:
+  - {{ .Values.headscale }}-{{ .Values.headscale }}
+---
+apiVersion: metallb.io/v1beta1
+kind: IPAddressPool
+metadata:
+  name: {{ .Values.id }}-soft-serve
+  namespace: metallb-system
+spec:
+  addresses:
+  - {{ .Values.softServe }}-{{ .Values.softServe }}
+---
+apiVersion: metallb.io/v1beta1
+kind: L2Advertisement
+metadata:
+  name: l2-advertisement-{{ .Values.id }}
+  namespace: metallb-system
+spec:
+  ipAddressPools:
+  - {{ .Values.id }}
+  - {{ .Values.id }}-ingress-private
+  - {{ .Values.id }}-headscale
+  - {{ .Values.id }}-soft-serve
