@@ -69,5 +69,5 @@ spec:
         - server
         - --port=8080
         - --kratos=https://accounts.{{ .Values.ui.domain }}
-        - --hydra=hydra.{{ .Values.ui.internalDomain }}
+        - --hydra={{ .Values.ui.hydra }}
         - --email-domain={{ .Values.ui.domain }}
