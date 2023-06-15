@@ -1,4 +1,3 @@
-{{- $secret := include "clientSecret" . -}}
 apiVersion: hydra.ory.sh/v1alpha1
 kind: OAuth2Client
 metadata:
@@ -18,12 +17,3 @@ spec:
     port: 80
     endpoint: /admin/clients
     forwardedProto: https
----
-apiVersion: v1
-kind: Secret
-metadata:
-  name: {{ .Values.oauth2.secretName }}
-  namespace: {{ .Release.Namespace }}
-data:
-  client_id: {{ .Values.oauth2.clientId | b64enc}}
-  client_secret: {{ $secret | b64enc }}

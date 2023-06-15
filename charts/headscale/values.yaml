@@ -11,7 +11,5 @@ internalBaseDomain: p.example.com
 oauth2:
   hydraAdmin: http://hydra-admin
   hydraPublic: https://hydra.example.com
-  clientId: headscale
-  clientSecret: ""
   secretName: oauth2-client-headscale
 ipAddressPool: example-headscale
