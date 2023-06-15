@@ -91,6 +91,8 @@ spec:
       - name: config
         configMap:
           name: config
+      - name: api-socket
+        emptyDir: {}
       containers:
       - name: headscale
         image: {{ .Values.image.repository }}:{{ .Values.image.tag }}
@@ -113,6 +115,8 @@ spec:
         - name: config
           mountPath: /headscale/config
           readOnly: true
+        - mountPath: /headscale-api
+          name: api-socket
       - name: headscale-api
         image: {{ .Values.api.image.repository }}:{{ .Values.api.image.tag }}
         imagePullPolicy: {{ .Values.api.image.pullPolicy }}
@@ -131,3 +135,5 @@ spec:
         - name: config
           mountPath: /headscale/config
           readOnly: true
+        - mountPath: /headscale-api
+          name: api-socket
