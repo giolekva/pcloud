@@ -46,7 +46,7 @@ spec:
         - name: TS_STATE_DIR
           value: /tailscale-state
         - name: TS_EXTRA_ARGS
-          value: --hostname={{ .Values.hostname }} --login-server={{ .Values.loginServer }} --advertise-routes=192.168.0.0/24 # TODO(giolekva): routes should be configurable
+          value: --hostname={{ .Values.hostname }} --login-server={{ .Values.loginServer }} --advertise-routes={{ .Values.ipSubnet }}
         volumeMounts:
         - name: tailscale
           mountPath: /tailscale-state

@@ -4,3 +4,4 @@ image:
   pullPolicy: IfNotPresent
 hostname: example-ingress
 loginServer: headscale.example.com
+ipSubnet: 10.1.0.1/24
