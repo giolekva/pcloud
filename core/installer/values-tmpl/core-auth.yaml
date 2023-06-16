@@ -297,3 +297,4 @@ spec:
       ingressClassName: {{ .Global.PCloudEnvName }}-ingress-public
       domain: {{ .Global.Domain }}
       internalDomain: p.{{ .Global.Domain }}
+      hydra: hydra-admin.lekva-core-auth.svc.cluster.local

@@ -1,0 +1,22 @@
+apiVersion: helm.toolkit.fluxcd.io/v2beta1
+kind: HelmRelease
+metadata:
+  name: meteallb-config-env
+  namespace: {{ .Global.Id }}
+spec:
+  chart:
+    spec:
+      chart: charts/metallb-config-env
+      sourceRef:
+        kind: GitRepository
+        name: pcloud
+        namespace: {{ .Global.Id }}
+  interval: 1m0s
+  values:
+    id: {{ .Global.Id }}
+    ingressPrivate: {{ .Values.IngressPrivate }}
+    headscale: {{ .Values.Headscale }}
+    softServe: {{ .Values.SoftServe }}
+    rest:
+      from: {{ .Values.Rest.From }}
+      to: {{ .Values.Rest.To }}

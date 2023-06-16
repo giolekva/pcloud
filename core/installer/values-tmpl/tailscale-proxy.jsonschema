@@ -1,6 +1,8 @@
 {
   "type": "object",
   "properties": {
+	"Username": { "type": "string", "default": "example" },
+	"IPSubnet": { "type": "string", "default": "10.1.0.1" }
   },
   "additionalProperties": false
 }

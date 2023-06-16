@@ -52,4 +52,10 @@ spec:
       hydraPublic: https://hydra.{{ .Global.Domain }}
       clientId: headscale
       secretName: oauth2-client-headscale
-
+    ipAddressPool: {{ .Global.Id }}-headscale
+    api:
+      port: 8585
+      image:
+        repository: giolekva/headscale-api
+        tag: latest
+        pullPolicy: Always

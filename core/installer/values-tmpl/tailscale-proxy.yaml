@@ -39,3 +39,6 @@ spec:
   values:
     hostname: {{ .Global.PCloudEnvName }}-{{ .Global.Id }}-internal-proxy
     loginServer: https://headscale.{{ .Global.Domain }} # TODO(gio): take headscale subdomain from configuration
+    ipSubnet: {{ .Values.IPSubnet }}
+    username: {{ .Values.Username }}
+    preAuthKeySecret: headscale-preauth-key

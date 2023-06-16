@@ -64,7 +64,8 @@ spec:
       service:
         enabled: true
         type: LoadBalancer
-        loadBalancerIP: {{ .Values.ReservedIP }}
+        annotations:
+          metallb.universe.tf/address-pool: {{ .Global.Id }}-ingress-private
       ingressClassByName: true
       ingressClassResource:
         name: {{ .Global.Id }}-ingress-private
