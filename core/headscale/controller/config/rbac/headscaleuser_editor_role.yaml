@@ -1,0 +1,24 @@
+# permissions for end users to edit headscaleusers.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: headscaleuser-editor-role
+rules:
+- apiGroups:
+  - headscale.dodo.cloud
+  resources:
+  - headscaleusers
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - headscale.dodo.cloud
+  resources:
+  - headscaleusers/status
+  verbs:
+  - get

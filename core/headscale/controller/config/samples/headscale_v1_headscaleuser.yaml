@@ -1,0 +1,10 @@
+apiVersion: headscale.dodo.cloud/v1
+kind: HeadscaleUser
+metadata:
+  name: test
+  namespace: test
+spec:
+  name: test
+  preAuthKey:
+    enabled: true
+    secretName: test-key
