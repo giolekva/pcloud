@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"os/exec"
+	"strings"
 )
 
 type client struct {
@@ -26,8 +27,11 @@ func (c *client) createPreAuthKey(user string) (string, error) {
 	// TODO(giolekva): make expiration configurable, and auto-refresh
 	cmd := exec.Command("headscale", c.config, "--user", user, "preauthkeys", "create", "--reusable", "--expiration", "365d")
 	out, err := cmd.Output()
+	if err != nil {
+		return "", err
+	}
 	fmt.Println(string(out))
-	return string(out), err
+	return extractLastLine(string(out))
 }
 
 func (c *client) enableRoute(id string) error {
@@ -36,4 +40,15 @@ func (c *client) enableRoute(id string) error {
 	out, err := cmd.Output()
 	fmt.Println(string(out))
 	return err
+}
+
+func extractLastLine(s string) (string, error) {
+	items := strings.Split(s, "\n")
+	for i := len(items) - 1; i >= 0; i-- {
+		t := strings.TrimSpace(items[i])
+		if t != "" {
+			return t, nil
+		}
+	}
+	return "", fmt.Errorf("All lines are empty")
 }
