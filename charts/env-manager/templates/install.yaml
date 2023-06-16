@@ -1,0 +1,62 @@
+apiVersion: v1
+kind: Secret
+metadata:
+  name: ssh-key
+type: Opaque
+data:
+  private: {{ .Values.sshPrivateKey }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: env-manager
+  namespace: {{ .Release.Namespace }}
+  annotations:
+    metallb.universe.tf/address-pool: local
+spec:
+  type: LoadBalancer
+  selector:
+    app: env-manager
+  ports:
+  - name: http
+    port: 80
+    targetPort: http
+    protocol: TCP
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: env-manager
+  namespace: {{ .Release.Namespace }}
+spec:
+  selector:
+    matchLabels:
+      app: env-manager
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: env-manager
+    spec:
+      volumes:
+      - name: ssh-key
+        secret:
+          secretName: ssh-key
+      containers:
+      - name: env-manager
+        image: {{ .Values.image.repository }}:{{ .Values.image.tag }}
+        imagePullPolicy: {{ .Values.image.pullPolicy }}
+        ports:
+        - name: http
+          containerPort: 8080
+          protocol: TCP
+        command:
+        - pcloud-installer
+        - envmanager
+        - --repo-ip={{ .Values.repoIP }}
+        - --ssh-key=/pcloud/ssh-key/private
+        - --port=8080
+        volumeMounts:
+        - name: ssh-key
+          readOnly: true
+          mountPath: /pcloud/ssh-key
