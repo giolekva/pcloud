@@ -1,0 +1,20 @@
+# permissions for end users to view resourcerenderers.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: resourcerenderer-viewer-role
+rules:
+- apiGroups:
+  - dodo.cloud.dodo.cloud
+  resources:
+  - resourcerenderers
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - dodo.cloud.dodo.cloud
+  resources:
+  - resourcerenderers/status
+  verbs:
+  - get

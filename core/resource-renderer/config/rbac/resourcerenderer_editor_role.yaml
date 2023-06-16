@@ -1,0 +1,24 @@
+# permissions for end users to edit resourcerenderers.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: resourcerenderer-editor-role
+rules:
+- apiGroups:
+  - dodo.cloud.dodo.cloud
+  resources:
+  - resourcerenderers
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - dodo.cloud.dodo.cloud
+  resources:
+  - resourcerenderers/status
+  verbs:
+  - get
