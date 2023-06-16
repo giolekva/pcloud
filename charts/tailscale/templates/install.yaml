@@ -1,16 +1,16 @@
-apiVersion: v1
-kind: PersistentVolumeClaim
-metadata:
-  name: tailscale
-  namespace: {{ .Release.Namespace }}
-  annotations:
-    helm.sh/resource-policy: keep
-spec:
-  accessModes:
-    - ReadWriteOnce
-  resources:
-    requests:
-      storage: 1Gi
+# apiVersion: v1
+# kind: PersistentVolumeClaim
+# metadata:
+#   name: tailscale
+#   namespace: {{ .Release.Namespace }}
+#   annotations:
+#     helm.sh/resource-policy: keep
+# spec:
+#   accessModes:
+#     - ReadWriteOnce
+#   resources:
+#     requests:
+#       storage: 1Gi
 ---
 apiVersion: headscale.dodo.cloud/v1
 kind: HeadscaleUser
@@ -38,10 +38,10 @@ spec:
       labels:
         app: tailscale
     spec:
-      volumes:
-      - name: tailscale
-        persistentVolumeClaim:
-          claimName: tailscale
+      # volumes:
+      # - name: tailscale
+      #   persistentVolumeClaim:
+      #     claimName: tailscale
       containers:
       - name: tailscale
         image: {{ .Values.image.repository }}:{{ .Values.image.tag }}
@@ -53,20 +53,20 @@ spec:
             - NET_ADMIN
         env:
         - name: TS_KUBE_SECRET
-          value: ""
-        - name: TS_STATE_DIR
-          value: /tailscale-state
-        - name: TS_AUTHKEY
-          valueFrom:
-            secretKeyRef:
-              name: {{ .Values.preAuthKeySecret }}
-              key: key
+          value: {{ .Values.preAuthKeySecret }}
+        # - name: TS_STATE_DIR
+        #   value: /tailscale-state
+        # - name: TS_AUTHKEY
+        #   valueFrom:
+        #     secretKeyRef:
+        #       name: {{ .Values.preAuthKeySecret }}
+        #       key: key
         - name: TS_HOSTNAME
           value: {{ .Values.hostname }}
         - name: TS_ROUTES
           value: {{ .Values.ipSubnet }}
         - name: TS_EXTRA_ARGS
           value: --login-server={{ .Values.loginServer }}
-        volumeMounts:
-        - name: tailscale
-          mountPath: /tailscale-state
+        # volumeMounts:
+        # - name: tailscale
+        #   mountPath: /tailscale-state
