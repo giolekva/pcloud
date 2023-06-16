@@ -66,7 +66,7 @@ spec:
         - name: TS_ROUTES
           value: {{ .Values.ipSubnet }}
         - name: TS_EXTRA_ARGS
-          value: --hostname= --login-server={{ .Values.loginServer }}
+          value: --login-server={{ .Values.loginServer }}
         volumeMounts:
         - name: tailscale
           mountPath: /tailscale-state
