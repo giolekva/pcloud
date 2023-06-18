@@ -5,8 +5,10 @@ apiVersion: v1
 kind: Namespace
 metadata:
   name: {{ $prefix }}{{ . }}
+  {{ if $id }}
   labels:
     pcloud-instance-id: {{ $id }}
+  {{ end }}
   annotations:
     helm.sh/resource-policy: keep
 ---
