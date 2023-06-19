@@ -1,0 +1,54 @@
+{{ if .Values.installCRDs }}
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.9.2
+  creationTimestamp: null
+  name: resourcerenderers.dodo.cloud.dodo.cloud
+spec:
+  group: dodo.cloud.dodo.cloud
+  names:
+    kind: ResourceRenderer
+    listKind: ResourceRendererList
+    plural: resourcerenderers
+    singular: resourcerenderer
+  scope: Namespaced
+  versions:
+  - name: v1
+    schema:
+      openAPIV3Schema:
+        description: ResourceRenderer is the Schema for the resourcerenderers API
+        properties:
+          apiVersion:
+            description: 'APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
+            type: string
+          kind:
+            description: 'Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: ResourceRendererSpec defines the desired state of ResourceRenderer
+            properties:
+              resourceTemplate:
+                type: string
+              secretName:
+                description: Foo is an example field of ResourceRenderer. Edit resourcerenderer_types.go to remove/update
+                type: string
+              secretNamespace:
+                type: string
+            type: object
+          status:
+            description: ResourceRendererStatus defines the observed state of ResourceRenderer
+            properties:
+              ready:
+                description: 'INSERT ADDITIONAL STATUS FIELD - define observed state of cluster Important: Run "make" to regenerate code after modifying this file'
+                type: boolean
+            type: object
+        type: object
+    served: true
+    storage: true
+    subresources:
+      status: {}
+{{ end }}

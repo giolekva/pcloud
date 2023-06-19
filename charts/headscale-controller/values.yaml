@@ -1,0 +1,5 @@
+image:
+  repository: giolekva/headscale-controller
+  tag: latest
+  pullPolicy: Always
+installCRDs: false
