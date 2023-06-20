@@ -30,6 +30,8 @@ spec:
           spec:
             description: HeadscaleUserSpec defines the desired state of HeadscaleUser
             properties:
+              headscaleAddress:
+                type: string
               name:
                 type: string
               preAuthKey:
