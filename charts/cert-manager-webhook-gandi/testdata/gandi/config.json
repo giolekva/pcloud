@@ -1,6 +1,0 @@
-{
-  "apiKeySecretRef": {
-    "name": "gandi-api-key",
-    "key": "key"
-  }
-}
