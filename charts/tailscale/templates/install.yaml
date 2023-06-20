@@ -18,6 +18,7 @@ metadata:
   name: {{ .Values.username }}
   namespace: {{ .Release.Namespace }}
 spec:
+  headscaleAddress: https://headscale.{{ .Global.Domain }}
   name: {{ .Values.username }}
   preAuthKey:
     enabled: true
