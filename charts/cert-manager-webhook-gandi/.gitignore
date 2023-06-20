@@ -1,0 +1,27 @@
+# Binaries for programs and plugins
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+
+# Test binary, build with `go test -c`
+*.test
+/_test/
+/apiserver.local.config/
+/_out/
+
+# Output of the go coverage tool, specifically when used with LiteIDE
+*.out
+
+# Ignore the built binary
+cert-manager-webhook-gandi
+
+# Ignore the Helm chart
+/charts/
+
+# JetBrains
+.idea
+
+# Nix
+.envrc
