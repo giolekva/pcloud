@@ -37,26 +37,23 @@ import (
 )
 
 type HeadscaleClient struct {
-	address    string
+	baseUrl    url.URL
 	httpClient *http.Client
 }
 
-func NewHeadscaleClient(address string) *HeadscaleClient {
+func NewHeadscaleClient(baseUrl url.URL) *HeadscaleClient {
 	return &HeadscaleClient{
-		address,
+		baseUrl,
 		&http.Client{},
 	}
 }
 
 func (c *HeadscaleClient) CreateUser(name string) error {
-	fmt.Println(name)
+	reqAddr := c.baseUrl
+	reqAddr.Path = "/user"
 	req := &http.Request{
 		Method: http.MethodPost,
-		URL: &url.URL{
-			Scheme: "http",
-			Host:   c.address,
-			Path:   "/user",
-		},
+		URL:    &reqAddr,
 		Header: map[string][]string{
 			"Content-Type": []string{"application/json"},
 		},
@@ -76,13 +73,11 @@ func (c *HeadscaleClient) CreateUser(name string) error {
 }
 
 func (c *HeadscaleClient) CreateReusablePreAuthKey(user string) (string, error) {
+	reqAddr := c.baseUrl
+	reqAddr.Path = fmt.Sprintf("/user/%s/preauthkey", user)
 	req := &http.Request{
 		Method: http.MethodPost,
-		URL: &url.URL{
-			Scheme: "http",
-			Host:   c.address,
-			Path:   fmt.Sprintf("/user/%s/preauthkey", user),
-		},
+		URL:    &reqAddr,
 	}
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
@@ -133,11 +128,16 @@ func (r *HeadscaleUserReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 	if resource.Status.Ready {
 		return ctrl.Result{}, nil
 	}
-	if err := r.Headscale.CreateUser(resource.Spec.Name); err != nil {
+	baseAddr, err := url.Parse(resource.Spec.HeadscaleAddress)
+	if err != nil {
+		return ctrl.Result{RequeueAfter: time.Minute}, err
+	}
+	headscale := NewHeadscaleClient(*baseAddr)
+	if err := headscale.CreateUser(resource.Spec.Name); err != nil {
 		return ctrl.Result{RequeueAfter: time.Minute}, err
 	}
 	if resource.Spec.PreAuthKey.Enabled {
-		key, err := r.Headscale.CreateReusablePreAuthKey(resource.Spec.Name)
+		key, err := headscale.CreateReusablePreAuthKey(resource.Spec.Name)
 		if err != nil {
 			return ctrl.Result{RequeueAfter: time.Minute}, err
 		}

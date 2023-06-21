@@ -33,8 +33,9 @@ type HeadscaleUserSpec struct {
 	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
 	// Important: Run "make" to regenerate code after modifying this file
 
-	Name       string     `json:"name,omitempty"`
-	PreAuthKey PreAuthKey `json:"preAuthKey,omitempty"`
+	HeadscaleAddress string     `json:"headscaleAddress,omitempty"`
+	Name             string     `json:"name,omitempty"`
+	PreAuthKey       PreAuthKey `json:"preAuthKey,omitempty"`
 }
 
 // HeadscaleUserStatus defines the observed state of HeadscaleUser
