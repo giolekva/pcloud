@@ -1,0 +1,6 @@
+apiVersion: v2
+name: cert-manager-webhook-gandi-role
+description: A Helm chart for cert-manager role to let createn gandi resource
+type: application
+version: 0.0.1
+appVersion: "0.0.1"

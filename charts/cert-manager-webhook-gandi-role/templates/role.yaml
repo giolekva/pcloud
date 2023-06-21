@@ -1,0 +1,24 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: cert-manager-gandi
+rules:
+- apiGroups:
+  - acme.bwolf.me
+  resources:
+  - gandi
+  verbs:
+  - "*" # TODO(giolekva): limit
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: cert-manager-gandi-binding
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: cert-manager-gandi
+subjects:
+- kind: ServiceAccount
+  name: {{ .Values.certManager.name }}
+  namespace: {{ .Values.certManager.namespace }}

@@ -1,0 +1,3 @@
+certManager:
+  name: pcloud-cert-manager
+  namespace: pcloud-cert-manager
