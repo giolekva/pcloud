@@ -259,7 +259,7 @@ spec:
           # `base_domain` must be a FQDNs, without the trailing dot.
           # The FQDN of the hosts will be
           # `hostname.namespace.base_domain` (e.g., _myhost.mynamespace.example.com_).
-          base_domain: {{ .Values.internalBaseDomain }}
+          base_domain: {{ .Values.publicBaseDomain }}
 
         # Unix socket used for the CLI to connect without authentication
         # Note: for production you will want to set this to something like:
@@ -280,7 +280,7 @@ spec:
           extra_params:
             domain_hint: {{ .Values.domain }}
           allowed_domains:
-            - {{ .Values.domain }}
+            - {{ .Values.publicBaseDomain }}
           # allowed_groups:
           #   - /headscale
           # allowed_users:

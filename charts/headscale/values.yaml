@@ -7,7 +7,7 @@ storage:
 ingressClassName: pcloud-ingress-public
 certificateIssuer: lekva-public
 domain: headscale.example.com
-internalBaseDomain: p.example.com
+publicBaseDomain: example.com
 oauth2:
   hydraAdmin: http://hydra-admin
   hydraPublic: https://hydra.example.com
