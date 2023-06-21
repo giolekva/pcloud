@@ -9,7 +9,7 @@
 	let apps: app[] = [];
 
 	onMount(async () => {
-		const resp = await fetch("http://localhost:8080/api/app-repo");
+		const resp = await fetch("/api/app-repo");
 		apps = await resp.json();
 	});
 </script>
