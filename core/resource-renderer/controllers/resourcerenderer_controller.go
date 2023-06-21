@@ -20,6 +20,7 @@ import (
 	"bytes"
 	"context"
 	"text/template"
+	"time"
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -61,7 +62,10 @@ func (r *ResourceRendererReconciler) Reconcile(ctx context.Context, req ctrl.Req
 		Namespace: req.Namespace,
 		Name:      req.Name,
 	}, resource); err != nil {
-		return ctrl.Result{}, err
+		return ctrl.Result{RequeueAfter: time.Minute}, err
+	}
+	if resource.Status.Ready {
+		return ctrl.Result{}, nil
 	}
 	secret := &corev1.Secret{}
 	ns := resource.Spec.SecretNamespace
@@ -72,7 +76,7 @@ func (r *ResourceRendererReconciler) Reconcile(ctx context.Context, req ctrl.Req
 		Namespace: ns,
 		Name:      resource.Spec.SecretName,
 	}, secret); err != nil {
-		return ctrl.Result{}, err
+		return ctrl.Result{RequeueAfter: time.Minute}, err
 	}
 	data := make(map[string]string)
 	for key, value := range secret.Data {
@@ -80,20 +84,23 @@ func (r *ResourceRendererReconciler) Reconcile(ctx context.Context, req ctrl.Req
 	}
 	tmpl, err := template.New("resource").Parse(resource.Spec.ResourceTemplate)
 	if err != nil {
-		return ctrl.Result{}, err
+		return ctrl.Result{RequeueAfter: time.Minute}, err
 	}
 	var rendered bytes.Buffer
 	if err := tmpl.Execute(&rendered, data); err != nil {
-		return ctrl.Result{}, err
+		return ctrl.Result{RequeueAfter: time.Minute}, err
 	}
 	config := &corev1.ConfigMap{}
 	if err := yaml.Unmarshal(rendered.Bytes(), config); err != nil {
-		return ctrl.Result{}, err
+		return ctrl.Result{RequeueAfter: time.Minute}, err
 	}
 	if err := r.Create(context.Background(), config); err != nil {
-		return ctrl.Result{}, err
+		return ctrl.Result{RequeueAfter: time.Minute}, err
 	}
-
+	resource.Status.Ready = true
+	if err := r.Status().Update(context.Background(), resource); err != nil {
+		return ctrl.Result{RequeueAfter: time.Minute}, err
+	}
 	return ctrl.Result{}, nil
 }
 
