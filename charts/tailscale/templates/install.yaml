@@ -18,7 +18,7 @@ metadata:
   name: {{ .Values.username }}
   namespace: {{ .Release.Namespace }}
 spec:
-  headscaleAddress: {{ .Values.loginServer }}
+  headscaleAddress: {{ .Values.apiServer }}
   name: {{ .Values.username }}
   preAuthKey:
     enabled: true
