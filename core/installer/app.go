@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"log"
 	"text/template"
+
+	"github.com/Masterminds/sprig/v3"
 )
 
 //go:embed values-tmpl
@@ -46,12 +48,11 @@ func (r InMemoryAppRepository) GetAll() ([]App, error) {
 }
 
 func CreateAllApps() []App {
-	tmpls, err := template.ParseFS(valuesTmpls, "values-tmpl/*")
+	tmpls, err := template.New("root").Funcs(template.FuncMap(sprig.FuncMap())).ParseFS(valuesTmpls, "values-tmpl/*")
 	if err != nil {
 		log.Fatal(err)
 	}
 	return []App{
-		// CreateAppIngressPublic(tmpls),
 		CreateAppIngressPrivate(valuesTmpls, tmpls),
 		CreateAppCoreAuth(valuesTmpls, tmpls),
 		CreateAppVaultwarden(valuesTmpls, tmpls),
@@ -62,21 +63,16 @@ func CreateAllApps() []App {
 		CreateAppJellyfin(valuesTmpls, tmpls),
 		CreateAppRpuppy(valuesTmpls, tmpls),
 		CreateAppHeadscale(valuesTmpls, tmpls),
-	}
-}
-
-func CreateAppIngressPublic(fs embed.FS, tmpls *template.Template) App {
-	schema, err := fs.ReadFile("values-tmpl/ingress-public.jsonschema")
-	if err != nil {
-		panic(err)
-	}
-	return App{
-		"ingress-public",
-		[]*template.Template{
-			tmpls.Lookup("ingress-public.yaml"),
-		},
-		string(schema),
-		nil,
+		CreateAppTailscaleProxy(valuesTmpls, tmpls),
+		CreateMetallbConfigEnv(valuesTmpls, tmpls),
+		CreateEnvManager(valuesTmpls, tmpls),
+		CreateIngressPublic(valuesTmpls, tmpls),
+		CreateCertManager(valuesTmpls, tmpls),
+		CreateCertManagerWebhookGandi(valuesTmpls, tmpls),
+		CreateCertManagerWebhookGandiRole(valuesTmpls, tmpls),
+		CreateCSIDriverSMB(valuesTmpls, tmpls),
+		CreateResourceRendererController(valuesTmpls, tmpls),
+		CreateHeadscaleController(valuesTmpls, tmpls),
 	}
 }
 
@@ -95,6 +91,21 @@ func CreateAppIngressPrivate(fs embed.FS, tmpls *template.Template) App {
 		},
 		string(schema),
 		tmpls.Lookup("ingress-private.md"),
+	}
+}
+
+func CreateCertificateIssuerPrivate(fs embed.FS, tmpls *template.Template) App {
+	schema, err := fs.ReadFile("values-tmpl/certificate-issuer-private.jsonschema")
+	if err != nil {
+		panic(err)
+	}
+	return App{
+		"ingress-private",
+		[]*template.Template{
+			tmpls.Lookup("certificate-issuer-private.yaml"),
+		},
+		string(schema),
+		tmpls.Lookup("certificate-issuer-private.md"),
 	}
 }
 
@@ -232,5 +243,155 @@ func CreateAppHeadscale(fs embed.FS, tmpls *template.Template) App {
 		},
 		string(schema),
 		tmpls.Lookup("headscale.md"),
+	}
+}
+
+func CreateAppTailscaleProxy(fs embed.FS, tmpls *template.Template) App {
+	schema, err := fs.ReadFile("values-tmpl/tailscale-proxy.jsonschema")
+	if err != nil {
+		panic(err)
+	}
+	return App{
+		"tailscale-proxy",
+		[]*template.Template{
+			tmpls.Lookup("tailscale-proxy.yaml"),
+		},
+		string(schema),
+		tmpls.Lookup("tailscale-proxy.md"),
+	}
+}
+
+func CreateMetallbConfigEnv(fs embed.FS, tmpls *template.Template) App {
+	schema, err := fs.ReadFile("values-tmpl/metallb-config-env.jsonschema")
+	if err != nil {
+		panic(err)
+	}
+	return App{
+		"metallb-config-env",
+		[]*template.Template{
+			tmpls.Lookup("metallb-config-env.yaml"),
+		},
+		string(schema),
+		tmpls.Lookup("metallb-config-env.md"),
+	}
+}
+
+func CreateEnvManager(fs embed.FS, tmpls *template.Template) App {
+	schema, err := fs.ReadFile("values-tmpl/env-manager.jsonschema")
+	if err != nil {
+		panic(err)
+	}
+	return App{
+		"env-manager",
+		[]*template.Template{
+			tmpls.Lookup("env-manager.yaml"),
+		},
+		string(schema),
+		tmpls.Lookup("env-manager.md"),
+	}
+}
+
+func CreateIngressPublic(fs embed.FS, tmpls *template.Template) App {
+	schema, err := fs.ReadFile("values-tmpl/ingress-public.jsonschema")
+	if err != nil {
+		panic(err)
+	}
+	return App{
+		"ingress-public",
+		[]*template.Template{
+			tmpls.Lookup("ingress-public.yaml"),
+		},
+		string(schema),
+		tmpls.Lookup("ingress-public.md"),
+	}
+}
+
+func CreateCertManager(fs embed.FS, tmpls *template.Template) App {
+	schema, err := fs.ReadFile("values-tmpl/cert-manager.jsonschema")
+	if err != nil {
+		panic(err)
+	}
+	return App{
+		"cert-manager",
+		[]*template.Template{
+			tmpls.Lookup("cert-manager.yaml"),
+		},
+		string(schema),
+		tmpls.Lookup("cert-manager.md"),
+	}
+}
+
+func CreateCertManagerWebhookGandi(fs embed.FS, tmpls *template.Template) App {
+	schema, err := fs.ReadFile("values-tmpl/cert-manager-webhook-gandi.jsonschema")
+	if err != nil {
+		panic(err)
+	}
+	return App{
+		"cert-manager-webhook-gandi",
+		[]*template.Template{
+			tmpls.Lookup("cert-manager-webhook-gandi.yaml"),
+		},
+		string(schema),
+		tmpls.Lookup("cert-manager-webhook-gandi.md"),
+	}
+}
+
+func CreateCertManagerWebhookGandiRole(fs embed.FS, tmpls *template.Template) App {
+	schema, err := fs.ReadFile("values-tmpl/cert-manager-webhook-gandi-role.jsonschema")
+	if err != nil {
+		panic(err)
+	}
+	return App{
+		"cert-manager-webhook-gandi-role",
+		[]*template.Template{
+			tmpls.Lookup("cert-manager-webhook-gandi-role.yaml"),
+		},
+		string(schema),
+		tmpls.Lookup("cert-manager-webhook-gandi-role.md"),
+	}
+}
+
+func CreateCSIDriverSMB(fs embed.FS, tmpls *template.Template) App {
+	schema, err := fs.ReadFile("values-tmpl/csi-driver-smb.jsonschema")
+	if err != nil {
+		panic(err)
+	}
+	return App{
+		"csi-driver-smb",
+		[]*template.Template{
+			tmpls.Lookup("csi-driver-smb.yaml"),
+		},
+		string(schema),
+		tmpls.Lookup("csi-driver-smb.md"),
+	}
+}
+
+func CreateResourceRendererController(fs embed.FS, tmpls *template.Template) App {
+	schema, err := fs.ReadFile("values-tmpl/resource-renderer-controller.jsonschema")
+	if err != nil {
+		panic(err)
+	}
+	return App{
+		"resource-renderer-controller",
+		[]*template.Template{
+			tmpls.Lookup("resource-renderer-controller.yaml"),
+		},
+		string(schema),
+		tmpls.Lookup("resource-renderer-controller.md"),
+	}
+}
+
+func CreateHeadscaleController(fs embed.FS, tmpls *template.Template) App {
+	schema, err := fs.ReadFile("values-tmpl/headscale-controller.jsonschema")
+	if err != nil {
+		panic(err)
+	}
+	return App{
+		"headscale-controller",
+		[]*template.Template{
+			tmpls.Lookup("headscale-controller.yaml"),
+		},
+		string(schema),
+		tmpls.Lookup("headscale-controller.md"),
 	}
 }

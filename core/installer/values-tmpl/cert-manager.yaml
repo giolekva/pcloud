@@ -1,7 +1,7 @@
 apiVersion: helm.toolkit.fluxcd.io/v2beta1
 kind: HelmRelease
 metadata:
-  name: namespaces-ingress-public
+  name: namespaces-cert-manager
   namespace: {{ .Global.PCloudEnvName }}
 spec:
   chart:
@@ -16,38 +16,32 @@ spec:
     pcloudInstanceId: ""
     namespacePrefix: {{ .Global.PCloudEnvName }}-
     namespaces:
-    - ingress-public
+    - cert-manager
 ---
 apiVersion: helm.toolkit.fluxcd.io/v2beta1
 kind: HelmRelease
 metadata:
-  name: ingress-public
+  name: cert-manager
   namespace: {{ .Global.PCloudEnvName }}
 spec:
-  targetNamespace: {{ .Global.PCloudEnvName }}-ingress-public
+  targetNamespace: {{ .Global.PCloudEnvName }}-cert-manager
   dependsOn:
-    - name: namespaces-ingress-public
+    - name: namespaces-cert-manager
+      namespace: {{ .Global.PCloudEnvName }}
+    - name: ingress-public
       namespace: {{ .Global.PCloudEnvName }}
   chart:
     spec:
-      chart: charts/ingress-nginx
+      chart: charts/cert-manager
       sourceRef:
         kind: GitRepository
         name: pcloud
         namespace: {{ .Global.PCloudEnvName }}
   interval: 1m0s
+  timeout: 20m0s
   values:
-    fullnameOverride: {{ .Global.PCloudEnvName }}-ingress-public
-    controller:
-      service:
-        type: LoadBalancer
-        annotations:
-          metallb.universe.tf/loadBalancerIPs: 192.168.0.213 # TODO(giolekva): configurable
-      ingressClassByName: true
-      ingressClassResource:
-        name: {{ .Global.PCloudEnvName }}-ingress-public
-        enabled: true
-        default: false
-        controllerValue: k8s.io/{{ .Global.PCloudEnvName }}-ingress-public
-      config:
-        proxy-body-size: 100M # TODO(giolekva): configurable
+    fullnameOverride: {{ .Global.PCloudEnvName }}-cert-manager
+    installCRDs: true
+    image:
+      tag: v1.11.1
+      pullPolicy: IfNotPresent

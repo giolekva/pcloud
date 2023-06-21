@@ -1,0 +1,8 @@
+{
+  "type": "object",
+  "properties": {
+    "RepoIP": { "type": "string", "default": "192.168.0.11" },
+	"SSHPrivateKey": { "type": "string", "default": "foo bar" }
+  },
+  "additionalProperties": false
+}

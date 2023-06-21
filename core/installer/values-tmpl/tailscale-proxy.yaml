@@ -28,6 +28,8 @@ spec:
   dependsOn:
     - name: namespaces-tailscale-proxy
       namespace: {{ .Global.Id }}
+    - name: headscale
+      namespace: {{ .Global.Id }}
   chart:
     spec:
       chart: charts/tailscale
@@ -38,6 +40,7 @@ spec:
   interval: 1m0s
   values:
     hostname: {{ .Global.PCloudEnvName }}-{{ .Global.Id }}-internal-proxy
+    apiServer: http://headscale-api.{{ .Global.Id }}-app-headscale.svc.cluster.local
     loginServer: https://headscale.{{ .Global.Domain }} # TODO(gio): take headscale subdomain from configuration
     ipSubnet: {{ .Values.IPSubnet }}
     username: {{ .Values.Username }}

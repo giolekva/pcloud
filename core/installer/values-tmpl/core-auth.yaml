@@ -8,6 +8,8 @@ spec:
   dependsOn:
   - name: core-auth-storage
     namespace: {{ .Global.Id }}
+  - name: ingress-private
+    namespace: {{ .Global.Id }}
   chart:
     spec:
       chart: charts/auth

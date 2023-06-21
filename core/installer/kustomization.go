@@ -2,6 +2,7 @@ package installer
 
 import (
 	"bytes"
+	"golang.org/x/exp/slices"
 	"io"
 	"io/ioutil"
 
@@ -46,5 +47,9 @@ func (k Kustomization) Write(w io.Writer) error {
 }
 
 func (k *Kustomization) AddResources(names ...string) {
-	k.Resources = append(k.Resources, names...)
+	for _, name := range names {
+		if !slices.Contains(k.Resources, name) {
+			k.Resources = append(k.Resources, name)
+		}
+	}
 }

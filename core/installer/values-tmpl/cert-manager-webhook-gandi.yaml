@@ -1,0 +1,29 @@
+apiVersion: helm.toolkit.fluxcd.io/v2beta1
+kind: HelmRelease
+metadata:
+  name: cert-manager-webhook-gandi
+  namespace: {{ .Global.PCloudEnvName }}
+spec:
+  targetNamespace: {{ .Global.PCloudEnvName }}-cert-manager
+  dependsOn:
+    - name: cert-manager
+      namespace: {{ .Global.PCloudEnvName }}
+  chart:
+    spec:
+      chart: charts/cert-manager-webhook-gandi
+      sourceRef:
+        kind: GitRepository
+        name: pcloud
+        namespace: {{ .Global.PCloudEnvName }}
+  interval: 1m0s
+  timeout: 20m0s
+  values:
+    fullnameOverride: {{ .Global.PCloudEnvName }}-cert-manager-webhook-gandi
+    certManager:
+      namespace: {{ .Global.PCloudEnvName }}-cert-manager
+      name: {{ .Global.PCloudEnvName }}-cert-manager
+    image:
+      repository: giolekva/cert-manager-webhook-gandi
+      tag: v0.2.0
+      pullPolicy: IfNotPresent
+    logLevel: 2

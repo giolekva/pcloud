@@ -1,0 +1,75 @@
+# TODO(giolekva): finish
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: pcloud
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: pcloud-bootstrap
+  namespace: pcloud
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: pcloud-bootstrap
+  namespace: pcloud
+rules:
+- apiGroups:
+  - *
+  resources:
+  - *
+  verbs:
+  - *
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: pcloud:pcloud-bootstrap
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: pcloud:pcloud-bootstrap
+subjects:
+- kind: ServiceAccount
+  name: pcloud-bootstrap
+  namespace: pcloud
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: admin-pub-key
+  namespace: pcloud
+data: # TODO(giolekva): can it work without ssh-ed25519 prefix
+  key.pub: ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOa7FUrmXzdY3no8qNGUk7OPaRcIUi8G7MVbLlff9eB/
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: pcloud-bootstrap
+  namespace: pcloud
+spec:
+  template:
+    spec:
+      serviceAccountName: pcloud-bootstrap
+      volumes:
+      - name: admin-pub-key
+        configMap:
+          name: admin-pub-key
+      containers:
+      - name: pcloud-bootstrap
+        image: giolekva/pcloud-installer:latest
+        imagePullPolicy: Always
+        volumeMounts:
+        - name: admin-pub-key
+          mountPath: /admin-pub-key
+        command:
+        - pcloud-installer
+        - bootstrap
+        - --pcloud-env-name=pcloud
+        - --admin-pub-key=/admin-pub-key/key.pub
+        - --soft-serve-ip=192.168.0.211
+        - --charts-dir=/charts
+        - --storage-dir=/pcloud-storage/longhorn
+      restartPolicy: Never

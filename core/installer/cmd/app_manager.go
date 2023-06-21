@@ -63,7 +63,7 @@ func appManagerCmdRun(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-	m, err := installer.NewAppManager(repo, signer)
+	m, err := installer.NewAppManager(installer.NewRepoIO(repo, signer))
 	if err != nil {
 		return err
 	}

@@ -9,7 +9,6 @@ coverage.txt
 *.img
 *.xz
 kubeconfig
-cert-*
 secrets.*.dec
 target
 main

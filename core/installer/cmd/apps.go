@@ -60,10 +60,10 @@ func installCmdRun(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-	m, err := installer.NewAppManager(
+	m, err := installer.NewAppManager(installer.NewRepoIO(
 		repo,
 		signer,
-	)
+	))
 	if err != nil {
 		return err
 	}

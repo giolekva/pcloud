@@ -26,6 +26,7 @@ func init() {
 	rootCmd.AddCommand(createEnvCmd())
 	rootCmd.AddCommand(installCmd())
 	rootCmd.AddCommand(appManagerCmd())
+	rootCmd.AddCommand(envManagerCmd())
 }
 
 func main() {

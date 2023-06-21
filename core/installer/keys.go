@@ -9,14 +9,19 @@ import (
 	"golang.org/x/crypto/ssh"
 )
 
-func GenerateSSHKeys() (string, string, error) {
+type KeyPair struct {
+	Public  string
+	Private string
+}
+
+func NewSSHKeyPair() (KeyPair, error) {
 	pub, priv, err := ed25519.GenerateKey(rand.Reader)
 	if err != nil {
-		return "", "", err
+		return KeyPair{}, err
 	}
 	privEnc, err := x509.MarshalPKCS8PrivateKey(priv)
 	if err != nil {
-		return "", "", err
+		return KeyPair{}, err
 	}
 	privPem := pem.EncodeToMemory(
 		&pem.Block{
@@ -26,7 +31,10 @@ func GenerateSSHKeys() (string, string, error) {
 	)
 	pubKey, err := ssh.NewPublicKey(pub)
 	if err != nil {
-		return "", "", err
+		return KeyPair{}, err
 	}
-	return string(ssh.MarshalAuthorizedKey(pubKey)), string(privPem), nil
+	return KeyPair{
+		Public:  string(ssh.MarshalAuthorizedKey(pubKey)),
+		Private: string(privPem),
+	}, nil
 }

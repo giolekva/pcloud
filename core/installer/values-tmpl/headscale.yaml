@@ -28,6 +28,8 @@ spec:
   dependsOn:
     - name: namespaces-headscale
       namespace: {{ .Global.Id }}
+    - name: core-auth
+      namespace: {{ .Global.Id }}
   chart:
     spec:
       chart: charts/headscale
@@ -46,7 +48,7 @@ spec:
     ingressClassName: pcloud-ingress-public
     certificateIssuer: {{ .Global.Id }}-public
     domain: {{ .Values.Subdomain }}.{{ .Global.Domain }}
-    internalBaseDomain: {{ .Global.PrivateDomain }}
+    publicBaseDomain: {{ .Global.Domain }}
     oauth2:
       hydraAdmin: http://hydra-admin.{{ .Global.NamespacePrefix }}core-auth.svc.cluster.local
       hydraPublic: https://hydra.{{ .Global.Domain }}
