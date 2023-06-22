@@ -13,7 +13,7 @@ import (
 	"github.com/giolekva/pcloud/core/installer"
 )
 
-//go:embed index.html
+//go:embed create-admin-account.html
 var indexHtml string
 
 //go:embed static/*

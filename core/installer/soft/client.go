@@ -1,7 +1,6 @@
 package soft
 
 import (
-	"encoding/base64"
 	"fmt"
 	"golang.org/x/crypto/ssh"
 	"log"
@@ -30,10 +29,6 @@ func NewClient(ip string, port int, clientPrivateKey []byte, log *log.Logger) (*
 	}
 	log.SetPrefix("SOFT-SERVE: ")
 	log.Printf("Created signer")
-	pub := signer.PublicKey().Marshal()
-	b := make([]byte, 100)
-	base64.StdEncoding.Encode(b, pub)
-	log.Printf("%s\n", string(b))
 	return &Client{
 		ip,
 		port,
