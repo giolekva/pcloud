@@ -54,6 +54,8 @@ func CreateAllApps() []App {
 	}
 	return []App{
 		CreateAppIngressPrivate(valuesTmpls, tmpls),
+		CreateCertificateIssuerPublic(valuesTmpls, tmpls),
+		CreateCertificateIssuerPrivate(valuesTmpls, tmpls),
 		CreateAppCoreAuth(valuesTmpls, tmpls),
 		CreateAppVaultwarden(valuesTmpls, tmpls),
 		CreateAppMatrix(valuesTmpls, tmpls),
@@ -66,6 +68,7 @@ func CreateAllApps() []App {
 		CreateAppTailscaleProxy(valuesTmpls, tmpls),
 		CreateMetallbConfigEnv(valuesTmpls, tmpls),
 		CreateEnvManager(valuesTmpls, tmpls),
+		CreateWelcome(valuesTmpls, tmpls),
 		CreateIngressPublic(valuesTmpls, tmpls),
 		CreateCertManager(valuesTmpls, tmpls),
 		CreateCertManagerWebhookGandi(valuesTmpls, tmpls),
@@ -85,9 +88,7 @@ func CreateAppIngressPrivate(fs embed.FS, tmpls *template.Template) App {
 	return App{
 		"ingress-private",
 		[]*template.Template{
-			// tmpls.Lookup("vpn-mesh-config.yaml"),
 			tmpls.Lookup("ingress-private.yaml"),
-			tmpls.Lookup("certificate-issuer.yaml"),
 		},
 		string(schema),
 		tmpls.Lookup("ingress-private.md"),
@@ -100,12 +101,27 @@ func CreateCertificateIssuerPrivate(fs embed.FS, tmpls *template.Template) App {
 		panic(err)
 	}
 	return App{
-		"ingress-private",
+		"certificate-issuer-private",
 		[]*template.Template{
 			tmpls.Lookup("certificate-issuer-private.yaml"),
 		},
 		string(schema),
 		tmpls.Lookup("certificate-issuer-private.md"),
+	}
+}
+
+func CreateCertificateIssuerPublic(fs embed.FS, tmpls *template.Template) App {
+	schema, err := fs.ReadFile("values-tmpl/certificate-issuer-public.jsonschema")
+	if err != nil {
+		panic(err)
+	}
+	return App{
+		"certificate-issuer-public",
+		[]*template.Template{
+			tmpls.Lookup("certificate-issuer-public.yaml"),
+		},
+		string(schema),
+		tmpls.Lookup("certificate-issuer-public.md"),
 	}
 }
 
@@ -288,6 +304,21 @@ func CreateEnvManager(fs embed.FS, tmpls *template.Template) App {
 		},
 		string(schema),
 		tmpls.Lookup("env-manager.md"),
+	}
+}
+
+func CreateWelcome(fs embed.FS, tmpls *template.Template) App {
+	schema, err := fs.ReadFile("values-tmpl/welcome.jsonschema")
+	if err != nil {
+		panic(err)
+	}
+	return App{
+		"welcome",
+		[]*template.Template{
+			tmpls.Lookup("welcome.yaml"),
+		},
+		string(schema),
+		tmpls.Lookup("welcome.md"),
 	}
 }
 

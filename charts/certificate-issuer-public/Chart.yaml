@@ -1,0 +1,6 @@
+apiVersion: v2
+name: certificate-issuer
+description: A Helm chart for PCloud public and private certificate issuer
+type: application
+version: 0.0.1
+appVersion: "0.0.1"

@@ -100,12 +100,9 @@ func (s *envServer) start() {
 }
 
 type createEnvReq struct {
-	Name          string `json:"name"`
-	ContactEmail  string `json:"contactEmail"`
-	Domain        string `json:"domain"`
-	GandiAPIToken string `json:"gandiAPIToken"`
-	AdminUsername string `json:"adminUsername"`
-	// TODO(giolekva): take admin password as well
+	Name         string `json:"name"`
+	ContactEmail string `json:"contactEmail"`
+	Domain       string `json:"domain"`
 }
 
 func (s *envServer) createEnv(c echo.Context) error {
@@ -135,7 +132,7 @@ func (s *envServer) createEnv(c echo.Context) error {
 		if repo == nil {
 			return err
 		}
-		if err := initNewEnv(installer.NewRepoIO(repo, s.ss.Signer), req); err != nil {
+		if err := initNewEnv(s.ss, installer.NewRepoIO(repo, s.ss.Signer), req); err != nil {
 			return err
 		}
 	}
@@ -160,7 +157,7 @@ func (s *envServer) createEnv(c echo.Context) error {
 	return nil
 }
 
-func initNewEnv(r installer.RepoIO, req createEnvReq) error {
+func initNewEnv(ss *soft.Client, r installer.RepoIO, req createEnvReq) error {
 	appManager, err := installer.NewAppManager(r)
 	if err != nil {
 		return err
@@ -236,9 +233,16 @@ spec:
 		if err != nil {
 			return err
 		}
-		if err := appManager.Install(*app, map[string]any{
-			"GandiAPIToken": req.GandiAPIToken,
-		}); err != nil {
+		if err := appManager.Install(*app, map[string]any{}); err != nil {
+			return err
+		}
+	}
+	{
+		app, err := appsRepo.Find("certificate-issuer-public")
+		if err != nil {
+			return err
+		}
+		if err := appManager.Install(*app, map[string]any{}); err != nil {
 			return err
 		}
 	}
@@ -265,19 +269,28 @@ spec:
 		}
 	}
 	{
-		app, err := appsRepo.Find("tailscale-proxy")
+		keys, err := installer.NewSSHKeyPair()
+		if err != nil {
+			return err
+		}
+		user := fmt.Sprintf("%s-welcome", req.Name)
+		if err := ss.AddUser(user, keys.Public); err != nil {
+			return err
+		}
+		if err := ss.AddCollaborator(req.Name, user); err != nil {
+			return err
+		}
+		app, err := appsRepo.Find("welcome")
 		if err != nil {
 			return err
 		}
 		if err := appManager.Install(*app, map[string]any{
-			"Username": req.AdminUsername,
-			"IPSubnet": "10.1.0.0/24",
+			"RepoAddr":      ss.GetRepoAddress(req.Name),
+			"SSHPrivateKey": keys.Private,
 		}); err != nil {
 			return err
 		}
-		// TODO(giolekva): headscale accept routes
 	}
-
 	return nil
 }
 

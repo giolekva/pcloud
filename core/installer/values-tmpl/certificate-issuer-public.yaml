@@ -4,13 +4,14 @@ metadata:
   name: certificate-issuer
   namespace: {{ .Global.Id }}
 spec:
+  # TODO(giolekva): is there better namespace for this?
   targetNamespace: {{ .Global.NamespacePrefix }}ingress-private
   dependsOn:
   - name: ingress-private
     namespace: {{ .Global.Id }}
   chart:
     spec:
-      chart: charts/certificate-issuer
+      chart: charts/certificate-issuer-public
       sourceRef:
         kind: GitRepository
         name: pcloud
@@ -21,18 +22,10 @@ spec:
     certManager:
       namespace: {{ .Global.PCloudEnvName }}-cert-manager
       gandiWebhookSecretReader: {{ .Global.PCloudEnvName }}-cert-manager-webhook-gandi
-    public:
+    issuer:
       name: {{ .Global.Id }}-public
       server: https://acme-v02.api.letsencrypt.org/directory
       # server: https://acme-staging-v02.api.letsencrypt.org/directory
       domain: {{ .Global.Domain }}
       contactEmail: {{ .Global.ContactEmail }}
       ingressClass: {{ .Global.PCloudEnvName }}-ingress-public
-    private:
-      name: {{ .Global.Id }}-private
-      server: https://acme-v02.api.letsencrypt.org/directory
-      # server: https://acme-staging-v02.api.letsencrypt.org/directory
-      domain: {{ .Global.PrivateDomain }}
-      contactEmail: {{ .Global.ContactEmail }}
-      ingressClassName: {{ .Global.Id }}-ingress-private
-      gandiAPIToken: {{ .Values.GandiAPIToken }}

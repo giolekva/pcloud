@@ -1,0 +1,6 @@
+issuer:
+  name: letsencrypt-prod
+  server: https://acme-v02.api.letsencrypt.org/directory
+  contactEmail: admin@example.com
+  ingressClass: ingress-nginx
+  domain: example.com

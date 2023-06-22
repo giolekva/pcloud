@@ -22,9 +22,8 @@ spec:
       gandiWebhookSecretReader: {{ .Global.PCloudEnvName }}-cert-manager-webhook-gandi
     issuer:
       name: {{ .Global.Id }}-private
-      # server: https://acme-v02.api.letsencrypt.org/directory
-      server: https://acme-staging-v02.api.letsencrypt.org/directory
+      server: https://acme-v02.api.letsencrypt.org/directory
+      # server: https://acme-staging-v02.api.letsencrypt.org/directory
       domain: {{ .Global.PrivateDomain }}
       contactEmail: {{ .Global.ContactEmail }}
-      ingressClassName: {{ .Global.Id }}-ingress-private
       gandiAPIToken: {{ .Values.GandiAPIToken }}

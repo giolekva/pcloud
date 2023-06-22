@@ -1,0 +1,14 @@
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: wildcard-{{ .Values.issuer.domain }}
+  namespace: {{ .Release.Namespace }}
+  annotations:
+    helm.sh/resource-policy: keep
+spec:
+  dnsNames:
+  - '*.{{ .Values.issuer.domain }}'
+  issuerRef:
+    name: {{ .Values.issuer.name }}
+    kind: Issuer
+  secretName: cert-wildcard.{{ .Values.issuer.domain }}

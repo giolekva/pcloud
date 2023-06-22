@@ -22,6 +22,9 @@ rpuppy:
 appmanager:
 	./pcloud appmanager --ssh-key=/Users/lekva/.ssh/id_rsa --repo-addr=ssh://192.168.0.211/lekva --port=9090
 
+welc:
+	./pcloud welcome --ssh-key=/Users/lekva/.ssh/id_rsa --repo-addr=ssh://192.168.0.211/lekva --port=9090
+
 
 
 
