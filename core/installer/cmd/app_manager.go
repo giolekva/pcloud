@@ -6,16 +6,21 @@ import (
 	"fmt"
 	"io/ioutil"
 	"log"
+	"net"
 	"net/http"
 	"net/http/httputil"
 	"net/url"
 	"os"
 
-	"github.com/giolekva/pcloud/core/installer"
-
+	"github.com/go-git/go-billy/v5/memfs"
+	"github.com/go-git/go-git/v5"
+	gitssh "github.com/go-git/go-git/v5/plumbing/transport/ssh"
+	"github.com/go-git/go-git/v5/storage/memory"
 	"github.com/labstack/echo/v4"
 	"github.com/spf13/cobra"
 	"golang.org/x/crypto/ssh"
+
+	"github.com/giolekva/pcloud/core/installer"
 )
 
 var appManagerFlags struct {
@@ -206,4 +211,26 @@ func (s *server) handleAppInstall(c echo.Context) error {
 		return err
 	}
 	return c.String(http.StatusOK, "Installed")
+}
+
+func cloneRepo(address string, signer ssh.Signer) (*git.Repository, error) {
+	return git.Clone(memory.NewStorage(), memfs.New(), &git.CloneOptions{
+		URL:             address,
+		Auth:            auth(signer),
+		RemoteName:      "origin",
+		InsecureSkipTLS: true,
+	})
+}
+
+func auth(signer ssh.Signer) *gitssh.PublicKeys {
+	return &gitssh.PublicKeys{
+		Signer: signer,
+		HostKeyCallbackHelper: gitssh.HostKeyCallbackHelper{
+			HostKeyCallback: func(hostname string, remote net.Addr, key ssh.PublicKey) error {
+				// TODO(giolekva): verify server public key
+				// fmt.Printf("## %s || %s -- \n", serverPubKey, ssh.MarshalAuthorizedKey(key))
+				return nil
+			},
+		},
+	}
 }
