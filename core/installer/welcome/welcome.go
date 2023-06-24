@@ -20,14 +20,16 @@ var indexHtml string
 var staticAssets embed.FS
 
 type Server struct {
-	port int
-	repo installer.RepoIO
+	port      int
+	repo      installer.RepoIO
+	nsCreator installer.NamespaceCreator
 }
 
-func NewServer(port int, repo installer.RepoIO) *Server {
+func NewServer(port int, repo installer.RepoIO, nsCreator installer.NamespaceCreator) *Server {
 	return &Server{
 		port,
 		repo,
+		nsCreator,
 	}
 }
 
@@ -86,7 +88,15 @@ func (s *Server) createAdminAccount(c echo.Context) error {
 	}
 	// TODO(giolekva): accounts-ui create user req
 	{
-		appManager, err := installer.NewAppManager(s.repo)
+		config, err := s.repo.ReadConfig()
+		if err != nil {
+			return err
+		}
+		if err != nil {
+			return err
+		}
+		nsGen := installer.NewPrefixGenerator(config.Values.Id + "-")
+		appManager, err := installer.NewAppManager(s.repo, s.nsCreator)
 		if err != nil {
 			return err
 		}
@@ -96,7 +106,7 @@ func (s *Server) createAdminAccount(c echo.Context) error {
 			if err != nil {
 				return err
 			}
-			if err := appManager.Install(*app, map[string]any{
+			if err := appManager.Install(*app, nsGen, map[string]any{
 				"GandiAPIToken": req.GandiAPIToken,
 			}); err != nil {
 				return err
@@ -107,7 +117,7 @@ func (s *Server) createAdminAccount(c echo.Context) error {
 			if err != nil {
 				return err
 			}
-			if err := appManager.Install(*app, map[string]any{
+			if err := appManager.Install(*app, nsGen, map[string]any{
 				"Username": req.Username,
 				"IPSubnet": "10.1.0.0/24", // TODO(giolekva): this should be taken from the config generated during new env creation
 			}); err != nil {

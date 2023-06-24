@@ -1,35 +1,12 @@
 apiVersion: helm.toolkit.fluxcd.io/v2beta1
 kind: HelmRelease
 metadata:
-  name: namespaces-cert-manager
-  namespace: {{ .Global.PCloudEnvName }}
-spec:
-  chart:
-    spec:
-      chart: charts/namespaces
-      sourceRef:
-        kind: GitRepository
-        name: {{ .Global.PCloudEnvName }}
-        namespace: {{ .Global.PCloudEnvName }}
-  interval: 1m0s
-  values:
-    pcloudInstanceId: ""
-    namespacePrefix: {{ .Global.PCloudEnvName }}-
-    namespaces:
-    - cert-manager
----
-apiVersion: helm.toolkit.fluxcd.io/v2beta1
-kind: HelmRelease
-metadata:
   name: cert-manager
-  namespace: {{ .Global.PCloudEnvName }}
+  namespace: {{ .Release.Namespace }}
 spec:
-  targetNamespace: {{ .Global.PCloudEnvName }}-cert-manager
   dependsOn:
-    - name: namespaces-cert-manager
-      namespace: {{ .Global.PCloudEnvName }}
     - name: ingress-public
-      namespace: {{ .Global.PCloudEnvName }}
+      namespace: {{ .Global.PCloudEnvName }}-ingress-public # TODO(giolekva): derivative
   chart:
     spec:
       chart: charts/cert-manager

@@ -1,33 +1,9 @@
 apiVersion: helm.toolkit.fluxcd.io/v2beta1
 kind: HelmRelease
 metadata:
-  name: namespaces-qbittorrent
-  namespace: {{ .Global.Id }}
-spec:
-  chart:
-    spec:
-      chart: charts/namespaces
-      sourceRef:
-        kind: GitRepository
-        name: pcloud
-        namespace: {{ .Global.Id }}
-  interval: 1m0s
-  values:
-    pcloudInstanceId: {{ .Global.Id }}
-    namespacePrefix: {{ .Global.NamespacePrefix }}
-    namespaces:
-    - app-qbittorrent
----
-apiVersion: helm.toolkit.fluxcd.io/v2beta1
-kind: HelmRelease
-metadata:
   name: qbittorrent
-  namespace: {{ .Global.Id }}
+  namespace: {{ .Release.Namespace }}
 spec:
-  namespace: {{ .Global.NamespacePrefix }}app-qbittorrent
-  dependsOn:
-    - name: namespaces-qbittorrent
-      namespace: {{ .Global.Id }}
   chart:
     spec:
       chart: charts/qbittorrent

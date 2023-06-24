@@ -2,13 +2,12 @@ apiVersion: helm.toolkit.fluxcd.io/v2beta1
 kind: HelmRelease
 metadata:
   name: certificate-issuer-public
-  namespace: {{ .Global.Id }}
-spec:
   # TODO(giolekva): is there better namespace for this?
-  targetNamespace: {{ .Global.NamespacePrefix }}ingress-private
+  namespace: {{ .Global.Id }}-ingress-private
+spec:
   dependsOn:
   - name: ingress-private
-    namespace: {{ .Global.Id }}
+    namespace: {{ .Global.Id }}-ingress-private
   chart:
     spec:
       chart: charts/certificate-issuer-public

@@ -20,6 +20,7 @@ import (
 
 type RepoIO interface {
 	Fetch() error
+	ReadConfig() (Config, error)
 	ReadKustomization(path string) (*Kustomization, error)
 	WriteKustomization(path string, kust Kustomization) error
 	WriteYaml(path string, data any) error
@@ -53,6 +54,15 @@ func (r *repoIO) Fetch() error {
 		return nil
 	}
 	return err
+}
+
+func (r *repoIO) ReadConfig() (Config, error) {
+	configF, err := r.Reader(configFileName)
+	if err != nil {
+		return Config{}, err
+	}
+	defer configF.Close()
+	return ReadConfig(configF)
 }
 
 func (r *repoIO) ReadKustomization(path string) (*Kustomization, error) {

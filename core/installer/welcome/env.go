@@ -23,16 +23,18 @@ var filesTmpls embed.FS
 var createEnvFormHtml string
 
 type EnvServer struct {
-	port int
-	ss   *soft.Client
-	repo installer.RepoIO
+	port      int
+	ss        *soft.Client
+	repo      installer.RepoIO
+	nsCreator installer.NamespaceCreator
 }
 
-func NewEnvServer(port int, ss *soft.Client, repo installer.RepoIO) *EnvServer {
+func NewEnvServer(port int, ss *soft.Client, repo installer.RepoIO, nsCreator installer.NamespaceCreator) *EnvServer {
 	return &EnvServer{
 		port,
 		ss,
 		repo,
+		nsCreator,
 	}
 }
 
@@ -99,7 +101,7 @@ func (s *EnvServer) createEnv(c echo.Context) error {
 		if repo == nil {
 			return err
 		}
-		if err := initNewEnv(s.ss, installer.NewRepoIO(repo, s.ss.Signer), req); err != nil {
+		if err := initNewEnv(s.ss, installer.NewRepoIO(repo, s.ss.Signer), s.nsCreator, req); err != nil {
 			return err
 		}
 	}
@@ -124,8 +126,8 @@ func (s *EnvServer) createEnv(c echo.Context) error {
 	return c.String(http.StatusOK, "OK")
 }
 
-func initNewEnv(ss *soft.Client, r installer.RepoIO, req createEnvReq) error {
-	appManager, err := installer.NewAppManager(r)
+func initNewEnv(ss *soft.Client, r installer.RepoIO, nsCreator installer.NamespaceCreator, req createEnvReq) error {
+	appManager, err := installer.NewAppManager(r, nsCreator)
 	if err != nil {
 		return err
 	}
@@ -152,18 +154,18 @@ func initNewEnv(ss *soft.Client, r installer.RepoIO, req createEnvReq) error {
 			return err
 		}
 		defer out.Close()
-		_, err = out.Write([]byte(`
+		_, err = out.Write([]byte(fmt.Sprintf(`
 apiVersion: source.toolkit.fluxcd.io/v1beta2
 kind: GitRepository
 metadata:
   name: pcloud
-  namespace: lekva
+  namespace: %s
 spec:
   interval: 1m0s
   url: https://github.com/giolekva/pcloud
   ref:
     branch: main
-`))
+`, req.Name)))
 		if err != nil {
 			return err
 		}
@@ -178,12 +180,13 @@ spec:
 		return err
 	}
 	r.CommitAndPush("initialize config")
+	nsGen := installer.NewPrefixGenerator(req.Name + "-")
 	{
 		app, err := appsRepo.Find("metallb-config-env")
 		if err != nil {
 			return err
 		}
-		if err := appManager.Install(*app, map[string]any{
+		if err := appManager.Install(*app, nsGen, map[string]any{
 			"IngressPrivate": "10.1.0.1",
 			"Headscale":      "10.1.0.2",
 			"SoftServe":      "10.1.0.3",
@@ -200,7 +203,7 @@ spec:
 		if err != nil {
 			return err
 		}
-		if err := appManager.Install(*app, map[string]any{}); err != nil {
+		if err := appManager.Install(*app, nsGen, map[string]any{}); err != nil {
 			return err
 		}
 	}
@@ -209,7 +212,7 @@ spec:
 		if err != nil {
 			return err
 		}
-		if err := appManager.Install(*app, map[string]any{}); err != nil {
+		if err := appManager.Install(*app, nsGen, map[string]any{}); err != nil {
 			return err
 		}
 	}
@@ -218,7 +221,7 @@ spec:
 		if err != nil {
 			return err
 		}
-		if err := appManager.Install(*app, map[string]any{
+		if err := appManager.Install(*app, nsGen, map[string]any{
 			"Subdomain": "test", // TODO(giolekva): make core-auth chart actually use this
 		}); err != nil {
 			return err
@@ -229,7 +232,7 @@ spec:
 		if err != nil {
 			return err
 		}
-		if err := appManager.Install(*app, map[string]any{
+		if err := appManager.Install(*app, nsGen, map[string]any{
 			"Subdomain": "headscale",
 		}); err != nil {
 			return err
@@ -251,7 +254,7 @@ spec:
 		if err != nil {
 			return err
 		}
-		if err := appManager.Install(*app, map[string]any{
+		if err := appManager.Install(*app, nsGen, map[string]any{
 			"RepoAddr":      ss.GetRepoAddress(req.Name),
 			"SSHPrivateKey": keys.Private,
 		}); err != nil {

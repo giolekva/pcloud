@@ -11,19 +11,19 @@ build: clean
 	go build -o pcloud cmd/*.go
 
 bootstrap:
-	./pcloud bootstrap --kubeconfig=../../priv/kubeconfig --charts-dir=../../charts --admin-pub-key=/Users/lekva/.ssh/id_rsa.pub --soft-serve-ip=192.168.0.211 --storage-dir=/pcloud-storage/longhorn
+	./pcloud --kubeconfig=../../priv/kubeconfig bootstrap --charts-dir=../../charts --admin-pub-key=/Users/lekva/.ssh/id_rsa.pub --soft-serve-ip=192.168.0.211 --storage-dir=/pcloud-storage/longhorn
 
 create_env:
-	./pcloud create-env --admin-priv-key=/Users/lekva/.ssh/id_rsa --name=lekva --ip=192.168.0.211 --admin-username=gio
+	./pcloud --kubeconfig=../../priv/kubeconfig create-env --admin-priv-key=/Users/lekva/.ssh/id_rsa --name=lekva --ip=192.168.0.211 --admin-username=gio
 
 rpuppy:
-	./pcloud install --ssh-key=/Users/lekva/.ssh/id_rsa --app=rpuppy --repo-addr=ssh://localhost:2222/lekva
+	./pcloud --kubeconfig=../../priv/kubeconfig install --ssh-key=/Users/lekva/.ssh/id_rsa --app=rpuppy --repo-addr=ssh://localhost:2222/lekva
 
 appmanager:
-	./pcloud appmanager --ssh-key=/Users/lekva/.ssh/id_rsa --repo-addr=ssh://192.168.0.211/lekva --port=9090
+	./pcloud --kubeconfig=../../priv/kubeconfig appmanager --ssh-key=/Users/lekva/.ssh/id_rsa --repo-addr=ssh://192.168.0.211/qwe --port=9090
 
 welc:
-	./pcloud welcome --ssh-key=/Users/lekva/.ssh/id_rsa --repo-addr=ssh://192.168.0.211/lekva --port=9090
+	./pcloud --kubeconfig=../../priv/kubeconfig welcome --ssh-key=/Users/lekva/.ssh/id_rsa --repo-addr=ssh://192.168.0.211/lekva --port=9090
 
 
 

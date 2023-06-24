@@ -1,8 +1,8 @@
 apiVersion: helm.toolkit.fluxcd.io/v2beta1
 kind: HelmRelease
 metadata:
-  name: meteallb-config-env # TODO(giolekva): typo metea
-  namespace: {{ .Global.Id }}
+  name: metallb-config-env
+  namespace: {{ .Release.Namespace }}
 spec:
   chart:
     spec:

@@ -64,10 +64,15 @@ func envManagerCmdRun(cmd *cobra.Command, args []string) error {
 		return err
 	}
 	repoIO := installer.NewRepoIO(repo, ss.Signer)
+	nsCreator, err := newNSCreator()
+	if err != nil {
+		return err
+	}
 	s := welcome.NewEnvServer(
 		envManagerFlags.port,
 		ss,
 		repoIO,
+		nsCreator,
 	)
 	s.Start()
 	return nil

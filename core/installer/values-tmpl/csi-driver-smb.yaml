@@ -1,33 +1,9 @@
 apiVersion: helm.toolkit.fluxcd.io/v2beta1
 kind: HelmRelease
 metadata:
-  name: namespaces-csi-driver-smb
-  namespace: {{ .Global.PCloudEnvName }}
-spec:
-  chart:
-    spec:
-      chart: charts/namespaces
-      sourceRef:
-        kind: GitRepository
-        name: {{ .Global.PCloudEnvName }}
-        namespace: {{ .Global.PCloudEnvName }}
-  interval: 1m0s
-  values:
-    pcloudInstanceId: ""
-    namespacePrefix: {{ .Global.PCloudEnvName }}-
-    namespaces:
-    - csi-driver-smb
----
-apiVersion: helm.toolkit.fluxcd.io/v2beta1
-kind: HelmRelease
-metadata:
   name: csi-driver-smb
-  namespace: {{ .Global.PCloudEnvName }}
+  namespace: {{ .Release.Namespace }}
 spec:
-  targetNamespace: {{ .Global.PCloudEnvName }}-csi-driver-smb
-  dependsOn:
-    - name: namespaces-csi-driver-smb
-      namespace: {{ .Global.PCloudEnvName }}
   chart:
     spec:
       chart: charts/csi-driver-smb

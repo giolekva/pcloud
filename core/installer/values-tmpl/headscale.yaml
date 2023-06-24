@@ -1,35 +1,12 @@
 apiVersion: helm.toolkit.fluxcd.io/v2beta1
 kind: HelmRelease
 metadata:
-  name: namespaces-headscale
-  namespace: {{ .Global.Id }}
-spec:
-  chart:
-    spec:
-      chart: charts/namespaces
-      sourceRef:
-        kind: GitRepository
-        name: pcloud
-        namespace: {{ .Global.Id }}
-  interval: 1m0s
-  values:
-    pcloudInstanceId: {{ .Global.Id }}
-    namespacePrefix: {{ .Global.NamespacePrefix }}
-    namespaces:
-    - app-headscale
----
-apiVersion: helm.toolkit.fluxcd.io/v2beta1
-kind: HelmRelease
-metadata:
   name: headscale
-  namespace: {{ .Global.Id }}
+  namespace: {{ .Release.Namespace }}
 spec:
-  targetNamespace: {{ .Global.NamespacePrefix }}app-headscale
   dependsOn:
-    - name: namespaces-headscale
-      namespace: {{ .Global.Id }}
     - name: core-auth
-      namespace: {{ .Global.Id }}
+      namespace: {{ .Global.NamespacePrefix }}core-auth
   chart:
     spec:
       chart: charts/headscale

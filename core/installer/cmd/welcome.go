@@ -63,9 +63,14 @@ func welcomeCmdRun(cmd *cobra.Command, args []string) error {
 		InsecureSkipTLS: true,
 		Progress:        os.Stdout,
 	})
+	nsCreator, err := newNSCreator()
+	if err != nil {
+		return err
+	}
 	s := welcome.NewServer(
 		welcomeFlags.port,
 		installer.NewRepoIO(repo, auth.Signer),
+		nsCreator,
 	)
 	s.Start()
 	return nil

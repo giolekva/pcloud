@@ -13,10 +13,11 @@ import (
 var valuesTmpls embed.FS
 
 type App struct {
-	Name      string
-	Templates []*template.Template
-	Schema    string
-	Readme    *template.Template
+	Name       string
+	Namespaces []string
+	Templates  []*template.Template
+	Schema     string
+	Readme     *template.Template
 }
 
 type AppRepository interface {
@@ -87,6 +88,7 @@ func CreateAppIngressPrivate(fs embed.FS, tmpls *template.Template) App {
 	}
 	return App{
 		"ingress-private",
+		[]string{"ingress-private"},
 		[]*template.Template{
 			tmpls.Lookup("ingress-private.yaml"),
 		},
@@ -102,6 +104,7 @@ func CreateCertificateIssuerPrivate(fs embed.FS, tmpls *template.Template) App {
 	}
 	return App{
 		"certificate-issuer-private",
+		[]string{},
 		[]*template.Template{
 			tmpls.Lookup("certificate-issuer-private.yaml"),
 		},
@@ -117,6 +120,7 @@ func CreateCertificateIssuerPublic(fs embed.FS, tmpls *template.Template) App {
 	}
 	return App{
 		"certificate-issuer-public",
+		[]string{},
 		[]*template.Template{
 			tmpls.Lookup("certificate-issuer-public.yaml"),
 		},
@@ -132,6 +136,7 @@ func CreateAppCoreAuth(fs embed.FS, tmpls *template.Template) App {
 	}
 	return App{
 		"core-auth",
+		[]string{"core-auth"},
 		[]*template.Template{
 			tmpls.Lookup("core-auth-storage.yaml"),
 			tmpls.Lookup("core-auth.yaml"),
@@ -148,6 +153,7 @@ func CreateAppVaultwarden(fs embed.FS, tmpls *template.Template) App {
 	}
 	return App{
 		"vaultwarden",
+		[]string{"app-vaultwarden"},
 		[]*template.Template{
 			tmpls.Lookup("vaultwarden.yaml"),
 		},
@@ -163,6 +169,7 @@ func CreateAppMatrix(fs embed.FS, tmpls *template.Template) App {
 	}
 	return App{
 		"matrix",
+		[]string{"app-matrix"},
 		[]*template.Template{
 			tmpls.Lookup("matrix-storage.yaml"),
 			tmpls.Lookup("matrix.yaml"),
@@ -179,6 +186,7 @@ func CreateAppPihole(fs embed.FS, tmpls *template.Template) App {
 	}
 	return App{
 		"pihole",
+		[]string{"app-pihole"},
 		[]*template.Template{
 			tmpls.Lookup("pihole.yaml"),
 		},
@@ -194,6 +202,7 @@ func CreateAppMaddy(fs embed.FS, tmpls *template.Template) App {
 	}
 	return App{
 		"maddy",
+		[]string{"app-maddy"},
 		[]*template.Template{
 			tmpls.Lookup("maddy.yaml"),
 		},
@@ -209,6 +218,7 @@ func CreateAppQBittorrent(fs embed.FS, tmpls *template.Template) App {
 	}
 	return App{
 		"qbittorrent",
+		[]string{"app-qbittorrent"},
 		[]*template.Template{
 			tmpls.Lookup("qbittorrent.yaml"),
 		},
@@ -224,6 +234,7 @@ func CreateAppJellyfin(fs embed.FS, tmpls *template.Template) App {
 	}
 	return App{
 		"jellyfin",
+		[]string{"app-jellyfin"},
 		[]*template.Template{
 			tmpls.Lookup("jellyfin.yaml"),
 		},
@@ -239,6 +250,7 @@ func CreateAppRpuppy(fs embed.FS, tmpls *template.Template) App {
 	}
 	return App{
 		"rpuppy",
+		[]string{"app-rpuppy"},
 		[]*template.Template{
 			tmpls.Lookup("rpuppy.yaml"),
 		},
@@ -254,6 +266,7 @@ func CreateAppHeadscale(fs embed.FS, tmpls *template.Template) App {
 	}
 	return App{
 		"headscale",
+		[]string{"app-headscale"},
 		[]*template.Template{
 			tmpls.Lookup("headscale.yaml"),
 		},
@@ -269,6 +282,7 @@ func CreateAppTailscaleProxy(fs embed.FS, tmpls *template.Template) App {
 	}
 	return App{
 		"tailscale-proxy",
+		[]string{"tailscale-proxy"},
 		[]*template.Template{
 			tmpls.Lookup("tailscale-proxy.yaml"),
 		},
@@ -284,6 +298,7 @@ func CreateMetallbConfigEnv(fs embed.FS, tmpls *template.Template) App {
 	}
 	return App{
 		"metallb-config-env",
+		[]string{"metallb-config"},
 		[]*template.Template{
 			tmpls.Lookup("metallb-config-env.yaml"),
 		},
@@ -299,6 +314,7 @@ func CreateEnvManager(fs embed.FS, tmpls *template.Template) App {
 	}
 	return App{
 		"env-manager",
+		[]string{"env-manager"},
 		[]*template.Template{
 			tmpls.Lookup("env-manager.yaml"),
 		},
@@ -314,6 +330,7 @@ func CreateWelcome(fs embed.FS, tmpls *template.Template) App {
 	}
 	return App{
 		"welcome",
+		[]string{"app-welcome"},
 		[]*template.Template{
 			tmpls.Lookup("welcome.yaml"),
 		},
@@ -329,6 +346,7 @@ func CreateIngressPublic(fs embed.FS, tmpls *template.Template) App {
 	}
 	return App{
 		"ingress-public",
+		[]string{"ingress-public"},
 		[]*template.Template{
 			tmpls.Lookup("ingress-public.yaml"),
 		},
@@ -344,6 +362,7 @@ func CreateCertManager(fs embed.FS, tmpls *template.Template) App {
 	}
 	return App{
 		"cert-manager",
+		[]string{"cert-manager"},
 		[]*template.Template{
 			tmpls.Lookup("cert-manager.yaml"),
 		},
@@ -359,6 +378,7 @@ func CreateCertManagerWebhookGandi(fs embed.FS, tmpls *template.Template) App {
 	}
 	return App{
 		"cert-manager-webhook-gandi",
+		[]string{},
 		[]*template.Template{
 			tmpls.Lookup("cert-manager-webhook-gandi.yaml"),
 		},
@@ -374,6 +394,7 @@ func CreateCertManagerWebhookGandiRole(fs embed.FS, tmpls *template.Template) Ap
 	}
 	return App{
 		"cert-manager-webhook-gandi-role",
+		[]string{},
 		[]*template.Template{
 			tmpls.Lookup("cert-manager-webhook-gandi-role.yaml"),
 		},
@@ -389,6 +410,7 @@ func CreateCSIDriverSMB(fs embed.FS, tmpls *template.Template) App {
 	}
 	return App{
 		"csi-driver-smb",
+		[]string{"csi-driver-smb"},
 		[]*template.Template{
 			tmpls.Lookup("csi-driver-smb.yaml"),
 		},
@@ -404,6 +426,7 @@ func CreateResourceRendererController(fs embed.FS, tmpls *template.Template) App
 	}
 	return App{
 		"resource-renderer-controller",
+		[]string{"rr-controller"},
 		[]*template.Template{
 			tmpls.Lookup("resource-renderer-controller.yaml"),
 		},
@@ -419,6 +442,7 @@ func CreateHeadscaleController(fs embed.FS, tmpls *template.Template) App {
 	}
 	return App{
 		"headscale-controller",
+		[]string{"headscale-controller"},
 		[]*template.Template{
 			tmpls.Lookup("headscale-controller.yaml"),
 		},

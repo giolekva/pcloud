@@ -1,33 +1,9 @@
 apiVersion: helm.toolkit.fluxcd.io/v2beta1
 kind: HelmRelease
 metadata:
-  name: namespaces-core-auth
-  namespace: {{ .Global.Id }}
-spec:
-  chart:
-    spec:
-      chart: charts/namespaces
-      sourceRef:
-        kind: GitRepository
-        name: pcloud
-        namespace: {{ .Global.Id }}
-  interval: 1m0s
-  values:
-    pcloudInstanceId: {{ .Global.Id }}
-    namespacePrefix: {{ .Global.NamespacePrefix }}
-    namespaces:
-    - core-auth
----
-apiVersion: helm.toolkit.fluxcd.io/v2beta1
-kind: HelmRelease
-metadata:
   name: core-auth-storage
-  namespace: {{ .Global.Id }}
+  namespace: {{ .Release.Namespace }}
 spec:
-  targetNamespace: {{ .Global.NamespacePrefix }}core-auth
-  dependsOn:
-    - name: namespaces-core-auth
-      namespace: {{ .Global.Id }}
   chart:
     spec:
       chart: charts/postgresql

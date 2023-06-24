@@ -2,14 +2,13 @@ apiVersion: helm.toolkit.fluxcd.io/v2beta1
 kind: HelmRelease
 metadata:
   name: core-auth
-  namespace: {{ .Global.Id }}
+  namespace: {{ .Release.Namespace }}
 spec:
-  targetNamespace: {{ .Global.NamespacePrefix }}core-auth
   dependsOn:
   - name: core-auth-storage
-    namespace: {{ .Global.Id }}
-  - name: ingress-private
-    namespace: {{ .Global.Id }}
+    namespace: {{ .Release.Namespace }}
+  - name: ingress-private # TODO(giolekva): is this needed?
+    namespace: {{ .Global.Id }}-ingress-private
   chart:
     spec:
       chart: charts/auth
@@ -76,7 +75,7 @@ spec:
           enabled: false
         config:
           version: v0.7.1-alpha.1
-          dsn: postgres://kratos:kratos@postgres.lekva-core-auth.svc:5432/kratos?sslmode=disable&max_conns=20&max_idle_conns=4
+          dsn: postgres://kratos:kratos@postgres.{{ .Globa.Id }}-core-auth.svc:5432/kratos?sslmode=disable&max_conns=20&max_idle_conns=4
           serve:
             public:
               base_url: https://accounts.{{ .Global.Domain }}
@@ -247,7 +246,7 @@ spec:
           enabled: true
         config:
           version: v1.10.6
-          dsn: postgres://hydra:hydra@postgres.lekva-core-auth.svc:5432/hydra?sslmode=disable&max_conns=20&max_idle_conns=4
+          dsn: postgres://hydra:hydra@postgres.{{ .Globa.Id }}-core-auth.svc:5432/hydra?sslmode=disable&max_conns=20&max_idle_conns=4
           serve:
             cookies:
               same_site_mode: None
@@ -299,4 +298,4 @@ spec:
       ingressClassName: {{ .Global.PCloudEnvName }}-ingress-public
       domain: {{ .Global.Domain }}
       internalDomain: p.{{ .Global.Domain }}
-      hydra: hydra-admin.lekva-core-auth.svc.cluster.local
+      hydra: hydra-admin.{{ .Globa.Id }}-core-auth.svc.cluster.local

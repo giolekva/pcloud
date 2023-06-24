@@ -86,11 +86,11 @@ func bootstrapCmdRun(cmd *cobra.Command, args []string) error {
 	if err := installLonghorn(); err != nil {
 		return err
 	}
-	time.Sleep(5 * time.Minute) // TODO(giolekva): implement proper wait
+	time.Sleep(2 * time.Minute) // TODO(giolekva): implement proper wait
 	if err := installSoftServe(bootstrapJobKeys.Public); err != nil {
 		return err
 	}
-	time.Sleep(2 * time.Minute) // TODO(giolekva): implement proper wait
+	time.Sleep(1 * time.Minute) // TODO(giolekva): implement proper wait
 	ss, err := soft.NewClient(bootstrapFlags.softServeIP, 22, []byte(bootstrapJobKeys.Private), log.Default())
 	if err != nil {
 		return err
@@ -113,16 +113,20 @@ func bootstrapCmdRun(cmd *cobra.Command, args []string) error {
 	global := map[string]any{
 		"PCloudEnvName": bootstrapFlags.pcloudEnvName,
 	}
-	if err := installInfrastructureServices(repoIO, global); err != nil {
+	nsCreator, err := newNSCreator()
+	if err != nil {
 		return err
 	}
-	if err := installEnvManager(ss, repoIO, global); err != nil {
+	nsGen := installer.NewPrefixGenerator("pcloud-")
+	if err := installInfrastructureServices(repoIO, nsGen, nsCreator, global); err != nil {
+		return err
+	}
+	if err := installEnvManager(ss, repoIO, nsGen, nsCreator, global); err != nil {
 		return err
 	}
 	if ss.RemovePublicKey("admin", bootstrapJobKeys.Public); err != nil {
 		return err
 	}
-
 	return nil
 }
 
@@ -372,15 +376,32 @@ func installFluxBootstrap(repoAddr, repoHost, repoHostPubKey, privateKey string)
 	return nil
 }
 
-func installInfrastructureServices(repo installer.RepoIO, global map[string]any) error {
-	values := map[string]any{
-		"Global": global,
-	}
+func installInfrastructureServices(repo installer.RepoIO, nsGen installer.NamespaceGenerator, nsCreator installer.NamespaceCreator, global map[string]any) error {
 	appRepo := installer.NewInMemoryAppRepository(installer.CreateAllApps())
 	install := func(name string) error {
 		app, err := appRepo.Find(name)
 		if err != nil {
 			return err
+		}
+		namespaces := make([]string, len(app.Namespaces))
+		for i, n := range app.Namespaces {
+			namespaces[i], err = nsGen.Generate(n)
+			if err != nil {
+				return err
+			}
+		}
+		for _, n := range namespaces {
+			if err := nsCreator.Create(n); err != nil {
+				return err
+			}
+		}
+		values := map[string]any{
+			"Global": global,
+		}
+		if len(namespaces) > 0 {
+			values["Release"] = map[string]any{
+				"Namespace": namespaces[0],
+			}
 		}
 		return repo.InstallApp(*app, "infrastructure", values)
 	}
@@ -445,7 +466,7 @@ spec:
 	return nil
 }
 
-func installEnvManager(ss *soft.Client, repo installer.RepoIO, global map[string]any) error {
+func installEnvManager(ss *soft.Client, repo installer.RepoIO, nsGen installer.NamespaceGenerator, nsCreator installer.NamespaceCreator, global map[string]any) error {
 	keys, err := installer.NewSSHKeyPair()
 	if err != nil {
 		return err
@@ -458,15 +479,30 @@ func installEnvManager(ss *soft.Client, repo installer.RepoIO, global map[string
 		return err
 	}
 	appRepo := installer.NewInMemoryAppRepository(installer.CreateAllApps())
-	envManager, err := appRepo.Find("env-manager")
+	app, err := appRepo.Find("env-manager")
 	if err != nil {
 		return err
 	}
-	return repo.InstallApp(*envManager, "infrastructure", map[string]any{
+	namespaces := make([]string, len(app.Namespaces))
+	for i, n := range app.Namespaces {
+		namespaces[i], err = nsGen.Generate(n)
+		if err != nil {
+			return err
+		}
+	}
+	for _, n := range namespaces {
+		if err := nsCreator.Create(n); err != nil {
+			return err
+		}
+	}
+	return repo.InstallApp(*app, "infrastructure", map[string]any{
 		"Global": global,
 		"Values": map[string]any{
 			"RepoIP":        bootstrapFlags.softServeIP,
 			"SSHPrivateKey": keys.Private,
+		},
+		"Release": map[string]any{
+			"Namespace": namespaces[0],
 		},
 	})
 }

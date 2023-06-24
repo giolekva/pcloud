@@ -68,7 +68,14 @@ func appManagerCmdRun(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-	m, err := installer.NewAppManager(installer.NewRepoIO(repo, signer))
+	kube, err := installer.NewOutOfClusterNamespaceCreator(rootFlags.kubeConfig)
+	if err != nil {
+		return err
+	}
+	m, err := installer.NewAppManager(
+		installer.NewRepoIO(repo, signer),
+		kube,
+	)
 	if err != nil {
 		return err
 	}
@@ -173,7 +180,7 @@ func (s *server) handleAppRender(c echo.Context) error {
 	}
 	var resp rendered
 	resp.Readme = readme.String()
-	for _, tmpl := range a.Templates {
+	for _, tmpl := range a.Templates { // TODO(giolekva): deduplicate with Install
 		var f bytes.Buffer
 		if err := tmpl.Execute(&f, all); err != nil {
 			fmt.Printf("%+v\n", all)
@@ -207,7 +214,15 @@ func (s *server) handleAppInstall(c echo.Context) error {
 	if err != nil {
 		return err
 	}
-	if err := s.m.Install(*a, values); err != nil {
+	config, err := s.m.Config()
+	if err != nil {
+		return err
+	}
+	nsGen := installer.NewCombine(
+		installer.NewPrefixGenerator(config.Values.Id+"-"),
+		installer.NewRandomSuffixGenerator(3),
+	)
+	if err := s.m.Install(*a, nsGen, values); err != nil {
 		return err
 	}
 	return c.String(http.StatusOK, "Installed")
