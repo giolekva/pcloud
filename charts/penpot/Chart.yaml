@@ -1,0 +1,26 @@
+apiVersion: v2
+appVersion: 1.16.0-beta
+dependencies:
+- condition: global.postgresqlEnabled
+  name: postgresql
+  repository: https://charts.bitnami.com/bitnami
+  version: 12.x.x
+- condition: global.redisEnabled
+  name: redis
+  repository: https://charts.bitnami.com/bitnami
+  version: 17.x.x
+description: CodeChem Penpot Helm Chart
+home: https://github.com/codechem/helm/tree/main/charts/penpot
+icon: https://avatars.githubusercontent.com/u/30179644?s=200&v=4
+keywords:
+- kubernetes
+- penpot
+- penpotapp
+- design
+maintainers:
+- name: codechem
+  url: https://codechem.com
+name: penpot
+sources:
+- https://github.com/penpot/penpot
+version: 1.0.10
