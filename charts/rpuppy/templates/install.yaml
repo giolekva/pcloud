@@ -33,16 +33,19 @@ kind: Ingress
 metadata:
   name: ingress
   namespace: {{ .Release.Namespace }}
+  {{- if .Values.certificateIssuer }}
   annotations:
     acme.cert-manager.io/http01-edit-in-place: "true"
-    # acme.cert-manager.io/http01-ingress-class: {{ .Values.ingressClassName }}
-    cert-manager.io/cluster-issuer: {{ .Values.certificateIssuer}}
+    cert-manager.io/cluster-issuer: {{ .Values.certificateIssuer }}
+  {{- end }}
 spec:
   ingressClassName: {{ .Values.ingressClassName }}
+  {{- if .Values.certificateIssuer }}
   tls:
   - hosts:
     - {{ .Values.domain }}
     secretName: cert-rpuppy
+  {{- end }}
   rules:
   - host: {{ .Values.domain }}
     http:
