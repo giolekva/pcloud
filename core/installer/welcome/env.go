@@ -181,12 +181,13 @@ spec:
 	}
 	r.CommitAndPush("initialize config")
 	nsGen := installer.NewPrefixGenerator(req.Name + "-")
+	suffixGen := installer.NewEmptySuffixGenerator()
 	{
 		app, err := appsRepo.Find("metallb-config-env")
 		if err != nil {
 			return err
 		}
-		if err := appManager.Install(*app, nsGen, map[string]any{
+		if err := appManager.Install(*app, nsGen, suffixGen, map[string]any{
 			"IngressPrivate": "10.1.0.1",
 			"Headscale":      "10.1.0.2",
 			"SoftServe":      "10.1.0.3",
@@ -203,7 +204,7 @@ spec:
 		if err != nil {
 			return err
 		}
-		if err := appManager.Install(*app, nsGen, map[string]any{}); err != nil {
+		if err := appManager.Install(*app, nsGen, suffixGen, map[string]any{}); err != nil {
 			return err
 		}
 	}
@@ -212,7 +213,7 @@ spec:
 		if err != nil {
 			return err
 		}
-		if err := appManager.Install(*app, nsGen, map[string]any{}); err != nil {
+		if err := appManager.Install(*app, nsGen, suffixGen, map[string]any{}); err != nil {
 			return err
 		}
 	}
@@ -221,7 +222,7 @@ spec:
 		if err != nil {
 			return err
 		}
-		if err := appManager.Install(*app, nsGen, map[string]any{
+		if err := appManager.Install(*app, nsGen, suffixGen, map[string]any{
 			"Subdomain": "test", // TODO(giolekva): make core-auth chart actually use this
 		}); err != nil {
 			return err
@@ -232,7 +233,7 @@ spec:
 		if err != nil {
 			return err
 		}
-		if err := appManager.Install(*app, nsGen, map[string]any{
+		if err := appManager.Install(*app, nsGen, suffixGen, map[string]any{
 			"Subdomain": "headscale",
 		}); err != nil {
 			return err
@@ -254,7 +255,7 @@ spec:
 		if err != nil {
 			return err
 		}
-		if err := appManager.Install(*app, nsGen, map[string]any{
+		if err := appManager.Install(*app, nsGen, suffixGen, map[string]any{
 			"RepoAddr":      ss.GetRepoAddress(req.Name),
 			"SSHPrivateKey": keys.Private,
 		}); err != nil {

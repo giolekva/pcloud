@@ -3,6 +3,7 @@ package installer
 import (
 	"fmt"
 	"io/ioutil"
+	"path/filepath"
 
 	"sigs.k8s.io/yaml"
 )
@@ -42,17 +43,21 @@ func (m *AppManager) AppConfig(name string) (map[string]any, error) {
 	return cfg, err
 }
 
-func (m *AppManager) Install(app App, ns NamespaceGenerator, config map[string]any) error {
+func (m *AppManager) Install(app App, ns NamespaceGenerator, suffixGen SuffixGenerator, config map[string]any) error {
 	// if err := m.repoIO.Fetch(); err != nil {
 	// 	return err
 	// }
+	suffix, err := suffixGen.Generate()
+	if err != nil {
+		return err
+	}
 	namespaces := make([]string, len(app.Namespaces))
 	for i, n := range app.Namespaces {
-		var err error
-		namespaces[i], err = ns.Generate(n)
+		ns, err := ns.Generate(n)
 		if err != nil {
 			return err
 		}
+		namespaces[i] = ns + suffix
 	}
 	for _, n := range namespaces {
 		if err := m.nsCreator.Create(n); err != nil {
@@ -73,5 +78,8 @@ func (m *AppManager) Install(app App, ns NamespaceGenerator, config map[string]a
 		}
 	}
 	// TODO(giolekva): use ns suffix for app directory
-	return m.repoIO.InstallApp(app, "apps", all)
+	return m.repoIO.InstallApp(
+		app,
+		filepath.Join("/apps", app.Name+suffix),
+		all)
 }

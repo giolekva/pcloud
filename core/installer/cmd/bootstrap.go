@@ -403,7 +403,7 @@ func installInfrastructureServices(repo installer.RepoIO, nsGen installer.Namesp
 				"Namespace": namespaces[0],
 			}
 		}
-		return repo.InstallApp(*app, "infrastructure", values)
+		return repo.InstallApp(*app, filepath.Join("/infrastructure", app.Name), values)
 	}
 	appsToInstall := []string{
 		"resource-renderer-controller",
@@ -495,7 +495,7 @@ func installEnvManager(ss *soft.Client, repo installer.RepoIO, nsGen installer.N
 			return err
 		}
 	}
-	return repo.InstallApp(*app, "infrastructure", map[string]any{
+	return repo.InstallApp(*app, filepath.Join("/infrastructure", app.Name), map[string]any{
 		"Global": global,
 		"Values": map[string]any{
 			"RepoIP":        bootstrapFlags.softServeIP,

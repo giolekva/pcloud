@@ -158,19 +158,29 @@ func (r *repoIO) RemoveDir(path string) error {
 	return err
 }
 
-func (r *repoIO) InstallApp(app App, root string, values map[string]any) error {
-	{
-		appsKustPath := path.Join(root, "kustomization.yaml")
-		appsKust, err := r.ReadKustomization(appsKustPath)
-		if err != nil {
-			return err
-		}
-		appsKust.AddResources(app.Name)
-		if err := r.WriteKustomization(appsKustPath, *appsKust); err != nil {
-			return err
-		}
+func (r *repoIO) InstallApp(app App, appRootDir string, values map[string]any) error {
+	if !filepath.IsAbs(appRootDir) {
+		return fmt.Errorf("Expected absolute path: %s", appRootDir)
 	}
-	appRootDir := path.Join(root, app.Name)
+	appRootDir = filepath.Clean(appRootDir)
+	for p := appRootDir; p != "/"; {
+		parent, child := filepath.Split(p)
+		kustPath := filepath.Join(parent, "kustomization.yaml")
+		kust, err := r.ReadKustomization(kustPath)
+		if err != nil {
+			if errors.Is(err, fs.ErrNotExist) {
+				k := NewKustomization()
+				kust = &k
+			} else {
+				return err
+			}
+		}
+		kust.AddResources(child)
+		if err := r.WriteKustomization(kustPath, *kust); err != nil {
+			return err
+		}
+		p = filepath.Clean(parent)
+	}
 	{
 		if err := r.RemoveDir(appRootDir); err != nil {
 			return err

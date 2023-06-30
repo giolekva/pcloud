@@ -95,7 +95,8 @@ func (s *Server) createAdminAccount(c echo.Context) error {
 		if err != nil {
 			return err
 		}
-		nsGen := installer.NewPrefixGenerator(config.Values.Id + "-")
+		nsGen := installer.NewPrefixGenerator(config.Values.NamespacePrefix)
+		suffixGen := installer.NewEmptySuffixGenerator()
 		appManager, err := installer.NewAppManager(s.repo, s.nsCreator)
 		if err != nil {
 			return err
@@ -106,7 +107,7 @@ func (s *Server) createAdminAccount(c echo.Context) error {
 			if err != nil {
 				return err
 			}
-			if err := appManager.Install(*app, nsGen, map[string]any{
+			if err := appManager.Install(*app, nsGen, suffixGen, map[string]any{
 				"GandiAPIToken": req.GandiAPIToken,
 			}); err != nil {
 				return err
@@ -117,7 +118,7 @@ func (s *Server) createAdminAccount(c echo.Context) error {
 			if err != nil {
 				return err
 			}
-			if err := appManager.Install(*app, nsGen, map[string]any{
+			if err := appManager.Install(*app, nsGen, suffixGen, map[string]any{
 				"Username": req.Username,
 				"IPSubnet": "10.1.0.0/24", // TODO(giolekva): this should be taken from the config generated during new env creation
 			}); err != nil {

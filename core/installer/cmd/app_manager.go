@@ -257,11 +257,9 @@ func (s *server) handleAppInstall(c echo.Context) error {
 			}
 		}
 	}
-	nsGen := installer.NewCombine(
-		installer.NewPrefixGenerator(config.Values.Id+"-"),
-		installer.NewRandomSuffixGenerator(3),
-	)
-	if err := s.m.Install(a.App, nsGen, values); err != nil {
+	nsGen := installer.NewPrefixGenerator(config.Values.NamespacePrefix)
+	suffixGen := installer.NewFixedLengthRandomSuffixGenerator(3)
+	if err := s.m.Install(a.App, nsGen, suffixGen, values); err != nil {
 		return err
 	}
 	return c.String(http.StatusOK, "Installed")
