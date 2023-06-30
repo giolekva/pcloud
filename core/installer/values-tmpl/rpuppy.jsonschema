@@ -1,6 +1,16 @@
 {
+  "definitions": {
+    "network": {
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "domain": { "type": "string" }
+      }
+    }
+  },
   "type": "object",
   "properties": {
+    "Network": { "$ref": "#/definitions/network" },
     "Subdomain": { "type": "string", "default": "woof" }
   },
   "additionalProperties": false
