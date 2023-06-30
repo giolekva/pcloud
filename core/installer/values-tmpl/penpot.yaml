@@ -1,0 +1,55 @@
+apiVersion: helm.toolkit.fluxcd.io/v2beta1
+kind: HelmRelease
+metadata:
+  name: penpot
+  namespace: {{ .Release.Namespace }}
+spec:
+  chart:
+    spec:
+      chart: charts/penpot
+      sourceRef:
+        kind: GitRepository
+        name: pcloud
+        namespace: {{ .Global.Id }}
+  interval: 1m0s
+  values:
+    global:
+      postgresqlEnabled: true
+      redisEnabled: true
+    fullnameOverride: penpot
+    frontend:
+      ingress:
+        enabled: true
+        className: pcloud-ingress-public
+        annotations:
+          acme.cert-manager.io/http01-edit-in-place: "true"
+          cert-manager.io/cluster-issuer: "{{ .Global.Id }}-public"
+        hosts:
+        - "penpot.{{ .Global.Domain }}"
+        tls:
+        - hosts:
+          - "penpot.{{ .Global.Domain }}"
+          secretName: cert-penpot.{{ .Global.Domain }}
+    persistence:
+      enabled: true
+    config:
+      publicURI: https://penpot.{{ .Global.Domain }}
+      # flags: "enable-registration enable-login"
+      flags: "enable-registration enable-insecure-register disable-demo-users disable-demo-warning"
+      postgresql:
+        host: penpot-postgresql.{{ .Release.Namespace }}.svc.cluster.local
+        database: penpot
+        username: penpot
+        password: penpot
+      redis:
+        host: penpot-redis-headless.{{ .Release.Namespace }}.svc.cluster.local
+    redis:
+      image:
+        tag: 7.0.8-debian-11-r16
+    postgresql:
+      image:
+        tag: 15.3.0-debian-11-r16
+      auth:
+        username: penpot
+        password: penpot
+        database: penpot
