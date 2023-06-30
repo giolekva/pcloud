@@ -6,12 +6,12 @@
   import ConfigurationForm from "$lib/ConfigurationForm.svelte";
   import { writable } from "svelte/store";
 
-  export let data: AppData;
+  export let data;
   let config: Record<string, any> = null;
   let readme: string = null;
 
   const submit = async (config) => {
-	const resp = await fetch(`/api/app/${data.slug}/install`, {
+	const resp = await fetch(`/api/instance/${data.slug}/update`, {
       method: "POST",
       headers: {
         "Accept": "application/json",
@@ -28,7 +28,8 @@
   };
 
   const render = async (config) => {
-	const resp = await fetch(`/api/app/${data.slug}/render`, {
+    console.log(config);
+	const resp = await fetch(`/api/app/${data.appSlug}/render`, {
       method: "POST",
       headers: {
         "Accept": "application/json",
@@ -66,18 +67,9 @@
 <pre>{readme}</pre>
 
 <form on:submit={() => submit($formData)}>
-  <ConfigurationForm schema={data.schema} on:change={(e) => formData.set(e.detail)} />
-  <input type="submit" value="Install" />
+  <ConfigurationForm schema={data.schema} value={data.instances[0].config.Values} on:change={(e) => formData.set(e.detail)} />
+  <input type="submit" value="Update" />
 </form>
-
-You have {data.instances.length} installations
-{#each data.instances as inst}
-  <details>
-    <summary>{inst.id}</summary>
-    <ConfigurationForm schema={data.schema} value={inst.config.Values} readonly={true} />
-    <a href="/instances/{inst.id}" role="button">View</a>
-  </details>
-{/each}
 
 <style>
   pre {

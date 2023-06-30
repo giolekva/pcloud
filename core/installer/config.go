@@ -1,12 +1,5 @@
 package installer
 
-import (
-	"io"
-	"io/ioutil"
-
-	"sigs.k8s.io/yaml"
-)
-
 type Config struct {
 	Values Values `json:"values"`
 }
@@ -29,14 +22,4 @@ type Values struct {
 	// MatrixStorageSize        string `json:"matrixStorageSize,omitempty"`
 	// PiholeOAuth2ClientSecret string `json:"piholeOAuth2ClientSecret,omitempty"`
 	// PiholeOAuth2CookieSecret string `json:"piholeOAuth2CookieSecret,omitempty"`
-}
-
-func ReadConfig(r io.Reader) (Config, error) {
-	var cfg Config
-	contents, err := ioutil.ReadAll(r)
-	if err != nil {
-		return cfg, err
-	}
-	err = yaml.UnmarshalStrict(contents, &cfg)
-	return cfg, err
 }

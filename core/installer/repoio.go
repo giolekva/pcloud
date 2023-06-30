@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"io/fs"
+	"io/ioutil"
 	"net"
 	"path"
 	"path/filepath"
@@ -21,6 +22,7 @@ import (
 type RepoIO interface {
 	Fetch() error
 	ReadConfig() (Config, error)
+	ReadAppConfig(path string) (AppConfig, error)
 	ReadKustomization(path string) (*Kustomization, error)
 	WriteKustomization(path string, kust Kustomization) error
 	WriteYaml(path string, data any) error
@@ -30,6 +32,8 @@ type RepoIO interface {
 	CreateDir(path string) error
 	RemoveDir(path string) error
 	InstallApp(app App, path string, values map[string]any) error
+	FindAllInstances(root string, name string) ([]AppConfig, error)
+	FindInstance(root string, name string) (AppConfig, error)
 }
 
 type repoIO struct {
@@ -62,7 +66,26 @@ func (r *repoIO) ReadConfig() (Config, error) {
 		return Config{}, err
 	}
 	defer configF.Close()
-	return ReadConfig(configF)
+	var cfg Config
+	if err := readYaml(configF, &cfg); err != nil {
+		return Config{}, err
+	} else {
+		return cfg, nil
+	}
+}
+
+func (r *repoIO) ReadAppConfig(path string) (AppConfig, error) {
+	configF, err := r.Reader(path)
+	if err != nil {
+		return AppConfig{}, err
+	}
+	defer configF.Close()
+	var cfg AppConfig
+	if err := readYaml(configF, &cfg); err != nil {
+		return AppConfig{}, err
+	} else {
+		return cfg, nil
+	}
 }
 
 func (r *repoIO) ReadKustomization(path string) (*Kustomization, error) {
@@ -158,6 +181,11 @@ func (r *repoIO) RemoveDir(path string) error {
 	return err
 }
 
+type AppConfig struct {
+	Id     string         `json:"id"`
+	Config map[string]any `json:"config"`
+}
+
 func (r *repoIO) InstallApp(app App, appRootDir string, values map[string]any) error {
 	if !filepath.IsAbs(appRootDir) {
 		return fmt.Errorf("Expected absolute path: %s", appRootDir)
@@ -188,7 +216,11 @@ func (r *repoIO) InstallApp(app App, appRootDir string, values map[string]any) e
 		if err := r.CreateDir(appRootDir); err != nil {
 			return err
 		}
-		if err := r.WriteYaml(path.Join(appRootDir, configFileName), values); err != nil {
+		cfg := AppConfig{
+			Id:     app.Name,
+			Config: values,
+		}
+		if err := r.WriteYaml(path.Join(appRootDir, configFileName), cfg); err != nil {
 			return err
 		}
 	}
@@ -212,6 +244,43 @@ func (r *repoIO) InstallApp(app App, appRootDir string, values map[string]any) e
 	return r.CommitAndPush(fmt.Sprintf("install: %s", app.Name))
 }
 
+func (r *repoIO) FindAllInstances(root string, name string) ([]AppConfig, error) {
+	if !filepath.IsAbs(root) {
+		return nil, fmt.Errorf("Expected absolute path: %s", root)
+	}
+	kust, err := r.ReadKustomization(filepath.Join(root, "kustomization.yaml"))
+	if err != nil {
+		return nil, err
+	}
+	ret := make([]AppConfig, 0)
+	for _, app := range kust.Resources {
+		cfg, err := r.ReadAppConfig(filepath.Join(root, app, "config.yaml"))
+		if err != nil {
+			return nil, err
+		}
+		if cfg.Id == name {
+			ret = append(ret, cfg)
+		}
+	}
+	return ret, nil
+}
+
+func (r *repoIO) FindInstance(root string, name string) (AppConfig, error) {
+	if !filepath.IsAbs(root) {
+		return AppConfig{}, fmt.Errorf("Expected absolute path: %s", root)
+	}
+	kust, err := r.ReadKustomization(filepath.Join(root, "kustomization.yaml"))
+	if err != nil {
+		return AppConfig{}, err
+	}
+	for _, app := range kust.Resources {
+		if app == name {
+			return r.ReadAppConfig(filepath.Join(root, app, "config.yaml"))
+		}
+	}
+	return AppConfig{}, nil
+}
+
 func auth(signer ssh.Signer) *gitssh.PublicKeys {
 	return &gitssh.PublicKeys{
 		Signer: signer,
@@ -222,5 +291,13 @@ func auth(signer ssh.Signer) *gitssh.PublicKeys {
 				return nil
 			},
 		},
+	}
+}
+
+func readYaml[T any](r io.Reader, o *T) error {
+	if contents, err := ioutil.ReadAll(r); err != nil {
+		return err
+	} else {
+		return yaml.UnmarshalStrict(contents, o)
 	}
 }

@@ -10,7 +10,7 @@
   },
   "type": "object",
   "properties": {
-    "Network": { "$ref": "#/definitions/network" },
+    "Network": { "$ref": "#/definitions/network", "default": "Public" },
     "Subdomain": { "type": "string", "default": "woof" }
   },
   "additionalProperties": false

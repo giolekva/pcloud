@@ -2,31 +2,19 @@
   import { onMount } from "svelte";
   import Icon from '@iconify/svelte';
 
-	type app = {
-		 name: string;
-	  slug: string;
-      icon: string;
-      shortDescription: string;
-	};
-
-	let apps: app[] = [];
-
-	onMount(async () => {
-		const resp = await fetch("/api/app-repo");
-		apps = await resp.json();
-	});
-
-  let cur = null;
-  const view = (e) => {
-    if (cur === e.target) {
-      cur = null;
-      return;
-    }
-    console.log(111)
-    console.log(cur?.parentElement);
-    cur?.parentElement.toggleAttribute("open");
-    cur = e.target;
+  type App = {
+	name: string;
+	slug: string;
+    icon: string;
+    shortDescription: string;
   };
+
+  let apps: App[] = [];
+
+  onMount(async () => {
+	const resp = await fetch("/api/app-repo");
+	apps = await resp.json();
+  });
 
   const search = (e) => {
     console.log(e.target.value);

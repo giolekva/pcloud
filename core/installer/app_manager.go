@@ -1,14 +1,13 @@
 package installer
 
 import (
-	"fmt"
 	"io/ioutil"
 	"path/filepath"
 
 	"sigs.k8s.io/yaml"
 )
 
-const appDirName = "apps"
+const appDir = "/apps"
 const configFileName = "config.yaml"
 const kustomizationFileName = "kustomization.yaml"
 
@@ -28,16 +27,24 @@ func (m *AppManager) Config() (Config, error) {
 	return m.repoIO.ReadConfig()
 }
 
-func (m *AppManager) AppConfig(name string) (map[string]any, error) {
-	configF, err := m.repoIO.Reader(fmt.Sprintf("%s/%s/%s", appDirName, name, configFileName))
+func (m *AppManager) FindAllInstances(name string) ([]AppConfig, error) {
+	return m.repoIO.FindAllInstances(appDir, name)
+}
+
+func (m *AppManager) FindInstance(name string) (AppConfig, error) {
+	return m.repoIO.FindInstance(appDir, name)
+}
+
+func (m *AppManager) AppConfig(name string) (AppConfig, error) {
+	configF, err := m.repoIO.Reader(filepath.Join(appDir, name, configFileName))
 	if err != nil {
-		return nil, err
+		return AppConfig{}, err
 	}
 	defer configF.Close()
-	var cfg map[string]any
+	var cfg AppConfig
 	contents, err := ioutil.ReadAll(configF)
 	if err != nil {
-		return cfg, err
+		return AppConfig{}, err
 	}
 	err = yaml.UnmarshalStrict(contents, &cfg)
 	return cfg, err
@@ -77,9 +84,30 @@ func (m *AppManager) Install(app App, ns NamespaceGenerator, suffixGen SuffixGen
 			"Namespace": namespaces[0],
 		}
 	}
-	// TODO(giolekva): use ns suffix for app directory
 	return m.repoIO.InstallApp(
 		app,
-		filepath.Join("/apps", app.Name+suffix),
+		filepath.Join(appDir, app.Name+suffix),
 		all)
+}
+
+func (m *AppManager) Update(app App, instanceId string, config map[string]any) error {
+	// if err := m.repoIO.Fetch(); err != nil {
+	// 	return err
+	// }
+	globalConfig, err := m.repoIO.ReadConfig()
+	if err != nil {
+		return err
+	}
+	instanceDir := filepath.Join(appDir, instanceId)
+	instanceConfigPath := filepath.Join(instanceDir, configFileName)
+	appConfig, err := m.repoIO.ReadAppConfig(instanceConfigPath)
+	if err != nil {
+		return err
+	}
+	all := map[string]any{
+		"Global":  globalConfig.Values,
+		"Values":  config,
+		"Release": appConfig.Config["Release"],
+	}
+	return m.repoIO.InstallApp(app, instanceDir, all)
 }

@@ -101,6 +101,8 @@ func (s *server) start() {
 	e.POST("/api/app/:slug/render", s.handleAppRender)
 	e.POST("/api/app/:slug/install", s.handleAppInstall)
 	e.GET("/api/app/:slug", s.handleApp)
+	e.GET("/api/instance/:slug", s.handleInstance)
+	e.POST("/api/instance/:slug/update", s.handleAppUpdate)
 	webapp, err := url.Parse("http://localhost:5173")
 	if err != nil {
 		panic(err)
@@ -113,12 +115,12 @@ func (s *server) start() {
 }
 
 type app struct {
-	Name             string `json:"name"`
-	Icon             string `json:"icon"`
-	ShortDescription string `json:"shortDescription"`
-	Slug             string `json:"slug"`
-	Schema           string `json:"schema"`
-	Config           any    `json:"config"`
+	Name             string                `json:"name"`
+	Icon             string                `json:"icon"`
+	ShortDescription string                `json:"shortDescription"`
+	Slug             string                `json:"slug"`
+	Schema           string                `json:"schema"`
+	Instances        []installer.AppConfig `json:"instances,omitempty"`
 }
 
 func (s *server) handleAppRepo(c echo.Context) error {
@@ -128,8 +130,7 @@ func (s *server) handleAppRepo(c echo.Context) error {
 	}
 	resp := make([]app, len(all))
 	for i, a := range all {
-		config, _ := s.m.AppConfig(a.Name) // TODO(gio): handle error
-		resp[i] = app{a.Name, a.Icon, a.ShortDescription, a.Name, a.Schema, config}
+		resp[i] = app{a.Name, a.Icon, a.ShortDescription, a.Name, a.Schema, nil}
 	}
 	return c.JSON(http.StatusOK, resp)
 }
@@ -140,8 +141,42 @@ func (s *server) handleApp(c echo.Context) error {
 	if err != nil {
 		return err
 	}
-	config, _ := s.m.AppConfig(a.Name) // TODO(gio): handle error
-	return c.JSON(http.StatusOK, app{a.Name, a.Icon, a.ShortDescription, a.Name, a.Schema, config["Values"]})
+	instances, err := s.m.FindAllInstances(slug)
+	if err != nil {
+		return err
+	}
+	return c.JSON(http.StatusOK, app{a.Name, a.Icon, a.ShortDescription, a.Name, a.Schema, instances})
+}
+
+func (s *server) handleInstance(c echo.Context) error {
+	slug := c.Param("slug")
+	instance, err := s.m.FindInstance(slug)
+	if err != nil {
+		return err
+	}
+	values, ok := instance.Config["Values"].(map[string]any)
+	if !ok {
+		return fmt.Errorf("Expected map")
+	}
+	for k, v := range values {
+		if k == "Network" {
+			n, ok := v.(map[string]any)
+			if !ok {
+				return fmt.Errorf("Expected map")
+			}
+			values["Network"], ok = n["Name"]
+			if !ok {
+				return fmt.Errorf("Missing Name")
+			}
+			break
+		}
+
+	}
+	a, err := s.r.Find(instance.Id)
+	if err != nil {
+		return err
+	}
+	return c.JSON(http.StatusOK, app{a.Name, a.Icon, a.ShortDescription, a.Name, a.Schema, []installer.AppConfig{instance}})
 }
 
 type file struct {
@@ -260,6 +295,41 @@ func (s *server) handleAppInstall(c echo.Context) error {
 	nsGen := installer.NewPrefixGenerator(config.Values.NamespacePrefix)
 	suffixGen := installer.NewFixedLengthRandomSuffixGenerator(3)
 	if err := s.m.Install(a.App, nsGen, suffixGen, values); err != nil {
+		return err
+	}
+	return c.String(http.StatusOK, "Installed")
+}
+
+func (s *server) handleAppUpdate(c echo.Context) error {
+	slug := c.Param("slug")
+	appConfig, err := s.m.AppConfig(slug)
+	if err != nil {
+		return err
+	}
+	contents, err := ioutil.ReadAll(c.Request().Body)
+	if err != nil {
+		return err
+	}
+	var values map[string]any
+	if err := json.Unmarshal(contents, &values); err != nil {
+		return err
+	}
+	a, err := s.r.Find(appConfig.Id)
+	if err != nil {
+		return err
+	}
+	config, err := s.m.Config()
+	if err != nil {
+		return err
+	}
+	if network, ok := values["Network"]; ok {
+		for _, n := range createNetworks(config) {
+			if n.Name == network { // TODO(giolekva): handle not found
+				values["Network"] = n
+			}
+		}
+	}
+	if err := s.m.Update(a.App, slug, values); err != nil {
 		return err
 	}
 	return c.String(http.StatusOK, "Installed")

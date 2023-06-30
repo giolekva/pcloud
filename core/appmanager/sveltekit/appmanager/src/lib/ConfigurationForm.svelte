@@ -1,10 +1,10 @@
 <script lang="ts">
-import { createEventDispatcher } from 'svelte';
-
-  import { derived, writable, type Writable } from 'svelte/store'
+  import { createEventDispatcher } from 'svelte';
 
   import NetworkSelector from "./NetworkSelector.svelte";
   import TextInput from "./TextInput.svelte";
+
+  const dispatch = createEventDispatcher();
 
   export let availableNetworks = [
     {
@@ -17,41 +17,32 @@ import { createEventDispatcher } from 'svelte';
     },
   ];
   export let schema = null;
+  export let value: Record<string, unknown> = {};
+  export let readonly: boolean = false;
+
+  function update(k: string, v: unknown) {
+    value[k] = v;
+    dispatch("change", value);
+  }
+
+  function updater(key: string) {
+    return (v) => update(key, v.detail);
+  }
 
   const isNetwork = (schema): boolean => {
     return "$ref" in schema &&
       typeof schema["$ref"] === "string" &&
       schema["$ref"] === "#/definitions/network";
   };
-
-  type Data = Record<string, Writable<any>>;
-
-  const children = Object.fromEntries(Object.entries(schema.properties).map(([field, fieldSchema]) => {
-    switch (fieldSchema.type) {
-    case "object":
-      return [field, writable<Data | undefined>(undefined)];
-    default:
-      return [field, writable<string | undefined>(field)];
-    }
-  }));
-  const data = derived(Object.values(children), ($values) => {
-    return Object.fromEntries(Object.keys(children).map((field, index) => ([
-      field,
-      $values[index],
-    ])));
-  });
-
-  const dispatch = createEventDispatcher();
-  $: dispatch("change", $data);
 </script>
 
 {#each Object.entries(schema.properties) as [name, schema]}
   {#if schema.type === "object"}
-    <svelte:self schema />
+    <svelte:self {readonly} {schema} on:change={updater(name)} />
   {:else if isNetwork(schema)}
-    <NetworkSelector {name} {availableNetworks} on:input={(v) => children[name].set(v.detail)} />
+    <NetworkSelector {readonly} {name} value={value[name]} {availableNetworks} on:input={updater(name)} />
   {:else if schema.type === "string"}
-    <TextInput {name} on:input={(v) => children[name].set(v.detail)} />
+    <TextInput {readonly} {name} value={value[name]} on:input={updater(name)} />
   {/if}
 {/each}
 

@@ -6,9 +6,13 @@
   export let name = "";
   export let availableNetworks = [];
   export let value: string | number | undefined | null = undefined;
+  export let readonly: boolean = false;
 
   const { root } = createLabel();
-  const { label, trigger, option, isSelected } = createSelect();
+  const { label, trigger, option, isSelected } = createSelect({
+    label: value,
+    disabled: readonly,
+  });
 
   const triggerWithoutRole = derived(trigger, ($trigger) => {
     const {role: _, ...rest} = $trigger;
@@ -24,8 +28,8 @@
 <label use:root.action>
   <span>{name}</span>
 </label>
-<details role="list">
-  <summary aria-haspopup="listbox" {...$triggerWithoutRole} use:trigger.action>{$label || "Select network"}</summary>
+<details role="list" {readonly}>
+  <summary {readonly} aria-haspopup="listbox" {...$triggerWithoutRole} use:trigger.action>{$label || "Select network"}</summary>
   <ul role="listbox">
     {#each availableNetworks as n}
       <li {...$option({ value: n.name, label: n.name })} use:option.action>
