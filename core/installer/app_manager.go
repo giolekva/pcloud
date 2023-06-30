@@ -72,5 +72,6 @@ func (m *AppManager) Install(app App, ns NamespaceGenerator, config map[string]a
 			"Namespace": namespaces[0],
 		}
 	}
+	// TODO(giolekva): use ns suffix for app directory
 	return m.repoIO.InstallApp(app, "apps", all)
 }

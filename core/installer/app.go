@@ -12,6 +12,10 @@ import (
 //go:embed values-tmpl
 var valuesTmpls embed.FS
 
+type Named interface {
+	Nam() string
+}
+
 type App struct {
 	Name       string
 	Namespaces []string
@@ -20,31 +24,45 @@ type App struct {
 	Readme     *template.Template
 }
 
-type AppRepository interface {
-	GetAll() ([]App, error)
-	Find(name string) (*App, error)
+type StoreApp struct {
+	App
+	Icon             string
+	ShortDescription string
 }
 
-type InMemoryAppRepository struct {
-	apps []App
+func (a App) Nam() string {
+	return a.Name
 }
 
-func NewInMemoryAppRepository(apps []App) AppRepository {
-	return &InMemoryAppRepository{
+func (a StoreApp) Nam() string {
+	return a.Name
+}
+
+type AppRepository[A Named] interface {
+	GetAll() ([]A, error)
+	Find(name string) (*A, error)
+}
+
+type InMemoryAppRepository[A Named] struct {
+	apps []A
+}
+
+func NewInMemoryAppRepository[A Named](apps []A) AppRepository[A] {
+	return &InMemoryAppRepository[A]{
 		apps,
 	}
 }
 
-func (r InMemoryAppRepository) Find(name string) (*App, error) {
+func (r InMemoryAppRepository[A]) Find(name string) (*A, error) {
 	for _, a := range r.apps {
-		if a.Name == name {
+		if a.Nam() == name {
 			return &a, nil
 		}
 	}
 	return nil, fmt.Errorf("Application not found: %s", name)
 }
 
-func (r InMemoryAppRepository) GetAll() ([]App, error) {
+func (r InMemoryAppRepository[A]) GetAll() ([]A, error) {
 	return r.apps, nil
 }
 
@@ -53,18 +71,11 @@ func CreateAllApps() []App {
 	if err != nil {
 		log.Fatal(err)
 	}
-	return []App{
+	ret := []App{
 		CreateAppIngressPrivate(valuesTmpls, tmpls),
 		CreateCertificateIssuerPublic(valuesTmpls, tmpls),
 		CreateCertificateIssuerPrivate(valuesTmpls, tmpls),
 		CreateAppCoreAuth(valuesTmpls, tmpls),
-		CreateAppVaultwarden(valuesTmpls, tmpls),
-		CreateAppMatrix(valuesTmpls, tmpls),
-		CreateAppPihole(valuesTmpls, tmpls),
-		CreateAppMaddy(valuesTmpls, tmpls),
-		CreateAppQBittorrent(valuesTmpls, tmpls),
-		CreateAppJellyfin(valuesTmpls, tmpls),
-		CreateAppRpuppy(valuesTmpls, tmpls),
 		CreateAppHeadscale(valuesTmpls, tmpls),
 		CreateAppTailscaleProxy(valuesTmpls, tmpls),
 		CreateMetallbConfigEnv(valuesTmpls, tmpls),
@@ -77,6 +88,26 @@ func CreateAllApps() []App {
 		CreateCSIDriverSMB(valuesTmpls, tmpls),
 		CreateResourceRendererController(valuesTmpls, tmpls),
 		CreateHeadscaleController(valuesTmpls, tmpls),
+	}
+	for _, a := range CreateStoreApps() {
+		ret = append(ret, a.App)
+	}
+	return ret
+}
+
+func CreateStoreApps() []StoreApp {
+	tmpls, err := template.New("root").Funcs(template.FuncMap(sprig.FuncMap())).ParseFS(valuesTmpls, "values-tmpl/*")
+	if err != nil {
+		log.Fatal(err)
+	}
+	return []StoreApp{
+		CreateAppVaultwarden(valuesTmpls, tmpls),
+		CreateAppMatrix(valuesTmpls, tmpls),
+		CreateAppPihole(valuesTmpls, tmpls),
+		CreateAppMaddy(valuesTmpls, tmpls),
+		CreateAppQBittorrent(valuesTmpls, tmpls),
+		CreateAppJellyfin(valuesTmpls, tmpls),
+		CreateAppRpuppy(valuesTmpls, tmpls),
 	}
 }
 
@@ -146,116 +177,144 @@ func CreateAppCoreAuth(fs embed.FS, tmpls *template.Template) App {
 	}
 }
 
-func CreateAppVaultwarden(fs embed.FS, tmpls *template.Template) App {
+func CreateAppVaultwarden(fs embed.FS, tmpls *template.Template) StoreApp {
 	schema, err := fs.ReadFile("values-tmpl/vaultwarden.jsonschema")
 	if err != nil {
 		panic(err)
 	}
-	return App{
-		"vaultwarden",
-		[]string{"app-vaultwarden"},
-		[]*template.Template{
-			tmpls.Lookup("vaultwarden.yaml"),
+	return StoreApp{
+		App: App{
+			"vaultwarden",
+			[]string{"app-vaultwarden"},
+			[]*template.Template{
+				tmpls.Lookup("vaultwarden.yaml"),
+			},
+			string(schema),
+			tmpls.Lookup("vaultwarden.md"),
 		},
-		string(schema),
-		tmpls.Lookup("vaultwarden.md"),
+		Icon:             "arcticons:bitwarden",
+		ShortDescription: "Open source implementation of Bitwarden password manager. Can be used with official client applications.",
 	}
 }
 
-func CreateAppMatrix(fs embed.FS, tmpls *template.Template) App {
+func CreateAppMatrix(fs embed.FS, tmpls *template.Template) StoreApp {
 	schema, err := fs.ReadFile("values-tmpl/matrix.jsonschema")
 	if err != nil {
 		panic(err)
 	}
-	return App{
-		"matrix",
-		[]string{"app-matrix"},
-		[]*template.Template{
-			tmpls.Lookup("matrix-storage.yaml"),
-			tmpls.Lookup("matrix.yaml"),
+	return StoreApp{
+		App{
+			"matrix",
+			[]string{"app-matrix"},
+			[]*template.Template{
+				tmpls.Lookup("matrix-storage.yaml"),
+				tmpls.Lookup("matrix.yaml"),
+			},
+			string(schema),
+			nil,
 		},
-		string(schema),
-		nil,
+		"simple-icons:matrix",
+		"An open network for secure, decentralised communication",
 	}
 }
 
-func CreateAppPihole(fs embed.FS, tmpls *template.Template) App {
+func CreateAppPihole(fs embed.FS, tmpls *template.Template) StoreApp {
 	schema, err := fs.ReadFile("values-tmpl/pihole.jsonschema")
 	if err != nil {
 		panic(err)
 	}
-	return App{
-		"pihole",
-		[]string{"app-pihole"},
-		[]*template.Template{
-			tmpls.Lookup("pihole.yaml"),
+	return StoreApp{
+		App{
+			"pihole",
+			[]string{"app-pihole"},
+			[]*template.Template{
+				tmpls.Lookup("pihole.yaml"),
+			},
+			string(schema),
+			tmpls.Lookup("pihole.md"),
 		},
-		string(schema),
-		tmpls.Lookup("pihole.md"),
+		"simple-icons:pihole",
+		"Pi-hole is a Linux network-level advertisement and Internet tracker blocking application which acts as a DNS sinkhole and optionally a DHCP server, intended for use on a private network.",
 	}
 }
 
-func CreateAppMaddy(fs embed.FS, tmpls *template.Template) App {
+func CreateAppMaddy(fs embed.FS, tmpls *template.Template) StoreApp {
 	schema, err := fs.ReadFile("values-tmpl/maddy.jsonschema")
 	if err != nil {
 		panic(err)
 	}
-	return App{
-		"maddy",
-		[]string{"app-maddy"},
-		[]*template.Template{
-			tmpls.Lookup("maddy.yaml"),
+	return StoreApp{
+		App{
+			"maddy",
+			[]string{"app-maddy"},
+			[]*template.Template{
+				tmpls.Lookup("maddy.yaml"),
+			},
+			string(schema),
+			nil,
 		},
-		string(schema),
-		nil,
+		"arcticons:huawei-email",
+		"SMPT/IMAP server to communicate via email.",
 	}
 }
 
-func CreateAppQBittorrent(fs embed.FS, tmpls *template.Template) App {
+func CreateAppQBittorrent(fs embed.FS, tmpls *template.Template) StoreApp {
 	schema, err := fs.ReadFile("values-tmpl/qbittorrent.jsonschema")
 	if err != nil {
 		panic(err)
 	}
-	return App{
-		"qbittorrent",
-		[]string{"app-qbittorrent"},
-		[]*template.Template{
-			tmpls.Lookup("qbittorrent.yaml"),
+	return StoreApp{
+		App{
+			"qbittorrent",
+			[]string{"app-qbittorrent"},
+			[]*template.Template{
+				tmpls.Lookup("qbittorrent.yaml"),
+			},
+			string(schema),
+			tmpls.Lookup("qbittorrent.md"),
 		},
-		string(schema),
-		tmpls.Lookup("qbittorrent.md"),
+		"arcticons:qbittorrent-remote",
+		"qBittorrent is a cross-platform free and open-source BitTorrent client written in native C++. It relies on Boost, Qt 6 toolkit and the libtorrent-rasterbar library, with an optional search engine written in Python.",
 	}
 }
 
-func CreateAppJellyfin(fs embed.FS, tmpls *template.Template) App {
+func CreateAppJellyfin(fs embed.FS, tmpls *template.Template) StoreApp {
 	schema, err := fs.ReadFile("values-tmpl/jellyfin.jsonschema")
 	if err != nil {
 		panic(err)
 	}
-	return App{
-		"jellyfin",
-		[]string{"app-jellyfin"},
-		[]*template.Template{
-			tmpls.Lookup("jellyfin.yaml"),
+	return StoreApp{
+		App{
+			"jellyfin",
+			[]string{"app-jellyfin"},
+			[]*template.Template{
+				tmpls.Lookup("jellyfin.yaml"),
+			},
+			string(schema),
+			nil,
 		},
-		string(schema),
-		nil,
+		"arcticons:jellyfin",
+		"Jellyfin is a free and open-source media server and suite of multimedia applications designed to organize, manage, and share digital media files to networked devices.",
 	}
 }
 
-func CreateAppRpuppy(fs embed.FS, tmpls *template.Template) App {
+func CreateAppRpuppy(fs embed.FS, tmpls *template.Template) StoreApp {
 	schema, err := fs.ReadFile("values-tmpl/rpuppy.jsonschema")
 	if err != nil {
 		panic(err)
 	}
-	return App{
-		"rpuppy",
-		[]string{"app-rpuppy"},
-		[]*template.Template{
-			tmpls.Lookup("rpuppy.yaml"),
+	return StoreApp{
+		App{
+			"rpuppy",
+			[]string{"app-rpuppy"},
+			[]*template.Template{
+				tmpls.Lookup("rpuppy.yaml"),
+			},
+			string(schema),
+			tmpls.Lookup("rpuppy.md"),
 		},
-		string(schema),
-		tmpls.Lookup("rpuppy.md"),
+		"ph:dog-thin",
+		"Delights users with randomly generate puppy pictures. Can be configured to be reachable only from private network or publicly.",
 	}
 }
 

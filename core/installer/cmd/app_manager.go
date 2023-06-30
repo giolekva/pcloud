@@ -68,7 +68,7 @@ func appManagerCmdRun(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-	kube, err := installer.NewOutOfClusterNamespaceCreator(rootFlags.kubeConfig)
+	kube, err := newNSCreator()
 	if err != nil {
 		return err
 	}
@@ -79,7 +79,7 @@ func appManagerCmdRun(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-	r := installer.NewInMemoryAppRepository(installer.CreateAllApps())
+	r := installer.NewInMemoryAppRepository[installer.StoreApp](installer.CreateStoreApps())
 	s := &server{
 		port: appManagerFlags.port,
 		m:    m,
@@ -92,7 +92,7 @@ func appManagerCmdRun(cmd *cobra.Command, args []string) error {
 type server struct {
 	port int
 	m    *installer.AppManager
-	r    installer.AppRepository
+	r    installer.AppRepository[installer.StoreApp]
 }
 
 func (s *server) start() {
@@ -113,10 +113,12 @@ func (s *server) start() {
 }
 
 type app struct {
-	Name   string         `json:"name"`
-	Slug   string         `json:"slug"`
-	Schema string         `json:"schema"`
-	Config map[string]any `json:"config"`
+	Name             string `json:"name"`
+	Icon             string `json:"icon"`
+	ShortDescription string `json:"shortDescription"`
+	Slug             string `json:"slug"`
+	Schema           string `json:"schema"`
+	Config           any    `json:"config"`
 }
 
 func (s *server) handleAppRepo(c echo.Context) error {
@@ -127,7 +129,7 @@ func (s *server) handleAppRepo(c echo.Context) error {
 	resp := make([]app, len(all))
 	for i, a := range all {
 		config, _ := s.m.AppConfig(a.Name) // TODO(gio): handle error
-		resp[i] = app{a.Name, a.Name, a.Schema, config}
+		resp[i] = app{a.Name, a.Icon, a.ShortDescription, a.Name, a.Schema, config}
 	}
 	return c.JSON(http.StatusOK, resp)
 }
@@ -139,7 +141,7 @@ func (s *server) handleApp(c echo.Context) error {
 		return err
 	}
 	config, _ := s.m.AppConfig(a.Name) // TODO(gio): handle error
-	return c.JSON(http.StatusOK, app{a.Name, a.Name, a.Schema, config})
+	return c.JSON(http.StatusOK, app{a.Name, a.Icon, a.ShortDescription, a.Name, a.Schema, config["Values"]})
 }
 
 type file struct {
@@ -150,6 +152,29 @@ type file struct {
 type rendered struct {
 	Readme string `json:"readme"`
 	Files  []file `json:"files"`
+}
+
+type network struct {
+	Name              string
+	IngressClass      string
+	CertificateIssuer string
+	Domain            string
+}
+
+func createNetworks(global installer.Config) []network {
+	return []network{
+		{
+			Name:              "Public",
+			IngressClass:      fmt.Sprintf("%s-ingress-public", global.Values.PCloudEnvName),
+			CertificateIssuer: fmt.Sprintf("%s-public", global.Values.Id),
+			Domain:            global.Values.Domain,
+		},
+		{
+			Name:         "Private",
+			IngressClass: fmt.Sprintf("%s-ingress-private", global.Values.Id),
+			Domain:       global.Values.PrivateDomain,
+		},
+	}
 }
 
 func (s *server) handleAppRender(c echo.Context) error {
@@ -165,6 +190,13 @@ func (s *server) handleAppRender(c echo.Context) error {
 	var values map[string]any
 	if err := json.Unmarshal(contents, &values); err != nil {
 		return err
+	}
+	if network, ok := values["Network"]; ok {
+		for _, n := range createNetworks(global) {
+			if n.Name == network { // TODO(giolekva): handle not found
+				values["Network"] = n
+			}
+		}
 	}
 	all := map[string]any{
 		"Global": global.Values,
@@ -218,11 +250,18 @@ func (s *server) handleAppInstall(c echo.Context) error {
 	if err != nil {
 		return err
 	}
+	if network, ok := values["Network"]; ok {
+		for _, n := range createNetworks(config) {
+			if n.Name == network { // TODO(giolekva): handle not found
+				values["Network"] = n
+			}
+		}
+	}
 	nsGen := installer.NewCombine(
 		installer.NewPrefixGenerator(config.Values.Id+"-"),
 		installer.NewRandomSuffixGenerator(3),
 	)
-	if err := s.m.Install(*a, nsGen, values); err != nil {
+	if err := s.m.Install(a.App, nsGen, values); err != nil {
 		return err
 	}
 	return c.String(http.StatusOK, "Installed")
