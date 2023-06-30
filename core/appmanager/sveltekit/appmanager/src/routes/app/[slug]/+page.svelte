@@ -1,82 +1,91 @@
 <script lang="ts">
   import { onMount } from "svelte";
-  import { HSplitPane, VSplitPane } from "svelte-split-pane";
-  import { TabGroup, Tab, Toast, toastStore } from "@skeletonlabs/skeleton";
   import { SubmitForm } from "@restspace/svelte-schema-form";
   import "@restspace/svelte-schema-form/css/layout.scss";
-  import "@restspace/svelte-schema-form/css/basic-skin.scss";
+  // import "@restspace/svelte-schema-form/css/basic-skin.scss";
+  import Icon from '@iconify/svelte';
+  import toast from "svelte-french-toast";
 
-  interface File {
-    name string;
-    contents string;
-  }
+  import ConfigurationForm from "$lib/ConfigurationForm.svelte";
+import { writable } from "svelte/store";
 
   export let data: AppData;
-  let readme: string = "";
-  let files: File[] = [];
+  let config: Record<string, any> = null;
+  let readme: string = null;
 
-  let tabSet: number = 0;
-
-  const submit = async (e) => {
-	  const resp = await fetch(`/api/app/${data.slug}/install`, {
-          method: "POST",
-          headers: {
-              "Accept": "application/json",
-              "Content-Type": "application/json"
-          },
-          body: JSON.stringify(e.detail.value),
-      });
-      toastStore.trigger({
-        message: await resp.text(),
-        timeout: 1000,
-      });
-      return false;
+  const submit = async (config) => {
+	const resp = await fetch(`/api/app/${data.slug}/install`, {
+      method: "POST",
+      headers: {
+        "Accept": "application/json",
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify(config),
+    });
+    if (resp.status === 200) {
+      toast.success("Installed");
+    } else {
+      toast.error("Installation failed");
+    }
+    return false;
   };
 
   const render = async (config) => {
-	  const resp = await fetch(`/api/app/${data.slug}/render`, {
-          method: "POST",
-          headers: {
-              "Accept": "application/json",
-              "Content-Type": "application/json"
-          },
-          body: JSON.stringify(config),
-      });
-      const app = await resp.json();
-      readme = app.readme;
-      files = app.files;
+	const resp = await fetch(`/api/app/${data.slug}/render`, {
+      method: "POST",
+      headers: {
+        "Accept": "application/json",
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify(config),
+    });
+    const app = await resp.json();
+    readme = app.readme;
   };
 
-  const change = (e) => render(e.detail.value);
+  const extractDefaultValues = (schema) => {
+    switch (schema.type) {
+    case "string": return schema.default ?? "";
+    case "object": {
+      const ret: Record<string, any> = {};
+      for (const [key, value] of Object.entries(schema.properties)) {
+        ret[key] = extractDefaultValues(value);
+      };
+      return ret;
+    }
+    }
+  };
 
   onMount(() => {
+    data.config = null; // TODO(giolekva): remove
     if (data.config != null) {
-      render(data.config);
+      config = data.config;
+    } else {
+      config = extractDefaultValues(data.schema);
+      console.log(config);
     }
+    render(config);
   });
+
+  const formData = writable(null);
+  $: render($formData);
 </script>
 
-{data.slug}
-<HSplitPane>
-    <left slot="left">
-          <SubmitForm schema={data.schema} value={data.config ?? {}} on:submit={submit} on:value={change} submitText="Install" />
-    </left>
-    <right slot="right">
-        <TabGroup>
-            <Tab bind:group={tabSet} name="Readme" value={0}>Readme</Tab>
-            {#each files as file, i }
-                <Tab bind:group={tabSet} name={file.name} value={i + 1}>{file.name}</Tab>
-            {/each}
-            <svelte:fragment slot="panel">
-                {#if tabSet === 0}
-                    {readme}
-                {:else}
-                    <pre>
-{files[tabSet - 1].contents}
-                    </pre>
-                {/if}
-            </svelte:fragment>
-        </TabGroup>
-    </right>
-</HSplitPane>
-<Toast />
+<h1><Icon icon="{data.icon}" width="50" height="50" />{data.name}</h1>
+<pre>{readme}</pre>
+
+<form on:submit={() => submit($formData)}>
+  <ConfigurationForm schema={data.schema} on:change={(e) => formData.set(e.detail)} />
+  <input type="submit" value="Install" />
+</form>
+
+<style>
+  pre {
+    white-space: pre-wrap;       /* Since CSS 2.1 */
+    white-space: -moz-pre-wrap;  /* Mozilla, since 1999 */
+    white-space: -pre-wrap;      /* Opera 4-6 */
+    white-space: -o-pre-wrap;    /* Opera 7 */
+    word-wrap: break-word;       /* Internet Explorer 5.5+ */
+    background-color: transparent;
+  }
+</style>

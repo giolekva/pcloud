@@ -1,18 +1,13 @@
 <script lang="ts">
-	import "@skeletonlabs/skeleton/themes/theme-skeleton.css";
-	import "@skeletonlabs/skeleton/styles/skeleton.css";
+  import "@picocss/pico";
   import "../app.postcss";
-import { onMount } from "svelte";
 
-  onMount(() => {
-    window.addEventListener('message', (e) => {
-      console.log(e);
-      if ("go_back" in e.data) {
-        window.history.go(-1);
-      }
-    });
-  });
+  import { Toaster } from "svelte-french-toast";
 </script>
 
 <slot />
 
+<Toaster />
+
+<style>
+</style>
