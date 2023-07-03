@@ -21,7 +21,6 @@
   };
 </script>
 
-<div class="main">
 <form>
   <input type="search" placeholder="Search" on:input={search} />
 </form>
@@ -49,14 +48,8 @@
     </ul>
   </nav>
 </aside>
-</div>
 
 <style>
-  .main {
-    max-width: 70%;
-    margin: 0 auto;
-  }
-
   article {
     margin: 0.3em;
     margin-bottom: 0.3em;
