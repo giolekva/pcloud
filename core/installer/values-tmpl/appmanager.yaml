@@ -1,12 +1,12 @@
 apiVersion: helm.toolkit.fluxcd.io/v2beta1
 kind: HelmRelease
 metadata:
-  name: welcome
+  name: appmanager
   namespace: {{ .Release.Namespace }}
 spec:
   chart:
     spec:
-      chart: charts/welcome
+      chart: charts/appmanager
       sourceRef:
         kind: GitRepository
         name: pcloud
@@ -16,7 +16,7 @@ spec:
     repoAddr: {{ .Values.RepoAddr }}
     sshPrivateKey: {{ .Values.SSHPrivateKey | b64enc }}
     ingress:
-      className: {{ .Global.PCloudEnvName }}-ingress-public
-      domain: welcome.{{ .Global.Domain }}
-      certificateIssuer: {{ .Global.Id }}-public
-    clusterRoleName: {{ .Global.Id }}-welcome
+      className: {{ .Global.Id }}-ingress-public
+      domain: apps.{{ .Global.PrivateDomain }}
+      certificateIssuer: ""
+    clusterRoleName: {{ .Global.Id }}-appmanager

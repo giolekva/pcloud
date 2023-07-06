@@ -1,7 +1,7 @@
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
-  name: {{ .Global.PCloudEnvName }}-env-manager
+  name: {{ .Values.clusterRoleName }}
 rules:
 - apiGroups:
   - ""
@@ -13,11 +13,11 @@ rules:
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
-  name: {{ .Global.PCloudEnvName }}-env-manager
+  name: {{ .Values.clusterRoleName }}
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
-  name: {{ .Global.PCloudEnvName }}-env-manager
+  name: {{ .Values.clusterRoleName }}
 subjects:
 - kind: ServiceAccount
   name: default

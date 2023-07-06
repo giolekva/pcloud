@@ -8,3 +8,4 @@ ingress:
   className: pcloud-ingress-public
   domain: welcome.example.com
   certificateIssuer: example-public
+clusterRoleName: example-welcome

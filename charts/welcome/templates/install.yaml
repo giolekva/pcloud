@@ -1,6 +1,6 @@
 kind: ClusterRole
 metadata:
-  name: {{ .Global.PCloudEnvName }}-welcome
+  name: {{ .Values.clusterRoleName }}
 rules:
 - apiGroups:
   - ""
@@ -12,11 +12,11 @@ rules:
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
-  name: {{ .Global.PCloudEnvName }}-welcome
+  name: {{ .Values.clusterRoleName }}
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
-  name: {{ .Global.PCloudEnvName }}-welcome
+  name: {{ .Values.clusterRoleName }}
 subjects:
 - kind: ServiceAccount
   name: default
@@ -50,15 +50,19 @@ kind: Ingress
 metadata:
   name: ingress
   namespace: {{ .Release.Namespace }}
+  {{- if .Values.certificateIssuer }}
   annotations:
     acme.cert-manager.io/http01-edit-in-place: "true"
     cert-manager.io/cluster-issuer: {{ .Values.ingress.certificateIssuer}}
+  {{- end }}
 spec:
   ingressClassName: {{ .Values.ingress.className }}
+  {{- if .Values.certificateIssuer }}
   tls:
   - hosts:
     - {{ .Values.ingress.domain }}
     secretName: cert-welcome
+  {{- end }}
   rules:
   - host: {{ .Values.ingress.domain }}
     http:

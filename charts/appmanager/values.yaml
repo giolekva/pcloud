@@ -8,3 +8,4 @@ ingress:
   className: example-ingress-private
   domain: apps.p.example.com
   certificateIssuer: example-private
+clusterRoleName: example-welcome
