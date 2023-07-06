@@ -1,0 +1,86 @@
+apiVersion: v1
+kind: Secret
+metadata:
+  name: ssh-key
+type: Opaque
+data:
+  private: {{ .Values.sshPrivateKey }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: appmanager
+  namespace: {{ .Release.Namespace }}
+spec:
+  type: ClusterIP
+  selector:
+    app: appmanager
+  ports:
+  - name: http
+    port: 80
+    targetPort: http
+    protocol: TCP
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: ingress
+  namespace: {{ .Release.Namespace }}
+  annotations:
+    acme.cert-manager.io/http01-edit-in-place: "true"
+    cert-manager.io/cluster-issuer: {{ .Values.ingress.certificateIssuer}}
+spec:
+  ingressClassName: {{ .Values.ingress.className }}
+  tls:
+  - hosts:
+    - {{ .Values.ingress.domain }}
+    secretName: cert-appmanager
+  rules:
+  - host: {{ .Values.ingress.domain }}
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: appmanager
+            port:
+              name: http
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: appmanager
+  namespace: {{ .Release.Namespace }}
+spec:
+  selector:
+    matchLabels:
+      app: appmanager
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: appmanager
+    spec:
+      volumes:
+      - name: ssh-key
+        secret:
+          secretName: ssh-key
+      containers:
+      - name: appmanager
+        image: {{ .Values.image.repository }}:{{ .Values.image.tag }}
+        imagePullPolicy: {{ .Values.image.pullPolicy }}
+        ports:
+        - name: http
+          containerPort: 8080
+          protocol: TCP
+        command:
+        - pcloud-installer
+        - appmanager
+        - --repo-addr={{ .Values.repoAddr }}
+        - --ssh-key=/pcloud/ssh-key/private
+        - --port=8080
+        volumeMounts:
+        - name: ssh-key
+          readOnly: true
+          mountPath: /pcloud/ssh-key
