@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+	<head>
+		<meta charset="utf-8" />
+        <link rel="stylesheet" href="/static/pico.min.css">
+		<meta name="viewport" content="width=device-width, initial-scale=1" />
+        <style>
+          #main {
+            margin-top: 10px;
+          }
+
+          @media screen and (min-width:801px) {
+            #main {
+              width: 600px;
+            }
+          }
+        </style>
+	</head>
+	<body>
+		<div id="main" class="container">{{ block "main" . }}CHILD MUST OVERRIDE THIS{{ end }}</div>
+	</body>
+</html>

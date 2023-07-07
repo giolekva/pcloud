@@ -1,6 +1,17 @@
 {
   "type": "object",
   "properties": {
+    "IngressPrivate": { "type": "string" },
+    "Headscale": { "type": "string" },
+    "SoftServe": { "type": "string" },
+    "Rest": {
+      "type": "object",
+      "properties": {
+        "From": { "type": "string" },
+        "To": { "type": "string" }
+      },
+      "additionalProperties": false
+    }
   },
   "additionalProperties": false
 }

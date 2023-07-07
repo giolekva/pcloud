@@ -1,6 +1,7 @@
 package installer
 
 import (
+	"fmt"
 	"io/ioutil"
 	"path/filepath"
 
@@ -31,8 +32,8 @@ func (m *AppManager) FindAllInstances(name string) ([]AppConfig, error) {
 	return m.repoIO.FindAllInstances(appDir, name)
 }
 
-func (m *AppManager) FindInstance(name string) (AppConfig, error) {
-	return m.repoIO.FindInstance(appDir, name)
+func (m *AppManager) FindInstance(id string) (AppConfig, error) {
+	return m.repoIO.FindInstance(appDir, id)
 }
 
 func (m *AppManager) AppConfig(name string) (AppConfig, error) {
@@ -75,19 +76,27 @@ func (m *AppManager) Install(app App, ns NamespaceGenerator, suffixGen SuffixGen
 	if err != nil {
 		return err
 	}
-	all := map[string]any{
-		"Global": globalConfig.Values,
-		"Values": config,
+	derivedValues, err := deriveValues(config, app.ConfigSchema(), CreateNetworks(globalConfig))
+	if err != nil {
+		fmt.Println(err)
+		return err
+	}
+	derived := Derived{
+		Global: globalConfig.Values,
+		Values: derivedValues,
 	}
 	if len(namespaces) > 0 {
-		all["Release"] = map[string]any{
-			"Namespace": namespaces[0],
-		}
+		derived.Release.Namespace = namespaces[0]
 	}
-	return m.repoIO.InstallApp(
+	fmt.Printf("%+v\n", derived)
+	err = m.repoIO.InstallApp(
 		app,
 		filepath.Join(appDir, app.Name+suffix),
-		all)
+		config,
+		derived,
+	)
+	fmt.Println(err)
+	return err
 }
 
 func (m *AppManager) Update(app App, instanceId string, config map[string]any) error {
@@ -104,10 +113,37 @@ func (m *AppManager) Update(app App, instanceId string, config map[string]any) e
 	if err != nil {
 		return err
 	}
-	all := map[string]any{
-		"Global":  globalConfig.Values,
-		"Values":  config,
-		"Release": appConfig.Config["Release"],
+	derivedValues, err := deriveValues(config, app.ConfigSchema(), CreateNetworks(globalConfig))
+	if err != nil {
+		return err
 	}
-	return m.repoIO.InstallApp(app, instanceDir, all)
+	derived := Derived{
+		Global:  globalConfig.Values,
+		Release: appConfig.Derived.Release,
+		Values:  derivedValues,
+	}
+	return m.repoIO.InstallApp(app, instanceDir, config, derived)
+}
+
+func (m *AppManager) Remove(instanceId string) error {
+	// if err := m.repoIO.Fetch(); err != nil {
+	// 	return err
+	// }
+	return m.repoIO.RemoveApp(filepath.Join(appDir, instanceId))
+}
+
+func CreateNetworks(global Config) []Network {
+	return []Network{
+		{
+			Name:              "Public",
+			IngressClass:      fmt.Sprintf("%s-ingress-public", global.Values.PCloudEnvName),
+			CertificateIssuer: fmt.Sprintf("%s-public", global.Values.Id),
+			Domain:            global.Values.Domain,
+		},
+		{
+			Name:         "Private",
+			IngressClass: fmt.Sprintf("%s-ingress-private", global.Values.Id),
+			Domain:       global.Values.PrivateDomain,
+		},
+	}
 }

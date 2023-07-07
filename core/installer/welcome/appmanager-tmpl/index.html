@@ -1,0 +1,50 @@
+{{ define "main" }}
+<form>
+  <input type="search" placeholder="Search" />
+</form>
+
+<aside>
+  <nav>
+    <ul>
+      {{ range . }}
+        <li>
+          <article>
+                  <div>
+                      <a href="/app/{{ .Slug }}" class="logo">
+                          {{ .Icon }}
+                      </a>
+                  </div>
+                  <div>
+                      <a href="/app/{{ .Slug }}">{{ .Name }}</a>
+                      {{ .ShortDescription }}
+                  </div>
+          </article>
+        </li>
+      {{ end }}
+    </ul>
+  </nav>
+</aside>
+
+<style>
+  article {
+    margin: 0.3em;
+    margin-bottom: 0.3em;
+
+    display: flex;
+    flex-direction: row;
+  }
+
+  .logo {
+    display: table-cell;
+    vertical-align: middle;
+  }
+  nav li {
+    padding-top: 0;
+    padding-bottom: 0;
+  }
+
+  input[type="search"] {
+    margin-bottom: 0;
+  }
+</style>
+{{ end }}

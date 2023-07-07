@@ -1,7 +1,7 @@
 {
   "type": "object",
   "properties": {
-    "GandiAPIToken": { "type": "string" },
+    "GandiAPIToken": { "type": "string" }
   },
   "additionalProperties": false
 }

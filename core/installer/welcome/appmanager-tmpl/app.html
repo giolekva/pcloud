@@ -1,0 +1,214 @@
+{{ define "schema-form" }}
+  {{ $readonly := .ReadOnly }}
+  {{ $networks := .AvailableNetworks }}
+  {{ $data := .Data }}
+  {{ range $name, $schema := .Schema.properties }}
+    {{ if eq $schema.type "string" }}
+      <label for="{{ $name }}">
+        <span>{{ $name }}</span>
+      </label>
+      {{ if eq (index $schema "role") "network" }}
+        <select oninput="valueChanged({{ $name }}, this.value)" {{ if $readonly }}disabled{{ end }} >
+          {{ if not $readonly }}<option disabled selected value> -- select an option -- </option>{{ end }}
+          {{ range $networks }}
+            <option {{if eq .Name (index $data $name) }}selected{{ end }}>{{ .Name }}</option>
+          {{ end }}
+        </select>
+      {{ else }}
+        <input type="text" name="{{ $name }}" oninput="valueChanged({{ $name }}, this.value)" {{ if $readonly }}disabled{{ end }} value="{{ index $data $name }}"/>
+      {{ end }}
+    {{ end }}
+  {{ end }}
+{{ end }}
+
+{{ define "main" }}
+{{ $instance := .Instance }}
+<h1>{{ .App.Icon }}{{ .App.Name }}</h1>
+<pre id="readme"></pre>
+
+{{ $schema := .App.ConfigSchema }}
+{{ $networks := .AvailableNetworks }}
+
+<form id="config-form">
+    {{ if $instance }}
+      {{ template "schema-form" (dict "Schema" $schema "AvailableNetworks" $networks "ReadOnly" false "Data" $instance.Config) }}
+    {{ else }}
+      {{ template "schema-form" (dict "Schema" $schema "AvailableNetworks" $networks "ReadOnly" false "Data" (dict)) }}
+    {{ end }}
+    {{ if $instance }}
+      <div class="grid">
+        <button type="submit" id="submit" name="update">Update</button>
+        <button type="submit" id="uninstall" name="remove">Uninstall</button>
+      </div>
+    {{ else }}
+      <button type="submit" id="submit">{{ if $instance }}Update{{ else }}Install{{ end }}</button>
+    {{ end }}
+</form>
+
+{{ range .Instances }}
+  {{ if or (not $instance) (ne $instance.Id .Id)}}
+    <details>
+      <summary>{{ .Id }}</summary>
+      {{ template "schema-form" (dict "Schema" $schema "AvailableNetworks" $networks "ReadOnly" true "Data" .Config ) }}
+      <a href="/instance/{{ .Id }}" role="button" class="secondary">View</a>
+    </details>
+  {{ end }}
+{{ end }}
+
+
+<div id="toast-success" class="toast hidden">
+  <svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 36 36"><path fill="currentColor" d="M18 2a16 16 0 1 0 16 16A16 16 0 0 0 18 2Zm0 30a14 14 0 1 1 14-14a14 14 0 0 1-14 14Z" class="clr-i-outline clr-i-outline-path-1"/><path fill="currentColor" d="M28 12.1a1 1 0 0 0-1.41 0l-11.1 11.05l-6-6A1 1 0 0 0 8 18.53L15.49 26L28 13.52a1 1 0 0 0 0-1.42Z" class="clr-i-outline clr-i-outline-path-2"/><path fill="none" d="M0 0h36v36H0z"/></svg> {{ if $instance }}Update succeeded{{ else }}Install succeeded{{ end}}
+</div>
+
+<div id="toast-failure" class="toast hidden">
+  <svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2S2 6.477 2 12s4.477 10 10 10Zm3-6L9 8m0 8l6-8"/></svg> {{ if $instance }}Update failed{{ else}}Install failed{{ end }}
+</div>
+
+<div id="toast-uninstall-success" class="toast hidden">
+  <svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 36 36"><path fill="currentColor" d="M18 2a16 16 0 1 0 16 16A16 16 0 0 0 18 2Zm0 30a14 14 0 1 1 14-14a14 14 0 0 1-14 14Z" class="clr-i-outline clr-i-outline-path-1"/><path fill="currentColor" d="M28 12.1a1 1 0 0 0-1.41 0l-11.1 11.05l-6-6A1 1 0 0 0 8 18.53L15.49 26L28 13.52a1 1 0 0 0 0-1.42Z" class="clr-i-outline clr-i-outline-path-2"/><path fill="none" d="M0 0h36v36H0z"/></svg> Uninstalled application
+</div>
+
+<div id="toast-uninstall-failure" class="toast hidden">
+  <svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2S2 6.477 2 12s4.477 10 10 10Zm3-6L9 8m0 8l6-8"/></svg> Failed to uninstall application
+</div>
+
+<style>
+  pre {
+    white-space: pre-wrap;       /* Since CSS 2.1 */
+    white-space: -moz-pre-wrap;  /* Mozilla, since 1999 */
+    white-space: -pre-wrap;      /* Opera 4-6 */
+    white-space: -o-pre-wrap;    /* Opera 7 */
+    word-wrap: break-word;       /* Internet Explorer 5.5+ */
+    background-color: transparent;
+  }
+
+ .hidden {
+     visibility: hidden;
+ }
+
+ .toast {
+     position: fixed;
+     z-index: 999;
+     bottom: 10px;
+ }
+</style>
+
+<script>
+ let readme = "";
+ let config = {{ if $instance }}JSON.parse({{ toJson $instance.Config }}){{ else }}{}{{ end }};
+
+ function valueChanged(name, value) {
+     config[name] = value;
+     renderReadme();
+ }
+
+ async function renderReadme() {
+	 const resp = await fetch("/api/app/{{ .App.Name }}/render", {
+         method: "POST",
+         headers: {
+             "Content-Type": "application/json",
+             "Accept": "application/json",
+         },
+         body: JSON.stringify(config),
+     });
+     const app = await resp.json();
+     document.getElementById("readme").innerHTML = app.readme;
+ }
+
+ {{ if $instance }}renderReadme();{{ end }}
+
+ function disableForm() {
+     document.querySelectorAll("#config-form input").forEach((i) => i.setAttribute("disabled", ""));
+     document.querySelectorAll("#config-form select").forEach((i) => i.setAttribute("disabled", ""));
+     document.querySelectorAll("#config-form button").forEach((i) => i.setAttribute("disabled", ""));
+ }
+
+ function enableForm() {
+     document.querySelectorAll("[aria-busy]").forEach((i) => i.removeAttribute("aria-busy"));
+     document.querySelectorAll("#config-form input").forEach((i) => i.removeAttribute("disabled"));
+     document.querySelectorAll("#config-form select").forEach((i) => i.removeAttribute("disabled"));
+     document.querySelectorAll("#config-form button").forEach((i) => i.removeAttribute("disabled"));
+ }
+
+ function installStarted() {
+     const submit = document.getElementById("submit");
+     submit.setAttribute("aria-busy", true);
+     submit.innerHTML = {{ if $instance }}"Updating ..."{{ else }}"Installing ..."{{ end }};
+     disableForm();
+ }
+
+ function uninstallStarted() {
+     const submit = document.getElementById("uninstall");
+     submit.setAttribute("aria-busy", true);
+     submit.innerHTML = "Uninstalling ...";
+     disableForm();
+ }
+
+ function actionFinished(toast) {
+     enableForm();
+     toast.classList.remove("hidden");
+     setTimeout(
+         () => toast.classList.add("hidden"),
+         2000,
+     );
+ }
+
+ function installSucceeded() {
+     actionFinished(document.getElementById("toast-success"));
+ }
+
+ function installFailed() {
+     actionFinished(document.getElementById("toast-failure"));
+ }
+
+ function uninstallSucceeded() {
+     actionFinished(document.getElementById("toast-uninstall-success"));
+ }
+
+ function uninstallFailed() {
+     actionFinished(document.getElementById("toast-uninstall-failure"));
+ }
+
+ const submitAddr = {{ if $instance }}"/api/instance/{{ $instance.Id }}/update"{{ else }}"/api/app/{{ .App.Name }}/install"{{ end }};
+
+ async function install() {
+     installStarted();
+	 const resp = await fetch(submitAddr, {
+         method: "POST",
+         headers: {
+             "Content-Type": "application/json",
+             "Accept": "application/json",
+         },
+         body: JSON.stringify(config),
+     });
+     if (resp.status === 200) {
+         installSucceeded();
+     } else {
+         installFailed();
+     }
+ }
+
+ async function uninstall() {
+     {{ if $instance }}
+     uninstallStarted();
+	 const resp = await fetch("/api/instance/{{ $instance.Id }}/remove", {
+         method: "POST",
+     });
+     if (resp.status === 200) {
+         uninstallSucceeded();
+     } else {
+         uninstallFailed();
+     }
+     {{ end }}
+ }
+
+ document.getElementById("config-form").addEventListener("submit", (event) => {
+     event.preventDefault();
+     if (event.submitter.id === "submit") {
+         install();
+     } if (event.submitter.id === "uninstall") {
+         uninstall();
+     }
+ });
+</script>
+{{ end }}

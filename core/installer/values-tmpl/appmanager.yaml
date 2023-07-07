@@ -16,7 +16,7 @@ spec:
     repoAddr: {{ .Values.RepoAddr }}
     sshPrivateKey: {{ .Values.SSHPrivateKey | b64enc }}
     ingress:
-      className: {{ .Global.Id }}-ingress-public
+      className: {{ .Global.Id }}-ingress-private
       domain: apps.{{ .Global.PrivateDomain }}
       certificateIssuer: ""
     clusterRoleName: {{ .Global.Id }}-appmanager

@@ -262,6 +262,29 @@ spec:
 			return err
 		}
 	}
+	{
+		keys, err := installer.NewSSHKeyPair()
+		if err != nil {
+			return err
+		}
+		user := fmt.Sprintf("%s-appmanager", req.Name)
+		if err := ss.AddUser(user, keys.Public); err != nil {
+			return err
+		}
+		if err := ss.AddCollaborator(req.Name, user); err != nil {
+			return err
+		}
+		app, err := appsRepo.Find("app-manager") // TODO(giolekva): configure
+		if err != nil {
+			return err
+		}
+		if err := appManager.Install(*app, nsGen, suffixGen, map[string]any{
+			"RepoAddr":      ss.GetRepoAddress(req.Name),
+			"SSHPrivateKey": keys.Private,
+		}); err != nil {
+			return err
+		}
+	}
 	return nil
 }
 

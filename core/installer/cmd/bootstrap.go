@@ -110,8 +110,8 @@ func bootstrapCmdRun(cmd *cobra.Command, args []string) error {
 		return err
 	}
 	// TODO(giolekva): commit this to the repo above
-	global := map[string]any{
-		"PCloudEnvName": bootstrapFlags.pcloudEnvName,
+	global := installer.Values{
+		PCloudEnvName: bootstrapFlags.pcloudEnvName,
 	}
 	nsCreator, err := newNSCreator()
 	if err != nil {
@@ -376,7 +376,7 @@ func installFluxBootstrap(repoAddr, repoHost, repoHostPubKey, privateKey string)
 	return nil
 }
 
-func installInfrastructureServices(repo installer.RepoIO, nsGen installer.NamespaceGenerator, nsCreator installer.NamespaceCreator, global map[string]any) error {
+func installInfrastructureServices(repo installer.RepoIO, nsGen installer.NamespaceGenerator, nsCreator installer.NamespaceCreator, global installer.Values) error {
 	appRepo := installer.NewInMemoryAppRepository(installer.CreateAllApps())
 	install := func(name string) error {
 		app, err := appRepo.Find(name)
@@ -395,15 +395,13 @@ func installInfrastructureServices(repo installer.RepoIO, nsGen installer.Namesp
 				return err
 			}
 		}
-		values := map[string]any{
-			"Global": global,
+		derived := installer.Derived{
+			Global: global,
 		}
 		if len(namespaces) > 0 {
-			values["Release"] = map[string]any{
-				"Namespace": namespaces[0],
-			}
+			derived.Release.Namespace = namespaces[0]
 		}
-		return repo.InstallApp(*app, filepath.Join("/infrastructure", app.Name), values)
+		return repo.InstallApp(*app, filepath.Join("/infrastructure", app.Name), map[string]any{}, derived)
 	}
 	appsToInstall := []string{
 		"resource-renderer-controller",
@@ -466,7 +464,7 @@ spec:
 	return nil
 }
 
-func installEnvManager(ss *soft.Client, repo installer.RepoIO, nsGen installer.NamespaceGenerator, nsCreator installer.NamespaceCreator, global map[string]any) error {
+func installEnvManager(ss *soft.Client, repo installer.RepoIO, nsGen installer.NamespaceGenerator, nsCreator installer.NamespaceCreator, global installer.Values) error {
 	keys, err := installer.NewSSHKeyPair()
 	if err != nil {
 		return err
@@ -495,16 +493,17 @@ func installEnvManager(ss *soft.Client, repo installer.RepoIO, nsGen installer.N
 			return err
 		}
 	}
-	return repo.InstallApp(*app, filepath.Join("/infrastructure", app.Name), map[string]any{
-		"Global": global,
-		"Values": map[string]any{
+	derived := installer.Derived{
+		Global: global,
+		Values: map[string]any{
 			"RepoIP":        bootstrapFlags.softServeIP,
 			"SSHPrivateKey": keys.Private,
 		},
-		"Release": map[string]any{
-			"Namespace": namespaces[0],
-		},
-	})
+	}
+	if len(namespaces) > 0 {
+		derived.Release.Namespace = namespaces[0]
+	}
+	return repo.InstallApp(*app, filepath.Join("/infrastructure", app.Name), derived.Values, derived)
 }
 
 func createActionConfig(namespace string) (*action.Configuration, error) {

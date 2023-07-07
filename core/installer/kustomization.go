@@ -53,3 +53,14 @@ func (k *Kustomization) AddResources(names ...string) {
 		}
 	}
 }
+
+func (k *Kustomization) RemoveResources(names ...string) {
+	for _, name := range names {
+		for i, r := range k.Resources {
+			if r == name {
+				k.Resources = slices.Delete(k.Resources, i, i+1)
+				break
+			}
+		}
+	}
+}
