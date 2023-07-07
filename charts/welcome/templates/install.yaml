@@ -51,14 +51,14 @@ kind: Ingress
 metadata:
   name: ingress
   namespace: {{ .Release.Namespace }}
-  {{- if .Values.certificateIssuer }}
+  {{- if .Values.ingress.certificateIssuer }}
   annotations:
     acme.cert-manager.io/http01-edit-in-place: "true"
     cert-manager.io/cluster-issuer: {{ .Values.ingress.certificateIssuer}}
   {{- end }}
 spec:
   ingressClassName: {{ .Values.ingress.className }}
-  {{- if .Values.certificateIssuer }}
+  {{- if .Values.ingress.certificateIssuer }}
   tls:
   - hosts:
     - {{ .Values.ingress.domain }}
