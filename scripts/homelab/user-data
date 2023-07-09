@@ -21,6 +21,7 @@ packages:
   - emacs
   - open-iscsi
   - linux-modules-extra-raspi
+  - nfs-common
 runcmd:
   - apt autoremove -y --purge snapd
   - echo "\nalias e='emacs -nw'\n" >> /home/pcloud/.bash_profile
