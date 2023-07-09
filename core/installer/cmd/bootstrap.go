@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"time"
 
+	"github.com/cenkalti/backoff/v4"
 	"github.com/spf13/cobra"
 	"helm.sh/helm/v3/pkg/action"
 	"helm.sh/helm/v3/pkg/chart/loader"
@@ -90,8 +91,12 @@ func bootstrapCmdRun(cmd *cobra.Command, args []string) error {
 	if err := installSoftServe(bootstrapJobKeys.Public); err != nil {
 		return err
 	}
-	time.Sleep(1 * time.Minute) // TODO(giolekva): implement proper wait
-	ss, err := soft.NewClient(bootstrapFlags.softServeIP, 22, []byte(bootstrapJobKeys.Private), log.Default())
+	var ss *soft.Client
+	err = backoff.Retry(func() error {
+		var err error
+		ss, err = soft.NewClient(bootstrapFlags.softServeIP, 22, []byte(bootstrapJobKeys.Private), log.Default())
+		return err
+	}, backoff.NewConstantBackOff(5*time.Second))
 	if err != nil {
 		return err
 	}
@@ -357,7 +362,12 @@ func installFluxBootstrap(repoAddr, repoHost, repoHostPubKey, privateKey string)
 	if err != nil {
 		return err
 	}
-	values := map[string]interface{}{
+	values := map[string]any{
+		"image": map[string]any{
+			"repository": "giolekva/flux",
+			"tag":        "2.0.0",
+			"pullPolicy": "IfNotPresent",
+		},
 		"repositoryAddress":       repoAddr,
 		"repositoryHost":          repoHost,
 		"repositoryHostPublicKey": repoHostPubKey,
