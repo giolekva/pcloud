@@ -25,6 +25,7 @@ type RepoIO interface {
 	ReadAppConfig(path string) (AppConfig, error)
 	ReadKustomization(path string) (*Kustomization, error)
 	WriteKustomization(path string, kust Kustomization) error
+	ReadYaml(path string) (any, error)
 	WriteYaml(path string, data any) error
 	CommitAndPush(message string) error
 	Reader(path string) (io.ReadCloser, error)
@@ -138,6 +139,18 @@ func (r *repoIO) WriteYaml(path string, data any) error {
 		return err
 	}
 	return nil
+}
+
+func (r *repoIO) ReadYaml(path string) (any, error) {
+	inp, err := r.Reader(path)
+	if err != nil {
+		return nil, err
+	}
+	data := make(map[string]any)
+	if err := readYaml(inp, &data); err != nil {
+		return nil, err
+	}
+	return data, err
 }
 
 func (r *repoIO) CommitAndPush(message string) error {
