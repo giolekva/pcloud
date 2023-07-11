@@ -1,0 +1,31 @@
+{{ if .Values.ingress.enabled }}
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: ingress
+  namespace: {{ .Release.Namespace }}
+  {{- if .Values.ingress.certificateIssuer }}
+  annotations:
+    acme.cert-manager.io/http01-edit-in-place: "true"
+    cert-manager.io/cluster-issuer: {{ .Values.ingress.certificateIssuer }}
+  {{- end }}
+spec:
+  ingressClassName: {{ .Values.ingress.ingressClassName }}
+  {{- if .Values.ingress.certificateIssuer }}
+  tls:
+  - hosts:
+    - {{ .Values.ingress.domain }}
+    secretName: cert-soft-serve
+  {{- end }}
+  rules:
+  - host: {{ .Values.ingress.domain }}
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: soft-serve
+            port:
+              name: http
+{{ end }}

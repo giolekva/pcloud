@@ -1,3 +1,4 @@
+{{ if and .Values.privateKey .Values.publicKey }}
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -6,3 +7,4 @@ metadata:
 data:
   key: {{ toYaml .Values.privateKey | indent 2 }}
   key.pub: {{ toYaml .Values.publicKey | indent 2 }}
+{{ end }}

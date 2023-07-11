@@ -4,7 +4,12 @@ metadata:
   name: soft-serve
   namespace: {{ .Release.Namespace }}
   annotations:
+    {{ if .Values.reservedIP }}
     metallb.universe.tf/loadBalancerIPs: {{ .Values.reservedIP }}
+    {{ end }}
+    {{ if .Values.addressPool }}
+    metallb.universe.tf/address-pool: {{ .Values.addressPool }}
+    {{ end }}
 spec:
   type: LoadBalancer
   selector:
@@ -13,3 +18,9 @@ spec:
   - name: ssh
     port: {{ .Values.port }}
     protocol: TCP
+  {{ if .Values.ingress.enabled }}
+  - name: http
+    port: 80
+    targetPort: http
+    protocol: TCP
+  {{ end }}

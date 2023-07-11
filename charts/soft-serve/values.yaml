@@ -8,4 +8,11 @@ port: 22
 privateKey: ""
 publicKey: ""
 adminKey: ""
-reservedIP: 192.168.0.100
+reservedIP: ""
+addressPool: ""
+ingress:
+  enabled: false
+  domain: git.p.example.com
+  ingressClassName: example-ingress-private
+  certificateIssuer: ""
+  sourcePort: 0

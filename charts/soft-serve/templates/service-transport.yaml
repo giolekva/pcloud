@@ -1,0 +1,13 @@
+{{ if .Values.ingress.enabled }}
+apiVersion: transport.dodo.cloud/v1
+kind: ServiceTransport
+metadata:
+  name: ingress-transport
+  namespace: {{ .Release.Namespace }}
+spec:
+  port: {{ .Values.port }}
+  sourcePort: {{ .Values.ingress.sourcePort }}
+  protocol: TCP
+  service: soft-serve
+  ingressClassName: {{ .Values.ingress.ingressClassName }}
+{{ end }}

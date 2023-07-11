@@ -18,9 +18,11 @@ spec:
       - name: data
         persistentVolumeClaim:
           claimName: data
+      {{ if and .Values.privateKey .Values.publicKey }}
       - name: keys
         configMap:
           name: keys
+      {{ end }}
       containers:
       - name: soft-serve
         image: {{ .Values.image.repository }}:{{ .Values.image.tag }}
@@ -30,18 +32,31 @@ spec:
           value: ":{{ .Values.port }}"
         - name: SOFT_SERVE_INITIAL_ADMIN_KEYS
           value: "{{ .Values.adminKey }}"
+        {{ if and .Values.privateKey .Values.publicKey }}
         - name: SOFT_SERVE_SSH_KEY_PATH
           value: /.ssh/key
+        {{ end }}
         - name: SOFT_SERVE_DATA_PATH
           value: /var/lib/soft-serve/repos
+        {{ if .Values.ingress.enabled }}
+        - name: SOFT_SERVE_HTTP_LISTEN_ADDR
+          value: ":80"
+        - name: SOFT_SERVE_HTTP_PUBLIC_URL
+          value: "http://{{ .Values.ingress.domain }}"
+        {{ end }}
         ports:
         - name: ssh
           containerPort: {{ .Values.port }}
+          protocol: TCP
+        - name: http
+          containerPort: 80
           protocol: TCP
         volumeMounts:
         - name: data
           mountPath: /var/lib/soft-serve
           readOnly: false
+        {{ if and .Values.privateKey .Values.publicKey }}
         - name: keys
           mountPath: /.ssh
           readOnly: true
+        {{ end }}
