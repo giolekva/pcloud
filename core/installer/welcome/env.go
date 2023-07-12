@@ -155,7 +155,7 @@ func initNewEnv(ss *soft.Client, r installer.RepoIO, nsCreator installer.Namespa
 		}
 		defer out.Close()
 		_, err = out.Write([]byte(fmt.Sprintf(`
-apiVersion: source.toolkit.fluxcd.io/v1beta2
+apiVersion: source.toolkit.fluxcd.io/v1
 kind: GitRepository
 metadata:
   name: pcloud
