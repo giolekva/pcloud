@@ -1,0 +1,39 @@
+apiVersion: helm.toolkit.fluxcd.io/v2beta1
+kind: HelmRelease
+metadata:
+  name: soft-serve
+  namespace: {{ .Release.Namespace }}
+spec:
+  chart:
+    spec:
+      chart: charts/soft-serve
+      sourceRef:
+        kind: GitRepository
+        name: pcloud
+        namespace: {{ .Global.Id }}
+  interval: 1m0s
+  values:
+    reservedIP: ""
+    addressPool: {{ .Global.Id }}
+    adminKey: {{ .Values.AdminKey }}
+    {{- if .Values.Network }}
+    ingress:
+      enabled: true # TODO(giolekva): make it configurable
+      ingressClassName: {{ .Values.Network.IngressClass }}
+      certificateIssuer: {{ .Values.Network.CertificateIssuer }}
+      domain: {{ .Values.Subdomain }}.{{ .Values.Network.Domain }}
+      {{- if .Values.SourcePort }}
+      sourcePort: {{ .Values.SourcePort }}
+      {{- end }}
+    {{- end }}
+# reservedIP: ""
+# addressPool: qwe
+# adminKey: "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOa7FUrmXzdY3no8qNGUk7OPaRcIUi8G7MVbLlff9eB/ lekva@gl-mbp-m1-max.local"
+# ingress:
+#   enabled: true
+#   ingressClassName: pcloud-ingress-public
+#   certificateIssuer: qwe-public
+#   domain: gt.qwe.lekva.me
+#   # ingressClassName: qwe-ingress-private
+#   # certificateIssuer: ""
+#   # domain: gt.p.qwe.lekva.me
