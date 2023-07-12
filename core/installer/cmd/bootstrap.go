@@ -303,7 +303,12 @@ func installSoftServe(adminPublicKey string) error {
 	if err != nil {
 		return err
 	}
-	values := map[string]interface{}{
+	values := map[string]any{
+		"image": map[string]any{
+			"repository": "charmcli/soft-serve",
+			"tag":        "v0.5.4",
+			"pullPolicy": "IfNotPresent",
+		},
 		"privateKey": keys.Private,
 		"publicKey":  keys.Public,
 		"adminKey":   adminPublicKey,
@@ -444,7 +449,7 @@ func configurePCloudRepo(repo installer.RepoIO) error {
 			}
 			defer out.Close()
 			_, err = out.Write([]byte(`
-apiVersion: source.toolkit.fluxcd.io/v1beta2
+apiVersion: source.toolkit.fluxcd.io/v1
 kind: GitRepository
 metadata:
   name: pcloud # TODO(giolekva): use more generic name
