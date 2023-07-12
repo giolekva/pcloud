@@ -1,6 +1,6 @@
 apiVersion: v2
-name: rpuppy
-description: A Helm chart for resource-renderer
+name: resource-renderer-controller
+description: A Helm chart for resource-renderer-controller
 type: application
 version: 0.0.1
 appVersion: "0.0.1"
