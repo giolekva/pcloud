@@ -78,7 +78,8 @@ spec:
         command:
         - pcloud-installer
         - envmanager
-        - --repo-ip={{ .Values.repoIP }}
+        - --repo-addr={{ .Values.repoIP }}:{{ .Values.repoPort }}
+        - --repo-name={{ .Values.repoName }}
         - --ssh-key=/pcloud/ssh-key/private
         - --port=8080
         volumeMounts:
