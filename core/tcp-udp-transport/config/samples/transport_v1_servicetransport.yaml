@@ -1,0 +1,10 @@
+apiVersion: transport.dodo.cloud/v1
+kind: ServiceTransport
+metadata:
+  name: test
+  namespace: qwe-app-soft-serve
+spec:
+  port: 22
+  protocol: tcp
+  service: soft-serve
+  ingressClassName: pcloud-ingress-public

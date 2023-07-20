@@ -1,0 +1,6 @@
+apiVersion: v2
+name: service-transport-controller
+description: A Helm chart for service-transport controller
+type: application
+version: 0.0.1
+appVersion: "0.0.1"

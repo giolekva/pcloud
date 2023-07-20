@@ -1,0 +1,33 @@
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  creationTimestamp: null
+  name: manager-role
+rules:
+- apiGroups:
+  - transport.dodo.cloud
+  resources:
+  - servicetransports
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - transport.dodo.cloud
+  resources:
+  - servicetransports/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - transport.dodo.cloud
+  resources:
+  - servicetransports/status
+  verbs:
+  - get
+  - patch
+  - update
