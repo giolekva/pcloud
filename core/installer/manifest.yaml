@@ -2,57 +2,57 @@
 apiVersion: v1
 kind: Namespace
 metadata:
-  name: pcloud
+  name: dodo
 ---
 apiVersion: v1
 kind: ServiceAccount
 metadata:
-  name: pcloud-bootstrap
-  namespace: pcloud
+  name: dodo-bootstrap
+  namespace: dodo
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
-  name: pcloud-bootstrap
-  namespace: pcloud
+  name: dodo-bootstrap
+  namespace: dodo
 rules:
 - apiGroups:
-  - *
+  - "*"
   resources:
-  - *
+  - "*"
   verbs:
-  - *
+  - "*"
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
-  name: pcloud:pcloud-bootstrap
+  name: dodo-bootstrap
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
-  name: pcloud:pcloud-bootstrap
+  name: dodo-bootstrap
 subjects:
 - kind: ServiceAccount
-  name: pcloud-bootstrap
-  namespace: pcloud
+  name: dodo-bootstrap
+  namespace: dodo
 ---
 apiVersion: v1
 kind: ConfigMap
 metadata:
   name: admin-pub-key
-  namespace: pcloud
+  namespace: dodo
 data: # TODO(giolekva): can it work without ssh-ed25519 prefix
   key.pub: ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOa7FUrmXzdY3no8qNGUk7OPaRcIUi8G7MVbLlff9eB/
 ---
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: pcloud-bootstrap
-  namespace: pcloud
+  name: dodo-bootstrap
+  namespace: dodo
 spec:
   template:
     spec:
-      serviceAccountName: pcloud-bootstrap
+      serviceAccountName: dodo-bootstrap
       volumes:
       - name: admin-pub-key
         configMap:
@@ -67,9 +67,10 @@ spec:
         command:
         - pcloud-installer
         - bootstrap
-        - --pcloud-env-name=pcloud
+        - --env-name=dodo
         - --admin-pub-key=/admin-pub-key/key.pub
-        - --soft-serve-ip=192.168.0.211
+        - --from-ip=192.168.0.210
+        - --to-ip=192.168.0.240
         - --charts-dir=/charts
         - --storage-dir=/pcloud-storage/longhorn
       restartPolicy: Never
