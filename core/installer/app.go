@@ -89,7 +89,6 @@ func CreateAllApps() []App {
 		CreateAppCoreAuth(valuesTmpls, tmpls),
 		CreateAppHeadscale(valuesTmpls, tmpls),
 		CreateAppTailscaleProxy(valuesTmpls, tmpls),
-		CreateMetallbConfigEnv(valuesTmpls, tmpls),
 		CreateMetallbIPAddressPool(valuesTmpls, tmpls),
 		CreateEnvManager(valuesTmpls, tmpls),
 		CreateWelcome(valuesTmpls, tmpls),
@@ -382,22 +381,6 @@ func CreateAppTailscaleProxy(fs embed.FS, tmpls *template.Template) App {
 		},
 		string(schema),
 		tmpls.Lookup("tailscale-proxy.md"),
-	}
-}
-
-func CreateMetallbConfigEnv(fs embed.FS, tmpls *template.Template) App {
-	schema, err := fs.ReadFile("values-tmpl/metallb-config-env.jsonschema")
-	if err != nil {
-		panic(err)
-	}
-	return App{
-		"metallb-config-env",
-		[]string{"metallb-config"},
-		[]*template.Template{
-			tmpls.Lookup("metallb-config-env.yaml"),
-		},
-		string(schema),
-		tmpls.Lookup("metallb-config-env.md"),
 	}
 }
 

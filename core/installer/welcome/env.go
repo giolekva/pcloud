@@ -183,18 +183,39 @@ spec:
 	nsGen := installer.NewPrefixGenerator(req.Name + "-")
 	suffixGen := installer.NewEmptySuffixGenerator()
 	{
-		app, err := appsRepo.Find("metallb-config-env")
+		app, err := appsRepo.Find("metallb-ipaddresspool")
 		if err != nil {
 			return err
 		}
 		if err := appManager.Install(*app, nsGen, suffixGen, map[string]any{
-			"IngressPrivate": "10.1.0.1",
-			"Headscale":      "10.1.0.2",
-			"SoftServe":      "10.1.0.3",
-			"Rest": map[string]any{
-				"From": "10.1.0.100",
-				"To":   "10.1.0.255",
-			},
+			"Name":       fmt.Sprintf("%s-ingress-private", req.Name),
+			"From":       "10.1.0.1",
+			"To":         "10.1.0.1",
+			"AutoAssign": false,
+		}); err != nil {
+			return err
+		}
+		if err := appManager.Install(*app, nsGen, suffixGen, map[string]any{
+			"Name":       fmt.Sprintf("%s-headscale", req.Name),
+			"From":       "10.1.0.2",
+			"To":         "10.1.0.2",
+			"AutoAssign": false,
+		}); err != nil {
+			return err
+		}
+		if err := appManager.Install(*app, nsGen, suffixGen, map[string]any{
+			"Name":       fmt.Sprintf("%s-soft-serve", req.Name), // TODO(giolekva): rename to config repo
+			"From":       "10.1.0.3",
+			"To":         "10.1.0.3",
+			"AutoAssign": false,
+		}); err != nil {
+			return err
+		}
+		if err := appManager.Install(*app, nsGen, suffixGen, map[string]any{
+			"Name":       req.Name,
+			"From":       "10.1.0.100",
+			"To":         "10.1.0.254",
+			"AutoAssign": false,
 		}); err != nil {
 			return err
 		}

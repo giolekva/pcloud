@@ -1,7 +1,0 @@
-id: example
-ingressPrivate: 10.1.0.1
-headscale: 10.1.0.2
-softServe: 10.1.0.3
-rest:
-  from: 10.1.0.10
-  to: 10.1.0.255

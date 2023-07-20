@@ -1,6 +1,0 @@
-apiVersion: v2
-name: metallb-config-env
-description: A Helm chart to configure Metallb for one of the user PCloud environments
-type: application
-version: 0.0.1
-appVersion: "0.0.1"
