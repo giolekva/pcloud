@@ -14,3 +14,5 @@ target
 main
 server_arm64
 server_amd64
+manager_arm64
+manager_amd64
