@@ -24,9 +24,6 @@ spec:
         repository: oryd/kratos
         tag: v0.13.0
         pullPolicy: IfNotPresent
-        # repository: giolekva/ory-kratos
-        # tag: latest
-        # pullPolicy: Always
       service:
         admin:
           enabled: true

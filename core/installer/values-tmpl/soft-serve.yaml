@@ -26,14 +26,3 @@ spec:
       sourcePort: {{ .Values.SourcePort }}
       {{- end }}
     {{- end }}
-# reservedIP: ""
-# addressPool: qwe
-# adminKey: "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOa7FUrmXzdY3no8qNGUk7OPaRcIUi8G7MVbLlff9eB/ lekva@gl-mbp-m1-max.local"
-# ingress:
-#   enabled: true
-#   ingressClassName: pcloud-ingress-public
-#   certificateIssuer: qwe-public
-#   domain: gt.qwe.lekva.me
-#   # ingressClassName: qwe-ingress-private
-#   # certificateIssuer: ""
-#   # domain: gt.p.qwe.lekva.me
