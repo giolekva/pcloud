@@ -14,5 +14,7 @@ spec:
   interval: 1m0s
   values:
     repoIP: {{ .Values.RepoIP }}
+    repoPort: {{ .Values.RepoPort }}
+    repoName: {{ .Values.RepoName }}
     sshPrivateKey: {{ .Values.SSHPrivateKey | b64enc }}
     clusterRoleName: {{ .Global.PCloudEnvName }}-env-manager

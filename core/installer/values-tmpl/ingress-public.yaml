@@ -18,7 +18,7 @@ spec:
       service:
         type: LoadBalancer
         annotations:
-          metallb.universe.tf/loadBalancerIPs: 192.168.0.213 # TODO(giolekva): configurable
+          metallb.universe.tf/loadBalancerIPs: {{ .Values.IngressPublicIP }}
       ingressClassByName: true
       ingressClassResource:
         name: {{ .Global.PCloudEnvName }}-ingress-public

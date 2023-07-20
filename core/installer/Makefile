@@ -11,7 +11,7 @@ build: clean
 	go build -o pcloud cmd/*.go
 
 bootstrap:
-	./pcloud --kubeconfig=../../priv/kubeconfig bootstrap --charts-dir=../../charts --admin-pub-key=/Users/lekva/.ssh/id_rsa.pub --soft-serve-ip=192.168.0.211 --storage-dir=/pcloud-storage/longhorn
+	./pcloud --kubeconfig=../../scripts/hetzner/kubeconfig bootstrap --env-name=dodo --charts-dir=../../charts --admin-pub-key=/Users/lekva/.ssh/id_rsa.pub --from-ip=192.168.100.210 --to-ip=192.168.100.240 --storage-dir=/pcloud-storage/longhorn
 
 create_env:
 	./pcloud --kubeconfig=../../priv/kubeconfig create-env --admin-priv-key=/Users/lekva/.ssh/id_rsa --name=lekva --ip=192.168.0.211 --admin-username=gio
@@ -36,9 +36,28 @@ build_arm64: export GOARCH=arm64
 build_arm64:
 	go build -o server_arm64 cmd/*.go
 
-push: clean build_arm64
+build_amd64: export CGO_ENABLED=0
+build_amd64: export GO111MODULE=on
+build_amd64: export GOOS=linux
+build_amd64: export GOARCH=amd64
+build_amd64:
+	go build -o server_amd64 cmd/*.go
+
+push_arm64: clean build_arm64
 	mkdir tmp
 	cp -r ../../charts tmp/
-	podman build --tag=giolekva/pcloud-installer:latest .
+	podman build --platform linux/arm64 --tag=giolekva/pcloud-installer:arm64 .
 	rm -rf tmp
-	podman push giolekva/pcloud-installer:latest
+	podman push giolekva/pcloud-installer:arm64
+
+push_amd64: clean build_amd64
+	mkdir tmp
+	cp -r ../../charts tmp/
+	podman build --platform linux/amd64 --tag=giolekva/pcloud-installer:amd64 .
+	rm -rf tmp
+	podman push giolekva/pcloud-installer:amd64
+
+push: push_arm64 push_amd64
+	podman manifest create giolekva/pcloud-installer:latest giolekva/pcloud-installer:arm64 giolekva/pcloud-installer:amd64
+	podman manifest push giolekva/pcloud-installer:latest docker://docker.io/giolekva/pcloud-installer:latest
+	podman manifest rm giolekva/pcloud-installer:latest

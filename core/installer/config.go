@@ -1,5 +1,26 @@
 package installer
 
+import (
+	"net/netip"
+)
+
+type EnvServiceIPs struct {
+	ConfigRepo    netip.Addr `json:"configRepo"`
+	IngressPublic netip.Addr `json:"ingressPublic"`
+	From          netip.Addr `json:"from"`
+	To            netip.Addr `json:"to"`
+}
+
+type EnvConfig struct {
+	Name                      string        `json:"name"`
+	PublicIP                  string        `json:"publicIP"`
+	NamespacePrefix           string        `json:"namespacePrefix"`
+	StorageDir                string        `json:"storageDir"`
+	VolumeDefaultReplicaCount int           `json:"volumeDefaultReplicaCount"`
+	AdminPublicKey            []byte        `json:"adminPublicKey"`
+	ServiceIPs                EnvServiceIPs `json:"serviceIPs"`
+}
+
 type Config struct {
 	Values Values `json:"values"`
 }

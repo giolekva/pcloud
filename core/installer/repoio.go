@@ -7,6 +7,7 @@ import (
 	"io/fs"
 	"io/ioutil"
 	"net"
+	"net/netip"
 	"path"
 	"path/filepath"
 	"time"
@@ -17,9 +18,12 @@ import (
 	gitssh "github.com/go-git/go-git/v5/plumbing/transport/ssh"
 	"golang.org/x/crypto/ssh"
 	"sigs.k8s.io/yaml"
+
+	"github.com/giolekva/pcloud/core/installer/soft"
 )
 
 type RepoIO interface {
+	Addr() netip.AddrPort
 	Fetch() error
 	ReadConfig() (Config, error)
 	ReadAppConfig(path string) (AppConfig, error)
@@ -39,15 +43,19 @@ type RepoIO interface {
 }
 
 type repoIO struct {
-	repo   *git.Repository
+	repo   *soft.Repository
 	signer ssh.Signer
 }
 
-func NewRepoIO(repo *git.Repository, signer ssh.Signer) RepoIO {
+func NewRepoIO(repo *soft.Repository, signer ssh.Signer) RepoIO {
 	return &repoIO{
 		repo,
 		signer,
 	}
+}
+
+func (r *repoIO) Addr() netip.AddrPort {
+	return r.repo.Addr.Addr
 }
 
 func (r *repoIO) Fetch() error {

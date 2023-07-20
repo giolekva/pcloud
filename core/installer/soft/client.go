@@ -5,7 +5,9 @@ import (
 	"golang.org/x/crypto/ssh"
 	"log"
 	"net"
+	"net/netip"
 	"os"
+	"regexp"
 	"strings"
 
 	"github.com/go-git/go-billy/v5/memfs"
@@ -15,14 +17,13 @@ import (
 )
 
 type Client struct {
-	IP       string
-	port     int
+	Addr     netip.AddrPort
 	Signer   ssh.Signer
 	log      *log.Logger
 	pemBytes []byte
 }
 
-func NewClient(ip string, port int, clientPrivateKey []byte, log *log.Logger) (*Client, error) {
+func NewClient(addr netip.AddrPort, clientPrivateKey []byte, log *log.Logger) (*Client, error) {
 	signer, err := ssh.ParsePrivateKey(clientPrivateKey)
 	if err != nil {
 		return nil, err
@@ -30,8 +31,7 @@ func NewClient(ip string, port int, clientPrivateKey []byte, log *log.Logger) (*
 	log.SetPrefix("SOFT-SERVE: ")
 	log.Printf("Created signer")
 	return &Client{
-		ip,
-		port,
+		addr,
 		signer,
 		log,
 		clientPrivateKey,
@@ -64,7 +64,7 @@ func (ss *Client) RemovePublicKey(user string, pubKey string) error {
 func (ss *Client) RunCommand(args ...string) error {
 	cmd := strings.Join(args, " ")
 	log.Printf("Running command %s", cmd)
-	client, err := ssh.Dial("tcp", ss.addressSSH(), ss.sshClientConfig())
+	client, err := ssh.Dial("tcp", ss.Addr.String(), ss.sshClientConfig())
 	if err != nil {
 		return err
 	}
@@ -88,18 +88,66 @@ func (ss *Client) AddCollaborator(repo, user string) error {
 	return ss.RunCommand("repo", "collab", "add", repo, user)
 }
 
-func (ss *Client) GetRepo(name string) (*git.Repository, error) {
-	return git.Clone(memory.NewStorage(), memfs.New(), &git.CloneOptions{
-		URL:             ss.GetRepoAddress(name),
-		Auth:            ss.authSSH(),
+type Repository struct {
+	*git.Repository
+	Addr RepositoryAddress
+}
+
+func (ss *Client) GetRepo(name string) (*Repository, error) {
+	return CloneRepo(RepositoryAddress{ss.Addr, name}, ss.Signer)
+}
+
+type RepositoryAddress struct {
+	Addr netip.AddrPort
+	Name string
+}
+
+func ParseRepositoryAddress(addr string) (RepositoryAddress, error) {
+	items := regexp.MustCompile(`ssh://.*)/(.*)`).FindStringSubmatch(addr)
+	if len(items) != 2 {
+		return RepositoryAddress{}, fmt.Errorf("Invalid address")
+	}
+	ipPort, err := netip.ParseAddrPort(items[1])
+	if err != nil {
+		return RepositoryAddress{}, err
+	}
+	return RepositoryAddress{ipPort, items[2]}, nil
+}
+
+func (r RepositoryAddress) FullAddress() string {
+	return fmt.Sprintf("ssh://%s/%s", r.Addr, r.Name)
+}
+
+func CloneRepo(addr RepositoryAddress, signer ssh.Signer) (*Repository, error) {
+	c, err := git.Clone(memory.NewStorage(), memfs.New(), &git.CloneOptions{
+		URL: addr.FullAddress(),
+		Auth: &gitssh.PublicKeys{
+			User:   "git",
+			Signer: signer,
+			HostKeyCallbackHelper: gitssh.HostKeyCallbackHelper{
+				HostKeyCallback: func(hostname string, remote net.Addr, key ssh.PublicKey) error {
+					// TODO(giolekva): verify server public key
+					fmt.Printf("--- %+v\n", ssh.MarshalAuthorizedKey(key))
+					return nil
+				},
+			},
+		},
 		RemoteName:      "origin",
 		ReferenceName:   "refs/heads/master",
 		Depth:           1,
 		InsecureSkipTLS: true,
 		Progress:        os.Stdout,
 	})
+	if err != nil {
+		return nil, err
+	}
+	return &Repository{
+		Repository: c,
+		Addr:       addr,
+	}, nil
 }
 
+// TODO(giolekva): dead code
 func (ss *Client) authSSH() gitssh.AuthMethod {
 	a, err := gitssh.NewPublicKeys("git", ss.pemBytes, "")
 	if err != nil {
@@ -149,7 +197,7 @@ func (ss *Client) GetPublicKey() ([]byte, error) {
 			return nil
 		},
 	}
-	_, err := ssh.Dial("tcp", ss.addressSSH(), config)
+	_, err := ssh.Dial("tcp", ss.Addr.String(), config)
 	if err != nil {
 		return nil, err
 	}
@@ -175,9 +223,5 @@ func (ss *Client) GetRepoAddress(name string) string {
 }
 
 func (ss *Client) addressGit() string {
-	return fmt.Sprintf("ssh://%s", ss.addressSSH())
-}
-
-func (ss *Client) addressSSH() string {
-	return fmt.Sprintf("%s:%d", ss.IP, ss.port)
+	return fmt.Sprintf("ssh://%s", ss.Addr)
 }

@@ -303,7 +303,7 @@ func addNewEnv(
 	if err != nil {
 		return err
 	}
-	repoIP := "192.168.0.211" // TODO(giolekva): configure
+	repoIP := repoIO.Addr().Addr().String()
 	for _, tmpl := range tmpls.Templates() {
 		dstPath := path.Join("environments", req.Name, tmpl.Name())
 		dst, err := repoIO.Writer(dstPath)

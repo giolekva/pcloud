@@ -2,6 +2,7 @@ package main
 
 import (
 	"log"
+	"net/netip"
 	"os"
 
 	"github.com/spf13/cobra"
@@ -12,8 +13,8 @@ import (
 )
 
 var envManagerFlags struct {
-	repoIP   string
-	repoPort int
+	repoAddr string
+	repoName string
 	sshKey   string
 	port     int
 }
@@ -24,15 +25,15 @@ func envManagerCmd() *cobra.Command {
 		RunE: envManagerCmdRun,
 	}
 	cmd.Flags().StringVar(
-		&envManagerFlags.repoIP,
-		"repo-ip",
+		&envManagerFlags.repoAddr,
+		"repo-addr",
 		"",
 		"",
 	)
-	cmd.Flags().IntVar(
-		&envManagerFlags.repoPort,
-		"repo-port",
-		22,
+	cmd.Flags().StringVar(
+		&envManagerFlags.repoName,
+		"repo-name",
+		"",
 		"",
 	)
 	cmd.Flags().StringVar(
@@ -55,11 +56,15 @@ func envManagerCmdRun(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-	ss, err := soft.NewClient(envManagerFlags.repoIP, envManagerFlags.repoPort, sshKey, log.Default())
+	repoAddr, err := netip.ParseAddrPort(envManagerFlags.repoAddr)
 	if err != nil {
 		return err
 	}
-	repo, err := ss.GetRepo("pcloud")
+	ss, err := soft.NewClient(repoAddr, sshKey, log.Default())
+	if err != nil {
+		return err
+	}
+	repo, err := ss.GetRepo(envManagerFlags.repoName)
 	if err != nil {
 		return err
 	}
