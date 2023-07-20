@@ -1,0 +1,76 @@
+# Config file /etc/systemd/network/10-enp7s0.network
+[Match]
+MACAddress=58:11:22:c4:53:a1 # Main network interface MAC
+
+[Network]
+Address=2a01:4f9:3080:3052::/64
+Gateway=fe80::1
+Address=135.181.48.180/26
+Gateway=135.181.48.129
+# VLAN=enp7s0.4000
+
+[Address]
+Address=135.181.48.180/26 # Main IP, /32 suffix is optional
+Peer=135.181.48.129/32 # Gateway
+Broadcast=135.181.48.191
+
+
+
+# Config file /etc/systemd/network/10-enp7s0.network
+[Match]
+MACAddress=58:11:22:c4:53:ed # Main network interface MAC
+
+[Network]
+Address=2a01:4f9:3080:3490::/64
+Gateway=fe80::1
+Address=65.108.39.172/26
+Gateway=65.108.39.129
+# VLAN=enp7s0.4000
+
+[Address]
+Address=65.108.39.172/26 # Main IP, /32 suffix is optional
+Peer=65.108.39.129/32 # Gateway
+Broadcast=65.108.39.191
+
+
+
+# Config file /etc/systemd/network/10-enp7s0.network
+[Match]
+MACAddress=58:11:22:c4:54:08 # Main network interface MAC
+
+[Network]
+Address=2a01:4f9:3080:34af::/64
+Gateway=fe80::1
+Address=65.108.39.171/26
+Gateway=65.108.39.129
+# VLAN=enp7s0.4000
+
+[Address]
+Address=65.108.39.171/26 # Main IP, /32 suffix is optional
+Peer=65.108.39.129/32 # Gateway
+Broadcast=65.108.39.191
+
+
+
+
+
+
+#/etc/systemd/network/10-enp7s0.4000.netdev
+[NetDev]
+Name=enp7s0.4000
+Kind=vlan
+MTUBytes=1400
+[VLAN]
+Id=4000
+
+
+#/etc/systemd/network/10-enp7s0.4000.network
+[Match]
+Name=enp7s0.4000
+[Network]
+Description="VLAN 4000"
+Address=192.168.0.1/24
+
+
+
+LABEL=pcloud-storage	/pcloud-storage	ext4	defaults	0 1
