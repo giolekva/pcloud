@@ -90,6 +90,7 @@ func CreateAllApps() []App {
 		CreateAppHeadscale(valuesTmpls, tmpls),
 		CreateAppTailscaleProxy(valuesTmpls, tmpls),
 		CreateMetallbConfigEnv(valuesTmpls, tmpls),
+		CreateMetallbIPAddressPool(valuesTmpls, tmpls),
 		CreateEnvManager(valuesTmpls, tmpls),
 		CreateWelcome(valuesTmpls, tmpls),
 		CreateAppManager(valuesTmpls, tmpls),
@@ -397,6 +398,22 @@ func CreateMetallbConfigEnv(fs embed.FS, tmpls *template.Template) App {
 		},
 		string(schema),
 		tmpls.Lookup("metallb-config-env.md"),
+	}
+}
+
+func CreateMetallbIPAddressPool(fs embed.FS, tmpls *template.Template) App {
+	schema, err := fs.ReadFile("values-tmpl/metallb-ipaddresspool.jsonschema")
+	if err != nil {
+		panic(err)
+	}
+	return App{
+		"metallb-ipaddresspool",
+		[]string{"metallb-ipaddresspool"},
+		[]*template.Template{
+			tmpls.Lookup("metallb-ipaddresspool.yaml"),
+		},
+		string(schema),
+		tmpls.Lookup("metallb-ipaddresspool.md"),
 	}
 }
 

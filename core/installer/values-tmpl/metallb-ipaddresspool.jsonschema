@@ -1,0 +1,10 @@
+{
+  "type": "object",
+  "properties": {
+    "Name": { "type": "string" },
+	"From": { "type": "string" },
+    "To": { "type": "string" },
+	"AutoAssign": { "type": "boolean" }
+  },
+  "additionalProperties": false
+}
