@@ -17,7 +17,7 @@ spec:
       volumes:
       - name: data
         persistentVolumeClaim:
-          claimName: data
+          claimName: soft-serve
       {{ if and .Values.privateKey .Values.publicKey }}
       - name: keys
         configMap:

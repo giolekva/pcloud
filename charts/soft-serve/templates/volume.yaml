@@ -1,7 +1,7 @@
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
-  name: data
+  name: soft-serve
   namespace: {{ .Release.Namespace }}
 spec:
   accessModes:
