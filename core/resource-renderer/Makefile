@@ -68,13 +68,36 @@ build: generate fmt vet ## Build manager binary.
 run: manifests generate fmt vet ## Run a controller from your host.
 	go run ./main.go
 
+clean:
+	rm -rf manager_arm64 manager_amd64
+
+build_arm64: export CGO_ENABLED=0
+build_arm64: export GO111MODULE=on
+build_arm64: export GOOS=linux
+build_arm64: export GOARCH=arm64
+build_arm64:
+	go build -a -o manager_arm64 main.go
+
+build_amd64: export CGO_ENABLED=0
+build_amd64: export GO111MODULE=on
+build_amd64: export GOOS=linux
+build_amd64: export GOARCH=amd64
+build_amd64:
+	go build -a -o manager_amd64 main.go
+
+
 .PHONY: docker-build
-docker-build: test ## Build docker image with the manager.
-	podman build -t ${IMG} .
+docker-build: test clean build_arm64 build_amd64 ## Build docker image with the manager.
+	podman build --platform linux/arm64 --tag ${IMG}-arm64 .
+	podman build --platform linux/amd64 --tag ${IMG}-amd64 .
 
 .PHONY: docker-push
 docker-push: ## Push docker image with the manager.
-	podman push ${IMG}
+	podman push ${IMG}-arm64
+	podman push ${IMG}-amd64
+	podman manifest create ${IMG} ${IMG}-arm64 ${IMG}-amd64
+	podman manifest push ${IMG} docker://docker.io/${IMG}
+	podman manifest rm ${IMG}
 
 ##@ Deployment
 
