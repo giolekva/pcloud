@@ -25,14 +25,17 @@ spec:
         env:
         - name: SSH_KNOWN_HOSTS
           value: /.ssh/known_hosts
-        command: ["./flux", "bootstrap", "git",
-        "--namespace={{ .Values.installationNamespace}}",
-        "--url={{ .Values.repositoryAddress }}",
-        "--branch={{ .Values.repository.branch }}",
-        "--path={{ .Values.repository.path }}",
-        "--private-key-file=/access-keys/private.key",
-        "--ssh-key-algorithm=ed25519",
-        "--silent",
-        "--watch-all-namespaces",
-        "--verbose"]
+        command:
+        - flux
+        - bootstrap
+        - git
+        - --namespace={{ .Values.installationNamespace }}
+        - --url={{ .Values.repositoryAddress }}
+        - --branch={{ .Values.repository.branch }}
+        - --path={{ .Values.repository.path }}
+        - --private-key-file=/access-keys/private.key
+        - --ssh-key-algorithm=ed25519
+        - --silent
+        - --watch-all-namespaces
+        - --verbose
       restartPolicy: Never
