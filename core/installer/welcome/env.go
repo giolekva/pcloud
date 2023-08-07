@@ -98,24 +98,29 @@ func (s *EnvServer) createEnv(c echo.Context) error {
 	}
 	{
 		repo, err := s.ss.GetRepo(req.Name)
-		if repo == nil {
+		if err != nil {
 			return err
 		}
-		if err := initNewEnv(s.ss, installer.NewRepoIO(repo, s.ss.Signer), s.nsCreator, req); err != nil {
+		var env installer.EnvConfig
+		r, err := s.repo.Reader("config.yaml")
+		if err != nil {
+			return err
+		}
+		defer r.Close()
+		if err := installer.ReadYaml(r, &env); err != nil {
+			return err
+		}
+		if err := initNewEnv(s.ss, installer.NewRepoIO(repo, s.ss.Signer), s.nsCreator, req, env); err != nil {
 			return err
 		}
 	}
 	{
-		repo, err := s.ss.GetRepo("pcloud")
-		if err != nil {
-			return err
-		}
 		ssPubKey, err := s.ss.GetPublicKey()
 		if err != nil {
 			return err
 		}
 		if err := addNewEnv(
-			installer.NewRepoIO(repo, s.ss.Signer),
+			s.repo,
 			req,
 			keys,
 			ssPubKey,
@@ -126,22 +131,27 @@ func (s *EnvServer) createEnv(c echo.Context) error {
 	return c.String(http.StatusOK, "OK")
 }
 
-func initNewEnv(ss *soft.Client, r installer.RepoIO, nsCreator installer.NamespaceCreator, req createEnvReq) error {
+func initNewEnv(
+	ss *soft.Client,
+	r installer.RepoIO,
+	nsCreator installer.NamespaceCreator,
+	req createEnvReq,
+	env installer.EnvConfig,
+) error {
 	appManager, err := installer.NewAppManager(r, nsCreator)
 	if err != nil {
 		return err
 	}
 	appsRepo := installer.NewInMemoryAppRepository(installer.CreateAllApps())
-	// TODO(giolekva): env name and ip should come from pcloud repo config.yaml
 	// TODO(giolekva): private domain can be configurable as well
 	config := installer.Config{
 		Values: installer.Values{
-			PCloudEnvName:   "pcloud",
+			PCloudEnvName:   env.Name,
 			Id:              req.Name,
 			ContactEmail:    req.ContactEmail,
 			Domain:          req.Domain,
 			PrivateDomain:   fmt.Sprintf("p.%s", req.Domain),
-			PublicIP:        "46.49.35.44",
+			PublicIP:        env.PublicIP,
 			NamespacePrefix: fmt.Sprintf("%s-", req.Name),
 		},
 	}

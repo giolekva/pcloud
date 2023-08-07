@@ -94,7 +94,7 @@ type Repository struct {
 }
 
 func (ss *Client) GetRepo(name string) (*Repository, error) {
-	return CloneRepo(RepositoryAddress{ss.Addr, name}, ss.Signer)
+	return CloneRepository(RepositoryAddress{ss.Addr, name}, ss.Signer)
 }
 
 type RepositoryAddress struct {
@@ -118,7 +118,7 @@ func (r RepositoryAddress) FullAddress() string {
 	return fmt.Sprintf("ssh://%s/%s", r.Addr, r.Name)
 }
 
-func CloneRepo(addr RepositoryAddress, signer ssh.Signer) (*Repository, error) {
+func CloneRepository(addr RepositoryAddress, signer ssh.Signer) (*Repository, error) {
 	c, err := git.Clone(memory.NewStorage(), memfs.New(), &git.CloneOptions{
 		URL: addr.FullAddress(),
 		Auth: &gitssh.PublicKeys{

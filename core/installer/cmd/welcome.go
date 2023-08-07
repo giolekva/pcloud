@@ -56,7 +56,7 @@ func welcomeCmdRun(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-	repo, err := soft.CloneRepo(addr, signer)
+	repo, err := soft.CloneRepository(addr, signer)
 	if err != nil {
 		return err
 	}

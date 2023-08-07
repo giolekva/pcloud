@@ -77,7 +77,7 @@ func (r *repoIO) ReadConfig() (Config, error) {
 	}
 	defer configF.Close()
 	var cfg Config
-	if err := readYaml(configF, &cfg); err != nil {
+	if err := ReadYaml(configF, &cfg); err != nil {
 		return Config{}, err
 	} else {
 		return cfg, nil
@@ -91,7 +91,7 @@ func (r *repoIO) ReadAppConfig(path string) (AppConfig, error) {
 	}
 	defer configF.Close()
 	var cfg AppConfig
-	if err := readYaml(configF, &cfg); err != nil {
+	if err := ReadYaml(configF, &cfg); err != nil {
 		return AppConfig{}, err
 	} else {
 		return cfg, nil
@@ -155,7 +155,7 @@ func (r *repoIO) ReadYaml(path string) (any, error) {
 		return nil, err
 	}
 	data := make(map[string]any)
-	if err := readYaml(inp, &data); err != nil {
+	if err := ReadYaml(inp, &data); err != nil {
 		return nil, err
 	}
 	return data, err
@@ -348,7 +348,7 @@ func auth(signer ssh.Signer) *gitssh.PublicKeys {
 	}
 }
 
-func readYaml[T any](r io.Reader, o *T) error {
+func ReadYaml[T any](r io.Reader, o *T) error {
 	if contents, err := ioutil.ReadAll(r); err != nil {
 		return err
 	} else {
