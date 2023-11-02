@@ -1,8 +1,9 @@
+{{- $ns := default .Release.Namespace .Values.namespace }}
 apiVersion: metallb.io/v1beta1
 kind: IPAddressPool
 metadata:
   name: {{ .Values.name }}
-  namespace: {{ .Release.Namespace }}
+  namespace: {{ $ns }}
 spec:
   autoAssign: {{ .Values.autoAssign }}
   addresses:
@@ -12,7 +13,7 @@ apiVersion: metallb.io/v1beta1
 kind: L2Advertisement
 metadata:
   name: {{ .Values.name }}
-  namespace: {{ .Release.Namespace }}
+  namespace: {{ $ns }}
 spec:
   ipAddressPools:
   - {{ .Values.name }}
