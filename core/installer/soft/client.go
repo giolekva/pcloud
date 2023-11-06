@@ -1,6 +1,7 @@
 package soft
 
 import (
+	"errors"
 	"fmt"
 	"golang.org/x/crypto/ssh"
 	"log"
@@ -12,6 +13,7 @@ import (
 
 	"github.com/go-git/go-billy/v5/memfs"
 	"github.com/go-git/go-git/v5"
+	"github.com/go-git/go-git/v5/plumbing/transport"
 	gitssh "github.com/go-git/go-git/v5/plumbing/transport/ssh"
 	"github.com/go-git/go-git/v5/storage/memory"
 )
@@ -103,8 +105,8 @@ type RepositoryAddress struct {
 }
 
 func ParseRepositoryAddress(addr string) (RepositoryAddress, error) {
-	items := regexp.MustCompile(`ssh://.*)/(.*)`).FindStringSubmatch(addr)
-	if len(items) != 2 {
+	items := regexp.MustCompile(`ssh://(.*)/(.*)`).FindStringSubmatch(addr)
+	if len(items) != 3 {
 		return RepositoryAddress{}, fmt.Errorf("Invalid address")
 	}
 	ipPort, err := netip.ParseAddrPort(items[1])
@@ -138,7 +140,7 @@ func CloneRepository(addr RepositoryAddress, signer ssh.Signer) (*Repository, er
 		InsecureSkipTLS: true,
 		Progress:        os.Stdout,
 	})
-	if err != nil {
+	if err != nil && !errors.Is(err, transport.ErrEmptyRemoteRepository) {
 		return nil, err
 	}
 	return &Repository{

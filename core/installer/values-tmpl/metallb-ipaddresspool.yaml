@@ -17,3 +17,4 @@ spec:
     from: {{ .Values.From }}
     to: {{ .Values.To }}
     autoAssign: {{ .Values.AutoAssign }}
+    namespace: {{ .Values.Namespace }}

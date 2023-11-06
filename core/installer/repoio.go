@@ -378,6 +378,8 @@ func deriveValues(values any, schema map[string]any, networks []Network) (map[st
 			} else {
 				ret[k] = v
 			}
+		} else if t == "boolean" {
+			ret[k] = v
 		} else {
 			ret[k], err = deriveValues(v, def, networks)
 			if err != nil {

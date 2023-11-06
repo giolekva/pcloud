@@ -32,8 +32,7 @@ func NewBootstrapper(cl ChartLoader, ns NamespaceCreator, ha HelmActionConfigFac
 }
 
 func (b Bootstrapper) Run(env EnvConfig) error {
-	bootstrapJobKeys, err := NewSSHKeyPair()
-	if err != nil {
+	if err := b.ns.Create(env.Name); err != nil {
 		return err
 	}
 	if err := b.installMetallb(env); err != nil {
@@ -43,13 +42,17 @@ func (b Bootstrapper) Run(env EnvConfig) error {
 		return err
 	}
 	time.Sleep(1 * time.Minute) // TODO(giolekva): implement proper wait
-	if err := b.installSoftServe(bootstrapJobKeys.Public, env.Name, env.ServiceIPs.ConfigRepo); err != nil {
+	bootstrapJobKeys, err := NewSSHKeyPair("bootstrapper")
+	if err != nil {
+		return err
+	}
+	if err := b.installSoftServe(bootstrapJobKeys.AuthorizedKey(), env.Name, env.ServiceIPs.ConfigRepo); err != nil {
 		return err
 	}
 	var ss *soft.Client
 	err = backoff.Retry(func() error {
 		var err error
-		ss, err = soft.NewClient(netip.AddrPortFrom(env.ServiceIPs.ConfigRepo, 22), []byte(bootstrapJobKeys.Private), log.Default())
+		ss, err = soft.NewClient(netip.AddrPortFrom(env.ServiceIPs.ConfigRepo, 22), bootstrapJobKeys.RawPrivateKey(), log.Default())
 		return err
 	}, backoff.NewConstantBackOff(5*time.Second))
 	if err != nil {
@@ -76,7 +79,7 @@ func (b Bootstrapper) Run(env EnvConfig) error {
 	if err := b.installEnvManager(ss, repoIO, nsGen, b.ns, env); err != nil {
 		return err
 	}
-	if ss.RemovePublicKey("admin", bootstrapJobKeys.Public); err != nil {
+	if ss.RemovePublicKey("admin", bootstrapJobKeys.AuthorizedKey()); err != nil {
 		return err
 	}
 	return nil
@@ -242,7 +245,7 @@ func (b Bootstrapper) installLonghorn(envName string, storageDir string, volumeD
 
 func (b Bootstrapper) installSoftServe(adminPublicKey string, envName string, repoIP netip.Addr) error {
 	fmt.Println("Installing SoftServe")
-	keys, err := NewSSHKeyPair()
+	keys, err := NewSSHKeyPair("soft-serve")
 	if err != nil {
 		return err
 	}
@@ -260,8 +263,8 @@ func (b Bootstrapper) installSoftServe(adminPublicKey string, envName string, re
 			"tag":        "v0.5.4",
 			"pullPolicy": "IfNotPresent",
 		},
-		"privateKey": keys.Private,
-		"publicKey":  keys.Public,
+		"privateKey": string(keys.RawPrivateKey()),
+		"publicKey":  string(keys.RawAuthorizedKey()),
 		"adminKey":   adminPublicKey,
 		"reservedIP": repoIP.String(),
 	}
@@ -279,11 +282,11 @@ func (b Bootstrapper) installSoftServe(adminPublicKey string, envName string, re
 }
 
 func (b Bootstrapper) installFluxcd(ss *soft.Client, envName string) error {
-	keys, err := NewSSHKeyPair()
+	keys, err := NewSSHKeyPair("fluxcd")
 	if err != nil {
 		return err
 	}
-	if err := ss.AddUser("flux", keys.Public); err != nil {
+	if err := ss.AddUser("flux", keys.AuthorizedKey()); err != nil {
 		return err
 	}
 	if err := ss.MakeUserAdmin("flux"); err != nil {
@@ -302,7 +305,7 @@ func (b Bootstrapper) installFluxcd(ss *soft.Client, envName string) error {
 		ss.GetRepoAddress(envName),
 		ss.Addr.Addr().String(),
 		string(ssPublic),
-		keys.Private,
+		string(keys.RawPrivateKey()),
 		envName,
 	); err != nil {
 		return err
@@ -443,12 +446,12 @@ spec:
 }
 
 func (b Bootstrapper) installEnvManager(ss *soft.Client, repo RepoIO, nsGen NamespaceGenerator, nsCreator NamespaceCreator, env EnvConfig) error {
-	keys, err := NewSSHKeyPair()
+	keys, err := NewSSHKeyPair("env-manager")
 	if err != nil {
 		return err
 	}
 	user := fmt.Sprintf("%s-env-manager", env.Name)
-	if err := ss.AddUser(user, keys.Public); err != nil {
+	if err := ss.AddUser(user, keys.AuthorizedKey()); err != nil {
 		return err
 	}
 	if err := ss.MakeUserAdmin(user); err != nil {
@@ -479,7 +482,7 @@ func (b Bootstrapper) installEnvManager(ss *soft.Client, repo RepoIO, nsGen Name
 			"RepoIP":        env.ServiceIPs.ConfigRepo,
 			"RepoPort":      22,
 			"RepoName":      env.Name,
-			"SSHPrivateKey": keys.Private,
+			"SSHPrivateKey": string(keys.RawPrivateKey()),
 		},
 	}
 	if len(namespaces) > 0 {

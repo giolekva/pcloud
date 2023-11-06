@@ -3,7 +3,6 @@ package main
 import (
 	"log"
 	"net/netip"
-	"os"
 
 	"github.com/spf13/cobra"
 
@@ -52,7 +51,7 @@ func envManagerCmd() *cobra.Command {
 }
 
 func envManagerCmdRun(cmd *cobra.Command, args []string) error {
-	sshKey, err := os.ReadFile(envManagerFlags.sshKey)
+	sshKey, err := installer.NewSSHKeyPair(envManagerFlags.sshKey)
 	if err != nil {
 		return err
 	}
@@ -60,15 +59,17 @@ func envManagerCmdRun(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-	ss, err := soft.NewClient(repoAddr, sshKey, log.Default())
+	ss, err := soft.NewClient(repoAddr, sshKey.RawPrivateKey(), log.Default())
 	if err != nil {
 		return err
 	}
+	log.Printf("Created Soft Serve client\n")
 	repo, err := ss.GetRepo(envManagerFlags.repoName)
 	if err != nil {
 		return err
 	}
-	repoIO := installer.NewRepoIO(repo, ss.Signer)
+	log.Printf("Cloned repo: %s\n", envManagerFlags.repoName)
+	repoIO := installer.NewRepoIO(repo, sshKey.Signer())
 	nsCreator, err := newNSCreator()
 	if err != nil {
 		return err
@@ -79,6 +80,7 @@ func envManagerCmdRun(cmd *cobra.Command, args []string) error {
 		repoIO,
 		nsCreator,
 	)
+	log.Printf("Starting server\n")
 	s.Start()
 	return nil
 }

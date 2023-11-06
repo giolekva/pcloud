@@ -22,7 +22,7 @@ spec:
       pullPolicy: IfNotPresent
     storage:
       size: 5Gi
-    ingressClassName: pcloud-ingress-public
+    ingressClassName: {{ .Global.Id }}-ingress-public
     certificateIssuer: {{ .Global.Id }}-public
     domain: {{ .Values.Subdomain }}.{{ .Global.Domain }}
     publicBaseDomain: {{ .Global.Domain }}

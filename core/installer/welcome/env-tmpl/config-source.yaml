@@ -4,7 +4,6 @@ metadata:
   name: {{ .Name }}
   namespace: {{ .Name }}
 spec:
-  gitImplementation: go-git
   interval: 1m0s
   ref:
     branch: master

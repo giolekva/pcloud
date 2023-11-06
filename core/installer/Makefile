@@ -7,11 +7,12 @@ push_fluxcd_arm64:
 	docker build --file=Dockerfile.flux --tag=giolekva/flux:latest . --platform=linux/arm64
 	docker push giolekva/flux:latest
 
+build: export CGO_ENABLED=0
 build: clean
 	go build -o pcloud cmd/*.go
 
 bootstrap:
-	./pcloud --kubeconfig=../../scripts/hetzner/kubeconfig bootstrap --env-name=dodo --charts-dir=../../charts --admin-pub-key=/Users/lekva/.ssh/id_rsa.pub --from-ip=192.168.100.210 --to-ip=192.168.100.240 --storage-dir=/pcloud-storage/longhorn
+	./pcloud --kubeconfig=../../priv/kubeconfig-hetzner bootstrap --env-name=dodo --charts-dir=../../charts --admin-pub-key=/Users/lekva/.ssh/id_rsa.pub --from-ip=192.168.100.210 --to-ip=192.168.100.240 --storage-dir=/pcloud-storage/longhorn
 
 create_env:
 	./pcloud --kubeconfig=../../priv/kubeconfig create-env --admin-priv-key=/Users/lekva/.ssh/id_rsa --name=lekva --ip=192.168.0.211 --admin-username=gio

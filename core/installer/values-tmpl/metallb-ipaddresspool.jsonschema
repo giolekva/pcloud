@@ -4,7 +4,8 @@
     "Name": { "type": "string" },
 	"From": { "type": "string" },
     "To": { "type": "string" },
-	"AutoAssign": { "type": "boolean" }
+	"AutoAssign": { "type": "boolean" },
+	"Namespace": { "type": "string" }
   },
   "additionalProperties": false
 }

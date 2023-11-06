@@ -15,6 +15,16 @@ build_amd64: export GOARCH=amd64
 build_amd64:
 	go build -o server_amd64 *.go
 
-push: clean build_arm64 # build_amd64
-	podman build --tag=giolekva/headscale-api:latest .
-	podman push giolekva/headscale-api:latest
+push_arm64: clean build_arm64
+	podman build --platform linux/arm64 --tag=giolekva/headscale-api:arm64 .
+	podman push giolekva/headscale-api:arm64
+
+push_amd64: clean build_amd64
+	podman build --platform linux/amd64 --tag=giolekva/headscale-api:amd64 .
+	podman push giolekva/headscale-api:amd64
+
+
+push: push_arm64 push_amd64
+	podman manifest create giolekva/headscale-api:latest giolekva/headscale-api:arm64 giolekva/headscale-api:amd64
+	podman manifest push giolekva/headscale-api:latest docker://docker.io/giolekva/headscale-api:latest
+	podman manifest rm giolekva/headscale-api:latest

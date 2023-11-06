@@ -20,6 +20,18 @@ func (g *emptySuffixGenerator) Generate() (string, error) {
 	return "", nil
 }
 
+type suffixGenerator struct {
+	suffix string
+}
+
+func NewSuffixGenerator(suffix string) SuffixGenerator {
+	return &suffixGenerator{suffix}
+}
+
+func (g *suffixGenerator) Generate() (string, error) {
+	return g.suffix, nil
+}
+
 type fixedLengthRandomSuffixGenerator struct {
 	len int
 }

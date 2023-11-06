@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
@@ -53,6 +54,8 @@ func (n *realNamespaceCreator) Create(name string) error {
 			Name: name,
 		},
 	}, metav1.CreateOptions{})
-	fmt.Printf("++++ Created ns: %s %+v\n", name, err)
+	if err != nil && errors.IsAlreadyExists(err) {
+		return nil
+	}
 	return err
 }
