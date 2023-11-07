@@ -5,6 +5,8 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	htemplate "html/template"
+	"io"
 	"log"
 	"net/http"
 	"path"
@@ -23,19 +25,37 @@ var filesTmpls embed.FS
 //go:embed create-env.html
 var createEnvFormHtml string
 
-type EnvServer struct {
-	port      int
-	ss        *soft.Client
-	repo      installer.RepoIO
-	nsCreator installer.NamespaceCreator
+//go:embed env-created.html
+var envCreatedHtml string
+
+type Status string
+
+const (
+	StatusActive   Status = "ACTIVE"
+	StatusAccepted Status = "ACCEPTED"
+)
+
+// TODO(giolekva): add CreatedAt and ValidUntil
+type invitation struct {
+	Token  string `json:"token"`
+	Status Status `json:"status"`
 }
 
-func NewEnvServer(port int, ss *soft.Client, repo installer.RepoIO, nsCreator installer.NamespaceCreator) *EnvServer {
+type EnvServer struct {
+	port          int
+	ss            *soft.Client
+	repo          installer.RepoIO
+	nsCreator     installer.NamespaceCreator
+	nameGenerator installer.NameGenerator
+}
+
+func NewEnvServer(port int, ss *soft.Client, repo installer.RepoIO, nsCreator installer.NamespaceCreator, nameGenerator installer.NameGenerator) *EnvServer {
 	return &EnvServer{
 		port,
 		ss,
 		repo,
 		nsCreator,
+		nameGenerator,
 	}
 }
 
@@ -44,21 +64,78 @@ func (s *EnvServer) Start() {
 	r.PathPrefix("/static/").Handler(http.FileServer(http.FS(staticAssets)))
 	r.Path("/env").Methods("GET").HandlerFunc(s.createEnvForm)
 	r.Path("/env").Methods("POST").HandlerFunc(s.createEnv)
+	r.Path("/create-invitation").Methods("GET").HandlerFunc(s.createInvitation)
 	http.Handle("/", r)
 	log.Fatal(http.ListenAndServe(fmt.Sprintf(":%d", s.port), nil))
 }
 
 func (s *EnvServer) createEnvForm(w http.ResponseWriter, r *http.Request) {
-	log.Printf("asdasd\n")
 	if _, err := w.Write([]byte(createEnvFormHtml)); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
 }
 
+func (s *EnvServer) createInvitation(w http.ResponseWriter, r *http.Request) {
+	invitations, err := s.readInvitations()
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	token, err := installer.NewFixedLengthRandomNameGenerator(100).Generate() // TODO(giolekva): use cryptographic tokens
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+
+	}
+	invitations = append(invitations, invitation{token, StatusActive})
+	if err := s.writeInvitations(invitations); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	if _, err := w.Write([]byte("OK")); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+}
+
 type createEnvReq struct {
-	Name         string `json:"name"`
+	Name         string
 	ContactEmail string `json:"contactEmail"`
 	Domain       string `json:"domain"`
+	SecretToken  string `json:"secretToken"`
+}
+
+func (s *EnvServer) readInvitations() ([]invitation, error) {
+	r, err := s.repo.Reader("invitations")
+	if err != nil {
+		return nil, err
+	}
+	defer r.Close()
+	dec := json.NewDecoder(r)
+	invitations := make([]invitation, 0)
+	for {
+		var i invitation
+		if err := dec.Decode(&i); err == io.EOF {
+			break
+		}
+		invitations = append(invitations, i)
+	}
+	return invitations, nil
+}
+
+func (s *EnvServer) writeInvitations(invitations []invitation) error {
+	w, err := s.repo.Writer("invitations")
+	if err != nil {
+		return err
+	}
+	defer w.Close()
+	enc := json.NewEncoder(w)
+	for _, i := range invitations {
+		if err := enc.Encode(i); err != nil {
+			return err
+		}
+	}
+	return s.repo.CommitAndPush("Generated new invitation")
 }
 
 func (s *EnvServer) createEnv(w http.ResponseWriter, r *http.Request) {
@@ -68,7 +145,7 @@ func (s *EnvServer) createEnv(w http.ResponseWriter, r *http.Request) {
 		if err = r.ParseForm(); err != nil {
 			return err
 		}
-		if req.Name, err = getFormValue(r.PostForm, "name"); err != nil {
+		if req.SecretToken, err = getFormValue(r.PostForm, "secret-token"); err != nil {
 			return err
 		}
 		if req.Domain, err = getFormValue(r.PostForm, "domain"); err != nil {
@@ -83,6 +160,33 @@ func (s *EnvServer) createEnv(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
+	}
+	invitations, err := s.readInvitations()
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	found := false
+	for _, i := range invitations {
+		if i.Token == req.SecretToken && i.Status == StatusActive {
+			i.Status = StatusAccepted
+			found = true
+			break
+		}
+	}
+	if !found {
+		http.Error(w, "Invalid invitation", http.StatusNotFound)
+		return
+	}
+	if err := s.writeInvitations(invitations); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	if name, err := s.nameGenerator.Generate(); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	} else {
+		req.Name = name
 	}
 	fluxUserName := fmt.Sprintf("flux-%s", req.Name)
 	keys, err := installer.NewSSHKeyPair(fluxUserName)
@@ -143,7 +247,14 @@ func (s *EnvServer) createEnv(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-	if _, err := w.Write([]byte("OK")); err != nil {
+	tmpl, err := htemplate.New("response").Parse(envCreatedHtml)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	if err := tmpl.Execute(w, map[string]any{
+		"Domain": req.Domain,
+	}); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}

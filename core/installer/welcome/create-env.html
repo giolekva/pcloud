@@ -12,12 +12,6 @@
                 <div>
                   <form action="/env" method="POST">
                     <input
-                      type="text"
-                      name="name"
-                      placeholder="Name"
-                      required
-                    />
-                    <input
                       type="test"
                       name="domain"
                       placeholder="Domain"
@@ -28,7 +22,12 @@
                       name="contact-email"
                       placeholder="Contact Email"
                       required
-                      />
+                    />
+                    <textarea
+                      name="secret-token"
+                      placeholder="Secret Token"
+                      required
+                    ></textarea>
                     <button type="submit" class="contrast">Create Environment</button>
                   </form>
                 </div>

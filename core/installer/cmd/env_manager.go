@@ -79,6 +79,7 @@ func envManagerCmdRun(cmd *cobra.Command, args []string) error {
 		ss,
 		repoIO,
 		nsCreator,
+		installer.NewFixedLengthRandomNameGenerator(4),
 	)
 	log.Printf("Starting server\n")
 	s.Start()
