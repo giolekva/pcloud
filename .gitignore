@@ -12,7 +12,5 @@ kubeconfig
 secrets.*.dec
 target
 main
-server_arm64
-server_amd64
-manager_arm64
-manager_amd64
+*_arm64
+*_amd64

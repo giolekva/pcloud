@@ -1,5 +1,5 @@
 image:
-  repository: giolekva/rpuppy-arm
+  repository: giolekva/rpuppy
   tag: latest
   pullPolicy: Always
 ingressClassName: ingress-public
