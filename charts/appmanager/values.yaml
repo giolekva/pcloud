@@ -9,3 +9,4 @@ ingress:
   domain: apps.p.example.com
   certificateIssuer: example-private
 clusterRoleName: example-welcome
+appRepoAddr: ""
