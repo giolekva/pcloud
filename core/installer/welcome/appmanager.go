@@ -28,27 +28,24 @@ var baseHtmlTmpl string
 var appHtmlTmpl string
 
 type AppManagerServer struct {
-	port       int
-	webAppAddr string
-	m          *installer.AppManager
-	r          installer.AppRepository[installer.StoreApp]
+	port int
+	m    *installer.AppManager
+	r    installer.AppRepository[installer.StoreApp]
 }
 
 func NewAppManagerServer(
 	port int,
-	webAppAddr string,
 	m *installer.AppManager,
 	r installer.AppRepository[installer.StoreApp],
 ) *AppManagerServer {
 	return &AppManagerServer{
 		port,
-		webAppAddr,
 		m,
 		r,
 	}
 }
 
-func (s *AppManagerServer) Start() {
+func (s *AppManagerServer) Start() error {
 	e := echo.New()
 	e.StaticFS("/static", echo.MustSubFS(staticAssets, "static"))
 	e.GET("/api/app-repo", s.handleAppRepo)
@@ -62,7 +59,7 @@ func (s *AppManagerServer) Start() {
 	e.GET("/app/:slug", s.handleAppUI)
 	e.GET("/instance/:slug", s.handleInstanceUI)
 	fmt.Printf("Starting HTTP server on port: %d\n", s.port)
-	log.Fatal(e.Start(fmt.Sprintf(":%d", s.port)))
+	return e.Start(fmt.Sprintf(":%d", s.port))
 }
 
 type app struct {
@@ -223,18 +220,21 @@ func (s *AppManagerServer) handleAppInstall(c echo.Context) error {
 	if err := json.Unmarshal(contents, &values); err != nil {
 		return err
 	}
-	fmt.Println(values)
+	log.Printf("Values: %+v\n", values)
 	a, err := s.r.Find(slug)
 	if err != nil {
 		return err
 	}
+	log.Printf("Found application: %s\n", slug)
 	config, err := s.m.Config()
 	if err != nil {
 		return err
 	}
+	log.Printf("Configuration: %+v\n", config)
 	nsGen := installer.NewPrefixGenerator(config.Values.NamespacePrefix)
 	suffixGen := installer.NewFixedLengthRandomSuffixGenerator(3)
 	if err := s.m.Install(a.App, nsGen, suffixGen, values); err != nil {
+		log.Printf("%s\n", err.Error())
 		return err
 	}
 	return c.String(http.StatusOK, "Installed")

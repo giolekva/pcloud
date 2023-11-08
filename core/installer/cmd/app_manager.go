@@ -1,21 +1,24 @@
 package main
 
 import (
+	"log"
 	"os"
 
-	"github.com/spf13/cobra"
 	"golang.org/x/crypto/ssh"
 
 	"github.com/giolekva/pcloud/core/installer"
 	"github.com/giolekva/pcloud/core/installer/soft"
 	"github.com/giolekva/pcloud/core/installer/welcome"
+
+	"github.com/go-git/go-billy/v5/memfs"
+	"github.com/spf13/cobra"
 )
 
 var appManagerFlags struct {
-	sshKey     string
-	repoAddr   string
-	port       int
-	webAppAddr string
+	sshKey      string
+	repoAddr    string
+	port        int
+	appRepoAddr string
 }
 
 func appManagerCmd() *cobra.Command {
@@ -42,8 +45,8 @@ func appManagerCmd() *cobra.Command {
 		"",
 	)
 	cmd.Flags().StringVar(
-		&appManagerFlags.webAppAddr,
-		"web-app-addr",
+		&appManagerFlags.appRepoAddr,
+		"app-repo-addr",
 		"",
 		"",
 	)
@@ -67,6 +70,7 @@ func appManagerCmdRun(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
+	log.Println("Cloned repository")
 	kube, err := newNSCreator()
 	if err != nil {
 		return err
@@ -78,13 +82,25 @@ func appManagerCmdRun(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-	r := installer.NewInMemoryAppRepository[installer.StoreApp](installer.CreateStoreApps())
+	log.Println("Creating repository")
+	var r installer.AppRepository[installer.StoreApp]
+	if appManagerFlags.appRepoAddr != "" {
+		fs := memfs.New()
+		err = installer.FetchAppsFromHTTPRepository(appManagerFlags.appRepoAddr, fs)
+		if err != nil {
+			return err
+		}
+		r, err = installer.NewFSAppRepository(fs)
+		if err != nil {
+			return err
+		}
+	} else {
+		r = installer.NewInMemoryAppRepository[installer.StoreApp](installer.CreateStoreApps())
+	}
 	s := welcome.NewAppManagerServer(
 		appManagerFlags.port,
-		appManagerFlags.webAppAddr,
 		m,
 		r,
 	)
-	s.Start()
-	return nil
+	return s.Start()
 }

@@ -1,15 +1,21 @@
 package installer
 
 import (
+	"archive/tar"
+	"compress/gzip"
 	"embed"
 	"encoding/json"
 	"fmt"
 	htemplate "html/template"
+	"io"
 	"log"
+	"net/http"
 	"strings"
 	"text/template"
 
 	"github.com/Masterminds/sprig/v3"
+	"github.com/go-git/go-billy/v5"
+	"sigs.k8s.io/yaml"
 )
 
 //go:embed values-tmpl
@@ -17,6 +23,14 @@ var valuesTmpls embed.FS
 
 type Named interface {
 	Nam() string
+}
+
+type appConfig struct {
+	Name        string         `json:"name"`
+	Version     string         `json:"version"`
+	Description string         `json:"description"`
+	Namespaces  []string       `json:"namespaces"`
+	Icon        htemplate.HTML `json:"icon"`
 }
 
 type App struct {
@@ -58,8 +72,8 @@ type InMemoryAppRepository[A Named] struct {
 	apps []A
 }
 
-func NewInMemoryAppRepository[A Named](apps []A) AppRepository[A] {
-	return &InMemoryAppRepository[A]{
+func NewInMemoryAppRepository[A Named](apps []A) InMemoryAppRepository[A] {
+	return InMemoryAppRepository[A]{
 		apps,
 	}
 }
@@ -558,4 +572,192 @@ func CreateHeadscaleController(fs embed.FS, tmpls *template.Template) App {
 		string(schema),
 		tmpls.Lookup("headscale-controller.md"),
 	}
+}
+
+type httpAppRepository struct {
+	apps []StoreApp
+}
+
+type appVersion struct {
+	Version string   `json:"version"`
+	Urls    []string `json:"urls"`
+}
+
+type allAppsResp struct {
+	ApiVersion string                  `json:"apiVersion"`
+	Entries    map[string][]appVersion `json:"entries"`
+}
+
+func FetchAppsFromHTTPRepository(addr string, fs billy.Filesystem) error {
+	resp, err := http.Get(addr)
+	if err != nil {
+		return err
+	}
+	b, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return err
+	}
+	var apps allAppsResp
+	if err := yaml.Unmarshal(b, &apps); err != nil {
+		return err
+	}
+	for name, conf := range apps.Entries {
+		for _, version := range conf {
+			resp, err := http.Get(version.Urls[0])
+			if err != nil {
+				return err
+			}
+			nameVersion := fmt.Sprintf("%s-%s", name, version.Version)
+			if err := fs.MkdirAll(nameVersion, 0700); err != nil {
+				return err
+			}
+			sub, err := fs.Chroot(nameVersion)
+			if err != nil {
+				return err
+			}
+			if err := extractApp(resp.Body, sub); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
+func extractApp(archive io.Reader, fs billy.Filesystem) error {
+	uncompressed, err := gzip.NewReader(archive)
+	if err != nil {
+		return err
+	}
+	tarReader := tar.NewReader(uncompressed)
+	for true {
+		header, err := tarReader.Next()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			return err
+		}
+		switch header.Typeflag {
+		case tar.TypeDir:
+			if err := fs.MkdirAll(header.Name, 0755); err != nil {
+				return err
+			}
+		case tar.TypeReg:
+			out, err := fs.Create(header.Name)
+			if err != nil {
+				return err
+			}
+			defer out.Close()
+			if _, err := io.Copy(out, tarReader); err != nil {
+				return err
+			}
+		default:
+			return fmt.Errorf("Uknown type: %s", header.Name)
+		}
+	}
+	return nil
+}
+
+type fsAppRepository struct {
+	InMemoryAppRepository[StoreApp]
+	fs billy.Filesystem
+}
+
+func NewFSAppRepository(fs billy.Filesystem) (AppRepository[StoreApp], error) {
+	all, err := fs.ReadDir(".")
+	if err != nil {
+		return nil, err
+	}
+	apps := make([]StoreApp, 0)
+	for _, e := range all {
+		if !e.IsDir() {
+			continue
+		}
+		appFS, err := fs.Chroot(e.Name())
+		if err != nil {
+			return nil, err
+		}
+		app, err := loadApp(appFS)
+		if err != nil {
+			log.Printf("Ignoring directory %s: %s", e.Name(), err)
+			continue
+		}
+		apps = append(apps, app)
+	}
+	return &fsAppRepository{
+		NewInMemoryAppRepository[StoreApp](apps),
+		fs,
+	}, nil
+}
+
+func loadApp(fs billy.Filesystem) (StoreApp, error) {
+	cfg, err := fs.Open("Chart.yaml")
+	if err != nil {
+		return StoreApp{}, err
+	}
+	defer cfg.Close()
+	b, err := io.ReadAll(cfg)
+	if err != nil {
+		return StoreApp{}, err
+	}
+	var appCfg appConfig
+	if err := yaml.Unmarshal(b, &appCfg); err != nil {
+		return StoreApp{}, err
+	}
+	rb, err := fs.Open("README.md")
+	if err != nil {
+		return StoreApp{}, err
+	}
+	defer rb.Close()
+	readme, err := io.ReadAll(rb)
+	if err != nil {
+		return StoreApp{}, err
+	}
+	readmeTmpl, err := template.New("README.md").Parse(string(readme))
+	if err != nil {
+		return StoreApp{}, err
+	}
+	sb, err := fs.Open("schema.json")
+	if err != nil {
+		return StoreApp{}, err
+	}
+	defer sb.Close()
+	schema, err := io.ReadAll(sb)
+	if err != nil {
+		return StoreApp{}, err
+	}
+	tFiles, err := fs.ReadDir("templates")
+	if err != nil {
+		return StoreApp{}, err
+	}
+	tmpls := make([]*template.Template, 0)
+	for _, t := range tFiles {
+		if !strings.HasSuffix(t.Name(), ".yaml") {
+			continue
+		}
+		inp, err := fs.Open(fs.Join("templates", t.Name()))
+		if err != nil {
+			return StoreApp{}, err
+		}
+		b, err := io.ReadAll(inp)
+		if err != nil {
+			return StoreApp{}, err
+		}
+		tmpl, err := template.New(t.Name()).Parse(string(b))
+		if err != nil {
+			return StoreApp{}, err
+		}
+		tmpls = append(tmpls, tmpl)
+	}
+	return StoreApp{
+		App: App{
+			Name:       appCfg.Name,
+			Readme:     readmeTmpl,
+			Schema:     string(schema),
+			Namespaces: appCfg.Namespaces,
+			Templates:  tmpls,
+		},
+		ShortDescription: appCfg.Description,
+		Icon:             appCfg.Icon,
+	}, nil
 }
