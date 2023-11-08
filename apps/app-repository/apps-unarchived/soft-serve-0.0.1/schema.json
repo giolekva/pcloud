@@ -1,0 +1,10 @@
+{
+  "type": "object",
+  "properties": {
+    "Network": { "type": "string", "default": "Public", "role": "network" },
+    "Subdomain": { "type": "string", "default": "softserve" },
+	"AdminKey": { "type": "string" },
+	"SourcePort": { "type": "string", "default": "0" }
+  },
+  "additionalProperties": false
+}

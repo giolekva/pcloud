@@ -42,7 +42,7 @@ func (s *Server) allApps(w http.ResponseWriter, r *http.Request) {
 		}
 		e = append(e, map[string]any{
 			"version": a.Version(),
-			"urls":    []string{fmt.Sprintf("%s/%s/%s.tar.gz", s.schemeWithHost, a.Name(), a.Version())},
+			"urls":    []string{fmt.Sprintf("%s/app/%s/%s.tar.gz", s.schemeWithHost, a.Name(), a.Version())},
 		})
 		entries[a.Name()] = e
 	}
