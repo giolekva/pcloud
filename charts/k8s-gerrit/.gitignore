@@ -1,0 +1,14 @@
+*.pem
+*.crt
+/helm-charts/*/charts
+/helm-charts/*/requirements.lock
+
+__pycache__
+.pytest_cache
+*.pyc
+
+*bin/
+.DS_Store
+.vscode/
+
+.project

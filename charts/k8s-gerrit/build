@@ -1,0 +1,128 @@
+#!/bin/bash
+
+usage() {
+    me=`basename "$0"`
+    echo >&2 "Usage: $me [--help] [--tag TAG] [--gerrit-url URL] [--base-image IMAGE] [IMAGE]"
+    exit 1
+}
+
+while test $# -gt 0 ; do
+  case "$1" in
+  --help)
+    usage
+    ;;
+
+  --tag)
+    shift
+    TAG=$1
+    shift
+    ;;
+
+  --gerrit-url)
+    shift
+    GERRIT_WAR_URL=$1
+    shift
+    ;;
+
+  --healthcheck-jar-url)
+    shift
+    HEALTHCHECK_JAR_URL=$1
+    shift
+    ;;
+
+  --base-image)
+    shift
+    BASE_IMAGE=$1
+    shift
+    ;;
+
+  *)
+    break
+  esac
+done
+
+#Get list of images
+source container-images/publish_list
+IMAGES=$(get_image_list)
+
+if test -n "$GERRIT_WAR_URL"; then
+    BUILD_ARGS="--build-arg GERRIT_WAR_URL=$GERRIT_WAR_URL"
+fi
+
+if test -n "$HEALTHCHECK_JAR_URL"; then
+    BUILD_ARGS="$BUILD_ARGS --build-arg HEALTHCHECK_JAR_URL=$HEALTHCHECK_JAR_URL"
+fi
+
+export REV="$(git describe --always --dirty)"
+
+docker_build(){
+    IMAGE=$1
+
+    docker build \
+        --platform=linux/amd64 \
+        --build-arg TAG=$REV \
+        -t k8sgerrit/$IMAGE:$TAG \
+        ./container-images/$IMAGE
+
+    if test $? -ne 0; then
+        REPORT="$REPORT Failed: k8sgerrit/$IMAGE.\n"
+        RETURN_CODE=1
+    else
+        REPORT="$REPORT Success: k8sgerrit/$IMAGE:$TAG\n"
+    fi
+}
+
+docker_build_gerrit_base(){
+    BUILD_ARGS="$BUILD_ARGS --build-arg TAG=$REV"
+    docker build \
+        --platform=linux/amd64 \
+        $BUILD_ARGS \
+        -t gerrit-base:$REV \
+        ./container-images/gerrit-base
+    if test $? -ne 0; then
+        echo -e "\n\nFailed to build gerrit-base image."
+        exit 1
+    fi
+
+    if test -z "$TAG"; then
+        export TAG="$(./get_version.sh)"
+    fi
+}
+
+REPORT="Build results: \n"
+RETURN_CODE=0
+
+if test -n "$BASE_IMAGE"; then
+    BASE_BUILD_ARGS="--build-arg BASE_IMAGE=$BASE_IMAGE"
+fi
+
+docker build $BASE_BUILD_ARGS --platform=linux/amd64 -t base:$REV ./container-images/base
+if test $? -ne 0; then
+    echo -e "\n\nFailed to build base image."
+    exit 1
+fi
+
+if test $# -eq 0 ; then
+    docker_build_gerrit_base
+    for IMAGE in $IMAGES; do
+        docker_build $IMAGE
+    done
+else
+    while test $# -gt 0 ; do
+        if [[ $1 = gerrit-* ]]; then
+            docker_build_gerrit_base
+        else
+            if test -z "$TAG"; then
+                TAG="$(git describe --always --dirty)-unknown"
+            fi
+            echo -e "\nNo Image containing Gerrit will be built." \
+                    "The Gerrit-version can thus not be determinded." \
+                    "Using tag $TAG\n"
+        fi
+        docker_build $1
+        shift
+    done
+fi
+
+echo -e "\n\n$REPORT"
+exit $RETURN_CODE

@@ -21,48 +21,53 @@ global:
         taintToleration: cattle.io/os=linux:NoSchedule
         systemManagedComponentsNodeSelector: kubernetes.io/os:linux
 
+networkPolicies:
+  enabled: false
+  # Available types: k3s, rke2, rke1
+  type: "k3s"
+
 image:
   longhorn:
     engine:
       repository: longhornio/longhorn-engine
-      tag: v1.4.1
+      tag: v1.5.2
     manager:
       repository: longhornio/longhorn-manager
-      tag: v1.4.1
+      tag: v1.5.2
     ui:
       repository: longhornio/longhorn-ui
-      tag: v1.4.1
+      tag: v1.5.2
     instanceManager:
       repository: longhornio/longhorn-instance-manager
-      tag: v1.4.1
+      tag: v1.5.2
     shareManager:
       repository: longhornio/longhorn-share-manager
-      tag: v1.4.1
+      tag: v1.5.2
     backingImageManager:
       repository: longhornio/backing-image-manager
-      tag: v1.4.1
+      tag: v1.5.2
     supportBundleKit:
       repository: longhornio/support-bundle-kit
-      tag: v0.0.19
+      tag: v0.0.27
   csi:
     attacher:
       repository: longhornio/csi-attacher
-      tag: v3.4.0
+      tag: v4.2.0
     provisioner:
       repository: longhornio/csi-provisioner
-      tag: v2.1.2
+      tag: v3.4.1
     nodeDriverRegistrar:
       repository: longhornio/csi-node-driver-registrar
-      tag: v2.5.0
+      tag: v2.7.0
     resizer:
       repository: longhornio/csi-resizer
-      tag: v1.3.0
+      tag: v1.7.0
     snapshotter:
       repository: longhornio/csi-snapshotter
-      tag: v5.0.1
+      tag: v6.2.1
     livenessProbe:
       repository: longhornio/livenessprobe
-      tag: v2.8.0
+      tag: v2.9.0
   pullPolicy: IfNotPresent
 
 service:
@@ -94,8 +99,11 @@ persistence:
     expectedChecksum: ~
   defaultNodeSelector:
     enable: false # disable by default
-    selector: []
+    selector: ""
   removeSnapshotsDuringFilesystemTrim: ignored # "enabled" or "disabled" otherwise
+
+helmPreUpgradeCheckerJob:
+  enabled: true
 
 csi:
   kubeletRootDir: ~
@@ -115,6 +123,7 @@ defaultSettings:
   replicaAutoBalance: ~
   storageOverProvisioningPercentage: ~
   storageMinimalAvailablePercentage: ~
+  storageReservedPercentageForDefaultDisk: ~
   upgradeChecker: ~
   defaultReplicaCount: ~
   defaultLonghornStaticStorageClass: ~
@@ -132,9 +141,7 @@ defaultSettings:
   disableSchedulingOnCordonedNode: ~
   replicaZoneSoftAntiAffinity: ~
   nodeDownPodDeletionPolicy: ~
-  allowNodeDrainWithLastHealthyReplica: ~
-  mkfsExt4Parameters: ~
-  disableReplicaRebuild: ~
+  nodeDrainPolicy: ~
   replicaReplenishmentWaitInterval: ~
   concurrentReplicaRebuildPerNodeLimit: ~
   concurrentVolumeBackupRestorePerNodeLimit: ~
@@ -145,8 +152,7 @@ defaultSettings:
   concurrentAutomaticEngineUpgradePerNodeLimit: ~
   backingImageCleanupWaitInterval: ~
   backingImageRecoveryWaitInterval: ~
-  guaranteedEngineManagerCPU: ~
-  guaranteedReplicaManagerCPU: ~
+  guaranteedInstanceManagerCPU: ~
   kubernetesClusterAutoscalerEnabled: ~
   orphanAutoDeletion: ~
   storageNetwork: ~
@@ -158,6 +164,12 @@ defaultSettings:
   removeSnapshotsDuringFilesystemTrim: ~
   fastReplicaRebuildEnabled: ~
   replicaFileSyncHttpClientTimeout: ~
+  logLevel: ~
+  backupCompressionMethod: ~
+  backupConcurrentLimit: ~
+  restoreConcurrentLimit: ~
+  v2DataEngine: ~
+  offlineReplicaRebuilding: ~
 privateRegistry:
   createSecret: ~
   registryUrl: ~
@@ -215,54 +227,6 @@ longhornUI:
   #   effect: "NoSchedule"
   nodeSelector: {}
   ## If you want to set node selector for Longhorn UI Deployment, delete the `{}` in the line above
-  ## and uncomment this example block
-  #  label-key1: "label-value1"
-  #  label-key2: "label-value2"
-
-longhornConversionWebhook:
-  replicas: 2
-  priorityClass: ~
-  tolerations: []
-  ## If you want to set tolerations for Longhorn conversion webhook Deployment, delete the `[]` in the line above
-  ## and uncomment this example block
-  # - key: "key"
-  #   operator: "Equal"
-  #   value: "value"
-  #   effect: "NoSchedule"
-  nodeSelector: {}
-  ## If you want to set node selector for Longhorn conversion webhook Deployment, delete the `{}` in the line above
-  ## and uncomment this example block
-  #  label-key1: "label-value1"
-  #  label-key2: "label-value2"
-
-longhornAdmissionWebhook:
-  replicas: 2
-  priorityClass: ~
-  tolerations: []
-  ## If you want to set tolerations for Longhorn admission webhook Deployment, delete the `[]` in the line above
-  ## and uncomment this example block
-  # - key: "key"
-  #   operator: "Equal"
-  #   value: "value"
-  #   effect: "NoSchedule"
-  nodeSelector: {}
-  ## If you want to set node selector for Longhorn admission webhook Deployment, delete the `{}` in the line above
-  ## and uncomment this example block
-  #  label-key1: "label-value1"
-  #  label-key2: "label-value2"
-
-longhornRecoveryBackend:
-  replicas: 2
-  priorityClass: ~
-  tolerations: []
-  ## If you want to set tolerations for Longhorn recovery backend Deployment, delete the `[]` in the line above
-  ## and uncomment this example block
-  # - key: "key"
-  #   operator: "Equal"
-  #   value: "value"
-  #   effect: "NoSchedule"
-  nodeSelector: {}
-  ## If you want to set node selector for Longhorn recovery backend Deployment, delete the `{}` in the line above
   ## and uncomment this example block
   #  label-key1: "label-value1"
   #  label-key2: "label-value2"

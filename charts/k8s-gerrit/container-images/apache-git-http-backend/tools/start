@@ -1,0 +1,4 @@
+#!/bin/ash
+
+/usr/sbin/apachectl start \
+  && tail -F -q -n +1 /var/log/apache2/*.log
