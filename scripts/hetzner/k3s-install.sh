@@ -2,7 +2,7 @@
 
 USER=root
 
-K3S_VERSION="v1.27.2+k3s1" # v1.26.3+k3s1"
+K3S_VERSION="v1.28.3+k3s2"
 
 MASTER_INIT="192.168.100.1"
 MASTERS=("192.168.100.2" "192.168.100.3")
@@ -31,7 +31,6 @@ do
 	  --k3s-version $K3S_VERSION \
 	  --k3s-extra-args "--disable traefik --disable local-storage --disable servicelb --kube-proxy-arg proxy-mode=ipvs --kube-proxy-arg ipvs-strict-arp --flannel-backend wireguard-native"
 done
-
 
 for IP in "${WORKERS[@]}";
 do
