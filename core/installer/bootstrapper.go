@@ -147,7 +147,7 @@ func (b Bootstrapper) installMetallbService() error {
 		"controller": map[string]any{
 			"image": map[string]any{
 				"repository": "quay.io/metallb/controller",
-				"tag":        "v0.13.9",
+				"tag":        "v0.13.12",
 				"pullPolicy": "IfNotPresent",
 			},
 			"logLevel": "info",
@@ -155,7 +155,7 @@ func (b Bootstrapper) installMetallbService() error {
 		"speaker": map[string]any{
 			"image": map[string]any{
 				"repository": "quay.io/metallb/speaker",
-				"tag":        "v0.13.9",
+				"tag":        "v0.13.12",
 				"pullPolicy": "IfNotPresent",
 			},
 			"logLevel": "info",
@@ -260,7 +260,7 @@ func (b Bootstrapper) installSoftServe(adminPublicKey string, envName string, re
 	values := map[string]any{
 		"image": map[string]any{
 			"repository": "charmcli/soft-serve",
-			"tag":        "v0.5.4",
+			"tag":        "v0.7.1",
 			"pullPolicy": "IfNotPresent",
 		},
 		"privateKey": string(keys.RawPrivateKey()),
@@ -324,8 +324,8 @@ func (b Bootstrapper) installFluxBootstrap(repoAddr, repoHost, repoHostPubKey, p
 	}
 	values := map[string]any{
 		"image": map[string]any{
-			"repository": "fluxcd/flux-cli", // "giolekva/flux",
-			"tag":        "v2.0.0",
+			"repository": "fluxcd/flux-cli",
+			"tag":        "v2.1.2",
 			"pullPolicy": "IfNotPresent",
 		},
 		"repositoryAddress":       repoAddr,
