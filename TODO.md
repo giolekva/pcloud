@@ -1,3 +1,16 @@
+DNS:
+* API service to watch for new environments
+* dnssec-keygen generate
+  * Keys
+  * DS record
+* Update coredns config
+  * include dnssec plugin pointing to keys
+* Create records file
+
+wait for longhorn
+
+
+
 Enable kubernetes internal service ip address subnet
 kubectl exec -it headscale-0 -n lekva-app-headscale -- headscale --config=/headscale/config/config.yaml routes enable pcloud-ingress -r 1
 
