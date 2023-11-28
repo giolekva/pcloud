@@ -3,6 +3,7 @@ kind: Service
 metadata:
   name: soft-serve
   namespace: {{ .Release.Namespace }}
+  {{ if eq .Values.serviceType "LoadBalancer" }}
   annotations:
     {{ if .Values.reservedIP }}
     metallb.universe.tf/loadBalancerIPs: {{ .Values.reservedIP }}
@@ -10,8 +11,9 @@ metadata:
     {{ if .Values.addressPool }}
     metallb.universe.tf/address-pool: {{ .Values.addressPool }}
     {{ end }}
+  {{ end }}
 spec:
-  type: LoadBalancer
+  type: {{ .Values.serviceType }}
   selector:
     app: soft-serve
   ports:

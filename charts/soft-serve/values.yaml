@@ -8,6 +8,7 @@ port: 22
 privateKey: ""
 publicKey: ""
 adminKey: ""
+serviceType: LoadBalancer
 reservedIP: ""
 addressPool: ""
 ingress:
