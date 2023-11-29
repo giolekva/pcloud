@@ -6,11 +6,12 @@ import (
 	"golang.org/x/crypto/ssh"
 	"log"
 	"net"
-	"net/netip"
 	"os"
 	"regexp"
 	"strings"
+	"time"
 
+	"github.com/cenkalti/backoff/v4"
 	"github.com/go-git/go-billy/v5/memfs"
 	"github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/plumbing/transport"
@@ -19,13 +20,13 @@ import (
 )
 
 type Client struct {
-	Addr     netip.AddrPort
+	Addr     string
 	Signer   ssh.Signer
 	log      *log.Logger
 	pemBytes []byte
 }
 
-func NewClient(addr netip.AddrPort, clientPrivateKey []byte, log *log.Logger) (*Client, error) {
+func NewClient(addr string, clientPrivateKey []byte, log *log.Logger) (*Client, error) {
 	signer, err := ssh.ParsePrivateKey(clientPrivateKey)
 	if err != nil {
 		return nil, err
@@ -38,6 +39,24 @@ func NewClient(addr netip.AddrPort, clientPrivateKey []byte, log *log.Logger) (*
 		log,
 		clientPrivateKey,
 	}, nil
+}
+
+func WaitForClient(addr string, clientPrivateKey []byte, log *log.Logger) (*Client, error) {
+	var client *Client
+	err := backoff.RetryNotify(func() error {
+		var err error
+		client, err = NewClient(addr, clientPrivateKey, log)
+		if err != nil {
+			return err
+		}
+		if _, err := client.GetPublicKey(); err != nil {
+			return err
+		}
+		return nil
+	}, backoff.NewConstantBackOff(5*time.Second), func(err error, _ time.Duration) {
+		log.Printf("Failed to create client:  %s\n", err.Error())
+	})
+	return client, err
 }
 
 func (ss *Client) AddUser(name, pubKey string) error {
@@ -59,17 +78,18 @@ func (ss *Client) AddPublicKey(user string, pubKey string) error {
 }
 
 func (ss *Client) RemovePublicKey(user string, pubKey string) error {
-	log.Printf("Adding public key: %s %s\n", user, pubKey)
+	log.Printf("Removing public key: %s %s\n", user, pubKey)
 	return ss.RunCommand("user", "remove-pubkey", user, pubKey)
 }
 
 func (ss *Client) RunCommand(args ...string) error {
 	cmd := strings.Join(args, " ")
 	log.Printf("Running command %s", cmd)
-	client, err := ssh.Dial("tcp", ss.Addr.String(), ss.sshClientConfig())
+	client, err := ssh.Dial("tcp", ss.Addr, ss.sshClientConfig())
 	if err != nil {
 		return err
 	}
+	defer client.Close()
 	session, err := client.NewSession()
 	if err != nil {
 		return err
@@ -80,14 +100,19 @@ func (ss *Client) RunCommand(args ...string) error {
 	return session.Run(cmd)
 }
 
-func (ss *Client) AddRepository(name, readme string) error {
+func (ss *Client) AddRepository(name string) error {
 	log.Printf("Adding repository %s", name)
-	return ss.RunCommand("repo", "create", name, "-d", fmt.Sprintf("\"%s\"", readme))
+	return ss.RunCommand("repo", "create", name)
 }
 
-func (ss *Client) AddCollaborator(repo, user string) error {
-	log.Printf("Adding collaborator %s %s", repo, user)
-	return ss.RunCommand("repo", "collab", "add", repo, user)
+func (ss *Client) AddReadWriteCollaborator(repo, user string) error {
+	log.Printf("Adding read-write collaborator %s %s", repo, user)
+	return ss.RunCommand("repo", "collab", "add", repo, user, "read-write")
+}
+
+func (ss *Client) AddReadOnlyCollaborator(repo, user string) error {
+	log.Printf("Adding read-only collaborator %s %s", repo, user)
+	return ss.RunCommand("repo", "collab", "add", repo, user, "read-only")
 }
 
 type Repository struct {
@@ -100,7 +125,7 @@ func (ss *Client) GetRepo(name string) (*Repository, error) {
 }
 
 type RepositoryAddress struct {
-	Addr netip.AddrPort
+	Addr string
 	Name string
 }
 
@@ -109,11 +134,7 @@ func ParseRepositoryAddress(addr string) (RepositoryAddress, error) {
 	if len(items) != 3 {
 		return RepositoryAddress{}, fmt.Errorf("Invalid address")
 	}
-	ipPort, err := netip.ParseAddrPort(items[1])
-	if err != nil {
-		return RepositoryAddress{}, err
-	}
-	return RepositoryAddress{ipPort, items[2]}, nil
+	return RepositoryAddress{items[1], items[2]}, nil
 }
 
 func (r RepositoryAddress) FullAddress() string {
@@ -199,10 +220,11 @@ func (ss *Client) GetPublicKey() ([]byte, error) {
 			return nil
 		},
 	}
-	_, err := ssh.Dial("tcp", ss.Addr.String(), config)
+	client, err := ssh.Dial("tcp", ss.Addr, config)
 	if err != nil {
 		return nil, err
 	}
+	defer client.Close()
 	return ret, nil
 }
 

@@ -10,4 +10,4 @@ spec:
   secretRef:
     name: {{ .Name }}
   timeout: 60s
-  url: ssh://{{ .GitHost }}/{{ .Name }}
+  url: ssh://{{ .RepoHost }}/{{ .RepoName }}

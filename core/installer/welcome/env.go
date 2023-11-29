@@ -4,12 +4,16 @@ import (
 	"embed"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
 	htemplate "html/template"
 	"io"
+	"io/fs"
 	"log"
 	"net/http"
 	"path"
+	"path/filepath"
+	"strings"
 	"text/template"
 
 	"github.com/charmbracelet/keygen"
@@ -99,15 +103,19 @@ func (s *EnvServer) createInvitation(w http.ResponseWriter, r *http.Request) {
 }
 
 type createEnvReq struct {
-	Name         string
-	ContactEmail string `json:"contactEmail"`
-	Domain       string `json:"domain"`
-	SecretToken  string `json:"secretToken"`
+	Name           string
+	ContactEmail   string `json:"contactEmail"`
+	Domain         string `json:"domain"`
+	AdminPublicKey string `json:"adminPublicKey"`
+	SecretToken    string `json:"secretToken"`
 }
 
 func (s *EnvServer) readInvitations() ([]invitation, error) {
 	r, err := s.repo.Reader("invitations")
 	if err != nil {
+		if errors.Is(err, fs.ErrNotExist) {
+			return make([]invitation, 0), nil
+		}
 		return nil, err
 	}
 	defer r.Close()
@@ -138,7 +146,7 @@ func (s *EnvServer) writeInvitations(invitations []invitation) error {
 	return s.repo.CommitAndPush("Generated new invitation")
 }
 
-func (s *EnvServer) createEnv(w http.ResponseWriter, r *http.Request) {
+func extractRequest(r *http.Request) (createEnvReq, error) {
 	var req createEnvReq
 	if err := func() error {
 		var err error
@@ -154,31 +162,55 @@ func (s *EnvServer) createEnv(w http.ResponseWriter, r *http.Request) {
 		if req.ContactEmail, err = getFormValue(r.PostForm, "contact-email"); err != nil {
 			return err
 		}
+		if req.AdminPublicKey, err = getFormValue(r.PostForm, "admin-public-key"); err != nil {
+			return err
+		}
 		return nil
 	}(); err != nil {
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
+			return createEnvReq{}, err
 		}
 	}
+	return req, nil
+}
+
+func (s *EnvServer) acceptInvitation(token string) error {
 	invitations, err := s.readInvitations()
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
+		return err
 	}
 	found := false
-	for _, i := range invitations {
-		if i.Token == req.SecretToken && i.Status == StatusActive {
-			i.Status = StatusAccepted
+	for i := range invitations {
+		if invitations[i].Token == token && invitations[i].Status == StatusActive {
+			invitations[i].Status = StatusAccepted
 			found = true
 			break
 		}
 	}
 	if !found {
-		http.Error(w, "Invalid invitation", http.StatusNotFound)
+		return fmt.Errorf("Invitation not found")
+	}
+	return s.writeInvitations(invitations)
+}
+
+func (s *EnvServer) createEnv(w http.ResponseWriter, r *http.Request) {
+	req, err := extractRequest(r)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	if err := s.writeInvitations(invitations); err != nil {
+	var env installer.EnvConfig
+	cr, err := s.repo.Reader("config.yaml")
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	defer cr.Close()
+	if err := installer.ReadYaml(cr, &env); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	if err := s.acceptInvitation(req.SecretToken); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -188,6 +220,74 @@ func (s *EnvServer) createEnv(w http.ResponseWriter, r *http.Request) {
 	} else {
 		req.Name = name
 	}
+	appsRepo := installer.NewInMemoryAppRepository(installer.CreateAllApps())
+	ssApp, err := appsRepo.Find("soft-serve")
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	ssAdminKeys, err := installer.NewSSHKeyPair(fmt.Sprintf("%s-config-repo-admin-keys", req.Name))
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	ssKeys, err := installer.NewSSHKeyPair(fmt.Sprintf("%s-config-repo-keys", req.Name))
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	ssValues := map[string]any{
+		"ChartRepositoryNamespace": env.Name,
+		"ServiceType":              "ClusterIP",
+		"PrivateKey":               string(ssKeys.RawPrivateKey()),
+		"PublicKey":                string(ssKeys.RawAuthorizedKey()),
+		"AdminKey":                 string(ssAdminKeys.RawAuthorizedKey()),
+		"Ingress": map[string]any{
+			"Enabled": false,
+		},
+	}
+	derived := installer.Derived{
+		Global: installer.Values{
+			Id:            req.Name,
+			PCloudEnvName: env.Name,
+		},
+		Release: installer.Release{
+			Namespace: req.Name,
+		},
+		Values: ssValues,
+	}
+	if err := s.nsCreator.Create(req.Name); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	if err := s.repo.InstallApp(*ssApp, filepath.Join("/environments", req.Name, "config-repo"), ssValues, derived); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	k := installer.NewKustomization()
+	k.AddResources("config-repo")
+	if err := s.repo.WriteKustomization(filepath.Join("/environments", req.Name, "kustomization.yaml"), k); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	ssClient, err := soft.WaitForClient(
+		fmt.Sprintf("soft-serve.%s.svc.cluster.local:%d", req.Name, 22),
+		ssAdminKeys.RawPrivateKey(),
+		log.Default())
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	if err := ssClient.AddPublicKey("admin", req.AdminPublicKey); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	defer func() {
+		if err := ssClient.RemovePublicKey("admin", string(ssAdminKeys.RawAuthorizedKey())); err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+	}()
 	fluxUserName := fmt.Sprintf("flux-%s", req.Name)
 	keys, err := installer.NewSSHKeyPair(fluxUserName)
 	if err != nil {
@@ -195,44 +295,42 @@ func (s *EnvServer) createEnv(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	{
-		readme := fmt.Sprintf("# %s PCloud environment", req.Name)
-		if err := s.ss.AddRepository(req.Name, readme); err != nil {
+		if err := ssClient.AddRepository("config"); err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
-		if err := s.ss.AddUser(fluxUserName, keys.AuthorizedKey()); err != nil {
+		repo, err := ssClient.GetRepo("config")
+		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
-		if err := s.ss.AddCollaborator(req.Name, fluxUserName); err != nil {
+		repoIO := installer.NewRepoIO(repo, ssClient.Signer)
+		if err := repoIO.WriteCommitAndPush("README.md", fmt.Sprintf("# %s PCloud environment", req.Name), "readme"); err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		if err := ssClient.AddUser(fluxUserName, keys.AuthorizedKey()); err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		if err := ssClient.AddReadOnlyCollaborator("config", fluxUserName); err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
 	}
 	{
-		repo, err := s.ss.GetRepo(req.Name)
+		repo, err := ssClient.GetRepo("config")
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
-		var env installer.EnvConfig
-		r, err := s.repo.Reader("config.yaml")
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
-		defer r.Close()
-		if err := installer.ReadYaml(r, &env); err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
-		if err := initNewEnv(s.ss, installer.NewRepoIO(repo, s.ss.Signer), s.nsCreator, req, env); err != nil {
+		if err := initNewEnv(ssClient, installer.NewRepoIO(repo, ssClient.Signer), s.nsCreator, req, env.Name, env.PublicIP); err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
 	}
 	{
-		ssPubKey, err := s.ss.GetPublicKey()
+		ssPubKey, err := ssClient.GetPublicKey()
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
@@ -240,6 +338,7 @@ func (s *EnvServer) createEnv(w http.ResponseWriter, r *http.Request) {
 		if err := addNewEnv(
 			s.repo,
 			req,
+			strings.Split(ssClient.Addr, ":")[0],
 			keys,
 			ssPubKey,
 		); err != nil {
@@ -265,7 +364,8 @@ func initNewEnv(
 	r installer.RepoIO,
 	nsCreator installer.NamespaceCreator,
 	req createEnvReq,
-	env installer.EnvConfig,
+	pcloudEnvName string,
+	pcloudPublicIP string,
 ) error {
 	appManager, err := installer.NewAppManager(r, nsCreator)
 	if err != nil {
@@ -275,12 +375,12 @@ func initNewEnv(
 	// TODO(giolekva): private domain can be configurable as well
 	config := installer.Config{
 		Values: installer.Values{
-			PCloudEnvName:   env.Name,
+			PCloudEnvName:   pcloudEnvName,
 			Id:              req.Name,
 			ContactEmail:    req.ContactEmail,
 			Domain:          req.Domain,
 			PrivateDomain:   fmt.Sprintf("p.%s", req.Domain),
-			PublicIP:        env.PublicIP,
+			PublicIP:        pcloudPublicIP,
 			NamespacePrefix: fmt.Sprintf("%s-", req.Name),
 		},
 	}
@@ -339,15 +439,6 @@ spec:
 			"Name":       fmt.Sprintf("%s-headscale", req.Name),
 			"From":       "10.1.0.2",
 			"To":         "10.1.0.2",
-			"AutoAssign": false,
-			"Namespace":  "metallb-system",
-		}); err != nil {
-			return err
-		}
-		if err := appManager.Install(*app, nsGen, installer.NewSuffixGenerator("-soft-serve"), map[string]any{
-			"Name":       fmt.Sprintf("%s-soft-serve", req.Name), // TODO(giolekva): rename to config repo
-			"From":       "10.1.0.3",
-			"To":         "10.1.0.3",
 			"AutoAssign": false,
 			"Namespace":  "metallb-system",
 		}); err != nil {
@@ -412,7 +503,7 @@ spec:
 		if err := ss.AddUser(user, keys.AuthorizedKey()); err != nil {
 			return err
 		}
-		if err := ss.AddCollaborator(req.Name, user); err != nil {
+		if err := ss.AddReadWriteCollaborator("config", user); err != nil {
 			return err
 		}
 		app, err := appsRepo.Find("welcome")
@@ -420,7 +511,7 @@ spec:
 			return err
 		}
 		if err := appManager.Install(*app, nsGen, emptySuffixGen, map[string]any{
-			"RepoAddr":      ss.GetRepoAddress(req.Name),
+			"RepoAddr":      ss.GetRepoAddress("config"),
 			"SSHPrivateKey": string(keys.RawPrivateKey()),
 		}); err != nil {
 			return err
@@ -435,7 +526,7 @@ spec:
 		if err := ss.AddUser(user, keys.AuthorizedKey()); err != nil {
 			return err
 		}
-		if err := ss.AddCollaborator(req.Name, user); err != nil {
+		if err := ss.AddReadWriteCollaborator("config", user); err != nil {
 			return err
 		}
 		app, err := appsRepo.Find("app-manager") // TODO(giolekva): configure
@@ -443,7 +534,7 @@ spec:
 			return err
 		}
 		if err := appManager.Install(*app, nsGen, emptySuffixGen, map[string]any{
-			"RepoAddr":      ss.GetRepoAddress(req.Name),
+			"RepoAddr":      ss.GetRepoAddress("config"),
 			"SSHPrivateKey": string(keys.RawPrivateKey()),
 		}); err != nil {
 			return err
@@ -455,6 +546,7 @@ spec:
 func addNewEnv(
 	repoIO installer.RepoIO,
 	req createEnvReq,
+	repoHost string,
 	keys *keygen.KeyPair,
 	pcloudRepoPublicKey []byte,
 ) error {
@@ -467,7 +559,6 @@ func addNewEnv(
 	if err != nil {
 		return err
 	}
-	repoIP := repoIO.Addr().Addr().String()
 	for _, tmpl := range tmpls.Templates() {
 		dstPath := path.Join("environments", req.Name, tmpl.Name())
 		dst, err := repoIO.Writer(dstPath)
@@ -479,8 +570,9 @@ func addNewEnv(
 			"Name":       req.Name,
 			"PrivateKey": base64.StdEncoding.EncodeToString(keys.RawPrivateKey()),
 			"PublicKey":  base64.StdEncoding.EncodeToString(keys.RawAuthorizedKey()),
-			"GitHost":    repoIP,
-			"KnownHosts": base64.StdEncoding.EncodeToString([]byte(fmt.Sprintf("%s %s", repoIP, pcloudRepoPublicKey))),
+			"RepoHost":   repoHost,
+			"RepoName":   "config",
+			"KnownHosts": base64.StdEncoding.EncodeToString([]byte(fmt.Sprintf("%s %s", repoHost, pcloudRepoPublicKey))),
 		}); err != nil {
 			return err
 		}

@@ -7,9 +7,9 @@ import (
 	"log"
 	"net/netip"
 	"path/filepath"
+	"strings"
 	"time"
 
-	"github.com/cenkalti/backoff/v4"
 	"helm.sh/helm/v3/pkg/action"
 	"helm.sh/helm/v3/pkg/chart"
 	"helm.sh/helm/v3/pkg/chart/loader"
@@ -41,7 +41,6 @@ func (b Bootstrapper) Run(env EnvConfig) error {
 	if err := b.installLonghorn(env.Name, env.StorageDir, env.VolumeDefaultReplicaCount); err != nil {
 		return err
 	}
-	time.Sleep(1 * time.Minute) // TODO(giolekva): implement proper wait
 	bootstrapJobKeys, err := NewSSHKeyPair("bootstrapper")
 	if err != nil {
 		return err
@@ -49,22 +48,25 @@ func (b Bootstrapper) Run(env EnvConfig) error {
 	if err := b.installSoftServe(bootstrapJobKeys.AuthorizedKey(), env.Name, env.ServiceIPs.ConfigRepo); err != nil {
 		return err
 	}
-	var ss *soft.Client
-	err = backoff.Retry(func() error {
-		var err error
-		ss, err = soft.NewClient(netip.AddrPortFrom(env.ServiceIPs.ConfigRepo, 22), bootstrapJobKeys.RawPrivateKey(), log.Default())
-		return err
-	}, backoff.NewConstantBackOff(5*time.Second))
+	ss, err := soft.WaitForClient(
+		netip.AddrPortFrom(env.ServiceIPs.ConfigRepo, 22).String(),
+		bootstrapJobKeys.RawPrivateKey(),
+		log.Default())
 	if err != nil {
 		return err
 	}
+	defer func() {
+		if ss.RemovePublicKey("admin", bootstrapJobKeys.AuthorizedKey()); err != nil {
+			fmt.Printf("Failed to remove admin public key: %s\n", err.Error())
+		}
+	}()
 	if ss.AddPublicKey("admin", string(env.AdminPublicKey)); err != nil {
 		return err
 	}
 	if err := b.installFluxcd(ss, env.Name); err != nil {
 		return err
 	}
-	repo, err := ss.GetRepo(env.Name)
+	repo, err := ss.GetRepo("config")
 	if err != nil {
 		return err
 	}
@@ -77,9 +79,6 @@ func (b Bootstrapper) Run(env EnvConfig) error {
 		return err
 	}
 	if err := b.installEnvManager(ss, repoIO, nsGen, b.ns, env); err != nil {
-		return err
-	}
-	if ss.RemovePublicKey("admin", bootstrapJobKeys.AuthorizedKey()); err != nil {
 		return err
 	}
 	return nil
@@ -243,13 +242,13 @@ func (b Bootstrapper) installLonghorn(envName string, storageDir string, volumeD
 	return nil
 }
 
-func (b Bootstrapper) installSoftServe(adminPublicKey string, envName string, repoIP netip.Addr) error {
+func (b Bootstrapper) installSoftServe(adminPublicKey string, namespace string, repoIP netip.Addr) error {
 	fmt.Println("Installing SoftServe")
 	keys, err := NewSSHKeyPair("soft-serve")
 	if err != nil {
 		return err
 	}
-	config, err := b.ha.New(envName)
+	config, err := b.ha.New(namespace)
 	if err != nil {
 		return err
 	}
@@ -263,13 +262,14 @@ func (b Bootstrapper) installSoftServe(adminPublicKey string, envName string, re
 			"tag":        "v0.7.1",
 			"pullPolicy": "IfNotPresent",
 		},
-		"privateKey": string(keys.RawPrivateKey()),
-		"publicKey":  string(keys.RawAuthorizedKey()),
-		"adminKey":   adminPublicKey,
-		"reservedIP": repoIP.String(),
+		"privateKey":  string(keys.RawPrivateKey()),
+		"publicKey":   string(keys.RawAuthorizedKey()),
+		"adminKey":    adminPublicKey,
+		"reservedIP":  repoIP.String(),
+		"serviceType": "LoadBalancer",
 	}
 	installer := action.NewInstall(config)
-	installer.Namespace = envName
+	installer.Namespace = namespace
 	installer.CreateNamespace = true
 	installer.ReleaseName = "soft-serve"
 	installer.Wait = true
@@ -292,8 +292,15 @@ func (b Bootstrapper) installFluxcd(ss *soft.Client, envName string) error {
 	if err := ss.MakeUserAdmin("flux"); err != nil {
 		return err
 	}
-	fmt.Printf("Creating /%s repo", envName)
-	if err := ss.AddRepository(envName, "# dodo Systems"); err != nil {
+	if err := ss.AddRepository("config"); err != nil {
+		return err
+	}
+	repo, err := ss.GetRepo("config")
+	if err != nil {
+		return err
+	}
+	repoIO := NewRepoIO(repo, ss.Signer)
+	if err := repoIO.WriteCommitAndPush("README.md", fmt.Sprintf("# %s systems", envName), "readme"); err != nil {
 		return err
 	}
 	fmt.Println("Installing Flux")
@@ -301,9 +308,10 @@ func (b Bootstrapper) installFluxcd(ss *soft.Client, envName string) error {
 	if err != nil {
 		return err
 	}
+	host := strings.Split(ss.Addr, ":")[0]
 	if err := b.installFluxBootstrap(
-		ss.GetRepoAddress(envName),
-		ss.Addr.Addr().String(),
+		ss.GetRepoAddress("config"),
+		host,
 		string(ssPublic),
 		string(keys.RawPrivateKey()),
 		envName,
@@ -481,7 +489,7 @@ func (b Bootstrapper) installEnvManager(ss *soft.Client, repo RepoIO, nsGen Name
 		Values: map[string]any{
 			"RepoIP":        env.ServiceIPs.ConfigRepo,
 			"RepoPort":      22,
-			"RepoName":      env.Name,
+			"RepoName":      "config",
 			"SSHPrivateKey": string(keys.RawPrivateKey()),
 		},
 	}

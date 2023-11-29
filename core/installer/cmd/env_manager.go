@@ -2,7 +2,6 @@ package main
 
 import (
 	"log"
-	"net/netip"
 
 	"github.com/spf13/cobra"
 
@@ -55,11 +54,7 @@ func envManagerCmdRun(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-	repoAddr, err := netip.ParseAddrPort(envManagerFlags.repoAddr)
-	if err != nil {
-		return err
-	}
-	ss, err := soft.NewClient(repoAddr, sshKey.RawPrivateKey(), log.Default())
+	ss, err := soft.WaitForClient(envManagerFlags.repoAddr, sshKey.RawPrivateKey(), log.Default())
 	if err != nil {
 		return err
 	}

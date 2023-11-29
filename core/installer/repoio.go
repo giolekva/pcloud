@@ -7,7 +7,6 @@ import (
 	"io/fs"
 	"io/ioutil"
 	"net"
-	"net/netip"
 	"path"
 	"path/filepath"
 	"time"
@@ -23,7 +22,7 @@ import (
 )
 
 type RepoIO interface {
-	Addr() netip.AddrPort
+	Addr() string
 	Fetch() error
 	ReadConfig() (Config, error)
 	ReadAppConfig(path string) (AppConfig, error)
@@ -32,6 +31,7 @@ type RepoIO interface {
 	ReadYaml(path string) (any, error)
 	WriteYaml(path string, data any) error
 	CommitAndPush(message string) error
+	WriteCommitAndPush(path, contents, message string) error
 	Reader(path string) (io.ReadCloser, error)
 	Writer(path string) (io.WriteCloser, error)
 	CreateDir(path string) error
@@ -54,7 +54,7 @@ func NewRepoIO(repo *soft.Repository, signer ssh.Signer) RepoIO {
 	}
 }
 
-func (r *repoIO) Addr() netip.AddrPort {
+func (r *repoIO) Addr() string {
 	return r.repo.Addr.Addr
 }
 
@@ -159,6 +159,18 @@ func (r *repoIO) ReadYaml(path string) (any, error) {
 		return nil, err
 	}
 	return data, err
+}
+
+func (r *repoIO) WriteCommitAndPush(path, contents, message string) error {
+	w, err := r.Writer(path)
+	if err != nil {
+		return err
+	}
+	defer w.Close()
+	if _, err := io.WriteString(w, contents); err != nil {
+		return err
+	}
+	return r.CommitAndPush(message)
 }
 
 func (r *repoIO) CommitAndPush(message string) error {

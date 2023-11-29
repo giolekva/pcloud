@@ -10,15 +10,23 @@ spec:
       sourceRef:
         kind: GitRepository
         name: pcloud
-        namespace: {{ .Global.Id }}
+        namespace: {{ or .Values.ChartRepositoryNamespace .Global.Id }}
   interval: 1m0s
   values:
+    {{- if .Values.ServiceType }}
+    serviceType: {{ .Values.ServiceType }}
+    {{- end }}
     reservedIP: ""
     addressPool: {{ .Global.Id }}
     adminKey: {{ .Values.AdminKey }}
+    {{- if and .Values.PrivateKey .Values.PublicKey }}
+    privateKey: |
+{{ .Values.PrivateKey | indent 6 }}
+    publicKey: {{ .Values.PublicKey }}
+    {{- end }}
     {{- if .Values.Network }}
     ingress:
-      enabled: true # TODO(giolekva): make it configurable
+      enabled: {{ .Values.Ingress.Enabled }}
       ingressClassName: {{ .Values.Network.IngressClass }}
       certificateIssuer: {{ .Values.Network.CertificateIssuer }}
       domain: {{ .Values.Subdomain }}.{{ .Values.Network.Domain }}
