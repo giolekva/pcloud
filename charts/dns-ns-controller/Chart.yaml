@@ -1,0 +1,6 @@
+apiVersion: v2
+name: dns-ns-controller
+description: A Helm chart for dns-ns-controller
+type: application
+version: 0.0.1
+appVersion: "0.0.1"

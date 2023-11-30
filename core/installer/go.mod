@@ -10,6 +10,7 @@ require (
 	github.com/go-git/go-git/v5 v5.10.0
 	github.com/gorilla/mux v1.8.0
 	github.com/labstack/echo/v4 v4.10.2
+	github.com/miekg/dns v1.0.14
 	github.com/spf13/cobra v1.4.0
 	golang.org/x/crypto v0.14.0
 	golang.org/x/exp v0.0.0-20230522175609-2e198f4a06a1

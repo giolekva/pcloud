@@ -16,8 +16,10 @@ import (
 	"strings"
 	"text/template"
 
+	"github.com/Masterminds/sprig/v3"
 	"github.com/charmbracelet/keygen"
 	"github.com/gorilla/mux"
+	"github.com/miekg/dns"
 
 	"github.com/giolekva/pcloud/core/installer"
 	"github.com/giolekva/pcloud/core/installer/soft"
@@ -359,6 +361,30 @@ func (s *EnvServer) createEnv(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+type DNSSecKey struct {
+	Basename string `json:"basename,omitempty"`
+	Key      []byte `json:"key,omitempty"`
+	Private  []byte `json:"private,omitempty"`
+	DS       []byte `json:"ds,omitempty"`
+}
+
+func newDNSSecKey(zone string) (DNSSecKey, error) {
+	key := &dns.DNSKEY{
+		Hdr:       dns.RR_Header{Name: dns.Fqdn(zone), Class: dns.ClassINET, Ttl: 3600, Rrtype: dns.TypeDNSKEY},
+		Algorithm: dns.ECDSAP256SHA256, Flags: 257, Protocol: 3,
+	}
+	priv, err := key.Generate(256)
+	if err != nil {
+		return DNSSecKey{}, err
+	}
+	return DNSSecKey{
+		Basename: fmt.Sprintf("K%s+%03d+%05d", key.Header().Name, key.Algorithm, key.KeyTag()),
+		Key:      []byte(key.String()),
+		Private:  []byte(key.PrivateKeyString(priv)),
+		DS:       []byte(key.ToDS(dns.SHA256).String()),
+	}, nil
+}
+
 func initNewEnv(
 	ss *soft.Client,
 	r installer.RepoIO,
@@ -393,7 +419,7 @@ func initNewEnv(
 			return err
 		}
 		defer out.Close()
-		_, err = out.Write([]byte(fmt.Sprintf(`
+		_, err = fmt.Fprintf(out, `
 apiVersion: source.toolkit.fluxcd.io/v1
 kind: GitRepository
 metadata:
@@ -404,13 +430,67 @@ spec:
   url: https://github.com/giolekva/pcloud
   ref:
     branch: main
-`, req.Name)))
+`, req.Name)
 		if err != nil {
 			return err
 		}
 	}
+	{
+		key, err := newDNSSecKey(req.Domain)
+		if err != nil {
+			return err
+		}
+		out, err := r.Writer("dns-zone.yaml")
+		if err != nil {
+			return err
+		}
+		defer out.Close()
+		dnsZoneTmpl, err := template.New("config").Funcs(sprig.TxtFuncMap()).Parse(`
+apiVersion: dodo.cloud.dodo.cloud/v1
+kind: DNSZone
+metadata:
+  name: dns-zone
+  namespace: {{ .namespace }}
+spec:
+  zone: {{ .zone }}
+  privateIP: 10.1.0.1
+  publicIPs:
+  - 135.181.48.180
+  - 65.108.39.172
+  - 65.108.39.171
+  nameservers:
+  - 135.181.48.180
+  - 65.108.39.172
+  - 65.108.39.171
+  dnssec:
+    enabled: true
+    secretName: dnssec-key
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: dnssec-key
+  namespace: {{ .namespace }}
+type: Opaque
+data:
+  basename: {{ .dnssec.Basename | b64enc }}
+  key: {{ .dnssec.Key | toString | b64enc }}
+  private: {{ .dnssec.Private | toString | b64enc }}
+  ds: {{ .dnssec.DS | toString | b64enc }}
+`)
+		if err != nil {
+			return err
+		}
+		if err := dnsZoneTmpl.Execute(out, map[string]any{
+			"namespace": req.Name,
+			"zone":      req.Domain,
+			"dnssec":    key,
+		}); err != nil {
+			return err
+		}
+	}
 	rootKust := installer.NewKustomization()
-	rootKust.AddResources("pcloud-charts.yaml", "apps")
+	rootKust.AddResources("pcloud-charts.yaml", "dns-zone.yaml", "apps")
 	if err := r.WriteKustomization("kustomization.yaml", rootKust); err != nil {
 		return err
 	}
