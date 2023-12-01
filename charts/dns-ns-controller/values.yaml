@@ -1,6 +1,8 @@
 image:
-  repository: giolekva/rpuppy-arm
+  repository: giolekva/dns-ns-controller
   tag: latest
   pullPolicy: Always
 installCRDs: false
-pvcName: ""
+volume:
+  claimName: data
+  mountPath: /etc/zone-configs

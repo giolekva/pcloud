@@ -222,7 +222,7 @@ spec:
       volumes:
       - name: zone-configs
         persistentVolumeClaim:
-          claimName: dns-configs
+          claimName: {{ .Values.volume.claimName }}
       containers:
       - args:
         - --secure-listen-address=0.0.0.0:8443
@@ -254,10 +254,11 @@ spec:
         - --config-dir=/etc/pcloud/dns-zone-configs
         command:
         - /manager
-        image: giolekva/dns-ns-controller:latest
+        image: {{ .Values.image.repository }}:{{ .Values.image.tag }}
+        imagePullPolicy: {{ .Values.image.pullPolicy }}
         volumeMounts:
         - name: zone-configs
-          mountPath: /etc/pcloud/dns-zone-configs
+          mountPath: {{ .Values.volume.mountPath }}
         livenessProbe:
           httpGet:
             path: /healthz
