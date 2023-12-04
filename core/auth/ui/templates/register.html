@@ -1,15 +1,15 @@
-{{ define "title" }}Sign in{{ end }}
+{{ define "title" }}Create Account{{ end }}
 {{ define "main" }}
 <form action="" method="POST">
 	<input type="text" name="username" placeholder="Username" autofocus required />
 	<input type="password" name="password" placeholder="Password" required />
 	<input type="hidden" name="csrf_token" value="{{ . }}" />
-	<button type="submit">Sign In</button>
+	<button type="submit">Create Account</button>
 </form>
 <nav>
 	<ul>
 		<li>
-			<a href="/register">Create Account</a>
+			<a href="/login">Sign In</a>
 		</li>
 	</ul>
 </nav>

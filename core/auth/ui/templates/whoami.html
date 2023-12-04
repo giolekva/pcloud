@@ -1,13 +1,5 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="utf-8" />
-    <link rel="stylesheet" type="text/css" href="/static/main.css?v=0.0.1">
-    <title>Hello {{.}}!</title>
-</head>
-<body>
-    <a href="/logout">logout</a>
-    Hello {{.}}!
-</body>
-</html>
-
+{{ define "title" }}Who Am I{{ end }}
+{{ define "main" }}
+Hello {{.}}!
+<a href="/logout" role="button">logout</a>
+{{ end }}

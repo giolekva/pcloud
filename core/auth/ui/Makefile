@@ -1,5 +1,8 @@
 clean:
-	rm -f server_*
+	rm -f server server_*
+
+build: clean
+	go build -o server *.go
 
 build_arm64: export CGO_ENABLED=0
 build_arm64: export GO111MODULE=on

@@ -1,21 +1,19 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="utf-8" />
-    <link rel="stylesheet" type="text/css" href="/static/main.css?v=0.0.1">
-    <title>Consent</title>
-</head>
-<body>
-    <div class="main">
-	<form action="" method="POST">
-	    {{range .}}
-	    <label><input type="checkbox" name="scope" value="{{.}}" checked />{{.}}</label>
-	    {{end}}
-	    <input type="submit" name="allow" value="Allow" />
-	    <input type="submit" name="reject" value="Reject" />
-	    <a href="/logout">logout</a>
-	</form>
-    </div>
-</body>
-</html>
-
+{{ define "title" }}Consent{{ end }}
+{{ define "main" }}
+<form action="" method="POST">
+	{{ range . }}
+	<label for="{{ . }}">
+		<input type="checkbox" role="switch" id="{{ . }}" name="scope" value="{{ . }}" checked />{{ . }}
+	</label>
+	{{ end }}
+	<button type="submit" name="allow">Allow</button>
+	<button type="submit" name="reject" class="secondary outline">Reject</button>
+</form>
+<nav>
+	<ul>
+		<li>
+			<a href="/logout">Log Out</a>
+		</li>
+	</ul>
+</nav>
+{{ end }}

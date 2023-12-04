@@ -34,30 +34,41 @@ var tmpls embed.FS
 var static embed.FS
 
 type Templates struct {
-	WhoAmI       *template.Template
-	Registration *template.Template
-	Login        *template.Template
-	Consent      *template.Template
+	WhoAmI   *template.Template
+	Register *template.Template
+	Login    *template.Template
+	Consent  *template.Template
 }
 
 func ParseTemplates(fs embed.FS) (*Templates, error) {
-	whoami, err := template.ParseFS(fs, "templates/whoami.html")
+	base, err := template.ParseFS(fs, "templates/base.html")
 	if err != nil {
 		return nil, err
 	}
-	registration, err := template.ParseFS(fs, "templates/registration.html")
+	parse := func(path string) (*template.Template, error) {
+		if b, err := base.Clone(); err != nil {
+			return nil, err
+		} else {
+			return b.ParseFS(fs, path)
+		}
+	}
+	whoami, err := parse("templates/whoami.html")
 	if err != nil {
 		return nil, err
 	}
-	login, err := template.ParseFS(fs, "templates/login.html")
+	register, err := parse("templates/register.html")
 	if err != nil {
 		return nil, err
 	}
-	consent, err := template.ParseFS(fs, "templates/consent.html")
+	login, err := parse("templates/login.html")
 	if err != nil {
 		return nil, err
 	}
-	return &Templates{whoami, registration, login, consent}, nil
+	consent, err := parse("templates/consent.html")
+	if err != nil {
+		return nil, err
+	}
+	return &Templates{whoami, register, login, consent}, nil
 }
 
 type Server struct {
@@ -80,8 +91,8 @@ func (s *Server) Start(port int) error {
 	var staticFS = http.FS(static)
 	fs := http.FileServer(staticFS)
 	r.PathPrefix("/static/").Handler(cacheControlWrapper(fs))
-	r.Path("/registration").Methods(http.MethodGet).HandlerFunc(s.registrationInitiate)
-	r.Path("/registration").Methods(http.MethodPost).HandlerFunc(s.registration)
+	r.Path("/register").Methods(http.MethodGet).HandlerFunc(s.registerInitiate)
+	r.Path("/register").Methods(http.MethodPost).HandlerFunc(s.register)
 	r.Path("/login").Methods(http.MethodGet).HandlerFunc(s.loginInitiate)
 	r.Path("/login").Methods(http.MethodPost).HandlerFunc(s.login)
 	r.Path("/consent").Methods(http.MethodGet).HandlerFunc(s.consent)
@@ -123,7 +134,7 @@ func getCSRFToken(flowType, flow string, cookies []*http.Cookie) (string, error)
 	return token.String(), nil
 }
 
-func (s *Server) registrationInitiate(w http.ResponseWriter, r *http.Request) {
+func (s *Server) registerInitiate(w http.ResponseWriter, r *http.Request) {
 	if err := r.ParseForm(); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -139,7 +150,7 @@ func (s *Server) registrationInitiate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.Header().Set("Content-Type", "text/html")
-	if err := s.tmpls.Registration.Execute(w, csrfToken); err != nil {
+	if err := s.tmpls.Register.Execute(w, csrfToken); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -156,7 +167,7 @@ type regReqTraits struct {
 	Username string `json:"username"`
 }
 
-func (s *Server) registration(w http.ResponseWriter, r *http.Request) {
+func (s *Server) register(w http.ResponseWriter, r *http.Request) {
 	if err := r.ParseForm(); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
