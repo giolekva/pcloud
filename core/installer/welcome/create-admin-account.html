@@ -6,44 +6,38 @@
 		<meta name="viewport" content="width=device-width, initial-scale=1" />
 	</head>
 	<body>
-		<div style="display: contents">
-            <main class="container">
-              <article class="grid">
-                <div>
-                  <form action="/create-admin-account" method="POST">
-                    <input
-                      type="text"
-                      name="username"
-                      placeholder="Username"
-                      aria-label="Username"
-                      required
-                    />
-                    <input
-                      type="password"
-                      name="password"
-                      placeholder="Password"
-                      aria-label="Password"
-                      required
-                      />
-                    <input
-                      type="text"
-                      name="gandi-api-token"
-                      placeholder="Gandi API Token"
-                      aria-label="Gandi API Token"
-                      required
-                      />
-                    <input
-                      type="text"
-                      name="secret-token"
-                      placeholder="Secret Token"
-                      aria-label="Secret Token"
-                      required
-                    />
-                    <button type="submit" class="contrast">Create Admin Account</button>
-                  </form>
-                </div>
-              </article>
-            </main>
-        </div>
+		<main class="container">
+			<form action="" method="POST">
+			  <input
+				type="text"
+				name="username"
+				placeholder="Username"
+				aria-label="Username"
+				required
+			  />
+			  <input
+				type="password"
+				name="password"
+				placeholder="Password"
+				aria-label="Password"
+				required
+				/>
+			  <input
+				type="text"
+				name="gandi-api-token"
+				placeholder="Gandi API Token"
+				aria-label="Gandi API Token"
+				required
+				/>
+			  <input
+				type="text"
+				name="secret-token"
+				placeholder="Secret Token"
+				aria-label="Secret Token"
+				required
+			  />
+			  <button type="submit" class="contrast">Create Account</button>
+			</form>
+		</main>
 	</body>
 </html>

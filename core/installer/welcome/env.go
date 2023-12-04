@@ -69,8 +69,8 @@ func NewEnvServer(port int, ss *soft.Client, repo installer.RepoIO, nsCreator in
 func (s *EnvServer) Start() {
 	r := mux.NewRouter()
 	r.PathPrefix("/static/").Handler(http.FileServer(http.FS(staticAssets)))
-	r.Path("/env").Methods("GET").HandlerFunc(s.createEnvForm)
-	r.Path("/env").Methods("POST").HandlerFunc(s.createEnv)
+	r.Path("/").Methods("GET").HandlerFunc(s.createEnvForm)
+	r.Path("/").Methods("POST").HandlerFunc(s.createEnv)
 	r.Path("/create-invitation").Methods("GET").HandlerFunc(s.createInvitation)
 	http.Handle("/", r)
 	log.Fatal(http.ListenAndServe(fmt.Sprintf(":%d", s.port), nil))
