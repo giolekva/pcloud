@@ -6,39 +6,34 @@
 		<meta name="viewport" content="width=device-width, initial-scale=1" />
 	</head>
 	<body>
-		<div style="display: contents">
-            <main class="container">
-              <article class="grid">
-                <div>
-                  <form action="/env" method="POST">
-                    <input
-                      type="test"
-                      name="domain"
-                      placeholder="Domain"
-                      required
-                      />
-                    <input
-                      type="email"
-                      name="contact-email"
-                      placeholder="Contact Email"
-                      required
-                    />
-                    <input
-                      type="string"
-                      name="admin-public-key"
-                      placeholder="Admin SSH Public Key"
-                      required
-                    /> <!-- TODO(gio): remove-->
-                    <textarea
-                      name="secret-token"
-                      placeholder="Secret Token"
-                      required
-                    ></textarea>
-                    <button type="submit" class="contrast">Create Environment</button>
-                  </form>
-                </div>
-              </article>
-            </main>
-        </div>
+		<main class="container">
+			<form action="" method="POST">
+			  <input
+				type="test"
+				name="domain"
+				placeholder="Domain"
+				required
+				autofocus
+		      />
+			  <input
+				type="email"
+				name="contact-email"
+				placeholder="Contact Email"
+				required
+			  />
+			  <input
+				type="string"
+				name="admin-public-key"
+				placeholder="Admin SSH Public Key"
+				required
+			  /> <!-- TODO(gio): remove-->
+			  <textarea
+				name="secret-token"
+				placeholder="Secret Token"
+				required
+			  ></textarea>
+			  <button type="submit">Create Environment</button>
+			</form>
+		</main>
 	</body>
 </html>

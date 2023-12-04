@@ -12,6 +12,7 @@ import (
 	"io/fs"
 	"log"
 	"net/http"
+	"net/netip"
 	"path"
 	"path/filepath"
 	"strings"
@@ -502,15 +503,20 @@ data:
 	r.CommitAndPush("initialize config")
 	nsGen := installer.NewPrefixGenerator(req.Name + "-")
 	emptySuffixGen := installer.NewEmptySuffixGenerator()
+	ingressPrivateIP, err := netip.ParseAddr("10.1.0.1")
+	if err != nil {
+		return err
+	}
 	{
+		headscaleIP := ingressPrivateIP.Next()
 		app, err := appsRepo.Find("metallb-ipaddresspool")
 		if err != nil {
 			return err
 		}
 		if err := appManager.Install(*app, nsGen, installer.NewSuffixGenerator("-ingress-private"), map[string]any{
 			"Name":       fmt.Sprintf("%s-ingress-private", req.Name),
-			"From":       "10.1.0.1",
-			"To":         "10.1.0.1",
+			"From":       ingressPrivateIP.String(),
+			"To":         ingressPrivateIP.String(),
 			"AutoAssign": false,
 			"Namespace":  "metallb-system",
 		}); err != nil {
@@ -518,8 +524,8 @@ data:
 		}
 		if err := appManager.Install(*app, nsGen, installer.NewSuffixGenerator("-headscale"), map[string]any{
 			"Name":       fmt.Sprintf("%s-headscale", req.Name),
-			"From":       "10.1.0.2",
-			"To":         "10.1.0.2",
+			"From":       headscaleIP.String(),
+			"To":         headscaleIP.String(),
 			"AutoAssign": false,
 			"Namespace":  "metallb-system",
 		}); err != nil {
@@ -527,7 +533,7 @@ data:
 		}
 		if err := appManager.Install(*app, nsGen, emptySuffixGen, map[string]any{
 			"Name":       req.Name,
-			"From":       "10.1.0.100",
+			"From":       "10.1.0.100", // TODO(gio): auto-generate
 			"To":         "10.1.0.254",
 			"AutoAssign": false,
 			"Namespace":  "metallb-system",
@@ -543,6 +549,20 @@ data:
 		if err := appManager.Install(*app, nsGen, emptySuffixGen, map[string]any{}); err != nil {
 			return err
 		}
+	}
+	{
+		app, err := appsRepo.Find("tailscale-proxy")
+		if err != nil {
+			return err
+		}
+		if err := appManager.Install(*app, nsGen, emptySuffixGen, map[string]any{
+			"Username":       "private-network-proxy",
+			"IPSubnet":       "10.1.0.0/24",
+			"HostnameSuffix": "private-network-proxy",
+		}); err != nil {
+			return err
+		}
+		// TODO(giolekva): headscale accept routes
 	}
 	{
 		app, err := appsRepo.Find("certificate-issuer-public")

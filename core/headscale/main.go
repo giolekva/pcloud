@@ -6,12 +6,37 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"os"
+	"text/template"
 
 	"github.com/labstack/echo/v4"
 )
 
 var port = flag.Int("port", 3000, "Port to listen on")
 var config = flag.String("config", "", "Path to headscale config")
+var acls = flag.String("acls", "", "Path to the headscale acls file")
+var domain = flag.String("domain", "", "Environment domain")
+
+// TODO(gio): ingress-private user name must be configurable
+const defaultACLs = `
+{
+  "hosts": {
+    "private-network": "10.1.0.0/24",
+  },
+  "autoApprovers": {
+    "routes": {
+      "private-network": ["private-network-proxy@{{ .Domain }}"],
+    },
+  },
+  "acls": [
+    { // Everyone can access ingress-private service
+      "action": "accept",
+      "src": ["*"],
+      "dst": ["private-network:*"],
+    },
+  ],
+}
+`
 
 type server struct {
 	port   int
@@ -65,8 +90,24 @@ func (s *server) enableRoute(c echo.Context) error {
 	}
 }
 
+func updateACLs(domain, acls string) error {
+	tmpl, err := template.New("acls").Parse(defaultACLs)
+	if err != nil {
+		return err
+	}
+	out, err := os.Create(acls)
+	if err != nil {
+		return err
+	}
+	defer out.Close()
+	return tmpl.Execute(out, map[string]any{
+		"Domain": domain,
+	})
+}
+
 func main() {
 	flag.Parse()
+	updateACLs(*domain, *acls)
 	c := newClient(*config)
 	s := newServer(*port, c)
 	s.start()

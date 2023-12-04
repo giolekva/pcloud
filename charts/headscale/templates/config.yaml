@@ -206,7 +206,7 @@ spec:
         # Path to a file containg ACL policies.
         # ACLs can be defined as YAML or HUJSON.
         # https://tailscale.com/kb/1018/acls/
-        acl_policy_path: ""
+        acl_policy_path: "/headscale/acls/config.hujson" # TODO(gio): mount path must be configurable
 
         ## DNS
         #
@@ -272,7 +272,7 @@ spec:
         # help us test it.
         # OpenID Connect
         oidc:
-          only_start_if_oidc_is_available: false
+          only_start_if_oidc_is_available: true
           issuer: {{ .Values.oauth2.hydraPublic }}
           client_id: {{`{{ .client_id }}`}}
           client_secret: {{`{{ .client_secret }}`}}
