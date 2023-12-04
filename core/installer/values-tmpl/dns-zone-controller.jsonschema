@@ -1,0 +1,14 @@
+{
+  "type": "object",
+  "properties": {
+    "Volume": {
+      "type": "object",
+	  "properties": {
+		"ClaimName": { "type": "string" },
+		"MountPath": { "type": "string" }
+	  },
+	  "additionalProperties": false
+	}
+  },
+  "additionalProperties": false
+}

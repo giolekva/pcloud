@@ -113,7 +113,7 @@ spec:
                     default_browser_return_url: https://accounts-ui.{{ .Global.Domain }}/
               registration:
                 lifespan: 10m
-                ui_url: https://accounts-ui.{{ .Global.Domain }}/registration
+                ui_url: https://accounts-ui.{{ .Global.Domain }}/register
                 after:
                   password:
                     hooks:

@@ -1,6 +1,7 @@
 package welcome
 
 import (
+	"bytes"
 	"embed"
 	"encoding/base64"
 	"encoding/json"
@@ -332,7 +333,7 @@ func (s *EnvServer) createEnv(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	{
-		ssPubKey, err := ssClient.GetPublicKey()
+		ssPublicKeys, err := ssClient.GetPublicKeys()
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
@@ -342,7 +343,7 @@ func (s *EnvServer) createEnv(w http.ResponseWriter, r *http.Request) {
 			req,
 			strings.Split(ssClient.Addr, ":")[0],
 			keys,
-			ssPubKey,
+			ssPublicKeys,
 		); err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
@@ -628,7 +629,7 @@ func addNewEnv(
 	req createEnvReq,
 	repoHost string,
 	keys *keygen.KeyPair,
-	pcloudRepoPublicKey []byte,
+	configRepoPublicKeys []string,
 ) error {
 	kust, err := repoIO.ReadKustomization("environments/kustomization.yaml")
 	if err != nil {
@@ -639,6 +640,10 @@ func addNewEnv(
 	if err != nil {
 		return err
 	}
+	var knownHosts bytes.Buffer
+	for _, key := range configRepoPublicKeys {
+		fmt.Fprintf(&knownHosts, "%s %s\n", repoHost, key)
+	}
 	for _, tmpl := range tmpls.Templates() {
 		dstPath := path.Join("environments", req.Name, tmpl.Name())
 		dst, err := repoIO.Writer(dstPath)
@@ -646,13 +651,14 @@ func addNewEnv(
 			return err
 		}
 		defer dst.Close()
+
 		if err := tmpl.Execute(dst, map[string]string{
 			"Name":       req.Name,
 			"PrivateKey": base64.StdEncoding.EncodeToString(keys.RawPrivateKey()),
 			"PublicKey":  base64.StdEncoding.EncodeToString(keys.RawAuthorizedKey()),
 			"RepoHost":   repoHost,
 			"RepoName":   "config",
-			"KnownHosts": base64.StdEncoding.EncodeToString([]byte(fmt.Sprintf("%s %s", repoHost, pcloudRepoPublicKey))),
+			"KnownHosts": base64.StdEncoding.EncodeToString(knownHosts.Bytes()),
 		}); err != nil {
 			return err
 		}

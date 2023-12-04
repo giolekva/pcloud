@@ -3,5 +3,5 @@ kind: ConfigMap
 metadata:
   name: known-hosts
   namespace: {{ .Release.Namespace }}
-data:
-  known_hosts: {{ printf "%s %s" .Values.repositoryHost .Values.repositoryHostPublicKey | toYaml | indent 2 }}
+binaryData:
+  known_hosts: {{ .Values.repositoryHostPublicKeys | b64enc }}

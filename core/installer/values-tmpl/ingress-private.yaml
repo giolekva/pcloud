@@ -28,3 +28,5 @@ spec:
         controllerValue: k8s.io/{{ .Global.Id }}-ingress-private
       extraArgs:
         default-ssl-certificate: "{{ .Global.Id }}-ingress-private/cert-wildcard.p.{{ .Global.Domain }}"
+      admissionWebhooks:
+        enabled: false

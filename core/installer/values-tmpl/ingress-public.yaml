@@ -15,10 +15,12 @@ spec:
   values:
     fullnameOverride: {{ .Global.PCloudEnvName }}-ingress-public
     controller:
+      kind: DaemonSet
+      hostNetwork: true
+      hostPort:
+        enabled: true
       service:
-        type: LoadBalancer
-        annotations:
-          metallb.universe.tf/loadBalancerIPs: {{ .Values.IngressPublicIP }}
+        enabled: false
       ingressClassByName: true
       ingressClassResource:
         name: {{ .Global.PCloudEnvName }}-ingress-public
@@ -27,3 +29,7 @@ spec:
         controllerValue: k8s.io/{{ .Global.PCloudEnvName }}-ingress-public
       config:
         proxy-body-size: 100M # TODO(giolekva): configurable
+    tcp:
+      "53": "{{ .Global.PCloudEnvName }}-dns-zone-manager/coredns:53"
+    udp:
+      "53": "{{ .Global.PCloudEnvName }}-dns-zone-manager/coredns:53"

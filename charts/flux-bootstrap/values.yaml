@@ -4,7 +4,7 @@ image:
   pullPolicy: Always
 repositoryAddress: ""
 repositoryHost: ""
-positoryHostPublicKey: ""
+positoryHostPublicKeys: []
 repository:
   address: ssh://git@<host>/<org>/<repository>
   branch: master

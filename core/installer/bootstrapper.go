@@ -66,21 +66,31 @@ func (b Bootstrapper) Run(env EnvConfig) error {
 	if err := b.installFluxcd(ss, env.Name); err != nil {
 		return err
 	}
+	fmt.Println("Fluxcd installed")
 	repo, err := ss.GetRepo("config")
 	if err != nil {
+		fmt.Println("Failed to get config repo")
 		return err
 	}
 	repoIO := NewRepoIO(repo, ss.Signer)
+	fmt.Println("Configuring main repo")
 	if err := configureMainRepo(repoIO, env); err != nil {
 		return err
 	}
+	fmt.Println("Installing infrastructure services")
 	nsGen := NewPrefixGenerator(env.NamespacePrefix)
 	if err := b.installInfrastructureServices(repoIO, nsGen, b.ns, env); err != nil {
 		return err
 	}
+	fmt.Println("Installing DNS Zone Manager")
+	if err := b.installDNSZoneManager(ss, repoIO, nsGen, b.ns, env); err != nil {
+		return err
+	}
+	fmt.Println("Installing env manager")
 	if err := b.installEnvManager(ss, repoIO, nsGen, b.ns, env); err != nil {
 		return err
 	}
+	fmt.Println("Environment ready to use")
 	return nil
 }
 
@@ -304,7 +314,7 @@ func (b Bootstrapper) installFluxcd(ss *soft.Client, envName string) error {
 		return err
 	}
 	fmt.Println("Installing Flux")
-	ssPublic, err := ss.GetPublicKey()
+	ssPublicKeys, err := ss.GetPublicKeys()
 	if err != nil {
 		return err
 	}
@@ -312,7 +322,7 @@ func (b Bootstrapper) installFluxcd(ss *soft.Client, envName string) error {
 	if err := b.installFluxBootstrap(
 		ss.GetRepoAddress("config"),
 		host,
-		string(ssPublic),
+		ssPublicKeys,
 		string(keys.RawPrivateKey()),
 		envName,
 	); err != nil {
@@ -321,7 +331,7 @@ func (b Bootstrapper) installFluxcd(ss *soft.Client, envName string) error {
 	return nil
 }
 
-func (b Bootstrapper) installFluxBootstrap(repoAddr, repoHost, repoHostPubKey, privateKey, envName string) error {
+func (b Bootstrapper) installFluxBootstrap(repoAddr, repoHost string, repoHostPubKeys []string, privateKey, envName string) error {
 	config, err := b.ha.New(envName)
 	if err != nil {
 		return err
@@ -330,17 +340,21 @@ func (b Bootstrapper) installFluxBootstrap(repoAddr, repoHost, repoHostPubKey, p
 	if err != nil {
 		return err
 	}
+	var lines []string
+	for _, k := range repoHostPubKeys {
+		lines = append(lines, fmt.Sprintf("%s %s", repoHost, k))
+	}
 	values := map[string]any{
 		"image": map[string]any{
 			"repository": "fluxcd/flux-cli",
 			"tag":        "v2.1.2",
 			"pullPolicy": "IfNotPresent",
 		},
-		"repositoryAddress":       repoAddr,
-		"repositoryHost":          repoHost,
-		"repositoryHostPublicKey": repoHostPubKey,
-		"privateKey":              privateKey,
-		"installationNamespace":   fmt.Sprintf("%s-flux", envName),
+		"repositoryAddress":        repoAddr,
+		"repositoryHost":           repoHost,
+		"repositoryHostPublicKeys": strings.Join(lines, "\n"),
+		"privateKey":               privateKey,
+		"installationNamespace":    fmt.Sprintf("%s-flux", envName),
 	}
 	installer := action.NewInstall(config)
 	installer.Namespace = envName
@@ -497,6 +511,46 @@ func (b Bootstrapper) installEnvManager(ss *soft.Client, repo RepoIO, nsGen Name
 		derived.Release.Namespace = namespaces[0]
 	}
 	return repo.InstallApp(*app, filepath.Join("/infrastructure", app.Name), derived.Values, derived)
+}
+
+func (b Bootstrapper) installDNSZoneManager(ss *soft.Client, repo RepoIO, nsGen NamespaceGenerator, nsCreator NamespaceCreator, env EnvConfig) error {
+	const (
+		volumeClaimName = "dns-zone-configs"
+		volumeMountPath = "/etc/pcloud/dns-zone-configs"
+	)
+	ns, err := nsGen.Generate("dns-zone-manager")
+	if err != nil {
+		return err
+	}
+	if err := nsCreator.Create(ns); err != nil {
+		return err
+	}
+	appRepo := NewInMemoryAppRepository(CreateAllApps())
+	{
+		app, err := appRepo.Find("dns-zone-manager")
+		if err != nil {
+			return err
+		}
+		derived := Derived{
+			Global: Values{
+				PCloudEnvName: env.Name,
+			},
+			Values: map[string]any{
+				"Volume": map[string]any{
+					"ClaimName": volumeClaimName,
+					"MountPath": volumeMountPath,
+					"Size":      "1Gi",
+				},
+			},
+			Release: Release{
+				Namespace: ns,
+			},
+		}
+		if err := repo.InstallApp(*app, filepath.Join("/infrastructure", app.Name), derived.Values, derived); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 type HelmActionConfigFactory interface {

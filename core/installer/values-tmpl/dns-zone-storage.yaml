@@ -1,0 +1,18 @@
+apiVersion: helm.toolkit.fluxcd.io/v2beta1
+kind: HelmRelease
+metadata:
+  name: dns-zone-storage
+  namespace: {{ .Release.Namespace }}
+spec:
+  chart:
+    spec:
+      chart: charts/volumes
+      sourceRef:
+        kind: GitRepository
+        name: pcloud
+        namespace: {{ .Global.PCloudEnvName }}
+  interval: 10m0s
+  values:
+    name: {{ .Values.Volume.ClaimName }}
+    size: {{ .Values.Volume.Size }}
+    accessMode: ReadWriteMany

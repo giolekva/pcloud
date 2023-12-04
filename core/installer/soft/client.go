@@ -49,7 +49,7 @@ func WaitForClient(addr string, clientPrivateKey []byte, log *log.Logger) (*Clie
 		if err != nil {
 			return err
 		}
-		if _, err := client.GetPublicKey(); err != nil {
+		if _, err := client.GetPublicKeys(); err != nil {
 			return err
 		}
 		return nil
@@ -142,6 +142,7 @@ func (r RepositoryAddress) FullAddress() string {
 }
 
 func CloneRepository(addr RepositoryAddress, signer ssh.Signer) (*Repository, error) {
+	fmt.Printf("Cloning repository: %s %s\n", addr.Addr, addr.Name)
 	c, err := git.Clone(memory.NewStorage(), memfs.New(), &git.CloneOptions{
 		URL: addr.FullAddress(),
 		Auth: &gitssh.PublicKeys{
@@ -209,14 +210,14 @@ func (ss *Client) authGit() *gitssh.PublicKeys {
 	}
 }
 
-func (ss *Client) GetPublicKey() ([]byte, error) {
-	var ret []byte
+func (ss *Client) GetPublicKeys() ([]string, error) {
+	var ret []string
 	config := &ssh.ClientConfig{
 		Auth: []ssh.AuthMethod{
 			ssh.PublicKeys(ss.Signer),
 		},
 		HostKeyCallback: func(hostname string, remote net.Addr, key ssh.PublicKey) error {
-			ret = ssh.MarshalAuthorizedKey(key)
+			ret = append(ret, string(ssh.MarshalAuthorizedKey(key)))
 			return nil
 		},
 	}

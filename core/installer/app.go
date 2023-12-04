@@ -114,6 +114,7 @@ func CreateAllApps() []App {
 		CreateCSIDriverSMB(valuesTmpls, tmpls),
 		CreateResourceRendererController(valuesTmpls, tmpls),
 		CreateHeadscaleController(valuesTmpls, tmpls),
+		CreateDNSZoneManager(valuesTmpls, tmpls),
 	}
 	for _, a := range CreateStoreApps() {
 		ret = append(ret, a.App)
@@ -571,6 +572,24 @@ func CreateHeadscaleController(fs embed.FS, tmpls *template.Template) App {
 		},
 		string(schema),
 		tmpls.Lookup("headscale-controller.md"),
+	}
+}
+
+func CreateDNSZoneManager(fs embed.FS, tmpls *template.Template) App {
+	schema, err := fs.ReadFile("values-tmpl/dns-zone-controller.jsonschema")
+	if err != nil {
+		panic(err)
+	}
+	return App{
+		"dns-zone-manager",
+		[]string{"dns-zone-manager"},
+		[]*template.Template{
+			tmpls.Lookup("dns-zone-storage.yaml"),
+			tmpls.Lookup("coredns.yaml"),
+			tmpls.Lookup("dns-zone-controller.yaml"),
+		},
+		string(schema),
+		tmpls.Lookup("dns-zone-controller.md"),
 	}
 }
 
