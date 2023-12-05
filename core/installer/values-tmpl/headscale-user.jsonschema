@@ -1,0 +1,14 @@
+{
+  "type": "object",
+  "properties": {
+    "Username": { "type": "string" },
+	"PreAuthKey": {
+	  "type": "object",
+	  "properties": {
+	    "Enabled": { "type": "boolean" }
+	  },
+	  "additionalProperties": false
+	}
+  },
+  "additionalProperties": false
+}

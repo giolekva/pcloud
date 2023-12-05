@@ -20,19 +20,16 @@ var domain = flag.String("domain", "", "Environment domain")
 // TODO(gio): ingress-private user name must be configurable
 const defaultACLs = `
 {
-  "hosts": {
-    "private-network": "10.1.0.0/24",
-  },
   "autoApprovers": {
     "routes": {
-      "private-network": ["private-network-proxy@{{ .Domain }}"],
+      "10.1.0.0/24": ["private-network-proxy@{{ .Domain }}"],
     },
   },
   "acls": [
     { // Everyone can access ingress-private service
       "action": "accept",
       "src": ["*"],
-      "dst": ["private-network:*"],
+      "dst": ["10.1.0.0/24:*"],
     },
   ],
 }

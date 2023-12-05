@@ -1,0 +1,6 @@
+username: foo
+headscaleApiAddress: headscale-api.example.com
+preAuthKey:
+  enabled: false
+  secretName: foo-secret
+

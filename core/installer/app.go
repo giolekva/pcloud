@@ -102,6 +102,7 @@ func CreateAllApps() []App {
 		CreateCertificateIssuerPrivate(valuesTmpls, tmpls),
 		CreateAppCoreAuth(valuesTmpls, tmpls),
 		CreateAppHeadscale(valuesTmpls, tmpls),
+		CreateAppHeadscaleUser(valuesTmpls, tmpls),
 		CreateAppTailscaleProxy(valuesTmpls, tmpls),
 		CreateMetallbIPAddressPool(valuesTmpls, tmpls),
 		CreateEnvManager(valuesTmpls, tmpls),
@@ -380,6 +381,22 @@ func CreateAppHeadscale(fs embed.FS, tmpls *template.Template) App {
 		},
 		string(schema),
 		tmpls.Lookup("headscale.md"),
+	}
+}
+
+func CreateAppHeadscaleUser(fs embed.FS, tmpls *template.Template) App {
+	schema, err := fs.ReadFile("values-tmpl/headscale-user.jsonschema")
+	if err != nil {
+		panic(err)
+	}
+	return App{
+		"headscale-user",
+		[]string{"app-headscale"},
+		[]*template.Template{
+			tmpls.Lookup("headscale-user.yaml"),
+		},
+		string(schema),
+		tmpls.Lookup("headscale-user.md"),
 	}
 }
 

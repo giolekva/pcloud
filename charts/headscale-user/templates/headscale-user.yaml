@@ -1,0 +1,11 @@
+apiVersion: headscale.dodo.cloud/v1
+kind: HeadscaleUser
+metadata:
+  name: {{ .Values.username }}
+  namespace: {{ .Release.Namespace }}
+spec:
+  headscaleAddress: {{ .Values.headscaleApiAddress }}
+  name: {{ .Values.username }}
+  preAuthKey:
+    enabled: {{ .Values.preAuthKey.enabled }}
+    secretName: {{ .Values.preAuthKey.secretName }}

@@ -1,0 +1,6 @@
+apiVersion: v2
+name: headscale-user
+description: A Helm chart to create headscale users
+type: application
+version: 0.0.1
+appVersion: "0.0.1"

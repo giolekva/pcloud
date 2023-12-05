@@ -93,7 +93,11 @@ func extractReq(r *http.Request) (createAccountReq, error) {
 }
 
 func (s *Server) createAdminAccount(w http.ResponseWriter, r *http.Request) {
-	var req createAccountReq
+	req, err := extractReq(r)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
 	// TODO(giolekva): accounts-ui create user req
 	{
 		config, err := s.repo.ReadConfig()
@@ -127,19 +131,20 @@ func (s *Server) createAdminAccount(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 		{
-			app, err := appsRepo.Find("tailscale-proxy")
+			app, err := appsRepo.Find("headscale-user")
 			if err != nil {
 				http.Error(w, err.Error(), http.StatusInternalServerError)
 				return
 			}
 			if err := appManager.Install(*app, nsGen, suffixGen, map[string]any{
 				"Username": req.Username,
-				"IPSubnet": "10.1.0.0/24", // TODO(giolekva): this should be taken from the config generated during new env creation
+				"PreAuthKey": map[string]any{
+					"Enabled": false,
+				},
 			}); err != nil {
 				http.Error(w, err.Error(), http.StatusInternalServerError)
 				return
 			}
-			// TODO(giolekva): headscale accept routes
 		}
 	}
 	if _, err := w.Write([]byte("OK")); err != nil {

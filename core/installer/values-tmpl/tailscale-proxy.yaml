@@ -16,7 +16,7 @@ spec:
         namespace: {{ .Global.Id }}
   interval: 1m0s
   values:
-    hostname: {{ .Global.Id }}-{{ .Values.HostnameSuffix }}
+    hostname: {{ .Values.Hostname}}
     apiServer: http://headscale-api.{{ .Global.Id }}-app-headscale.svc.cluster.local
     loginServer: https://headscale.{{ .Global.Domain }} # TODO(gio): take headscale subdomain from configuration
     ipSubnet: {{ .Values.IPSubnet }}

@@ -556,9 +556,9 @@ data:
 			return err
 		}
 		if err := appManager.Install(*app, nsGen, emptySuffixGen, map[string]any{
-			"Username":       "private-network-proxy",
-			"IPSubnet":       "10.1.0.0/24",
-			"HostnameSuffix": "private-network-proxy",
+			"Hostname": "private-network-proxy",
+			"Username": "private-network-proxy",
+			"IPSubnet": "10.1.0.0/24",
 		}); err != nil {
 			return err
 		}
