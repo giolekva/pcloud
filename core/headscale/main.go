@@ -17,19 +17,26 @@ var config = flag.String("config", "", "Path to headscale config")
 var acls = flag.String("acls", "", "Path to the headscale acls file")
 var domain = flag.String("domain", "", "Environment domain")
 
-// TODO(gio): ingress-private user name must be configurable
+// TODO(gio): make internal network cidr and proxy user configurable
 const defaultACLs = `
 {
   "autoApprovers": {
     "routes": {
-      "10.1.0.0/24": ["private-network-proxy@{{ .Domain }}"],
+      // "10.1.0.0/24": ["private-network-proxy@{{ .Domain }}"],
+      "10.1.0.0/24": ["*"],
     },
   },
   "acls": [
-    { // Everyone can access ingress-private service
+    { // Everyone has passthough access to private-network-proxy node
       "action": "accept",
       "src": ["*"],
-      "dst": ["10.1.0.0/24:*"],
+      "dst": ["10.1.0.0/24:*", "private-network-proxy:0"],
+    },
+  ],
+  "tests": [
+    {
+      "src": "*",
+      "accept": ["10.1.0.1:80", "10.1.0.1:443"],
     },
   ],
 }

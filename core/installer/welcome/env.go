@@ -542,27 +542,19 @@ data:
 		}
 	}
 	{
-		app, err := appsRepo.Find("ingress-private")
-		if err != nil {
-			return err
-		}
-		if err := appManager.Install(*app, nsGen, emptySuffixGen, map[string]any{}); err != nil {
-			return err
-		}
-	}
-	{
-		app, err := appsRepo.Find("tailscale-proxy")
+		app, err := appsRepo.Find("private-network")
 		if err != nil {
 			return err
 		}
 		if err := appManager.Install(*app, nsGen, emptySuffixGen, map[string]any{
-			"Hostname": "private-network-proxy",
-			"Username": "private-network-proxy",
-			"IPSubnet": "10.1.0.0/24",
+			"PrivateNetwork": map[string]any{
+				"Hostname": "private-network-proxy",
+				"Username": "private-network-proxy",
+				"IPSubnet": "10.1.0.0/24",
+			},
 		}); err != nil {
 			return err
 		}
-		// TODO(giolekva): headscale accept routes
 	}
 	{
 		app, err := appsRepo.Find("certificate-issuer-public")

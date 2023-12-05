@@ -103,7 +103,6 @@ func CreateAllApps() []App {
 		CreateAppCoreAuth(valuesTmpls, tmpls),
 		CreateAppHeadscale(valuesTmpls, tmpls),
 		CreateAppHeadscaleUser(valuesTmpls, tmpls),
-		CreateAppTailscaleProxy(valuesTmpls, tmpls),
 		CreateMetallbIPAddressPool(valuesTmpls, tmpls),
 		CreateEnvManager(valuesTmpls, tmpls),
 		CreateWelcome(valuesTmpls, tmpls),
@@ -142,18 +141,19 @@ func CreateStoreApps() []StoreApp {
 
 // TODO(gio): service account needs permission to create/update secret
 func CreateAppIngressPrivate(fs embed.FS, tmpls *template.Template) App {
-	schema, err := fs.ReadFile("values-tmpl/ingress-private.jsonschema")
+	schema, err := fs.ReadFile("values-tmpl/private-network.jsonschema")
 	if err != nil {
 		panic(err)
 	}
 	return App{
-		"ingress-private",
-		[]string{"ingress-private"},
+		"private-network",
+		[]string{"ingress-private"}, // TODO(gio): rename to private network
 		[]*template.Template{
 			tmpls.Lookup("ingress-private.yaml"),
+			tmpls.Lookup("tailscale-proxy.yaml"),
 		},
 		string(schema),
-		tmpls.Lookup("ingress-private.md"),
+		tmpls.Lookup("private-network.md"),
 	}
 }
 
@@ -397,22 +397,6 @@ func CreateAppHeadscaleUser(fs embed.FS, tmpls *template.Template) App {
 		},
 		string(schema),
 		tmpls.Lookup("headscale-user.md"),
-	}
-}
-
-func CreateAppTailscaleProxy(fs embed.FS, tmpls *template.Template) App {
-	schema, err := fs.ReadFile("values-tmpl/tailscale-proxy.jsonschema")
-	if err != nil {
-		panic(err)
-	}
-	return App{
-		"tailscale-proxy",
-		[]string{"tailscale-proxy"},
-		[]*template.Template{
-			tmpls.Lookup("tailscale-proxy.yaml"),
-		},
-		string(schema),
-		tmpls.Lookup("tailscale-proxy.md"),
 	}
 }
 
