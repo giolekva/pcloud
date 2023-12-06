@@ -200,6 +200,22 @@ spec:
   selector:
     control-plane: controller-manager
 ---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    control-plane: controller-manager
+  name: ns-controller
+  namespace: {{ .Release.Namespace }}
+spec:
+  ports:
+  - name: http
+    port: 80
+    protocol: TCP
+    targetPort: http
+  selector:
+    control-plane: controller-manager
+---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -252,6 +268,7 @@ spec:
         - --metrics-bind-address=127.0.0.1:8080
         - --leader-elect
         - --config-dir=/etc/pcloud/dns-zone-configs
+        - --api-port=8082
         command:
         - /manager
         image: {{ .Values.image.repository }}:{{ .Values.image.tag }}
@@ -266,6 +283,10 @@ spec:
           initialDelaySeconds: 15
           periodSeconds: 20
         name: manager
+        ports:
+        - containerPort: 8082
+          name: http
+          protocol: TCP
         readinessProbe:
           httpGet:
             path: /readyz
