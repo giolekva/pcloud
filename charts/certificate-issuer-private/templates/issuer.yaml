@@ -15,4 +15,5 @@ spec:
           groupName: dodo.cloud
           solverName: pcloud-dns-solver
           config:
-            message: hiiii
+            createAddress: "http://ns-controller.dodo-dns-zone-manager.svc.cluster.local/create-txt-record"
+            deleteAddress: "http://ns-controller.dodo-dns-zone-manager.svc.cluster.local/delete-txt-record"
