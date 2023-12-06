@@ -12,9 +12,7 @@ spec:
     solvers:
     - dns01:
         webhook:
-          groupName: acme.bwolf.me
-          solverName: gandi
+          groupName: dodo.cloud
+          solverName: pcloud-dns-solver
           config:
-            apiKeySecretRef:
-              key: api-token
-              name: gandi-credentials
+            message: hiiii
