@@ -1,0 +1,20 @@
+groupName: dodo.cloud
+logLevel: 6
+certManager:
+  namespace: cert-manager
+  serviceAccountName: cert-manager
+image:
+  repository: giolekva/dns-challenge-solver
+  tag: latest
+  pullPolicy: Always
+nameOverride: ''
+fullnameOverride: ''
+service:
+  type: ClusterIP
+  port: 443
+features:
+  apiPriorityAndFairness: false
+resources: {}
+nodeSelector: {}
+tolerations: []
+affinity: {}
