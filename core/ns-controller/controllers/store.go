@@ -29,7 +29,7 @@ type ZoneStore interface {
 type ZoneConfig struct {
 	Zone        string     `json:"zone,omitempty"`
 	PublicIPs   []string   `json:"publicIPs,omitempty"`
-	PrivateIP   string     `json:"privateIP",omitempty`
+	PrivateIP   string     `json:"privateIP,omitempty"`
 	Nameservers []string   `json:"nameservers,omitempty"`
 	DNSSec      *DNSSecKey `json:"dnsSec,omitempty"`
 }
@@ -210,10 +210,10 @@ func (s *fsZoneStore) CreateConfigFile() error {
 ns{{ add1 $i }}.{{ $zone }}. 10800 IN A {{ $ns }}
 {{ end }}
 {{ range .publicIngressIPs }}
-@ 10800 IN A {{ . }}
+{{ $zone }}. 10800 IN A {{ . }}
+*.{{ $zone }}. 10800 IN A {{ . }}
+*.*.{{ $zone }}. 10800 IN A {{ . }}
 {{ end }}
-*.{{ $zone }}. 10800 IN CNAME {{ $zone }}.
-p.{{ $zone }}. 10800 IN CNAME {{ $zone }}.
 *.p.{{ $zone }}. 10800 IN A {{ .privateIngressIP }}
 `)
 	records, err := fs.Create("zone.db")
@@ -252,7 +252,11 @@ func (s *fsZoneStore) AddTextRecord(entry, txt string) error {
 	if err != nil {
 		return err
 	}
-	z.CreateOrReplaceTxtRecord(fmt.Sprintf("%s.%s.", entry, s.zone.Zone), txt)
+	var fqdn = fmt.Sprintf("%s.%s.", entry, s.zone.Zone)
+	z.CreateOrReplaceTxtRecord(fqdn, txt)
+	for _, ip := range s.zone.PublicIPs {
+		z.CreateARecord(fqdn, ip)
+	}
 	w, err := s.fs.Create("zone.db")
 	if err != nil {
 		return err
@@ -261,9 +265,6 @@ func (s *fsZoneStore) AddTextRecord(entry, txt string) error {
 	if err := z.Write(w); err != nil {
 		return err
 	}
-	// if _, err := r.Write([]byte(fmt.Sprintf("%s 300 IN TXT \"%s\"", entry, txt))); err != nil {
-	// 	return err
-	// }
 	return nil
 }
 
@@ -277,7 +278,9 @@ func (s *fsZoneStore) DeleteTextRecord(entry, txt string) error {
 	if err != nil {
 		return err
 	}
-	z.DeleteTxtRecord(fmt.Sprintf("%s.%s.", entry, s.zone.Zone), txt)
+	fqdn := fmt.Sprintf("%s.%s.", entry, s.zone.Zone)
+	z.DeleteTxtRecord(fqdn, txt)
+	z.DeleteRecordsFor(fqdn)
 	w, err := s.fs.Create("zone.db")
 	if err != nil {
 		return err
