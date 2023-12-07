@@ -1,12 +1,12 @@
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
-  name: cert-manager-pcloud
+  name: cert-manager-{{ .Values.resolverName }}
 rules:
 - apiGroups:
-  - dodo.cloud
+  - {{ .Values.apiGroupName }}
   resources:
-  - pcloud-dns-solver
+  - {{ .Values.resolverName }}
   verbs:
   - "*" # TODO(giolekva): limit
 ---
@@ -17,7 +17,7 @@ metadata:
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
-  name: cert-manager-pcloud
+  name: cert-manager-{{ .Values.resolverName }}
 subjects:
 - kind: ServiceAccount
   name: {{ .Values.certManager.name }}

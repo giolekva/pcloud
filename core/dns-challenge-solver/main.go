@@ -2,13 +2,16 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
+	"os"
 	"strings"
 
 	extapi "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 
@@ -16,11 +19,17 @@ import (
 	"github.com/cert-manager/cert-manager/pkg/acme/webhook/cmd"
 )
 
-const groupName = "dodo.cloud"
+var (
+	groupName    = os.Getenv("API_GROUP_NAME")
+	resolverName = os.Getenv("RESOLVER_NAME")
+)
 
 func main() {
 	if groupName == "" {
-		panic("GROUP_NAME must be specified")
+		panic("API_GROUP_NAME must be specified")
+	}
+	if resolverName == "" {
+		panic("RESOLVER_NAME must be specified")
 	}
 	cmd.RunWebhookServer(groupName,
 		&pcloudDNSProviderSolver{},
@@ -102,8 +111,13 @@ type pcloudDNSProviderSolver struct {
 // be used by your provider here, you should reference a Kubernetes Secret
 // resource and fetch these credentials using a Kubernetes clientset.
 type pcloudDNSProviderConfig struct {
-	CreateAddress string `json:"createAddress,omitempty"`
-	DeleteAddress string `json:"deleteAddress,omitempty"`
+	APIConfigMapName      string `json:"apiConfigMapName,omitempty"`
+	APIConfigMapNamespace string `json:"apiConfigMapNamespace,omitempty"`
+}
+
+type apiConfig struct {
+	CreateAddress string `json:"createTXTAddr,omitempty"`
+	DeleteAddress string `json:"deleteTXTAddr,omitempty"`
 }
 
 // Name is used as the name for this DNS solver when referencing it on the ACME
@@ -113,7 +127,7 @@ type pcloudDNSProviderConfig struct {
 // within a single webhook deployment**.
 // For example, `cloudflare` may be used as the name of a solver.
 func (c *pcloudDNSProviderSolver) Name() string {
-	return "pcloud-dns-solver"
+	return resolverName
 }
 
 // Present is responsible for actually presenting the DNS record with the
@@ -125,10 +139,13 @@ func (c *pcloudDNSProviderSolver) Present(ch *v1alpha1.ChallengeRequest) error {
 	fmt.Printf("Received challenge %+v\n", ch)
 	cfg, err := loadConfig(ch.Config)
 	if err != nil {
-		fmt.Printf("")
 		return err
 	}
-	zm := &zoneControllerManager{cfg.CreateAddress, cfg.DeleteAddress}
+	apiCfg, err := loadAPIConfig(c.client, cfg)
+	if err != nil {
+		return err
+	}
+	zm := &zoneControllerManager{apiCfg.CreateAddress, apiCfg.DeleteAddress}
 	domain, entry := getDomainAndEntry(ch)
 	return zm.CreateTextRecord(domain, entry, ch.Key)
 }
@@ -144,7 +161,11 @@ func (c *pcloudDNSProviderSolver) CleanUp(ch *v1alpha1.ChallengeRequest) error {
 	if err != nil {
 		return err
 	}
-	zm := &zoneControllerManager{cfg.CreateAddress, cfg.DeleteAddress}
+	apiCfg, err := loadAPIConfig(c.client, cfg)
+	if err != nil {
+		return err
+	}
+	zm := &zoneControllerManager{apiCfg.CreateAddress, apiCfg.DeleteAddress}
 	domain, entry := getDomainAndEntry(ch)
 	return zm.DeleteTextRecord(domain, entry, ch.Key)
 }
@@ -182,6 +203,22 @@ func loadConfig(cfgJSON *extapi.JSON) (pcloudDNSProviderConfig, error) {
 	}
 
 	return cfg, nil
+}
+
+func loadAPIConfig(client *kubernetes.Clientset, cfg pcloudDNSProviderConfig) (apiConfig, error) {
+	config, err := client.CoreV1().ConfigMaps(cfg.APIConfigMapNamespace).Get(context.Background(), cfg.APIConfigMapName, metav1.GetOptions{})
+	if err != nil {
+		return apiConfig{}, fmt.Errorf("unable to get api config map `%s` `%s`; %v", cfg.APIConfigMapName, cfg.APIConfigMapNamespace, err)
+	}
+	create, ok := config.Data["createTXTRecord"]
+	if !ok {
+		return apiConfig{}, fmt.Errorf("create address missing")
+	}
+	delete, ok := config.Data["deleteTXTRecord"]
+	if !ok {
+		return apiConfig{}, fmt.Errorf("delete address missing")
+	}
+	return apiConfig{create, delete}, nil
 }
 
 func getDomainAndEntry(ch *v1alpha1.ChallengeRequest) (string, string) {

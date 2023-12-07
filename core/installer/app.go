@@ -110,7 +110,6 @@ func CreateAllApps() []App {
 		CreateIngressPublic(valuesTmpls, tmpls),
 		CreateCertManager(valuesTmpls, tmpls),
 		CreateCertManagerWebhookGandi(valuesTmpls, tmpls),
-		CreateCertManagerWebhookGandiRole(valuesTmpls, tmpls),
 		CreateCSIDriverSMB(valuesTmpls, tmpls),
 		CreateResourceRendererController(valuesTmpls, tmpls),
 		CreateHeadscaleController(valuesTmpls, tmpls),
@@ -497,34 +496,18 @@ func CreateCertManager(fs embed.FS, tmpls *template.Template) App {
 }
 
 func CreateCertManagerWebhookGandi(fs embed.FS, tmpls *template.Template) App {
-	schema, err := fs.ReadFile("values-tmpl/cert-manager-webhook-gandi.jsonschema")
+	schema, err := fs.ReadFile("values-tmpl/cert-manager-webhook-pcloud.jsonschema")
 	if err != nil {
 		panic(err)
 	}
 	return App{
-		"cert-manager-webhook-gandi",
+		"cert-manager-webhook-pcloud",
 		[]string{},
 		[]*template.Template{
-			tmpls.Lookup("cert-manager-webhook-gandi.yaml"),
+			tmpls.Lookup("cert-manager-webhook-pcloud.yaml"),
 		},
 		string(schema),
-		tmpls.Lookup("cert-manager-webhook-gandi.md"),
-	}
-}
-
-func CreateCertManagerWebhookGandiRole(fs embed.FS, tmpls *template.Template) App {
-	schema, err := fs.ReadFile("values-tmpl/cert-manager-webhook-gandi-role.jsonschema")
-	if err != nil {
-		panic(err)
-	}
-	return App{
-		"cert-manager-webhook-gandi-role",
-		[]string{},
-		[]*template.Template{
-			tmpls.Lookup("cert-manager-webhook-gandi-role.yaml"),
-		},
-		string(schema),
-		tmpls.Lookup("cert-manager-webhook-gandi-role.md"),
+		tmpls.Lookup("cert-manager-webhook-pcloud.md"),
 	}
 }
 

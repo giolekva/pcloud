@@ -1,7 +1,7 @@
 apiVersion: apiregistration.k8s.io/v1
 kind: APIService
 metadata:
-  name: v1alpha1.{{ .Values.groupName }}
+  name: v1alpha1.{{ .Values.apiGroupName }}
   labels:
     app: {{ include "cert-manager-webhook-pcloud.name" . }}
     chart: {{ include "cert-manager-webhook-pcloud.chart" . }}
@@ -10,7 +10,7 @@ metadata:
   annotations:
     cert-manager.io/inject-ca-from: "{{ .Values.certManager.namespace }}/{{ include "cert-manager-webhook-pcloud.servingCertificate" . }}"
 spec:
-  group: {{ .Values.groupName }}
+  group: {{ .Values.apiGroupName }}
   groupPriorityMinimum: 1000
   versionPriority: 15
   service:

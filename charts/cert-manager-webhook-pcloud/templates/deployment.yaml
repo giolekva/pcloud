@@ -33,8 +33,10 @@ spec:
             - --v={{ .Values.logLevel }}
 {{- end }}
           env:
-            - name: GROUP_NAME
-              value: {{ .Values.groupName | quote }}
+            - name: API_GROUP_NAME
+              value: {{ .Values.apiGroupName | quote }}
+            - name: RESOLVER_NAME
+              value: {{ .Values.resolverName | quote }}
           ports:
             - name: https
               containerPort: 443

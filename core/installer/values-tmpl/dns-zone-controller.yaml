@@ -21,3 +21,4 @@ spec:
     volume:
       claimName: {{ .Values.Volume.ClaimName }}
       mountPath: {{ .Values.Volume.MountPath }}
+    apiConfigMapName: {{ .Values.APIConfigMapName }}

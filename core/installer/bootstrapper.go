@@ -21,6 +21,8 @@ const IPAddressPoolLocal = "local"
 const IPAddressPoolConfigRepo = "config-repo"
 const IPAddressPoolIngressPublic = "ingress-public"
 
+const dnsAPIConfigMapName = "api-config"
+
 type Bootstrapper struct {
 	cl ChartLoader
 	ns NamespaceCreator
@@ -407,8 +409,7 @@ func (b Bootstrapper) installInfrastructureServices(repo RepoIO, nsGen Namespace
 		"csi-driver-smb",
 		"ingress-public",
 		"cert-manager",
-		"cert-manager-webhook-gandi",
-		"cert-manager-webhook-gandi-role",
+		"cert-manager-webhook-pcloud",
 	}
 	for _, name := range appsToInstall {
 		if err := install(name); err != nil {
@@ -541,6 +542,7 @@ func (b Bootstrapper) installDNSZoneManager(ss *soft.Client, repo RepoIO, nsGen 
 					"MountPath": volumeMountPath,
 					"Size":      "1Gi",
 				},
+				"APIConfigMapName": dnsAPIConfigMapName,
 			},
 			Release: Release{
 				Namespace: ns,

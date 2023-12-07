@@ -6,3 +6,4 @@ installCRDs: false
 volume:
   claimName: data
   mountPath: /etc/zone-configs
+apiConfigMapName: api-config

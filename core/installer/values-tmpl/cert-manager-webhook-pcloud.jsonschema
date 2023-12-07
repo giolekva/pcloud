@@ -1,6 +1,8 @@
 {
   "type": "object",
   "properties": {
+	"APIGroupName": { "type": "string" },
+	"ResolverName": { "type": "string" }
   },
   "additionalProperties": false
 }

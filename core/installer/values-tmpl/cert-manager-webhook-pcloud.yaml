@@ -1,7 +1,7 @@
 apiVersion: helm.toolkit.fluxcd.io/v2beta1
 kind: HelmRelease
 metadata:
-  name: cert-manager-webhook-gandi
+  name: cert-manager-webhook-pcloud
   namespace: {{ .Global.PCloudEnvName }}-cert-manager
 spec:
   dependsOn:
@@ -9,7 +9,7 @@ spec:
       namespace: {{ .Global.PCloudEnvName }}-cert-manager # TODO(giolekva): derivative
   chart:
     spec:
-      chart: charts/cert-manager-webhook-gandi
+      chart: charts/cert-manager-webhook-pcloud
       sourceRef:
         kind: GitRepository
         name: pcloud
@@ -17,12 +17,14 @@ spec:
   interval: 1m0s
   timeout: 20m0s
   values:
-    fullnameOverride: {{ .Global.PCloudEnvName }}-cert-manager-webhook-gandi
+    fullnameOverride: {{ .Global.PCloudEnvName }}-cert-manager-webhook-pcloud
     certManager:
       namespace: {{ .Global.PCloudEnvName }}-cert-manager
       name: {{ .Global.PCloudEnvName }}-cert-manager
     image:
-      repository: giolekva/cert-manager-webhook-gandi
-      tag: v0.2.0
-      pullPolicy: IfNotPresent
+      repository: giolekva/dns-challenge-solver
+      tag: latest
+      pullPolicy: Always
     logLevel: 2
+    apiGroupName: dodo.cloud
+    resolverName: dns-resolver-pcloud
