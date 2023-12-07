@@ -22,3 +22,5 @@ spec:
     image:
       tag: v1.11.1
       pullPolicy: IfNotPresent
+    dns01RecursiveNameserversOnly: true
+    dns01RecursiveNameservers: "1.1.1.1:53,8.8.8.8:53"
