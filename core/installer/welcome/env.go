@@ -459,11 +459,9 @@ spec:
   publicIPs:
   - 135.181.48.180
   - 65.108.39.172
-  - 65.108.39.171
   nameservers:
   - 135.181.48.180
   - 65.108.39.172
-  - 65.108.39.171
   dnssec:
     enabled: true
     secretName: dnssec-key
