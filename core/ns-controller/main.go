@@ -30,6 +30,7 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
+	"sigs.k8s.io/controller-runtime/pkg/metrics/server"
 
 	dodocloudv1 "github.com/giolekva/pcloud/core/ns-controller/api/v1"
 	"github.com/giolekva/pcloud/core/ns-controller/controllers"
@@ -55,12 +56,14 @@ func main() {
 	var enableLeaderElection bool
 	var probeAddr string
 	var configDir string
+	var apiPort int
 	flag.StringVar(&metricsAddr, "metrics-bind-address", ":8080", "The address the metric endpoint binds to.")
 	flag.StringVar(&probeAddr, "health-probe-bind-address", ":8081", "The address the probe endpoint binds to.")
 	flag.BoolVar(&enableLeaderElection, "leader-elect", false,
 		"Enable leader election for controller manager. "+
 			"Enabling this will ensure there is only one active controller manager.")
 	flag.StringVar(&configDir, "config-dir", "/etc/pcloud/dns-zone-configs", "Path to the DNS configurations directory")
+	flag.IntVar(&apiPort, "api-port", 8082, "Port to listen for API requests")
 	opts := zap.Options{
 		Development: true,
 	}
@@ -70,9 +73,11 @@ func main() {
 	ctrl.SetLogger(zap.New(zap.UseFlagOptions(&opts)))
 
 	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
-		Scheme:                 scheme,
-		MetricsBindAddress:     metricsAddr,
-		Port:                   9443,
+		Scheme: scheme,
+		Metrics: server.Options{
+			BindAddress: metricsAddr,
+		},
+		// Port:                   9443,
 		HealthProbeBindAddress: probeAddr,
 		LeaderElection:         enableLeaderElection,
 		LeaderElectionID:       "c1db6143.dodo.cloud",
@@ -102,6 +107,8 @@ func main() {
 		setupLog.Error(err, "unable to create zone store")
 		os.Exit(1)
 	}
+	s := NewServer(apiPort, store)
+	go s.Start()
 	if err = (&controllers.DNSZoneReconciler{
 		Client: mgr.GetClient(),
 		Scheme: mgr.GetScheme(),

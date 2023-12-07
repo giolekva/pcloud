@@ -10,6 +10,7 @@ GOBIN=$(shell go env GOPATH)/bin
 else
 GOBIN=$(shell go env GOBIN)
 endif
+GOBIN=/usr/local/go/bin/go
 
 # Setting SHELL to bash allows bash commands to be executed by recipes.
 # Options are set to exit when a recipe line exits non-zero or a piped command fails.
@@ -48,25 +49,25 @@ generate: controller-gen ## Generate code containing DeepCopy, DeepCopyInto, and
 
 .PHONY: fmt
 fmt: ## Run go fmt against code.
-	go fmt ./...
+	/usr/local/go/bin/go fmt ./...
 
 .PHONY: vet
 vet: ## Run go vet against code.
-	go vet ./...
+	/usr/local/go/bin/go vet ./...
 
 .PHONY: test
 test: manifests generate fmt vet envtest ## Run tests.
-	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) -p path)" go test ./... -coverprofile cover.out
+	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) -p path)" /usr/local/go/bin/go test ./... -coverprofile cover.out
 
 ##@ Build
 
 .PHONY: build
 build: generate fmt vet ## Build manager binary.
-	go build -o bin/manager main.go
+	/usr/local/go/bin/go build -o bin/manager *.go
 
 .PHONY: run
 run: manifests generate fmt vet ## Run a controller from your host.
-	go run ./main.go
+	/usr/local/go/bin/go run ./*.go
 
 clean:
 	rm -rf manager_arm64 manager_amd64
@@ -76,14 +77,14 @@ build_arm64: export GO111MODULE=on
 build_arm64: export GOOS=linux
 build_arm64: export GOARCH=arm64
 build_arm64:
-	go build -a -o manager_arm64 main.go
+	/usr/local/go/bin/go build -a -o manager_arm64 *.go
 
 build_amd64: export CGO_ENABLED=0
 build_amd64: export GO111MODULE=on
 build_amd64: export GOOS=linux
 build_amd64: export GOARCH=amd64
 build_amd64:
-	go build -a -o manager_amd64 main.go
+	/usr/local/go/bin/go build -a -o manager_amd64 *.go
 
 .PHONY: docker-build
 docker-build: clean build_arm64 build_amd64 ## Build docker image with the manager.
@@ -146,12 +147,12 @@ $(KUSTOMIZE): $(LOCALBIN)
 .PHONY: controller-gen
 controller-gen: $(CONTROLLER_GEN) ## Download controller-gen locally if necessary.
 $(CONTROLLER_GEN): $(LOCALBIN)
-	test -s $(LOCALBIN)/controller-gen || GOBIN=$(LOCALBIN) go install sigs.k8s.io/controller-tools/cmd/controller-gen@$(CONTROLLER_TOOLS_VERSION)
+	test -s $(LOCALBIN)/controller-gen || GOBIN=$(LOCALBIN) /usr/local/go/bin/go install sigs.k8s.io/controller-tools/cmd/controller-gen@$(CONTROLLER_TOOLS_VERSION)
 
 .PHONY: envtest
 envtest: $(ENVTEST) ## Download envtest-setup locally if necessary.
 $(ENVTEST): $(LOCALBIN)
-	test -s $(LOCALBIN)/setup-envtest || GOBIN=$(LOCALBIN) go install sigs.k8s.io/controller-runtime/tools/setup-envtest@latest
+	test -s $(LOCALBIN)/setup-envtest || GOBIN=$(LOCALBIN) /usr/local/go/bin/go install sigs.k8s.io/controller-runtime/tools/setup-envtest@latest
 
 generate-helm-chart: manifests kustomize
 	$(KUSTOMIZE) build config/crd > ../../charts/dns-ns-controller/templates/crds.yaml

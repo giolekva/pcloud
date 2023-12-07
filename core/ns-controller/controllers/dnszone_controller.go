@@ -22,6 +22,7 @@ import (
 	"time"
 
 	corev1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -71,7 +72,11 @@ func (r *DNSZoneReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 		Namespace: req.Namespace,
 		Name:      req.Name,
 	}, resource); err != nil {
-		return ctrl.Result{RequeueAfter: time.Minute}, err
+		if apierrors.IsGone(err) {
+			fmt.Printf("GONE %s %s\n", req.Name, req.Namespace)
+		} else {
+			return ctrl.Result{RequeueAfter: time.Minute}, err
+		}
 	}
 	if resource.Status.Ready {
 		return ctrl.Result{}, nil
@@ -113,8 +118,11 @@ func (r *DNSZoneReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 			DS:       ds,
 		}
 	}
-	_, err := r.Store.Create(zoneConfig)
+	zs, err := r.Store.Create(zoneConfig)
 	if err != nil {
+		return ctrl.Result{RequeueAfter: time.Minute}, err
+	}
+	if err := zs.CreateConfigFile(); err != nil {
 		return ctrl.Result{RequeueAfter: time.Minute}, err
 	}
 	resource.Status.Ready = true
