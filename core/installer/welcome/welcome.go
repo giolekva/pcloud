@@ -13,7 +13,7 @@ import (
 	"github.com/giolekva/pcloud/core/installer"
 )
 
-//go:embed create-admin-account.html
+//go:embed create-account.html
 var indexHtml []byte
 
 //go:embed static/*
@@ -50,10 +50,9 @@ func (s *Server) createAdminAccountForm(w http.ResponseWriter, _ *http.Request) 
 }
 
 type createAccountReq struct {
-	Username      string `json:"username,omitempty"`
-	Password      string `json:"password,omitempty"` // TODO(giolekva): actually use this
-	GandiAPIToken string `json:"gandiAPIToken,omitempty"`
-	SecretToken   string `json:"secretToken,omitempty"`
+	Username    string `json:"username,omitempty"`
+	Password    string `json:"password,omitempty"` // TODO(giolekva): actually use this
+	SecretToken string `json:"secretToken,omitempty"`
 }
 
 func getFormValue(v url.Values, name string) (string, error) {
@@ -75,9 +74,6 @@ func extractReq(r *http.Request) (createAccountReq, error) {
 			return err
 		}
 		if req.Password, err = getFormValue(r.PostForm, "password"); err != nil {
-			return err
-		}
-		if req.GandiAPIToken, err = getFormValue(r.PostForm, "gandi-api-token"); err != nil {
 			return err
 		}
 		if req.SecretToken, err = getFormValue(r.PostForm, "secret-token"); err != nil {
