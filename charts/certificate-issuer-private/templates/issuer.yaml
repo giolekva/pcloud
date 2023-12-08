@@ -16,4 +16,4 @@ spec:
           solverName: pcloud-dns-solver
           config:
             apiConfigMapName: {{ .Values.apiConfigMap.name }}
-            apiConfigMapNamespace: {{ .Values.apiConfigMap.Namespace }}
+            apiConfigMapNamespace: {{ .Values.apiConfigMap.namespace }}
