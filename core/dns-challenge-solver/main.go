@@ -210,11 +210,11 @@ func loadAPIConfig(client *kubernetes.Clientset, cfg pcloudDNSProviderConfig) (a
 	if err != nil {
 		return apiConfig{}, fmt.Errorf("unable to get api config map `%s` `%s`; %v", cfg.APIConfigMapName, cfg.APIConfigMapNamespace, err)
 	}
-	create, ok := config.Data["createTXTRecord"]
+	create, ok := config.Data["createTXTAddr"]
 	if !ok {
 		return apiConfig{}, fmt.Errorf("create address missing")
 	}
-	delete, ok := config.Data["deleteTXTRecord"]
+	delete, ok := config.Data["deleteTXTAddr"]
 	if !ok {
 		return apiConfig{}, fmt.Errorf("delete address missing")
 	}
