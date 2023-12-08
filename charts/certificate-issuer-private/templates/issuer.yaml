@@ -12,8 +12,8 @@ spec:
     solvers:
     - dns01:
         webhook:
-          groupName: dodo.cloud
-          solverName: pcloud-dns-solver
+          groupName: dodo.cloud # TODO(gio): configurable, this and one below
+          solverName: dns-resolver-pcloud
           config:
             apiConfigMapName: {{ .Values.apiConfigMap.name }}
             apiConfigMapNamespace: {{ .Values.apiConfigMap.namespace }}
