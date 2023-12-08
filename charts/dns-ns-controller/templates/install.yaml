@@ -205,7 +205,7 @@ kind: Service
 metadata:
   labels:
     control-plane: controller-manager
-  name: ns-controller
+  name: ns-controller # TODO(gio): move to _helpers
   namespace: {{ .Release.Namespace }}
 spec:
   ports:

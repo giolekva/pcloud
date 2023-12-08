@@ -16,9 +16,6 @@ spec:
         namespace: {{ .Global.Id }}
   interval: 1m0s
   values:
-    certManager:
-      namespace: {{ .Global.PCloudEnvName }}-cert-manager
-      gandiWebhookSecretReader: {{ .Global.PCloudEnvName }}-cert-manager-webhook-gandi
     issuer:
       name: {{ .Global.Id }}-private
       server: https://acme-v02.api.letsencrypt.org/directory
@@ -26,3 +23,6 @@ spec:
       domain: {{ .Global.PrivateDomain }}
       contactEmail: {{ .Global.ContactEmail }}
       gandiAPIToken: {{ .Values.GandiAPIToken }}
+    apiConfigMap:
+      name: {{ .Values.APIConfigMap.Name }}
+      namespace: {{ .Values.APIConfigMap.Namespace }}

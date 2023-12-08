@@ -1,10 +1,9 @@
-certManager:
-  namespace: cert-manager
-  gandiWebhookSecretReader: cert-manager-webhook-gandi
 issuer:
   name: selfsigned-private
   server: https://acme-v02.api.letsencrypt.org/directory
   contactEmail: admin@example.com
   gandiAPIToken: token
   domain: p.example.com
-
+apiConfigMap:
+  name: api-config
+  namespace: pcloud-dns-zone-manager

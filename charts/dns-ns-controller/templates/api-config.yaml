@@ -4,5 +4,5 @@ metadata:
   name: {{ .Values.apiConfigMapName }}
   namespace: {{ .Release.Namespace }}
 data:
-  createTXTAddr: "http://controller-manager.{{ .Release.Namespace }}.svc.cluster.local/create-txt-record"
-  deleteTXTAddr: "http://controller-manager.{{ .Release.Namespace }}.svc.cluster.local/delete-txt-record"
+  createTXTAddr: "http://ns-controller.{{ .Release.Namespace }}.svc.cluster.local/create-txt-record"
+  deleteTXTAddr: "http://ns-controller.{{ .Release.Namespace }}.svc.cluster.local/delete-txt-record"

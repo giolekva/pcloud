@@ -17,10 +17,6 @@ spec:
         namespace: {{ .Global.Id }}
   interval: 1m0s
   values:
-    pcloudInstanceId: {{ .Global.Id }}
-    certManager:
-      namespace: {{ .Global.PCloudEnvName }}-cert-manager
-      gandiWebhookSecretReader: {{ .Global.PCloudEnvName }}-cert-manager-webhook-gandi
     issuer:
       name: {{ .Global.Id }}-public
       server: https://acme-v02.api.letsencrypt.org/directory

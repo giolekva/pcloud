@@ -564,6 +564,20 @@ data:
 		}
 	}
 	{
+		app, err := appsRepo.Find("certificate-issuer-private")
+		if err != nil {
+			return err
+		}
+		if err := appManager.Install(*app, nsGen, emptySuffixGen, map[string]any{
+			"APIConfigMap": map[string]any{
+				"Name":      "api-config", // TODO(gio): take from global pcloud config
+				"Namespace": fmt.Sprintf("%s-dns-zone-manager", pcloudEnvName),
+			},
+		}); err != nil {
+			return err
+		}
+	}
+	{
 		app, err := appsRepo.Find("core-auth")
 		if err != nil {
 			return err

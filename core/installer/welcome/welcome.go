@@ -118,19 +118,6 @@ func (s *Server) createAdminAccount(w http.ResponseWriter, r *http.Request) {
 		}
 		appsRepo := installer.NewInMemoryAppRepository(installer.CreateAllApps())
 		{
-			app, err := appsRepo.Find("certificate-issuer-private")
-			if err != nil {
-				http.Error(w, err.Error(), http.StatusInternalServerError)
-				return
-			}
-			if err := appManager.Install(*app, nsGen, suffixGen, map[string]any{
-				"GandiAPIToken": req.GandiAPIToken,
-			}); err != nil {
-				http.Error(w, err.Error(), http.StatusInternalServerError)
-				return
-			}
-		}
-		{
 			app, err := appsRepo.Find("headscale-user")
 			if err != nil {
 				http.Error(w, err.Error(), http.StatusInternalServerError)
