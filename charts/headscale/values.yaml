@@ -20,3 +20,9 @@ api:
     repository: giolekva/headscale-api
     tag: latest
     pullPolicy: Always
+ui:
+  enabled: false
+  image:
+    repository: ghcr.io/gurucomputing/headscale-ui
+    tag: latest
+    pullPolicy: Always

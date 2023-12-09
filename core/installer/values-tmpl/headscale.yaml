@@ -39,3 +39,5 @@ spec:
         repository: giolekva/headscale-api
         tag: latest
         pullPolicy: Always
+    ui:
+      enabled: false
