@@ -1,15 +1,29 @@
+{{ define "task" }}
+<li aria-busy="{{ eq .Status 0 }}">
+	{{ .Title }}{{ if .Err }} - {{ .Err.Error }} {{ end }}
+	<ul>
+		{{ range .Subtasks }}
+   		    {{ template "task" . }}
+		{{ end }}
+	</ul>
+</li>
+{{ end }}
+
 <!DOCTYPE html>
 <html lang="en" data-theme="light">
 	<head>
         <link rel="stylesheet" href="/static/pico.min.css">
 		<meta charset="utf-8" />
 		<meta name="viewport" content="width=device-width, initial-scale=1" />
+		{{ if not (or (eq .Root.Status 2) (eq .Root.Status 3))}}
+		<meta http-equiv="refresh" content="1">
+		{{ end }}
 	</head>
 	<body>
-		<div style="display: contents">
-            <main class="container">
-				Environment for {{ .Domain }} is being configured. In few minutes go to <a href="https://welcome.{{ .Domain }}">https://welcome.<b>{{ .Domain }}</b></a> to set up administrative account.
-            </main>
-        </div>
+        <main class="container">
+			<ul>
+				{{ template "task" .Root }}
+			</ul>
+        </main>
 	</body>
 </html>

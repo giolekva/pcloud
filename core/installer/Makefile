@@ -9,7 +9,11 @@ push_fluxcd_arm64:
 
 build: export CGO_ENABLED=0
 build: clean
-	go build -o pcloud cmd/*.go
+	/usr/local/go/bin/go build -o pcloud cmd/*.go
+
+test: export CGO_ENABLED=0
+test:
+	/usr/local/go/bin/go test ./... -v
 
 bootstrap:
 	./pcloud --kubeconfig=../../priv/kubeconfig-hetzner bootstrap --env-name=dodo --charts-dir=../../charts --admin-pub-key=/Users/lekva/.ssh/id_rsa.pub --from-ip=192.168.100.210 --to-ip=192.168.100.240 --storage-dir=/pcloud-storage/longhorn
@@ -24,7 +28,10 @@ appmanager:
 	./pcloud --kubeconfig=../../priv/kubeconfig appmanager --ssh-key=/Users/lekva/.ssh/id_rsa --repo-addr=ssh://192.168.100.210:22/rkcr --port=9090 --app-repo-addr=https://apprepo.dodo.cloud
 
 welc:
-	./pcloud --kubeconfig=../../priv/kubeconfig welcome --ssh-key=/Users/lekva/.ssh/id_rsa --repo-addr=ssh://192.168.0.211/lekva --port=9090
+	./pcloud --kubeconfig=../../priv/kubeconfig welcome --ssh-key=/Users/lekva/.ssh/id_rsa --repo-addr=ssh://192.168.0.210/config --port=9090
+
+env:
+	./pcloud --kubeconfig=../../priv/kubeconfig-hetzner envmanager --ssh-key=/Users/lekva/.ssh/id_rsa --repo-addr=192.168.100.210:22 --repo-name=config --port=9090
 
 
 
@@ -35,14 +42,14 @@ build_arm64: export GO111MODULE=on
 build_arm64: export GOOS=linux
 build_arm64: export GOARCH=arm64
 build_arm64:
-	go build -o server_arm64 cmd/*.go
+	/usr/local/go/bin/go build -o server_arm64 cmd/*.go
 
 build_amd64: export CGO_ENABLED=0
 build_amd64: export GO111MODULE=on
 build_amd64: export GOOS=linux
 build_amd64: export GOARCH=amd64
 build_amd64:
-	go build -o server_amd64 cmd/*.go
+	/usr/local/go/bin/go build -o server_amd64 cmd/*.go
 
 push_arm64: clean build_arm64
 	mkdir tmp
