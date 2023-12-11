@@ -2,7 +2,6 @@ package tasks
 
 import (
 	"context"
-	"fmt"
 	"net"
 	"text/template"
 	"time"
@@ -12,54 +11,32 @@ import (
 	"github.com/giolekva/pcloud/core/installer"
 )
 
-type dnsResolver struct {
-	basicTask
-	name     string
-	expected []net.IP
-	ctx      context.Context
-	env      Env
-	st       *state
-}
+type Check func(ch Check) error
 
 func NewDNSResolverTask(
 	name string,
 	expected []net.IP,
-	ctx context.Context,
 	env Env,
 	st *state,
 ) Task {
-	return &dnsResolver{
-		basicTask: basicTask{
-			title: "Configure DNS",
-		},
-		name:     name,
-		expected: expected,
-		ctx:      ctx,
-		env:      env,
-		st:       st,
-	}
-}
-
-func (t *dnsResolver) Start() {
-	repo, err := t.st.ssClient.GetRepo("config")
-	if err != nil {
-		t.callDoneListeners(err)
-		return
-	}
-	r := installer.NewRepoIO(repo, t.st.ssClient.Signer)
-	{
-		key, err := newDNSSecKey(t.env.Domain)
+	ctx := context.TODO()
+	t := newLeafTask("Configure DNS", func() error {
+		repo, err := st.ssClient.GetRepo("config")
 		if err != nil {
-			t.callDoneListeners(err)
-			return
+			return err
 		}
-		out, err := r.Writer("dns-zone.yaml")
-		if err != nil {
-			t.callDoneListeners(err)
-			return
-		}
-		defer out.Close()
-		dnsZoneTmpl, err := template.New("config").Funcs(sprig.TxtFuncMap()).Parse(`
+		r := installer.NewRepoIO(repo, st.ssClient.Signer)
+		{
+			key, err := newDNSSecKey(env.Domain)
+			if err != nil {
+				return err
+			}
+			out, err := r.Writer("dns-zone.yaml")
+			if err != nil {
+				return err
+			}
+			defer out.Close()
+			dnsZoneTmpl, err := template.New("config").Funcs(sprig.TxtFuncMap()).Parse(`
 apiVersion: dodo.cloud.dodo.cloud/v1
 kind: DNSZone
 metadata:
@@ -92,58 +69,53 @@ data:
   private: {{ .dnssec.Private | toString | b64enc }}
   ds: {{ .dnssec.DS | toString | b64enc }}
 `)
-		if err != nil {
-			t.callDoneListeners(err)
-			return
+			if err != nil {
+				return err
+			}
+			if err := dnsZoneTmpl.Execute(out, map[string]any{
+				"namespace": env.Name,
+				"zone":      env.Domain,
+				"dnssec":    key,
+				"publicIPs": st.publicIPs,
+			}); err != nil {
+				return err
+			}
+			rootKust := installer.NewKustomization()
+			rootKust.AddResources("dns-zone.yaml")
+			if err := r.WriteKustomization("kustomization.yaml", rootKust); err != nil {
+				return err
+			}
+			r.CommitAndPush("configure dns zone")
 		}
-		if err := dnsZoneTmpl.Execute(out, map[string]any{
-			"namespace": t.env.Name,
-			"zone":      t.env.Domain,
-			"dnssec":    key,
-			"publicIPs": t.st.publicIPs,
-		}); err != nil {
-			t.callDoneListeners(err)
-			return
-		}
-		rootKust := installer.NewKustomization()
-		rootKust.AddResources("dns-zone.yaml")
-		if err := r.WriteKustomization("kustomization.yaml", rootKust); err != nil {
-			t.callDoneListeners(err)
-			return
-		}
-		r.CommitAndPush("configure dns zone")
-	}
 
-	gotExpectedIPs := func(actual []net.IP) bool {
-		for _, a := range actual {
-			found := false
-			for _, e := range t.expected {
-				if a.Equal(e) {
-					found = true
-					break
+		gotExpectedIPs := func(actual []net.IP) bool {
+			for _, a := range actual {
+				found := false
+				for _, e := range expected {
+					if a.Equal(e) {
+						found = true
+						break
+					}
+				}
+				if !found {
+					return false
 				}
 			}
-			if !found {
-				return false
+			return true
+		}
+		check := func(check Check) error {
+			addrs, err := net.LookupIP(name)
+			if err == nil && gotExpectedIPs(addrs) {
+				return err
+			}
+			select {
+			case <-ctx.Done():
+				return nil
+			case <-time.After(5 * time.Second):
+				return check(check)
 			}
 		}
-		return true
-	}
-	check := func(check Check) {
-		addrs, err := net.LookupIP(t.name)
-		if err == nil && gotExpectedIPs(addrs) {
-			t.callDoneListeners(nil)
-			return
-		}
-		select {
-		case <-t.ctx.Done():
-			t.callDoneListeners(fmt.Errorf("deadline exceeded"))
-			return
-		case <-time.After(5 * time.Second):
-			check(check)
-		}
-	}
-	check(check)
+		return check(check)
+	})
+	return &t
 }
-
-type Check func(ch Check)

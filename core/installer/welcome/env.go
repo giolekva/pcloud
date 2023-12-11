@@ -227,10 +227,10 @@ func (s *EnvServer) createEnv(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	if err := s.acceptInvitation(req.SecretToken); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
+	// if err := s.acceptInvitation(req.SecretToken); err != nil {
+	// 	http.Error(w, err.Error(), http.StatusInternalServerError)
+	// 	return
+	// }
 	if name, err := s.nameGenerator.Generate(); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -253,6 +253,6 @@ func (s *EnvServer) createEnv(w http.ResponseWriter, r *http.Request) {
 		s.repo,
 	)
 	s.tasks["foo"] = t
-	t.Start()
+	go t.Start()
 	http.Redirect(w, r, "/env/foo", http.StatusSeeOther)
 }

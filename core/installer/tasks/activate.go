@@ -8,10 +8,6 @@ import (
 	"path"
 	"strings"
 	"text/template"
-
-	"github.com/charmbracelet/keygen"
-
-	"github.com/giolekva/pcloud/core/installer"
 )
 
 //go:embed env-tmpl
@@ -24,76 +20,51 @@ type activateEnvTask struct {
 }
 
 func NewActivateEnvTask(env Env, st *state) Task {
-	return &activateEnvTask{
-		basicTask: basicTask{
-			title: fmt.Sprintf("Activate %s environment", env.Name),
-		},
-		env: env,
-		st:  st,
-	}
-}
-
-func (t *activateEnvTask) Start() {
-	ssPublicKeys, err := t.st.ssClient.GetPublicKeys()
-	if err != nil {
-		t.callDoneListeners(err)
-		return
-	}
-	if err := t.addNewEnv(
-		t.st.repo,
-		strings.Split(t.st.ssClient.Addr, ":")[0],
-		t.st.keys,
-		ssPublicKeys,
-	); err != nil {
-		t.callDoneListeners(err)
-		return
-	}
-	t.callDoneListeners(nil)
-}
-
-func (t *activateEnvTask) addNewEnv(
-	repoIO installer.RepoIO,
-	repoHost string,
-	keys *keygen.KeyPair,
-	configRepoPublicKeys []string,
-) error {
-	kust, err := repoIO.ReadKustomization("environments/kustomization.yaml")
-	if err != nil {
-		return err
-	}
-	kust.AddResources(t.env.Name)
-	tmpls, err := template.ParseFS(filesTmpls, "env-tmpl/*.yaml")
-	if err != nil {
-		return err
-	}
-	var knownHosts bytes.Buffer
-	for _, key := range configRepoPublicKeys {
-		fmt.Fprintf(&knownHosts, "%s %s\n", repoHost, key)
-	}
-	for _, tmpl := range tmpls.Templates() {
-		dstPath := path.Join("environments", t.env.Name, tmpl.Name())
-		dst, err := repoIO.Writer(dstPath)
+	t := newLeafTask(fmt.Sprintf("Activate %s environment", env.Name), func() error {
+		ssPublicKeys, err := st.ssClient.GetPublicKeys()
 		if err != nil {
 			return err
 		}
-		defer dst.Close()
-
-		if err := tmpl.Execute(dst, map[string]string{
-			"Name":       t.env.Name,
-			"PrivateKey": base64.StdEncoding.EncodeToString(keys.RawPrivateKey()),
-			"PublicKey":  base64.StdEncoding.EncodeToString(keys.RawAuthorizedKey()),
-			"RepoHost":   repoHost,
-			"RepoName":   "config",
-			"KnownHosts": base64.StdEncoding.EncodeToString(knownHosts.Bytes()),
-		}); err != nil {
+		repoHost := strings.Split(st.ssClient.Addr, ":")[0]
+		kust, err := st.repo.ReadKustomization("environments/kustomization.yaml")
+		if err != nil {
 			return err
 		}
-	}
-	if err := repoIO.WriteKustomization("environments/kustomization.yaml", *kust); err != nil {
-		return err
-	}
-	if err := repoIO.CommitAndPush(fmt.Sprintf("%s: initialize environment", t.env.Name)); err != nil {
-		return err
-	}
-	return nil
+		kust.AddResources(env.Name)
+		tmpls, err := template.ParseFS(filesTmpls, "env-tmpl/*.yaml")
+		if err != nil {
+			return err
+		}
+		var knownHosts bytes.Buffer
+		for _, key := range ssPublicKeys {
+			fmt.Fprintf(&knownHosts, "%s %s\n", repoHost, key)
+		}
+		for _, tmpl := range tmpls.Templates() {
+			dstPath := path.Join("environments", env.Name, tmpl.Name())
+			dst, err := st.repo.Writer(dstPath)
+			if err != nil {
+				return err
+			}
+			defer dst.Close()
+
+			if err := tmpl.Execute(dst, map[string]string{
+				"Name":       env.Name,
+				"PrivateKey": base64.StdEncoding.EncodeToString(st.keys.RawPrivateKey()),
+				"PublicKey":  base64.StdEncoding.EncodeToString(st.keys.RawAuthorizedKey()),
+				"RepoHost":   repoHost,
+				"RepoName":   "config",
+				"KnownHosts": base64.StdEncoding.EncodeToString(knownHosts.Bytes()),
+			}); err != nil {
+				return err
+			}
+		}
+		if err := st.repo.WriteKustomization("environments/kustomization.yaml", *kust); err != nil {
+			return err
+		}
+		if err := st.repo.CommitAndPush(fmt.Sprintf("%s: initialize environment", env.Name)); err != nil {
+			return err
+		}
+		return nil
+	})
+	return &t
 }

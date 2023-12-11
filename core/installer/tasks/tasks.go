@@ -1,9 +1,5 @@
 package tasks
 
-import (
-	"fmt"
-)
-
 type Status int
 
 const (
@@ -21,8 +17,6 @@ type Task interface {
 	Status() Status
 	Err() error
 	Subtasks() []Task
-	AddSubtask(t Task) error
-	FinalizeSubtasks()
 	OnDone(l TaskDoneListener)
 }
 
@@ -30,10 +24,16 @@ type basicTask struct {
 	title     string
 	status    Status
 	err       error
-	subtasks  []Task
-	done      []bool
-	finalized bool
 	listeners []TaskDoneListener
+}
+
+func newBasicTask(title string) basicTask {
+	return basicTask{
+		title:     title,
+		status:    StatusPending,
+		err:       nil,
+		listeners: make([]TaskDoneListener, 0),
+	}
 }
 
 func (b *basicTask) Title() string {
@@ -46,47 +46,6 @@ func (b *basicTask) Status() Status {
 
 func (b *basicTask) Err() error {
 	return b.err
-}
-
-func (b *basicTask) Subtasks() []Task {
-	return b.subtasks
-}
-
-func (b *basicTask) AddSubtask(t Task) error {
-	if b.finalized {
-		return fmt.Errorf("already finalized")
-	}
-	i := len(b.subtasks)
-	b.subtasks = append(b.subtasks, t)
-	b.done = append(b.done, false)
-	t.OnDone(func(err error) {
-		if b.done[i] {
-			panic(fmt.Sprintf("already done: %s", b.subtasks[i].Title()))
-		}
-		b.done[i] = true
-		if err != nil {
-			b.callDoneListeners(err)
-		}
-		if !b.finalized {
-			return
-		}
-		done := 0
-		for _, d := range b.done {
-			if d {
-				done++
-			} else {
-				break
-			}
-		}
-		if done == len(b.subtasks) {
-			b.callDoneListeners(nil)
-		}
-	})
-	return nil
-}
-
-func (b *basicTask) FinalizeSubtasks() {
-	b.finalized = true
 }
 
 func (b *basicTask) OnDone(l TaskDoneListener) {
@@ -103,4 +62,69 @@ func (b *basicTask) callDoneListeners(err error) {
 		b.status = StatusFailed
 		b.err = err
 	}
+}
+
+type leafTask struct {
+	basicTask
+	start func() error
+}
+
+func newLeafTask(title string, start func() error) leafTask {
+	return leafTask{
+		basicTask: newBasicTask(title),
+		start:     start,
+	}
+}
+
+func (b *leafTask) Subtasks() []Task {
+	return make([]Task, 0)
+}
+
+func (b *leafTask) Start() {
+	b.callDoneListeners(b.start())
+}
+
+type parentTask struct {
+	leafTask
+	subtasks []Task
+}
+
+func newParentTask(title string, start func() error, subtasks ...Task) parentTask {
+	return parentTask{
+		leafTask: newLeafTask(title, start),
+		subtasks: subtasks,
+	}
+}
+
+func (t *parentTask) Subtasks() []Task {
+	return t.subtasks
+}
+
+type sequentialParentTask struct {
+	parentTask
+}
+
+func newSequentialParentTask(title string, subtasks ...Task) sequentialParentTask {
+	start := func() error {
+		errCh := make(chan error)
+		for i := range subtasks[:len(subtasks)-1] {
+			next := i + 1
+			subtasks[i].OnDone(func(err error) {
+				if err == nil {
+					go subtasks[next].Start()
+				} else {
+					errCh <- err
+				}
+			})
+		}
+		subtasks[len(subtasks)-1].OnDone(func(err error) {
+			errCh <- err
+		})
+		go subtasks[0].Start()
+		return <-errCh
+	}
+	t := sequentialParentTask{
+		parentTask: newParentTask(title, start, subtasks...),
+	}
+	return t
 }
