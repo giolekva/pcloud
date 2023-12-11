@@ -1,28 +1,42 @@
 {{ define "task" }}
+{{ range . }}
 <li aria-busy="{{ eq .Status 0 }}">
 	{{ .Title }}{{ if .Err }} - {{ .Err.Error }} {{ end }}
+	{{ if .Subtasks }}
 	<ul>
-		{{ range .Subtasks }}
-   		    {{ template "task" . }}
-		{{ end }}
+   		{{ template "task" .Subtasks }}
 	</ul>
+	{{ end }}
 </li>
+{{ end }}
 {{ end }}
 
 <!DOCTYPE html>
 <html lang="en" data-theme="light">
 	<head>
-        <link rel="stylesheet" href="/static/pico.min.css">
+		<link rel="stylesheet" href="/static/pico.min.css">
+		<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/hack-font@3/build/web/hack.css">
+		<link rel="stylesheet" href="/static/main.css">
 		<meta charset="utf-8" />
 		<meta name="viewport" content="width=device-width, initial-scale=1" />
 		{{ if not (or (eq .Root.Status 2) (eq .Root.Status 3))}}
-		<meta http-equiv="refresh" content="1">
+		<meta http-equiv="refresh" content="1000">
 		{{ end }}
 	</head>
 	<body>
-        <main class="container">
+		<nav id="menu" class="container-fluid">
 			<ul>
-				{{ template "task" .Root }}
+				<li class="dodo">do<span class="highlight">do:</span></li>
+			</ul>
+			<ul>
+				<li><a href="#">register</a></li>
+				<li><a href="#">apps</a></li>
+				<li><a href="#" style="border-right: none;">about</a></li>
+			</ul>
+		</nav>
+		<main class="container">
+			<ul>
+				{{ template "task" .Root.Subtasks }}
 			</ul>
         </main>
 	</body>
