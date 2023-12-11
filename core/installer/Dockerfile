@@ -1,8 +1,7 @@
-FROM alpine:latest
+FROM gcr.io/distroless/static:nonroot
 
 ARG TARGETARCH
 
 COPY tmp/charts /charts
 
 COPY server_${TARGETARCH} /usr/bin/pcloud-installer
-RUN chmod +x /usr/bin/pcloud-installer
