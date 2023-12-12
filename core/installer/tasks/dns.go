@@ -2,6 +2,7 @@ package tasks
 
 import (
 	"context"
+	"fmt"
 	"net"
 	"text/template"
 	"time"
@@ -13,13 +14,20 @@ import (
 
 type Check func(ch Check) error
 
-func NewDNSResolverTask(
+func SetupZoneTask(env Env, st *state) Task {
+	return newSequentialParentTask(
+		fmt.Sprintf("Setup DNS zone records for %s", env.Domain),
+		CreateZoneRecords(env.Domain, st.publicIPs, env, st),
+		WaitToPropagate(env.Domain, st.publicIPs),
+	)
+}
+
+func CreateZoneRecords(
 	name string,
 	expected []net.IP,
 	env Env,
 	st *state,
 ) Task {
-	ctx := context.TODO()
 	t := newLeafTask("Configure DNS", func() error {
 		repo, err := st.ssClient.GetRepo("config")
 		if err != nil {
@@ -87,7 +95,17 @@ data:
 			}
 			r.CommitAndPush("configure dns zone")
 		}
+		return nil
+	})
+	return &t
+}
 
+func WaitToPropagate(
+	name string,
+	expected []net.IP,
+) Task {
+	t := newLeafTask("Propagate DNS records", func() error {
+		ctx := context.TODO()
 		gotExpectedIPs := func(actual []net.IP) bool {
 			for _, a := range actual {
 				found := false

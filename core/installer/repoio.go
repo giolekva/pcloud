@@ -9,6 +9,7 @@ import (
 	"net"
 	"path"
 	"path/filepath"
+	"sync"
 	"time"
 
 	"github.com/go-git/go-billy/v5/util"
@@ -45,12 +46,14 @@ type RepoIO interface {
 type repoIO struct {
 	repo   *soft.Repository
 	signer ssh.Signer
+	l      sync.Locker
 }
 
 func NewRepoIO(repo *soft.Repository, signer ssh.Signer) RepoIO {
 	return &repoIO{
 		repo,
 		signer,
+		&sync.Mutex{},
 	}
 }
 
@@ -233,6 +236,8 @@ type AppConfig struct {
 }
 
 func (r *repoIO) InstallApp(app App, appRootDir string, values map[string]any, derived Derived) error {
+	r.l.Lock()
+	defer r.l.Unlock()
 	if !filepath.IsAbs(appRootDir) {
 		return fmt.Errorf("Expected absolute path: %s", appRootDir)
 	}
@@ -292,6 +297,8 @@ func (r *repoIO) InstallApp(app App, appRootDir string, values map[string]any, d
 }
 
 func (r *repoIO) RemoveApp(appRootDir string) error {
+	r.l.Lock()
+	defer r.l.Unlock()
 	r.RemoveDir(appRootDir)
 	parent, child := filepath.Split(appRootDir)
 	kustPath := filepath.Join(parent, "kustomization.yaml")

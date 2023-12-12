@@ -9,6 +9,15 @@ import (
 	"github.com/giolekva/pcloud/core/installer/soft"
 )
 
+func SetupConfigRepoTask(env Env, st *state) Task {
+	return newSequentialParentTask(
+		"Configuration repository",
+		NewCreateConfigRepoTask(env, st),
+		CreateGitClientTask(env, st),
+		NewInitConfigRepoTask(env, st),
+	)
+}
+
 func NewCreateConfigRepoTask(env Env, st *state) Task {
 	t := newLeafTask("Install Git server", func() error {
 		appsRepo := installer.NewInMemoryAppRepository(installer.CreateAllApps())
@@ -20,6 +29,7 @@ func NewCreateConfigRepoTask(env Env, st *state) Task {
 		if err != nil {
 			return err
 		}
+		st.ssAdminKeys = ssAdminKeys
 		ssKeys, err := installer.NewSSHKeyPair(fmt.Sprintf("%s-config-repo-keys", env.Name))
 		if err != nil {
 			return err
@@ -50,9 +60,16 @@ func NewCreateConfigRepoTask(env Env, st *state) Task {
 		if err := st.repo.InstallApp(*ssApp, filepath.Join("/environments", env.Name, "config-repo"), ssValues, derived); err != nil {
 			return err
 		}
+		return nil
+	})
+	return &t
+}
+
+func CreateGitClientTask(env Env, st *state) Task {
+	t := newLeafTask("Wait git server to come up", func() error {
 		ssClient, err := soft.WaitForClient(
 			fmt.Sprintf("soft-serve.%s.svc.cluster.local:%d", env.Name, 22),
-			ssAdminKeys.RawPrivateKey(),
+			st.ssAdminKeys.RawPrivateKey(),
 			log.Default())
 		if err != nil {
 			return err

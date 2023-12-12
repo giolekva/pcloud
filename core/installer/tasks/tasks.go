@@ -104,7 +104,7 @@ type sequentialParentTask struct {
 	parentTask
 }
 
-func newSequentialParentTask(title string, subtasks ...Task) sequentialParentTask {
+func newSequentialParentTask(title string, subtasks ...Task) *sequentialParentTask {
 	start := func() error {
 		errCh := make(chan error)
 		for i := range subtasks[:len(subtasks)-1] {
@@ -123,8 +123,34 @@ func newSequentialParentTask(title string, subtasks ...Task) sequentialParentTas
 		go subtasks[0].Start()
 		return <-errCh
 	}
-	t := sequentialParentTask{
+	return &sequentialParentTask{
 		parentTask: newParentTask(title, start, subtasks...),
 	}
-	return t
+}
+
+type concurrentParentTask struct {
+	parentTask
+}
+
+func newConcurrentParentTask(title string, subtasks ...Task) *concurrentParentTask {
+	start := func() error {
+		errCh := make(chan error)
+		for i := range subtasks {
+			subtasks[i].OnDone(func(err error) {
+				errCh <- err
+			})
+			go subtasks[i].Start()
+		}
+		return <-errCh
+		for _ = range subtasks {
+			err := <-errCh
+			if err != nil {
+				return err
+			}
+		}
+		return nil
+	}
+	return &concurrentParentTask{
+		parentTask: newParentTask(title, start, subtasks...),
+	}
 }

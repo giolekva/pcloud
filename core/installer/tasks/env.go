@@ -10,12 +10,17 @@ import (
 )
 
 type state struct {
-	publicIPs    []net.IP
-	nsCreator    installer.NamespaceCreator
-	repo         installer.RepoIO
-	ssClient     *soft.Client
-	fluxUserName string
-	keys         *keygen.KeyPair
+	publicIPs      []net.IP
+	nsCreator      installer.NamespaceCreator
+	repo           installer.RepoIO
+	ssAdminKeys    *keygen.KeyPair
+	ssClient       *soft.Client
+	fluxUserName   string
+	keys           *keygen.KeyPair
+	appManager     *installer.AppManager
+	appsRepo       installer.AppRepository[installer.App]
+	nsGen          installer.NamespaceGenerator
+	emptySuffixGen installer.SuffixGenerator
 }
 
 type Env struct {
@@ -37,13 +42,15 @@ func NewCreateEnvTask(
 		nsCreator: nsCreator,
 		repo:      repo,
 	}
-	t := newSequentialParentTask(
+	return newSequentialParentTask(
 		"Create env",
-		NewCreateConfigRepoTask(env, &st),
-		NewInitConfigRepoTask(env, &st),
-		NewActivateEnvTask(env, &st),
-		NewDNSResolverTask(env.Domain, publicIPs, env, &st),
-		NewSetupInfraAppsTask(env, &st),
+		append(
+			[]Task{
+				SetupConfigRepoTask(env, &st),
+				NewActivateEnvTask(env, &st),
+				SetupZoneTask(env, &st),
+			},
+			SetupInfra(env, &st)...,
+		)...,
 	)
-	return &t
 }

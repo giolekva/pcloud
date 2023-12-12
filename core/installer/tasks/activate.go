@@ -20,7 +20,15 @@ type activateEnvTask struct {
 }
 
 func NewActivateEnvTask(env Env, st *state) Task {
-	t := newLeafTask(fmt.Sprintf("Activate %s environment", env.Name), func() error {
+	return newSequentialParentTask(
+		fmt.Sprintf("Activate new %s instance", env.PCloudEnvName),
+		AddNewEnvTask(env, st),
+		// TODO(gio): sync dodo-flux
+	)
+}
+
+func AddNewEnvTask(env Env, st *state) Task {
+	t := newLeafTask("Commit initial configuration", func() error {
 		ssPublicKeys, err := st.ssClient.GetPublicKeys()
 		if err != nil {
 			return err
