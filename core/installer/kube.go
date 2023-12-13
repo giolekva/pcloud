@@ -22,8 +22,13 @@ type NamespaceCreator interface {
 	Create(name string) error
 }
 
+type ZoneInfo struct {
+	Zone    string
+	Records string
+}
+
 type ZoneStatusFetcher interface {
-	Fetch(namespace, name string) (error, bool, string)
+	Fetch(namespace, name string) (error, bool, ZoneInfo)
 }
 
 type realNamespaceCreator struct {
@@ -50,22 +55,22 @@ type realZoneStatusFetcher struct {
 	clientset dynamic.Interface
 }
 
-func (f *realZoneStatusFetcher) Fetch(namespace, name string) (error, bool, string) {
+func (f *realZoneStatusFetcher) Fetch(namespace, name string) (error, bool, ZoneInfo) {
 	dnsZoneRes := schema.GroupVersionResource{Group: "dodo.cloud.dodo.cloud", Version: "v1", Resource: "dnszones"}
 	zoneUnstr, err := f.clientset.Resource(dnsZoneRes).Namespace(namespace).Get(context.TODO(), name, metav1.GetOptions{})
 	fmt.Printf("%+v %+v\n", zoneUnstr, err)
 	if err != nil {
-		return err, false, ""
+		return err, false, ZoneInfo{}
 	}
 	var contents bytes.Buffer
 	if err := json.NewEncoder(&contents).Encode(zoneUnstr.Object); err != nil {
-		return err, false, ""
+		return err, false, ZoneInfo{}
 	}
 	var zone dnsv1.DNSZone
 	if err := json.NewDecoder(&contents).Decode(&zone); err != nil {
-		return err, false, ""
+		return err, false, ZoneInfo{}
 	}
-	return nil, zone.Status.Ready, zone.Status.RecordsToPublish
+	return nil, zone.Status.Ready, ZoneInfo{zone.Spec.Zone, zone.Status.RecordsToPublish}
 }
 
 func NewNamespaceCreator(kubeconfig string) (NamespaceCreator, error) {

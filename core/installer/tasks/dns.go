@@ -123,6 +123,7 @@ func WaitToPropagate(
 		}
 		check := func(check Check) error {
 			addrs, err := net.LookupIP(name)
+			fmt.Printf("DNS LOOKUP: %+v\n", addrs)
 			if err == nil && gotExpectedIPs(addrs) {
 				return err
 			}

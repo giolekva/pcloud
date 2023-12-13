@@ -20,7 +20,7 @@
 		<meta charset="utf-8" />
 		<meta name="viewport" content="width=device-width, initial-scale=1" />
 		{{ if not (or (eq .Root.Status 2) (eq .Root.Status 3))}}
-		<meta http-equiv="refresh" content="10">
+		<meta http-equiv="refresh" content="60">
 		{{ end }}
 	</head>
 	<body>
@@ -35,22 +35,35 @@
 			</ul>
 		</nav>
 		<main class="container">
+			<article>
+			  <ul>
+				  {{ template "task" .Root.Subtasks }}
+			  </ul>
+			</article>
 			{{ if .DNSRecords }}
-			<form action="" method="POST">
-				You will have to publish following DNS records via your domain registrar.
-				<textarea disabled>{{ .DNSRecords }}</textarea>
-				<label for="domain-registrar">Domain Registrar</label>
-				<select id="domain-registrar" required>
-					<option value="" selected>Select registrar</option>
-					<option value="gandi">Gandi</option>
-					<option value="namecheap">Namecheap</option>
-				</select>
-				<button type="submit" tabindex="1">Update</button>
-			</form>
+			<div>
+				<form action="" method="POST">
+					You will have to publish following DNS records via your domain registrar.
+					<textarea rows="7">{{ .DNSRecords }}</textarea>
+					<label for="domain-registrar">Domain Registrar</label>
+					<select id="domain-registrar" required tabindex="1">
+						<option value="" selected>Select registrar</option>
+						<option value="gandi">Gandi</option>
+						<option value="namecheap">Namecheap</option>
+					</select>
+					<label for="api-token">API Token</label>
+					<input
+						type="text"
+						id="api-token"
+						name="api-token"
+						required
+						autofocus
+						tabindex="2"
+					/>
+					<button type="submit" tabindex="3">Update</button>
+				</form>
+			</div>
 			{{ end }}
-			<ul>
-				{{ template "task" .Root.Subtasks }}
-			</ul>
         </main>
 	</body>
 </html>

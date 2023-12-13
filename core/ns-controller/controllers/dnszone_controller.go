@@ -19,6 +19,7 @@ package controllers
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	corev1 "k8s.io/api/core/v1"
@@ -127,7 +128,9 @@ func (r *DNSZoneReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 	}
 	resource.Status.Ready = true
 	if zoneConfig.DNSSec != nil {
-		resource.Status.RecordsToPublish = string(zoneConfig.DNSSec.DS)
+		rrs := []string{string(zoneConfig.DNSSec.DS)}
+		rrs = append(rrs, GenerateNSRecords(zoneConfig)...)
+		resource.Status.RecordsToPublish = strings.Join(rrs, "\n")
 	}
 	if err := r.Status().Update(context.Background(), resource); err != nil {
 		return ctrl.Result{RequeueAfter: time.Minute}, err

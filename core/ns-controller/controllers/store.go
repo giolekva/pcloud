@@ -6,6 +6,7 @@ import (
 	"io"
 	"io/fs"
 	"os"
+	"strings"
 	"text/template"
 
 	"github.com/Masterminds/sprig/v3"
@@ -32,6 +33,16 @@ type ZoneConfig struct {
 	PrivateIP   string     `json:"privateIP,omitempty"`
 	Nameservers []string   `json:"nameservers,omitempty"`
 	DNSSec      *DNSSecKey `json:"dnsSec,omitempty"`
+}
+
+func GenerateNSRecords(z ZoneConfig) []string {
+	subdomain := strings.Split(z.Zone, ",")[0]
+	ret := make([]string, 0)
+	for i, ip := range z.Nameservers {
+		ret = append(ret, fmt.Sprintf("ns%d.%s 10800 IN A %s", i+1, z.Zone, ip))
+		ret = append(ret, fmt.Sprintf("%s. 10800 IN NS ns%d.%s.", subdomain, i+1, z.Zone))
+	}
+	return ret
 }
 
 type ZoneStoreFactory interface {

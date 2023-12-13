@@ -11,6 +11,7 @@ import (
 	"log"
 	"net"
 	"net/http"
+	"strings"
 
 	"github.com/gorilla/mux"
 
@@ -73,6 +74,7 @@ func (s *EnvServer) Start() {
 	r := mux.NewRouter()
 	r.PathPrefix("/static/").Handler(http.FileServer(http.FS(staticAssets)))
 	r.Path("/env/{key}").Methods("GET").HandlerFunc(s.monitorTask)
+	r.Path("/env/{key}").Methods("POST").HandlerFunc(s.publishDNSRecords)
 	r.Path("/").Methods("GET").HandlerFunc(s.createEnvForm)
 	r.Path("/").Methods("POST").HandlerFunc(s.createEnv)
 	r.Path("/create-invitation").Methods("GET").HandlerFunc(s.createInvitation)
@@ -97,12 +99,12 @@ func (s *EnvServer) monitorTask(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Task dns configuration not found", http.StatusInternalServerError)
 		return
 	}
-	err, ready, records := s.dnsFetcher.Fetch(dnsRef.Namespace, dnsRef.Name)
+	err, ready, info := s.dnsFetcher.Fetch(dnsRef.Namespace, dnsRef.Name)
 	// TODO(gio): check error type
-	if err != nil && (ready || len(records) > 0) {
+	if err != nil && (ready || len(info.Records) > 0) {
 		panic("!! SHOULD NOT REACH !!")
 	}
-	if !ready && len(records) > 0 {
+	if !ready && len(info.Records) > 0 {
 		panic("!! SHOULD NOT REACH !!")
 	}
 	tmpl, err := htemplate.New("response").Parse(envCreatedHtml)
@@ -112,11 +114,46 @@ func (s *EnvServer) monitorTask(w http.ResponseWriter, r *http.Request) {
 	}
 	if err := tmpl.Execute(w, map[string]any{
 		"Root":       t,
-		"DNSRecords": records,
+		"DNSRecords": info.Records,
 	}); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
+}
+
+func (s *EnvServer) publishDNSRecords(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	key, ok := vars["key"]
+	if !ok {
+		http.Error(w, "Task key not provided", http.StatusBadRequest)
+		return
+	}
+	dnsRef, ok := s.dns[key]
+	if !ok {
+		http.Error(w, "Task dns configuration not found", http.StatusInternalServerError)
+		return
+	}
+	err, ready, info := s.dnsFetcher.Fetch(dnsRef.Namespace, dnsRef.Name)
+	// TODO(gio): check error type
+	if err != nil && (ready || len(info.Records) > 0) {
+		panic("!! SHOULD NOT REACH !!")
+	}
+	if !ready && len(info.Records) > 0 {
+		panic("!! SHOULD NOT REACH !!")
+	}
+	r.ParseForm()
+	if apiToken, err := getFormValue(r.PostForm, "api-token"); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	} else {
+		p := NewGandiUpdater(apiToken)
+		zone := strings.Join(strings.Split(info.Zone, ".")[1:], ".") // TODO(gio): this is not gonna work with no subdomain case
+		if err := p.Update(zone, strings.Split(info.Records, "\n")); err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+	}
+	http.Redirect(w, r, "/env/foo", http.StatusSeeOther)
 }
 
 func (s *EnvServer) createEnvForm(w http.ResponseWriter, r *http.Request) {
