@@ -43,18 +43,29 @@ type EnvServer struct {
 	ss            *soft.Client
 	repo          installer.RepoIO
 	nsCreator     installer.NamespaceCreator
+	dnsFetcher    installer.ZoneStatusFetcher
 	nameGenerator installer.NameGenerator
 	tasks         map[string]tasks.Task
+	dns           map[string]tasks.DNSZoneRef
 }
 
-func NewEnvServer(port int, ss *soft.Client, repo installer.RepoIO, nsCreator installer.NamespaceCreator, nameGenerator installer.NameGenerator) *EnvServer {
+func NewEnvServer(
+	port int,
+	ss *soft.Client,
+	repo installer.RepoIO,
+	nsCreator installer.NamespaceCreator,
+	dnsFetcher installer.ZoneStatusFetcher,
+	nameGenerator installer.NameGenerator,
+) *EnvServer {
 	return &EnvServer{
 		port,
 		ss,
 		repo,
 		nsCreator,
+		dnsFetcher,
 		nameGenerator,
 		make(map[string]tasks.Task),
+		make(map[string]tasks.DNSZoneRef),
 	}
 }
 
@@ -71,11 +82,28 @@ func (s *EnvServer) Start() {
 
 func (s *EnvServer) monitorTask(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
-	fmt.Printf("%+v %+v\n", s.tasks, vars)
-	t, ok := s.tasks[vars["key"]]
+	key, ok := vars["key"]
+	if !ok {
+		http.Error(w, "Task key not provided", http.StatusBadRequest)
+		return
+	}
+	t, ok := s.tasks[key]
 	if !ok {
 		http.Error(w, "Task not found", http.StatusBadRequest)
 		return
+	}
+	dnsRef, ok := s.dns[key]
+	if !ok {
+		http.Error(w, "Task dns configuration not found", http.StatusInternalServerError)
+		return
+	}
+	err, ready, records := s.dnsFetcher.Fetch(dnsRef.Namespace, dnsRef.Name)
+	// TODO(gio): check error type
+	if err != nil && (ready || len(records) > 0) {
+		panic("!! SHOULD NOT REACH !!")
+	}
+	if !ready && len(records) > 0 {
+		panic("!! SHOULD NOT REACH !!")
 	}
 	tmpl, err := htemplate.New("response").Parse(envCreatedHtml)
 	if err != nil {
@@ -83,7 +111,8 @@ func (s *EnvServer) monitorTask(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err := tmpl.Execute(w, map[string]any{
-		"Root": t,
+		"Root":       t,
+		"DNSRecords": records,
 	}); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -237,7 +266,7 @@ func (s *EnvServer) createEnv(w http.ResponseWriter, r *http.Request) {
 	} else {
 		req.Name = name
 	}
-	t := tasks.NewCreateEnvTask(
+	t, dns := tasks.NewCreateEnvTask(
 		tasks.Env{
 			PCloudEnvName:  env.Name,
 			Name:           req.Name,
@@ -253,6 +282,7 @@ func (s *EnvServer) createEnv(w http.ResponseWriter, r *http.Request) {
 		s.repo,
 	)
 	s.tasks["foo"] = t
+	s.dns["foo"] = dns
 	go t.Start()
 	http.Redirect(w, r, "/env/foo", http.StatusSeeOther)
 }

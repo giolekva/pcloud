@@ -69,11 +69,16 @@ func envManagerCmdRun(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
+	dnsFetcher, err := newZoneFetcher()
+	if err != nil {
+		return err
+	}
 	s := welcome.NewEnvServer(
 		envManagerFlags.port,
 		ss,
 		repoIO,
 		nsCreator,
+		dnsFetcher,
 		installer.NewFixedLengthRandomNameGenerator(4),
 	)
 	log.Printf("Starting server\n")

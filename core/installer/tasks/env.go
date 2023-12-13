@@ -31,12 +31,17 @@ type Env struct {
 	AdminPublicKey string
 }
 
+type DNSZoneRef struct {
+	Name      string
+	Namespace string
+}
+
 func NewCreateEnvTask(
 	env Env,
 	publicIPs []net.IP,
 	nsCreator installer.NamespaceCreator,
 	repo installer.RepoIO,
-) Task {
+) (Task, DNSZoneRef) {
 	st := state{
 		publicIPs: publicIPs,
 		nsCreator: nsCreator,
@@ -52,5 +57,5 @@ func NewCreateEnvTask(
 			},
 			SetupInfra(env, &st)...,
 		)...,
-	)
+	), DNSZoneRef{"dns-zone", env.Name}
 }

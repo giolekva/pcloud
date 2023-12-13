@@ -5,9 +5,9 @@ import (
 )
 
 func newNSCreator() (installer.NamespaceCreator, error) {
-	if rootFlags.kubeConfig != "" {
-		return installer.NewOutOfClusterNamespaceCreator(rootFlags.kubeConfig)
-	} else {
-		return installer.NewInClusterNamespaceCreator()
-	}
+	return installer.NewNamespaceCreator(rootFlags.kubeConfig)
+}
+
+func newZoneFetcher() (installer.ZoneStatusFetcher, error) {
+	return installer.NewZoneStatusFetcher(rootFlags.kubeConfig)
 }
