@@ -1,0 +1,6 @@
+apiVersion: v2
+name: fluxcd-reconciler
+description: A Helm chart for a service triggering fluxcd reconcilations
+type: application
+version: 0.0.1
+appVersion: "0.0.1"

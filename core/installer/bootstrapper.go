@@ -88,6 +88,10 @@ func (b Bootstrapper) Run(env EnvConfig) error {
 	if err := b.installDNSZoneManager(ss, repoIO, nsGen, b.ns, env); err != nil {
 		return err
 	}
+	fmt.Println("Installing Fluxcd Reconciler")
+	if err := b.installFluxcdReconciler(ss, repoIO, nsGen, b.ns, env); err != nil {
+		return err
+	}
 	fmt.Println("Installing env manager")
 	if err := b.installEnvManager(ss, repoIO, nsGen, b.ns, env); err != nil {
 		return err
@@ -551,6 +555,34 @@ func (b Bootstrapper) installDNSZoneManager(ss *soft.Client, repo RepoIO, nsGen 
 		if err := repo.InstallApp(*app, filepath.Join("/infrastructure", app.Name), derived.Values, derived); err != nil {
 			return err
 		}
+	}
+	return nil
+}
+
+func (b Bootstrapper) installFluxcdReconciler(ss *soft.Client, repo RepoIO, nsGen NamespaceGenerator, nsCreator NamespaceCreator, env EnvConfig) error {
+	appRepo := NewInMemoryAppRepository(CreateAllApps())
+	app, err := appRepo.Find("fluxcd-reconciler")
+	if err != nil {
+		return err
+	}
+	ns, err := nsGen.Generate(app.Namespaces[0])
+	if err != nil {
+		return err
+	}
+	if err := nsCreator.Create(ns); err != nil {
+		return err
+	}
+	derived := Derived{
+		Global: Values{
+			PCloudEnvName: env.Name,
+		},
+		Values: map[string]any{},
+		Release: Release{
+			Namespace: ns,
+		},
+	}
+	if err := repo.InstallApp(*app, filepath.Join("/infrastructure", app.Name), derived.Values, derived); err != nil {
+		return err
 	}
 	return nil
 }

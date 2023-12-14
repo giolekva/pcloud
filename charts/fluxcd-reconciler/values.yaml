@@ -1,0 +1,4 @@
+image:
+  repository: giolekva/fluxcd-reconciler
+  tag: latest
+  pullPolicy: Always

@@ -1,7 +1,10 @@
 package tasks
 
 import (
+	"fmt"
 	"net"
+	"net/http"
+	"time"
 
 	"github.com/charmbracelet/keygen"
 
@@ -47,7 +50,7 @@ func NewCreateEnvTask(
 		nsCreator: nsCreator,
 		repo:      repo,
 	}
-	return newSequentialParentTask(
+	t := newSequentialParentTask(
 		"Create env",
 		append(
 			[]Task{
@@ -57,5 +60,26 @@ func NewCreateEnvTask(
 			},
 			SetupInfra(env, &st)...,
 		)...,
-	), DNSZoneRef{"dns-zone", env.Name}
+	)
+	done := make(chan struct{})
+	t.OnDone(func(_ error) {
+		close(done)
+	})
+	go reconcile(fmt.Sprintf("%s-flux", env.PCloudEnvName), done)
+	go reconcile(env.Name, done)
+	return t, DNSZoneRef{"dns-zone", env.Name}
+}
+
+func reconcile(name string, quit chan struct{}) {
+	git := fmt.Sprintf("http://fluxcd-reconciler.dodo-fluxcd-reconciler.svc.cluster.local/source/git/%s/%s/reconcile", name, name)
+	kust := fmt.Sprintf("http://fluxcd-reconciler.dodo-fluxcd-reconciler.svc.cluster.local/kustomization/%s/%s/reconcile", name, name)
+	for {
+		select {
+		case <-time.After(30 * time.Second):
+			http.Get(git)
+			http.Get(kust)
+		case <-quit:
+			return
+		}
+	}
 }

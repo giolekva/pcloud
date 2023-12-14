@@ -1,0 +1,91 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: fluxcd-reconciler
+  namespace: {{ .Release.Namespace }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: fluxcd-reconciler
+rules: # TODO(gio): restrict to ns create and dnszone get
+- apiGroups:
+  - "source.toolkit.fluxcd.io/v1"
+  resources:
+  - "gitrepositories"
+  verbs:
+  - get
+  - update
+- apiGroups:
+  - "kustomize.toolkit.fluxcd.io"
+  resources:
+  - "kustomizations"
+  verbs:
+  - get
+  - update
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: fluxcd-reconciler
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: fluxcd-reconciler
+subjects:
+- kind: ServiceAccount
+  name: fluxcd-reconciler
+  namespace: {{ .Release.Namespace }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: fluxcd-reconciler
+  namespace: {{ .Release.Namespace }}
+spec:
+  type: ClusterIP
+  selector:
+    app: fluxcd-reconciler
+  ports:
+  - name: http
+    port: 80
+    targetPort: http
+    protocol: TCP
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: fluxcd-reconciler
+  namespace: {{ .Release.Namespace }}
+spec:
+  selector:
+    matchLabels:
+      app: fluxcd-reconciler
+  replicas: 1
+  serviceAccountName: fluxcd-reconciler
+  template:
+    metadata:
+      labels:
+        app: fluxcd-reconciler
+    spec:
+      containers:
+      - name: fluxcd-reconciler
+        image: {{ .Values.image.repository }}:{{ .Values.image.tag }}
+        imagePullPolicy: {{ .Values.image.pullPolicy }}
+        ports:
+        - name: http
+          containerPort: 8080
+          protocol: TCP
+        command: ["fluxcd-reconciler", "--port=8080"]
+        resources:
+          requests:
+            memory: "10Mi"
+            cpu: "10m"
+          limits:
+            memory: "20Mi"
+            cpu: "100m"
+      tolerations:
+      - key: "pcloud"
+        operator: "Equal"
+        value: "role"
+        effect: "NoSchedule"

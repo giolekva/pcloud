@@ -1,0 +1,15 @@
+apiVersion: helm.toolkit.fluxcd.io/v2beta1
+kind: HelmRelease
+metadata:
+  name: fluxcd-reconciler
+  namespace: {{ .Release.Namespace }}
+spec:
+  chart:
+    spec:
+      chart: charts/fluxcd-reconciler
+      sourceRef:
+        kind: GitRepository
+        name: pcloud
+        namespace: {{ .Global.Id }}
+  interval: 1m0s
+  values:

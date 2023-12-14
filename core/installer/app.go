@@ -114,6 +114,7 @@ func CreateAllApps() []App {
 		CreateResourceRendererController(valuesTmpls, tmpls),
 		CreateHeadscaleController(valuesTmpls, tmpls),
 		CreateDNSZoneManager(valuesTmpls, tmpls),
+		CreateFluxcdReconciler(valuesTmpls, tmpls),
 	}
 	for _, a := range CreateStoreApps() {
 		ret = append(ret, a.App)
@@ -574,6 +575,22 @@ func CreateDNSZoneManager(fs embed.FS, tmpls *template.Template) App {
 		},
 		string(schema),
 		tmpls.Lookup("dns-zone-controller.md"),
+	}
+}
+
+func CreateFluxcdReconciler(fs embed.FS, tmpls *template.Template) App {
+	schema, err := fs.ReadFile("values-tmpl/fluxcd-reconciler.jsonschema")
+	if err != nil {
+		panic(err)
+	}
+	return App{
+		"fluxcd-reconciler",
+		[]string{"fluxcd-reconciler"},
+		[]*template.Template{
+			tmpls.Lookup("fluxcd-reconciler.yaml"),
+		},
+		string(schema),
+		tmpls.Lookup("fluxcd-reconciler.md"),
 	}
 }
 
