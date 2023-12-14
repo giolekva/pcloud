@@ -38,4 +38,15 @@ spec:
         - --silent
         - --watch-all-namespaces
         - --verbose
+      - name: dbg
+        image: busybox:glibc
+        imagePullPolicy: IfNotPresent
+        volumeMounts:
+        - name: access-keys
+          mountPath: /access-keys
+        - name: known-hosts
+          mountPath: /.ssh
+        env:
+        - name: SSH_KNOWN_HOSTS
+          value: /.ssh/known_hosts
       restartPolicy: Never
