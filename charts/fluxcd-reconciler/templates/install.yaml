@@ -76,7 +76,7 @@ spec:
         - name: http
           containerPort: 8080
           protocol: TCP
-        command: ["fluxcd-reconciler", "--port=8080"]
+        command: ["/fluxcd_reconciler", "--port=8080"]
         resources:
           requests:
             memory: "10Mi"
