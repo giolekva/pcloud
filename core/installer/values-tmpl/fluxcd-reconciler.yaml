@@ -10,6 +10,6 @@ spec:
       sourceRef:
         kind: GitRepository
         name: pcloud
-        namespace: {{ .Global.Id }}
+        namespace: {{ .Global.PCloudEnvName }}
   interval: 1m0s
   values:
