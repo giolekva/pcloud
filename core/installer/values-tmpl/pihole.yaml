@@ -22,7 +22,7 @@ spec:
       persistentVolumeClaim:
         enabled: true
         size: 5Gi
-      adminPassword: admin
+      adminPasswordEnabled: false
       ingress:
         enabled: false
       serviceDhcp:
