@@ -153,7 +153,7 @@ func (s *EnvServer) publishDNSRecords(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-	http.Redirect(w, r, "/env/foo", http.StatusSeeOther)
+	http.Redirect(w, r, fmt.Sprintf("/env/%s", key), http.StatusSeeOther)
 }
 
 func (s *EnvServer) createEnvForm(w http.ResponseWriter, r *http.Request) {
@@ -318,8 +318,16 @@ func (s *EnvServer) createEnv(w http.ResponseWriter, r *http.Request) {
 		s.nsCreator,
 		s.repo,
 	)
-	s.tasks["foo"] = t
-	s.dns["foo"] = dns
+	key := func() string {
+		for {
+			key, err := s.nameGenerator.Generate()
+			if err == nil {
+				return key
+			}
+		}
+	}()
+	s.tasks[key] = t
+	s.dns[key] = dns
 	go t.Start()
-	http.Redirect(w, r, "/env/foo", http.StatusSeeOther)
+	http.Redirect(w, r, fmt.Sprintf("/env/key", key), http.StatusSeeOther)
 }
