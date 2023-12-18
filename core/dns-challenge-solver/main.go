@@ -143,11 +143,19 @@ func (c *pcloudDNSProviderSolver) Present(ch *v1alpha1.ChallengeRequest) error {
 	}
 	apiCfg, err := loadAPIConfig(c.client, cfg)
 	if err != nil {
+		fmt.Printf("Failed to load API config: %s\n", err.Error())
 		return err
 	}
+	fmt.Printf("API config: %+v\n", apiCfg)
 	zm := &zoneControllerManager{apiCfg.CreateAddress, apiCfg.DeleteAddress}
 	domain, entry := getDomainAndEntry(ch)
-	return zm.CreateTextRecord(domain, entry, ch.Key)
+	fmt.Printf("%s %s\n", domain, entry)
+	err = zm.CreateTextRecord(domain, entry, ch.Key)
+	if err != nil {
+		fmt.Printf("Failed to create TXT record: %s\n", err.Error())
+		return err
+	}
+	return nil
 }
 
 // CleanUp should delete the relevant TXT record from the DNS provider console.
@@ -163,11 +171,18 @@ func (c *pcloudDNSProviderSolver) CleanUp(ch *v1alpha1.ChallengeRequest) error {
 	}
 	apiCfg, err := loadAPIConfig(c.client, cfg)
 	if err != nil {
+		fmt.Printf("Failed to load API config: %s\n", err.Error())
 		return err
 	}
+	fmt.Printf("API config: %+v\n", apiCfg)
 	zm := &zoneControllerManager{apiCfg.CreateAddress, apiCfg.DeleteAddress}
 	domain, entry := getDomainAndEntry(ch)
-	return zm.DeleteTextRecord(domain, entry, ch.Key)
+	err = zm.DeleteTextRecord(domain, entry, ch.Key)
+	if err != nil {
+		fmt.Printf("Failed to delete TXT record: %s\n", err.Error())
+		return err
+	}
+	return nil
 }
 
 // Initialize will be called when the webhook first starts.
@@ -223,8 +238,8 @@ func loadAPIConfig(client *kubernetes.Clientset, cfg pcloudDNSProviderConfig) (a
 
 func getDomainAndEntry(ch *v1alpha1.ChallengeRequest) (string, string) {
 	// Both ch.ResolvedZone and ch.ResolvedFQDN end with a dot: '.'
-	entry := strings.TrimSuffix(ch.ResolvedFQDN, ch.ResolvedZone)
-	entry = strings.TrimSuffix(entry, ".")
-	domain := strings.TrimSuffix(ch.ResolvedZone, ".")
-	return domain, entry
+	resolvedFQDN := strings.TrimSuffix(ch.ResolvedFQDN, ".")
+	domain := strings.Join(strings.Split(strings.TrimSuffix(ch.DNSName, "."), ".")[1:], ".")
+	entry := strings.TrimSuffix(resolvedFQDN, domain)
+	return strings.TrimSuffix(domain, "."), strings.TrimSuffix(entry, ".")
 }
