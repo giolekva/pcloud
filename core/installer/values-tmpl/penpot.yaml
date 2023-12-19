@@ -1,3 +1,24 @@
+apiVersion: hydra.ory.sh/v1alpha1
+kind: OAuth2Client
+metadata:
+  name: penpot
+  namespace: {{ .Release.Namespace }}
+spec:
+  grantTypes:
+  - authorization_code
+  responseTypes:
+  - code
+  scope: "openid profile email"
+  secretName: oauth2-credentials # TODO(gio): config
+  redirectUris:
+  - https://{{ .Values.Subdomain }}.{{ .Values.Network.Domain }}/api/auth/oauth/oidc/callback # TODO
+  hydraAdmin:
+    endpoint: /admin/clients
+    forwardedProto: https
+    port: 80
+    url: http://hydra-admin.esrt-core-auth.svc.cluster.local
+  tokenEndpointAuthMethod: client_secret_post
+---
 apiVersion: helm.toolkit.fluxcd.io/v2beta1
 kind: HelmRelease
 metadata:
@@ -20,22 +41,24 @@ spec:
     frontend:
       ingress:
         enabled: true
-        className: pcloud-ingress-public
+        className: {{ .Values.Network.IngressClass }}
+        {{ if .Values.Network.CertificateIssuer }}
         annotations:
           acme.cert-manager.io/http01-edit-in-place: "true"
-          cert-manager.io/cluster-issuer: "{{ .Global.Id }}-public"
+          cert-manager.io/cluster-issuer: "{{ .Values.Network.CertificateIssuer }}"
+        {{ end }}
         hosts:
-        - "penpot.{{ .Global.Domain }}"
+        - "{{ .Values.Subdomain }}.{{ .Values.Network.Domain }}"
         tls:
         - hosts:
-          - "penpot.{{ .Global.Domain }}"
-          secretName: cert-penpot.{{ .Global.Domain }}
+          - "{{ .Values.Subdomain }}.{{ .Values.Network.Domain }}"
+          secretName: cert-{{ .Values.Subdomain }}.{{ .Values.Network.Domain }}
     persistence:
       enabled: true
     config:
-      publicURI: https://penpot.{{ .Global.Domain }}
+      publicURI: https://{{ .Values.Subdomain }}.{{ .Values.Network.Domain }}
       # flags: "enable-registration enable-login"
-      flags: "enable-registration enable-insecure-register disable-demo-users disable-demo-warning"
+      flags: "enable-login-with-oidc enable-registration enable-insecure-register disable-demo-users disable-demo-warning" # TODO(gio): remove enable-insecure-register?
       postgresql:
         host: penpot-postgresql.{{ .Release.Namespace }}.svc.cluster.local
         database: penpot
@@ -43,6 +66,24 @@ spec:
         password: penpot
       redis:
         host: penpot-redis-headless.{{ .Release.Namespace }}.svc.cluster.local
+      providers:
+        oidc:
+          enabled: true
+          baseURI: https://hydra.{{ .Global.Domain }}
+          clientID: ""
+          clientSecret: ""
+          authURI: ""
+          tokenURI: ""
+          userURI: ""
+          roles: ""
+          rolesAttribute: ""
+          scopes: ""
+          nameAttribute: "name"
+          emailAttribute: "email"
+        existingSecret: oauth2-credentials
+        secretKeys:
+          oidcClientIDKey: client_id
+          oidcClientSecretKey: client_secret
     redis:
       image:
         tag: 7.0.8-debian-11-r16

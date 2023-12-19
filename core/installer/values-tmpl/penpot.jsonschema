@@ -1,0 +1,8 @@
+{
+  "type": "object",
+  "properties": {
+    "Network": { "type": "string", "default": "Public", "role": "network" },
+    "Subdomain": { "type": "string", "default": "penpot" }
+  },
+  "additionalProperties": false
+}
