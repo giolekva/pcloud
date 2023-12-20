@@ -329,5 +329,5 @@ func (s *EnvServer) createEnv(w http.ResponseWriter, r *http.Request) {
 	s.tasks[key] = t
 	s.dns[key] = dns
 	go t.Start()
-	http.Redirect(w, r, fmt.Sprintf("/env/key", key), http.StatusSeeOther)
+	http.Redirect(w, r, fmt.Sprintf("/env/%s", key), http.StatusSeeOther)
 }
