@@ -17,18 +17,17 @@ spec:
   interval: 1m0s
   values:
     domain: {{ .Global.Domain }}
+    subdomain: {{ .Values.Subdomain }}
     oauth2:
       hydraAdmin: http://hydra-admin.{{ .Global.NamespacePrefix }}core-auth.svc.cluster.local
       hydraPublic: https://hydra.{{ .Global.Domain }}
-      clientId: matrix
-      clientSecret: {{ .Values.MatrixOAuth2ClientSecret }}
       secretName: oauth2-client
     postgresql:
       host: postgres
       port: 5432
       database: matrix
-      user: postgres
-      password: psswd
+      user: matrix
+      password: matrix
     certificateIssuer: {{ .Global.Id }}-public
     ingressClassName: {{ .Global.PCloudEnvName }}-ingress-public
     configMerge:

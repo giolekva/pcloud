@@ -6,34 +6,34 @@ metadata:
 spec:
   chart:
     spec:
-      chart: postgresql
-      version: 10.13.5
+      chart: charts/postgresql
       sourceRef:
-        kind: HelmRepository
-        name: bitnami
-        namespace: {{ .Values.Id }}
+        kind: GitRepository
+        name: pcloud
+        namespace: {{ .Global.Id }}
   interval: 1m0s
   values:
     fullnameOverride: postgres
     image:
-      repository: arm64v8/postgres
-      tag: 13.4
+      repository: library/postgres # arm64v8/postgres
+      tag: 15.3 # 13.4
     service:
       type: ClusterIP
       port: 5432
-    postgresqlPassword: psswd
-    initdbScripts:
-      createdb.sh: |
-        #!/bin/sh
-        createdb -U postgres --encoding=UTF8 --locale=C --template=template0 --owner=postgres matrix
-    persistence:
-      size: {{ .Values.MatrixStorageSize }}
-    securityContext:
-      enabled: true
-      fsGroup: 0
-    containerSecurityContext:
-      enabled: true
-      runAsUser: 0
+    primary:
+      initdb:
+        scripts:
+          init.sql: |
+            CREATE USER matrix WITH PASSWORD 'matrix';
+            CREATE DATABASE matrix WITH OWNER = matrix ENCODING = UTF8 LOCALE = C TEMPLATE = template0;
+      persistence:
+        size: 10Gi
+      securityContext:
+        enabled: true
+        fsGroup: 0
+      containerSecurityContext:
+        enabled: true
+        runAsUser: 0
     volumePermissions:
       securityContext:
         runAsUser: 0

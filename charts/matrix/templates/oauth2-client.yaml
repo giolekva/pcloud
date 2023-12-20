@@ -3,6 +3,9 @@ kind: OAuth2Client
 metadata:
   name: matrix
   namespace: {{ .Release.Namespace }}
+  annotations:
+    helm.sh/hook: pre-install
+    helm.sh/hook-weight: "-10"
 spec:
   grantTypes:
   - authorization_code
@@ -11,9 +14,9 @@ spec:
   scope: "openid profile"
   secretName: {{ .Values.oauth2.secretName }}
   redirectUris:
-  - https://matrix.{{ .Values.domain }}/_synapse/client/oidc/callback
+  - https://{{ .Values.subdomain }}.{{ .Values.domain }}/_synapse/client/oidc/callback
   hydraAdmin:
     url: {{ .Values.oauth2.hydraAdmin }}
     port: 80
-    endpoint: /clients
+    endpoint: /admin/clients
     forwardedProto: https

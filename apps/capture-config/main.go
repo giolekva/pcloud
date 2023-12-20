@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"flag"
+	"fmt"
 	"io/ioutil"
 	"path"
 
@@ -14,9 +15,8 @@ import (
 	"github.com/miracl/conflate"
 )
 
-var configFile = flag.String("config", "", "Path to the homeserver.yaml config file.")
-var configToMerge = flag.String("config-to-merge", "", "Name of the configmap to merge with generated one.")
-var toMergeFilename = flag.String("to-merge-filename", "", "Name of the file from config to merge.")
+var baseFile = flag.String("base", "", "Path to the homeserver.yaml config file.")
+var mergeWith = flag.String("merge-with", "", "Name of the file from config to merge.")
 var namespace = flag.String("namespace", "", "Namespace name.")
 var configMapName = flag.String("config-map-name", "", "Name of the ConfigMap to create.")
 
@@ -32,7 +32,7 @@ func createClient() *kubernetes.Clientset {
 	return cs
 }
 
-func createConfig(data []byte) *v1.ConfigMap {
+func newConig(data []byte) *v1.ConfigMap {
 	return &v1.ConfigMap{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "ConfigMap",
@@ -42,7 +42,7 @@ func createConfig(data []byte) *v1.ConfigMap {
 			Name: *configMapName,
 		},
 		Data: map[string]string{
-			path.Base(*configFile): string(data),
+			path.Base(*baseFile): string(data),
 		},
 	}
 }
@@ -51,25 +51,28 @@ func main() {
 	flag.Parse()
 	client := createClient().CoreV1().ConfigMaps(*namespace)
 	conf := conflate.New()
-	generated, err := ioutil.ReadFile(*configFile)
+	generated, err := ioutil.ReadFile(*baseFile)
 	if err != nil {
 		panic(err)
 	}
+	fmt.Printf("--- BASE:\n%s\n", string(generated))
 	if err := conf.AddData(generated); err != nil {
 		panic(err)
 	}
-	toMerge, err := client.Get(context.TODO(), *configToMerge, metav1.GetOptions{})
+	mergeWith, err := ioutil.ReadFile(*mergeWith)
 	if err != nil {
 		panic(err)
 	}
-	if err := conf.AddData([]byte(toMerge.Data[*toMergeFilename])); err != nil {
+	fmt.Printf("--- MERGE WITH:\n%s\n", string(mergeWith))
+	if err := conf.AddData(mergeWith); err != nil {
 		panic(err)
 	}
 	merged, err := conf.MarshalYAML()
 	if err != nil {
 		panic(err)
 	}
-	config := createConfig(merged)
+	fmt.Printf("--- MERGED:\n%s\n", string(merged))
+	config := newConig(merged)
 	if _, err := client.Create(context.TODO(), config, metav1.CreateOptions{}); err != nil {
 		panic(err)
 	}

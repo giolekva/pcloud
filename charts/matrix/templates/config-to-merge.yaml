@@ -1,51 +1,44 @@
-{{- $secret := include "clientSecret" . -}}
----
-apiVersion: v1
-kind: Secret
-type: Opaque
+apiVersion: dodo.cloud.dodo.cloud/v1
+kind: ResourceRenderer
 metadata:
-  name: {{ .Values.oauth2.secretName }}
+  name: config-renderer
   namespace: {{ .Release.Namespace }}
   annotations:
     helm.sh/hook: pre-install
     helm.sh/hook-weight: "-10"
-data:
-  client_id: {{ .Values.oauth2.clientId | b64enc  }}
-  client_secret: {{ $secret | b64enc }}
----
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: {{ .Values.configMerge.configName }}
-  namespace: {{ .Release.Namespace }}
-  annotations:
-    helm.sh/hook: pre-install
-    helm.sh/hook-weight: "-10"
-data:
-  {{ .Values.configMerge.fileName }}: |
-    public_baseurl: https://matrix.{{ .Values.domain }}/
-    enable_registration: false
-    database:
-     name: psycopg2
-     txn_limit: 10000
-     args:
-       host: {{ .Values.postgresql.host }}
-       port: {{ .Values.postgresql.port }}
-       database: {{ .Values.postgresql.database }}
-       user: {{ .Values.postgresql.user }}
-       password: {{ .Values.postgresql.password }}
-       cp_min: 5
-       cp_max: 10
-    oidc_providers:
-      - idp_id: pcloud
-        idp_name: "PCloud"
-        skip_verification: true
-        issuer: {{ .Values.oauth2.hydraPublic }}
-        client_id: {{ .Values.oauth2.clientId }}
-        client_secret: {{ $secret }}
-        scopes: ["openid", "profile"]
-        allow_existing_users: true
-        user_mapping_provider:
-          config:
-            localpart_template: {{`"{{ user.username }}"`}}
-            display_name_template: "{{`{{ user.username }}"`}}
+spec:
+  secretName: {{ .Values.oauth2.secretName }}
+  resourceTemplate: |
+    apiVersion: v1
+    kind: ConfigMap
+    metadata:
+      name: {{ .Values.configMerge.configName }}
+      namespace: {{ .Release.Namespace }}
+    data:
+      {{ .Values.configMerge.fileName }}: |
+        public_baseurl: https://{{ .Values.subdomain }}.{{ .Values.domain }}/
+        enable_registration: false
+        database:
+         name: psycopg2
+         txn_limit: 10000
+         args:
+           host: {{ .Values.postgresql.host }}
+           port: {{ .Values.postgresql.port }}
+           database: {{ .Values.postgresql.database }}
+           user: {{ .Values.postgresql.user }}
+           password: {{ .Values.postgresql.password }}
+           cp_min: 5
+           cp_max: 10
+        oidc_providers:
+          - idp_id: pcloud
+            idp_name: "PCloud"
+            skip_verification: true
+            issuer: {{ .Values.oauth2.hydraPublic }}
+            client_id: "{{`{{ .client_id }}`}}"
+            client_secret: "{{`{{ .client_secret }}`}}"
+            scopes: ["openid", "profile"]
+            allow_existing_users: true
+            user_mapping_provider:
+              config:
+                localpart_template: {{ cat "{{`" `{{ "{{" }} user.username {{ "}}" }}` "`}}" | squote }}
+                display_name_template: {{ cat "{{`" `{{ "{{" }} user.username {{ "}}" }}` "`}}" | squote }}

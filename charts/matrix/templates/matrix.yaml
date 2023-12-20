@@ -12,7 +12,6 @@ rules:
   resources:
   - configmaps
   verbs:
-  - get
   - create
 ---
 apiVersion: rbac.authorization.k8s.io/v1
@@ -47,34 +46,24 @@ spec:
     targetPort: http
     protocol: TCP
 ---
-apiVersion: cert-manager.io/v1
-kind: Certificate
-metadata:
-  name: matrix.{{ .Values.domain }}
-  namespace: {{ .Release.Namespace }}
-  annotations:
-    helm.sh/resource-policy: keep
-spec:
-  dnsNames:
-  - 'matrix.{{ .Values.domain }}'
-  issuerRef:
-    name: {{ .Values.certificateIssuer }}
-    kind: ClusterIssuer
-  secretName: cert-matrix.{{ .Values.domain }}
----
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: ingress
   namespace: {{ .Release.Namespace }}
+  {{- if .Values.certificateIssuer }}
+  annotations:
+    acme.cert-manager.io/http01-edit-in-place: "true"
+    cert-manager.io/cluster-issuer: {{ .Values.certificateIssuer }}
+  {{- end }}
 spec:
   ingressClassName: {{ .Values.ingressClassName }}
   tls:
   - hosts:
-    - matrix.{{ .Values.domain }}
-    secretName: cert-matrix.{{ .Values.domain }}
+    - {{ .Values.subdomain }}.{{ .Values.domain }}
+    secretName: cert-{{ .Values.subdomain }}.{{ .Values.domain }}
   rules:
-  - host: matrix.{{ .Values.domain }}
+  - host: {{ .Values.subdomain }}.{{ .Values.domain }}
     http:
       paths:
       - path: /
@@ -104,6 +93,9 @@ spec:
       - name: data
         persistentVolumeClaim:
           claimName: data
+      - name: config
+        configMap:
+          name: {{ .Values.configMerge.configName }}
       initContainers:
       - name: matrix
         image: matrixdotorg/synapse:v1.43.0
@@ -134,15 +126,16 @@ spec:
         image: giolekva/capture-config:latest
         imagePullPolicy: Always
         command:
-        - capture-config
-        - --config=/data/homeserver.yaml
+        - /capture-config
+        - --base=/data/homeserver.yaml
+        - --merge-with=/config-to-merge/{{ .Values.configMerge.fileName }}
         - --namespace={{ .Release.Namespace }}
         - --config-map-name=config
-        - --config-to-merge={{ .Values.configMerge.configName }}
-        - --to-merge-filename={{ .Values.configMerge.fileName }}
         volumeMounts:
         - name: data
           mountPath: /data
+        - name: config
+          mountPath: /config-to-merge
 ---
 apiVersion: apps/v1
 kind: Deployment

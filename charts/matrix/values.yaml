@@ -1,9 +1,8 @@
 domain: example.com
+subdomain: matrix
 oauth2:
   hydraAdmin: http://hydra-admin
   hydraPublic: https://hydra.example.com
-  clientId: matrix
-  clientSecret: ""
   secretName: oauth2-client
 postgresql:
   host: postgresql

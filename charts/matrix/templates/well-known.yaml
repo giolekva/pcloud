@@ -19,6 +19,11 @@ kind: Ingress
 metadata:
   name: well-known
   namespace: {{ .Release.Namespace }}
+  {{- if .Values.certificateIssuer }}
+  annotations:
+    acme.cert-manager.io/http01-edit-in-place: "true"
+    cert-manager.io/cluster-issuer: {{ .Values.certificateIssuer }}
+  {{- end }}
 spec:
   ingressClassName: {{ .Values.ingressClassName }}
   tls:
@@ -69,12 +74,12 @@ data:
         server {
             listen 8080;
             location /.well-known/matrix/client {
-                return 200 '{"m.homeserver": {"base_url": "https://matrix.{{ .Values.domain }}:443"}}';
+                return 200 '{"m.homeserver": {"base_url": "https://{{ .Values.subdomain }}.{{ .Values.domain }}:443"}}';
                 default_type application/json;
                 add_header Access-Control-Allow-Origin *;
             }
             location /.well-known/matrix/server {
-                return 200 '{"m.server": "matrix.{{ .Values.domain }}:443"}';
+                return 200 '{"m.server": {{ .Values.subdomain }}.{{ .Values.domain }}:443"}';
                 default_type application/json;
                 add_header Access-Control-Allow-Origin *;
             }
