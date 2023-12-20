@@ -22,6 +22,7 @@ import (
 	"text/template"
 	"time"
 
+	"github.com/Masterminds/sprig/v3"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -82,7 +83,7 @@ func (r *ResourceRendererReconciler) Reconcile(ctx context.Context, req ctrl.Req
 	for key, value := range secret.Data {
 		data[key] = string(value)
 	}
-	tmpl, err := template.New("resource").Parse(resource.Spec.ResourceTemplate)
+	tmpl, err := template.New("resource").Funcs(sprig.TxtFuncMap()).Parse(resource.Spec.ResourceTemplate)
 	if err != nil {
 		return ctrl.Result{RequeueAfter: time.Minute}, err
 	}
