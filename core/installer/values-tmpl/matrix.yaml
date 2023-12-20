@@ -33,4 +33,7 @@ spec:
     configMerge:
       configName: config-to-merge
       fileName: to-merge.yaml
-
+    image:
+      repository: matrixdotorg/synapse
+      tag: v1.98.0
+      pullPolicy: IfNotPresent

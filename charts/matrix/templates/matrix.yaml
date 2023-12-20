@@ -98,8 +98,8 @@ spec:
           name: {{ .Values.configMerge.configName }}
       initContainers:
       - name: matrix
-        image: matrixdotorg/synapse:v1.43.0
-        imagePullPolicy: IfNotPresent
+        image: {{ .Values.image.repository }}:{{ .Values.image.tag }}
+        imagePullPolicy: {{ .Values.image.pullPolicy }}
         ports:
         - name: http
           containerPort: 8008
@@ -161,8 +161,8 @@ spec:
           name: config
       containers:
       - name: matrix
-        image: matrixdotorg/synapse:v1.43.0
-        imagePullPolicy: IfNotPresent
+        image: {{ .Values.image.repository }}:{{ .Values.image.tag }}
+        imagePullPolicy: {{ .Values.image.pullPolicy }}
         ports:
         - name: http
           containerPort: 8008

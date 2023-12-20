@@ -1,3 +1,7 @@
+image:
+  repository: matrixdotorg/synapse
+  tag: v1.98.0
+  pullPolicy: IfNotPresent
 domain: example.com
 subdomain: matrix
 oauth2:
