@@ -25,7 +25,7 @@ spec:
         scripts:
           init.sql: |
             CREATE USER matrix WITH PASSWORD 'matrix';
-            CREATE DATABASE matrix WITH OWNER = matrix ENCODING = UTF8 LOCALE = C TEMPLATE = template0;
+            CREATE DATABASE matrix WITH OWNER = matrix ENCODING = UTF8 LOCALE = 'C' TEMPLATE = template0;
       persistence:
         size: 10Gi
       securityContext:
