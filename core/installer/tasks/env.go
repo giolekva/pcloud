@@ -1,10 +1,9 @@
 package tasks
 
 import (
+	"context"
 	"fmt"
 	"net"
-	"net/http"
-	"time"
 
 	"github.com/charmbracelet/keygen"
 
@@ -61,25 +60,19 @@ func NewCreateEnvTask(
 			SetupInfra(env, &st)...,
 		)...,
 	)
-	done := make(chan struct{})
+	rctx, done := context.WithCancel(context.Background())
 	t.OnDone(func(_ error) {
-		close(done)
+		done()
 	})
-	go reconcile(fmt.Sprintf("%s-flux", env.PCloudEnvName), done)
-	go reconcile(env.Name, done)
+	pr := NewFluxcdReconciler( // TODO(gio): make reconciler address a flag
+		"http://fluxcd-reconciler.dodo-fluxcd-reconciler.svc.cluster.local",
+		fmt.Sprintf("%s-flux", env.PCloudEnvName),
+	)
+	er := NewFluxcdReconciler(
+		"http://fluxcd-reconciler.dodo-fluxcd-reconciler.svc.cluster.local",
+		env.Name,
+	)
+	go pr.Reconcile(rctx)
+	go er.Reconcile(rctx)
 	return t, DNSZoneRef{"dns-zone", env.Name}
-}
-
-func reconcile(name string, quit chan struct{}) {
-	git := fmt.Sprintf("http://fluxcd-reconciler.dodo-fluxcd-reconciler.svc.cluster.local/source/git/%s/%s/reconcile", name, name)
-	kust := fmt.Sprintf("http://fluxcd-reconciler.dodo-fluxcd-reconciler.svc.cluster.local/kustomization/%s/%s/reconcile", name, name)
-	for {
-		select {
-		case <-time.After(30 * time.Second):
-			http.Get(git)
-			http.Get(kust)
-		case <-quit:
-			return
-		}
-	}
 }

@@ -2,6 +2,7 @@ package welcome
 
 import (
 	"bytes"
+	"context"
 	"embed"
 	"encoding/json"
 	"fmt"
@@ -9,13 +10,13 @@ import (
 	"io/ioutil"
 	"log"
 	"net/http"
-	// "net/http/httputil"
-	// "net/url"
+	"time"
 
 	"github.com/Masterminds/sprig/v3"
 	"github.com/labstack/echo/v4"
 
 	"github.com/giolekva/pcloud/core/installer"
+	"github.com/giolekva/pcloud/core/installer/tasks"
 )
 
 //go:embed appmanager-tmpl
@@ -28,20 +29,23 @@ var baseHtmlTmpl string
 var appHtmlTmpl string
 
 type AppManagerServer struct {
-	port int
-	m    *installer.AppManager
-	r    installer.AppRepository[installer.StoreApp]
+	port       int
+	m          *installer.AppManager
+	r          installer.AppRepository[installer.StoreApp]
+	reconciler tasks.Reconciler
 }
 
 func NewAppManagerServer(
 	port int,
 	m *installer.AppManager,
 	r installer.AppRepository[installer.StoreApp],
+	reconciler tasks.Reconciler,
 ) *AppManagerServer {
 	return &AppManagerServer{
 		port,
 		m,
 		r,
+		reconciler,
 	}
 }
 
@@ -237,6 +241,8 @@ func (s *AppManagerServer) handleAppInstall(c echo.Context) error {
 		log.Printf("%s\n", err.Error())
 		return err
 	}
+	ctx, _ := context.WithTimeout(context.Background(), 2*time.Minute)
+	go s.reconciler.Reconcile(ctx)
 	return c.String(http.StatusOK, "Installed")
 }
 
@@ -261,6 +267,8 @@ func (s *AppManagerServer) handleAppUpdate(c echo.Context) error {
 	if err := s.m.Update(a.App, slug, values); err != nil {
 		return err
 	}
+	ctx, _ := context.WithTimeout(context.Background(), 2*time.Minute)
+	go s.reconciler.Reconcile(ctx)
 	return c.String(http.StatusOK, "Installed")
 }
 
@@ -269,6 +277,8 @@ func (s *AppManagerServer) handleAppRemove(c echo.Context) error {
 	if err := s.m.Remove(slug); err != nil {
 		return err
 	}
+	ctx, _ := context.WithTimeout(context.Background(), 2*time.Minute)
+	go s.reconciler.Reconcile(ctx)
 	return c.String(http.StatusOK, "Installed")
 }
 

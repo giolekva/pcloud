@@ -8,6 +8,7 @@ import (
 
 	"github.com/giolekva/pcloud/core/installer"
 	"github.com/giolekva/pcloud/core/installer/soft"
+	"github.com/giolekva/pcloud/core/installer/tasks"
 	"github.com/giolekva/pcloud/core/installer/welcome"
 
 	"github.com/go-git/go-billy/v5/memfs"
@@ -71,14 +72,17 @@ func appManagerCmdRun(cmd *cobra.Command, args []string) error {
 		return err
 	}
 	log.Println("Cloned repository")
+	repoIO := installer.NewRepoIO(repo, signer)
+	config, err := repoIO.ReadConfig()
+	if err != nil {
+		return err
+	}
+	log.Println("Read config")
 	kube, err := newNSCreator()
 	if err != nil {
 		return err
 	}
-	m, err := installer.NewAppManager(
-		installer.NewRepoIO(repo, signer),
-		kube,
-	)
+	m, err := installer.NewAppManager(repoIO, kube)
 	if err != nil {
 		return err
 	}
@@ -101,6 +105,10 @@ func appManagerCmdRun(cmd *cobra.Command, args []string) error {
 		appManagerFlags.port,
 		m,
 		r,
+		tasks.NewFluxcdReconciler( // TODO(gio): make reconciler address a flag
+			"http://fluxcd-reconciler.dodo-fluxcd-reconciler.svc.cluster.local",
+			config.Values.Id,
+		),
 	)
 	return s.Start()
 }
