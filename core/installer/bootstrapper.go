@@ -50,6 +50,7 @@ func (b Bootstrapper) Run(env EnvConfig) error {
 	if err := b.installSoftServe(bootstrapJobKeys.AuthorizedKey(), env.Name, env.ServiceIPs.ConfigRepo); err != nil {
 		return err
 	}
+	time.Sleep(2 * time.Minute)
 	ss, err := soft.WaitForClient(
 		netip.AddrPortFrom(env.ServiceIPs.ConfigRepo, 22).String(),
 		bootstrapJobKeys.RawPrivateKey(),
