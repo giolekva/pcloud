@@ -40,5 +40,5 @@ spec:
             allow_existing_users: true
             user_mapping_provider:
               config:
-                localpart_template: {{ cat "{{`" `{{ "{{" }} user.username {{ "}}" }}` "`}}" | squote }}
-                display_name_template: {{ cat "{{`" `{{ "{{" }} user.username {{ "}}" }}` "`}}" | squote }}
+                localpart_template: "{{ cat "{{" "\"" "{{user.username}}" "\"" "}}" | nospace}}"
+                display_name_template: "{{ cat "{{" "\"" "{{user.username}}" "\"" "}}" | nospace}}"
