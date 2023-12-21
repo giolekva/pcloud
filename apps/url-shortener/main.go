@@ -2,19 +2,26 @@ package main
 
 import (
 	"database/sql"
+	"embed"
 	"flag"
 	"fmt"
+	"html/template"
+	"log"
 	"math/rand"
 	"net/http"
 	"os"
+	"strings"
 
 	_ "github.com/mattn/go-sqlite3"
 )
 
 var dbPath = flag.String("db-path", "url-shortener.db", "Path to the SQLite file")
+var db *sql.DB
+
+//go:embed index.html
+var content embed.FS
 
 type NamedAddress struct {
-	// Name of the address. Must be unique across the service.
 	Name    string
 	Address string
 	OwnerId string
@@ -22,15 +29,10 @@ type NamedAddress struct {
 }
 
 type Store interface {
-	// Creates new named address.
 	Create(name, address, ownerId string) error
-	// Activates given named address. Does nothing if named address is already active.
 	Activate(name string) error
-	// Deactivates given named address. Does nothing if named address is already inactive.
 	Deactivate(name string) error
-	// Transfers ownership of the given named address to new owner.
 	ChangeOwner(name, ownerId string) error
-	// Retreives all named addresses owned by given owner.
 	List(ownerId string) ([]NamedAddress, error)
 }
 
@@ -108,11 +110,37 @@ func (s *SQLiteStore) ChangeOwner(name, ownerId string) error {
 }
 
 func (s *SQLiteStore) List(ownerId string) ([]NamedAddress, error) {
-	return nil, nil
+	rows, err := s.db.Query("SELECT Name, Address FROM named_addresses WHERE OwnerId = ?", ownerId)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var namedAddresses []NamedAddress
+	for rows.Next() {
+		var namedAddress NamedAddress
+		if err := rows.Scan(&namedAddress.Name, &namedAddress.Address); err != nil {
+			return nil, err
+		}
+		namedAddresses = append(namedAddresses, namedAddress)
+	}
+
+	return namedAddresses, nil
+}
+
+type PageVariables struct {
+	NamedAddresses []NamedAddress
+}
+
+func renderHTML(w http.ResponseWriter, r *http.Request, tpl *template.Template, data interface{}) {
+	w.Header().Set("Content-Type", "text/html")
+	err := tpl.Execute(w, data)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
 }
 
 func newEntryHandler(w http.ResponseWriter, r *http.Request) {
-	var namedAddress NamedAddress
 	db, err := openDatabase()
 	if err != nil {
 		fmt.Println("Error opening database:", err)
@@ -121,8 +149,11 @@ func newEntryHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	defer db.Close()
 
-	if r.Method == "POST" {
-		store := &SQLiteStore{db: db}
+	store := &SQLiteStore{db: db}
+
+	// Check if request is POST
+	if r.Method == http.MethodPost {
+		var namedAddress NamedAddress
 		namedAddress.Active = true
 
 		// Check if a custom name is provided in POST request
@@ -169,8 +200,55 @@ func newEntryHandler(w http.ResponseWriter, r *http.Request) {
 		fmt.Println("Named address created:", namedAddress)
 	}
 
-	fmt.Println("BODY: ", r.Body)
-	// fmt.Println("REQUEST CHECK")
+	// Retrieve named addresses for the owner
+	namedAddresses, err := store.List("tabo")
+	if err != nil {
+		fmt.Println("Error retrieving named addresses:", err)
+		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+		return
+	}
+
+	// Combine data for rendering
+	pageVariables := PageVariables{
+		NamedAddresses: namedAddresses,
+	}
+
+	// Get Name from request path for redirection
+	name := strings.TrimPrefix(r.URL.Path, "/")
+	fmt.Println("redirection URL: ", r.URL.Path)
+	if name != "" {
+		// get coresponding Address for Name
+		var address string
+		err := store.db.QueryRow("SELECT Address FROM named_addresses WHERE Name = ?", name).Scan(&address)
+		if err != nil {
+			http.Error(w, "URL not found", http.StatusNotFound)
+			return
+		}
+		// Check if Address has https at the begining
+		if !strings.HasPrefix(address, "http://") && !strings.HasPrefix(address, "https://") {
+			address = "http://" + address
+		}
+		// Redirect to the address
+		http.Redirect(w, r, address, http.StatusFound)
+		return
+	}
+
+	// Read the embedded HTML content
+	indexHtmlContent, err := content.ReadFile("index.html")
+	if err != nil {
+		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+		return
+	}
+
+	// Parse the HTML content
+	tmpl, err := template.New("index").Parse(string(indexHtmlContent))
+	if err != nil {
+		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+		return
+	}
+
+	// Render the HTML table
+	renderHTML(w, r, tmpl, pageVariables)
 }
 
 func main() {
@@ -180,7 +258,7 @@ func main() {
 	_, err := os.Stat(*dbPath)
 	if os.IsNotExist(err) {
 		// if not, create it and initialize the table
-		db, err := openDatabase()
+		db, err = openDatabase()
 		if err != nil {
 			fmt.Println("Error opening database:", err)
 			return
@@ -195,14 +273,11 @@ func main() {
 
 		fmt.Println("SQLite database and table created successfully!")
 	} else if err != nil {
-		// other errors handler to check file existance
 		fmt.Println("Error checking database file:", err)
 		return
 	}
 
-	fmt.Println("TEST")
-
+	fmt.Println("Server listening on :8080")
 	http.HandleFunc("/", newEntryHandler)
-	// http.HandleFunc("/", activate)
-	http.ListenAndServe(":8080", nil)
+	log.Fatal(http.ListenAndServe(":8080", nil))
 }

@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>URL Shortener</title>
+</head>
+
+<body>
+    <h1>URL Shortener</h1>
+
+    <form action="/" method="post">
+        <label for="address">Address:</label>
+        <input type="text" id="address" name="address" required>
+
+        <label for="custom">Custom Name (optional):</label>
+        <input type="text" id="custom" name="custom">
+
+        <button type="submit">Shorten URL</button>
+    </form>
+
+    <h2>Named Addresses:</h2>
+    <table>
+        <tr>
+            <th>Name</th>
+            <th>Address</th>
+        </tr>
+        {{ range .NamedAddresses }}
+        <tr>
+            <td><a href="{{ .Name }}" target="_blank">{{ .Name }}</a></td>
+            <td>{{ .Address }}</td>
+        </tr>
+        {{ end }}
+    </table>
+</body>
+
+</html>
