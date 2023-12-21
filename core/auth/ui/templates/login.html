@@ -3,9 +3,10 @@
 <form action="" method="POST">
 	<input type="text" name="username" placeholder="Username" autofocus required />
 	<input type="password" name="password" placeholder="Password" required />
-	<input type="hidden" name="csrf_token" value="{{ . }}" />
+	<input type="hidden" name="csrf_token" value="{{ .csrfToken }}" />
 	<button type="submit">Sign In</button>
 </form>
+{{- if .enableRegistration -}}
 <nav>
 	<ul>
 		<li>
@@ -13,4 +14,5 @@
 		</li>
 	</ul>
 </nav>
+{{- end -}}
 {{ end }}

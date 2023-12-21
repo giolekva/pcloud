@@ -296,3 +296,4 @@ spec:
       domain: {{ .Global.Domain }}
       internalDomain: p.{{ .Global.Domain }}
       hydra: hydra-admin.{{ .Global.Id }}-core-auth.svc.cluster.local
+      enableRegistration: false

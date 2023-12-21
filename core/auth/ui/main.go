@@ -28,6 +28,8 @@ var emailDomain = flag.String("email-domain", "lekva.me", "Email domain")
 var apiPort = flag.Int("api-port", 8081, "API Port to listen on")
 var kratosAPI = flag.String("kratos-api", "", "Kratos API address")
 
+var enableRegistration = flag.Bool("enable-registration", false, "If true account registration will be enabled")
+
 var ErrNotLoggedIn = errors.New("Not logged in")
 
 //go:embed templates/*
@@ -75,20 +77,21 @@ func ParseTemplates(fs embed.FS) (*Templates, error) {
 }
 
 type Server struct {
-	r      *mux.Router
-	serv   *http.Server
-	kratos string
-	hydra  *HydraClient
-	tmpls  *Templates
+	r                  *mux.Router
+	serv               *http.Server
+	kratos             string
+	hydra              *HydraClient
+	tmpls              *Templates
+	enableRegistration bool
 }
 
-func NewServer(port int, kratos string, hydra *HydraClient, tmpls *Templates) *Server {
+func NewServer(port int, kratos string, hydra *HydraClient, tmpls *Templates, enableRegistration bool) *Server {
 	r := mux.NewRouter()
 	serv := &http.Server{
 		Addr:    fmt.Sprintf(":%d", port),
 		Handler: r,
 	}
-	return &Server{r, serv, kratos, hydra, tmpls}
+	return &Server{r, serv, kratos, hydra, tmpls, enableRegistration}
 }
 
 func cacheControlWrapper(h http.Handler) http.Handler {
@@ -103,8 +106,10 @@ func (s *Server) Start() error {
 	var staticFS = http.FS(static)
 	fs := http.FileServer(staticFS)
 	s.r.PathPrefix("/static/").Handler(cacheControlWrapper(fs))
-	s.r.Path("/register").Methods(http.MethodGet).HandlerFunc(s.registerInitiate)
-	s.r.Path("/register").Methods(http.MethodPost).HandlerFunc(s.register)
+	if s.enableRegistration {
+		s.r.Path("/register").Methods(http.MethodGet).HandlerFunc(s.registerInitiate)
+		s.r.Path("/register").Methods(http.MethodPost).HandlerFunc(s.register)
+	}
 	s.r.Path("/login").Methods(http.MethodGet).HandlerFunc(s.loginInitiate)
 	s.r.Path("/login").Methods(http.MethodPost).HandlerFunc(s.login)
 	s.r.Path("/consent").Methods(http.MethodGet).HandlerFunc(s.consent)
@@ -245,7 +250,10 @@ func (s *Server) loginInitiate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.Header().Set("Content-Type", "text/html")
-	if err := s.tmpls.Login.Execute(w, csrfToken); err != nil {
+	if err := s.tmpls.Login.Execute(w, map[string]any{
+		"csrfToken":          csrfToken,
+		"enableRegistration": s.enableRegistration,
+	}); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -513,6 +521,7 @@ func main() {
 			*kratos,
 			NewHydraClient(*hydra),
 			t,
+			*enableRegistration,
 		)
 		log.Fatal(s.Start())
 	}()
