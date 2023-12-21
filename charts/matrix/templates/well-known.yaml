@@ -29,26 +29,13 @@ spec:
   tls:
   - hosts:
     - {{ .Values.domain }}
-    secretName: cert-www.{{ .Values.domain }}
-  - hosts:
-    - www.{{ .Values.domain }}
-    secretName: cert-www.{{ .Values.domain }}
+    secretName: cert-{{ .Values.domain }}
   rules:
   - host: {{ .Values.domain }}
     http:
       paths:
-      - path: /
-        pathType: Prefix
-        backend:
-          service:
-            name: well-known
-            port:
-              name: http
-  - host: www.{{ .Values.domain }}
-    http:
-      paths:
-      - path: /
-        pathType: Prefix
+      - path: /.well-known/matrix
+        pathType: ImplementationSpecific
         backend:
           service:
             name: well-known
@@ -74,12 +61,12 @@ data:
         server {
             listen 8080;
             location /.well-known/matrix/client {
-                return 200 '{"m.homeserver": {"base_url": "https://{{ .Values.subdomain }}.{{ .Values.domain }}:443"}}';
+                return 200 '{"m.homeserver": {"base_url": "https://{{ .Values.subdomain }}.{{ .Values.domain }}"}}';
                 default_type application/json;
                 add_header Access-Control-Allow-Origin *;
             }
             location /.well-known/matrix/server {
-                return 200 '{"m.server": {{ .Values.subdomain }}.{{ .Values.domain }}:443"}';
+                return 200 '{"m.server": "https://{{ .Values.subdomain }}.{{ .Values.domain }}"}';
                 default_type application/json;
                 add_header Access-Control-Allow-Origin *;
             }
