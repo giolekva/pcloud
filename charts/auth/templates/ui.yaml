@@ -13,6 +13,21 @@ spec:
     targetPort: http
     protocol: TCP
 ---
+apiVersion: v1
+kind: Service
+metadata:
+  name: api
+  namespace: {{ .Release.Namespace }}
+spec:
+  type: ClusterIP
+  selector:
+    app: ui
+  ports:
+  - name: http
+    port: 80
+    targetPort: api
+    protocol: TCP
+---
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
@@ -65,9 +80,14 @@ spec:
         - name: http
           containerPort: 8080
           protocol: TCP
+        - name: api
+          containerPort: 8081
+          protocol: TCP
         command:
         - server
         - --port=8080
         - --kratos=https://accounts.{{ .Values.ui.domain }}
         - --hydra={{ .Values.ui.hydra }}
         - --email-domain={{ .Values.ui.domain }}
+        - --api-port=8081
+        - --kratos-api=http://kratos-admin.{{ .Release.Namespace }}.svc.cluster.local

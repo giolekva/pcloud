@@ -25,6 +25,9 @@ var kratos = flag.String("kratos", "https://accounts.lekva.me", "Kratos URL")
 var hydra = flag.String("hydra", "hydra.pcloud", "Hydra admin server address")
 var emailDomain = flag.String("email-domain", "lekva.me", "Email domain")
 
+var apiPort = flag.Int("api-port", 8081, "API Port to listen on")
+var kratosAPI = flag.String("kratos-api", "", "Kratos API address")
+
 var ErrNotLoggedIn = errors.New("Not logged in")
 
 //go:embed templates/*
@@ -72,9 +75,20 @@ func ParseTemplates(fs embed.FS) (*Templates, error) {
 }
 
 type Server struct {
+	r      *mux.Router
+	serv   *http.Server
 	kratos string
 	hydra  *HydraClient
 	tmpls  *Templates
+}
+
+func NewServer(port int, kratos string, hydra *HydraClient, tmpls *Templates) *Server {
+	r := mux.NewRouter()
+	serv := &http.Server{
+		Addr:    fmt.Sprintf(":%d", port),
+		Handler: r,
+	}
+	return &Server{r, serv, kratos, hydra, tmpls}
 }
 
 func cacheControlWrapper(h http.Handler) http.Handler {
@@ -85,22 +99,19 @@ func cacheControlWrapper(h http.Handler) http.Handler {
 	})
 }
 
-func (s *Server) Start(port int) error {
-	r := mux.NewRouter()
-	http.Handle("/", r)
+func (s *Server) Start() error {
 	var staticFS = http.FS(static)
 	fs := http.FileServer(staticFS)
-	r.PathPrefix("/static/").Handler(cacheControlWrapper(fs))
-	r.Path("/register").Methods(http.MethodGet).HandlerFunc(s.registerInitiate)
-	r.Path("/register").Methods(http.MethodPost).HandlerFunc(s.register)
-	r.Path("/login").Methods(http.MethodGet).HandlerFunc(s.loginInitiate)
-	r.Path("/login").Methods(http.MethodPost).HandlerFunc(s.login)
-	r.Path("/consent").Methods(http.MethodGet).HandlerFunc(s.consent)
-	r.Path("/consent").Methods(http.MethodPost).HandlerFunc(s.processConsent)
-	r.Path("/logout").Methods(http.MethodGet).HandlerFunc(s.logout)
-	r.Path("/").HandlerFunc(s.whoami)
-	fmt.Printf("Starting HTTP server on port: %d\n", port)
-	return http.ListenAndServe(fmt.Sprintf(":%d", port), nil)
+	s.r.PathPrefix("/static/").Handler(cacheControlWrapper(fs))
+	s.r.Path("/register").Methods(http.MethodGet).HandlerFunc(s.registerInitiate)
+	s.r.Path("/register").Methods(http.MethodPost).HandlerFunc(s.register)
+	s.r.Path("/login").Methods(http.MethodGet).HandlerFunc(s.loginInitiate)
+	s.r.Path("/login").Methods(http.MethodPost).HandlerFunc(s.login)
+	s.r.Path("/consent").Methods(http.MethodGet).HandlerFunc(s.consent)
+	s.r.Path("/consent").Methods(http.MethodPost).HandlerFunc(s.processConsent)
+	s.r.Path("/logout").Methods(http.MethodGet).HandlerFunc(s.logout)
+	s.r.Path("/").HandlerFunc(s.whoami)
+	return s.serv.ListenAndServe()
 }
 
 func getCSRFToken(flowType, flow string, cookies []*http.Cookie) (string, error) {
@@ -492,10 +503,17 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	s := &Server{
-		kratos: *kratos,
-		hydra:  NewHydraClient(*hydra),
-		tmpls:  t,
-	}
-	log.Fatal(s.Start(*port))
+	go func() {
+		s := NewAPIServer(*apiPort, *kratosAPI)
+		log.Fatal(s.Start())
+	}()
+	func() {
+		s := NewServer(
+			*port,
+			*kratos,
+			NewHydraClient(*hydra),
+			t,
+		)
+		log.Fatal(s.Start())
+	}()
 }
