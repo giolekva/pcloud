@@ -15,6 +15,7 @@ spec:
   values:
     repoAddr: {{ .Values.RepoAddr }}
     sshPrivateKey: {{ .Values.SSHPrivateKey | b64enc }}
+    createAccountAddr: http://api.{{ .Global.NamespacePrefix}}core-auth.svc.cluster.local/identities
     ingress:
       className: {{ .Global.PCloudEnvName }}-ingress-public
       domain: welcome.{{ .Global.Domain }}

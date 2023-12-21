@@ -12,9 +12,10 @@ import (
 )
 
 var welcomeFlags struct {
-	repo   string
-	sshKey string
-	port   int
+	repo              string
+	sshKey            string
+	port              int
+	createAccountAddr string
 }
 
 func welcomeCmd() *cobra.Command {
@@ -38,6 +39,12 @@ func welcomeCmd() *cobra.Command {
 		&welcomeFlags.port,
 		"port",
 		8080,
+		"",
+	)
+	cmd.Flags().StringVar(
+		&welcomeFlags.createAccountAddr,
+		"create-account-addr",
+		"",
 		"",
 	)
 	return cmd
@@ -68,6 +75,7 @@ func welcomeCmdRun(cmd *cobra.Command, args []string) error {
 		welcomeFlags.port,
 		installer.NewRepoIO(repo, signer),
 		nsCreator,
+		welcomeFlags.createAccountAddr,
 	)
 	s.Start()
 	return nil

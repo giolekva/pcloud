@@ -1,9 +1,11 @@
 package welcome
 
 import (
+	"bytes"
 	"embed"
 	"encoding/json"
 	"fmt"
+	"io"
 	"log"
 	"net/http"
 	"net/url"
@@ -20,16 +22,23 @@ var indexHtml []byte
 var staticAssets embed.FS
 
 type Server struct {
-	port      int
-	repo      installer.RepoIO
-	nsCreator installer.NamespaceCreator
+	port              int
+	repo              installer.RepoIO
+	nsCreator         installer.NamespaceCreator
+	createAccountAddr string
 }
 
-func NewServer(port int, repo installer.RepoIO, nsCreator installer.NamespaceCreator) *Server {
+func NewServer(
+	port int,
+	repo installer.RepoIO,
+	nsCreator installer.NamespaceCreator,
+	createAccountAddr string,
+) *Server {
 	return &Server{
 		port,
 		repo,
 		nsCreator,
+		createAccountAddr,
 	}
 }
 
@@ -51,8 +60,13 @@ func (s *Server) createAdminAccountForm(w http.ResponseWriter, _ *http.Request) 
 
 type createAccountReq struct {
 	Username    string `json:"username,omitempty"`
-	Password    string `json:"password,omitempty"` // TODO(giolekva): actually use this
+	Password    string `json:"password,omitempty"`
 	SecretToken string `json:"secretToken,omitempty"`
+}
+
+type apiCreateAccountReq struct {
+	Username string `json:"username,omitempty"`
+	Password string `json:"password,omitempty"`
 }
 
 func getFormValue(v url.Values, name string) (string, error) {
@@ -94,7 +108,26 @@ func (s *Server) createAdminAccount(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	// TODO(giolekva): accounts-ui create user req
+	{
+		var buf bytes.Buffer
+		cr := apiCreateAccountReq{req.Username, req.Password}
+		if err := json.NewEncoder(&buf).Encode(cr); err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		resp, err := http.Post(s.createAccountAddr, "application/json", &buf)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		// TODO(gio): better handle status code and error message
+		if resp.StatusCode != http.StatusOK {
+			var e bytes.Buffer
+			io.Copy(&e, resp.Body)
+			http.Error(w, e.String(), http.StatusInternalServerError)
+			return
+		}
+	}
 	{
 		config, err := s.repo.ReadConfig()
 		if err != nil {
