@@ -112,7 +112,7 @@ func (s *SQLiteStore) ChangeOwner(name, ownerId string) error {
 }
 
 func (s *SQLiteStore) List(ownerId string) ([]NamedAddress, error) {
-	rows, err := s.db.Query("SELECT Name, Address FROM named_addresses WHERE OwnerId = ?", ownerId)
+	rows, err := s.db.Query("SELECT Name, Address, OwnerId, Active FROM named_addresses WHERE OwnerId = ?", ownerId)
 	if err != nil {
 		return nil, err
 	}
@@ -121,7 +121,7 @@ func (s *SQLiteStore) List(ownerId string) ([]NamedAddress, error) {
 	var namedAddresses []NamedAddress
 	for rows.Next() {
 		var namedAddress NamedAddress
-		if err := rows.Scan(&namedAddress.Name, &namedAddress.Address); err != nil {
+		if err := rows.Scan(&namedAddress.Name, &namedAddress.Address, &namedAddress.OwnerId, &namedAddress.Active); err != nil {
 			return nil, err
 		}
 		namedAddresses = append(namedAddresses, namedAddress)
