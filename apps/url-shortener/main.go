@@ -16,7 +16,6 @@ import (
 )
 
 var dbPath = flag.String("db-path", "url-shortener.db", "Path to the SQLite file")
-var db *sql.DB
 
 //go:embed index.html
 var indexHTML embed.FS
