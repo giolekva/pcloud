@@ -3,7 +3,6 @@ package main
 import (
 	"database/sql"
 	"embed"
-	"errors"
 	"flag"
 	"fmt"
 	"html/template"
@@ -80,10 +79,6 @@ func generateRandomURL() string {
 }
 
 func (s *SQLiteStore) Create(addr NamedAddress) error {
-	if !strings.HasPrefix(addr.Address, "http://") && !strings.HasPrefix(addr.Address, "https://") {
-		return errors.New("Address must start with http:// or https://")
-	}
-
 	_, err := s.db.Exec(`
 		INSERT INTO named_addresses (name, address, ownerId, active)
 		VALUES (?, ?, ?, ?)
@@ -169,6 +164,10 @@ func (s *Server) handler(w http.ResponseWriter, r *http.Request) {
 	if r.Method == http.MethodPost {
 		customName := r.PostFormValue("custom")
 		address := r.PostFormValue("address")
+		if !strings.HasPrefix(address, "http://") && !strings.HasPrefix(address, "https://") {
+			http.Error(w, "Address must start with http:// or https://", http.StatusBadRequest)
+			return
+		}
 		for {
 			cn := customName
 			if cn == "" {
