@@ -48,10 +48,10 @@ func openDatabase() (*sql.DB, error) {
 
 	_, err = db.Exec(`
         CREATE TABLE IF NOT EXISTS named_addresses (
-            Name TEXT PRIMARY KEY,
-            Address TEXT,
-            OwnerId TEXT,
-            Active BOOLEAN
+            name TEXT PRIMARY KEY,
+            address TEXT,
+            ownerId TEXT,
+            active BOOLEAN
         )
     `)
 	if err != nil {
@@ -76,14 +76,14 @@ func (s *SQLiteStore) Create(addr NamedAddress) error {
 		return errors.New("Address must start with http:// or https://")
 	}
 	_, err := s.db.Exec(`
-		INSERT INTO named_addresses (Name, Address, OwnerId, Active)
+		INSERT INTO named_addresses (name, address, ownerId, active)
 		VALUES (?, ?, ?, ?)
 	`, addr.Name, addr.Address, addr.OwnerId, addr.Active)
 	return err
 }
 
 func (s *SQLiteStore) Get(name string) (NamedAddress, error) {
-	row := s.db.QueryRow("SELECT Name, Address, OwnerID, Active FROM named_addresses WHERE Name = ?", name)
+	row := s.db.QueryRow("SELECT name, address, ownerID, active FROM named_addresses WHERE name = ?", name)
 	namedAddress := NamedAddress{}
 	err := row.Scan(&namedAddress.Name, &namedAddress.Address, &namedAddress.OwnerId, &namedAddress.Active)
 	if err != nil {
@@ -108,7 +108,7 @@ func (s *SQLiteStore) ChangeOwner(name, ownerId string) error {
 }
 
 func (s *SQLiteStore) List(ownerId string) ([]NamedAddress, error) {
-	rows, err := s.db.Query("SELECT Name, Address, OwnerId, Active FROM named_addresses WHERE OwnerId = ?", ownerId)
+	rows, err := s.db.Query("SELECT name, address, ownerId, active FROM named_addresses WHERE ownerId = ?", ownerId)
 	if err != nil {
 		return nil, err
 	}
