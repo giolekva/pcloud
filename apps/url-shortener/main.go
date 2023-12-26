@@ -40,6 +40,14 @@ type SQLiteStore struct {
 	db *sql.DB
 }
 
+type NameAlreadyTaken struct {
+	Name string
+}
+
+func (er NameAlreadyTaken) Error() string {
+	return fmt.Sprintf("Name '%s' is already taken", er.Name)
+}
+
 func openDatabase() (*sql.DB, error) {
 	db, err := sql.Open("sqlite3", *dbPath)
 	if err != nil {
@@ -75,11 +83,21 @@ func (s *SQLiteStore) Create(addr NamedAddress) error {
 	if !strings.HasPrefix(addr.Address, "http://") && !strings.HasPrefix(addr.Address, "https://") {
 		return errors.New("Address must start with http:// or https://")
 	}
+
 	_, err := s.db.Exec(`
 		INSERT INTO named_addresses (name, address, ownerId, active)
 		VALUES (?, ?, ?, ?)
 	`, addr.Name, addr.Address, addr.OwnerId, addr.Active)
-	return err
+	if err != nil {
+		sqliteErr, ok := err.(sqlite3.Error)
+		// sqliteErr.ExtendedCode and sqlite3.ErrConstraintUnique are not the same. probably some lib error.
+		// had to use actual code of unique const error
+		if ok && sqliteErr.ExtendedCode == 1555 {
+			return NameAlreadyTaken{Name: addr.Name}
+		}
+		return err
+	}
+	return nil
 }
 
 func (s *SQLiteStore) Get(name string) (NamedAddress, error) {
@@ -148,7 +166,6 @@ func (s *Server) Start() {
 }
 
 func (s *Server) handler(w http.ResponseWriter, r *http.Request) {
-	// Check if request is POST
 	if r.Method == http.MethodPost {
 		customName := r.PostFormValue("custom")
 		address := r.PostFormValue("address")
@@ -167,11 +184,14 @@ func (s *Server) handler(w http.ResponseWriter, r *http.Request) {
 			if err := s.store.Create(namedAddress); err == nil {
 				http.Redirect(w, r, "/", http.StatusSeeOther)
 				return
-			} else if !errors.Is(err, sqlite3.ErrConstraintUnique) {
-				http.Error(w, "try again later", http.StatusInternalServerError)
+			} else if _, ok := err.(NameAlreadyTaken); ok && customName == "" {
+				continue
+			} else if _, ok := err.(NameAlreadyTaken); ok && customName != "" {
+				http.Error(w, "Name is already taken", http.StatusBadRequest)
 				return
-			} else if customName != "" {
-				// error
+			} else {
+				http.Error(w, "Try again later", http.StatusInternalServerError)
+				return
 			}
 		}
 	}
@@ -181,10 +201,8 @@ func (s *Server) handler(w http.ResponseWriter, r *http.Request) {
 	if name != "" {
 		namedAddress, err := s.store.Get(name)
 		if err != nil {
-			// TODO
 			return
 		}
-		fmt.Println("redirection URL: ", namedAddress.Address)
 		// Redirect to the address
 		http.Redirect(w, r, namedAddress.Address, http.StatusSeeOther)
 		return
@@ -193,7 +211,6 @@ func (s *Server) handler(w http.ResponseWriter, r *http.Request) {
 	// Retrieve named addresses for the owner
 	namedAddresses, err := s.store.List("tabo")
 	if err != nil {
-		fmt.Println("Error retrieving named addresses:", err)
 		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 		return
 	}
@@ -203,21 +220,18 @@ func (s *Server) handler(w http.ResponseWriter, r *http.Request) {
 		NamedAddresses: namedAddresses,
 	}
 
-	// Read the embedded HTML content
 	indexHtmlContent, err := indexHTML.ReadFile("index.html")
 	if err != nil {
 		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 		return
 	}
 
-	// Parse the HTML content
 	tmpl, err := template.New("index").Parse(string(indexHtmlContent))
 	if err != nil {
 		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 		return
 	}
 
-	// Render the HTML table
 	renderHTML(w, r, tmpl, pageVariables)
 }
 
@@ -228,7 +242,6 @@ func main() {
 		fmt.Println("Error opening database:", err)
 		return
 	}
-	// createTable(db)
 	s := Server{&SQLiteStore{db}}
 	s.Start()
 }
