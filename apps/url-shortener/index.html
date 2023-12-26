@@ -25,11 +25,15 @@
         <tr>
             <th>Name</th>
             <th>Address</th>
+            <th>Owner</th>
+            <th>Active</th>
         </tr>
         {{ range .NamedAddresses }}
         <tr>
             <td><a href="{{ .Name }}" target="_blank">{{ .Name }}</a></td>
             <td>{{ .Address }}</td>
+            <td>{{ .OwnerId}}</td>
+            <td>{{ .Active}}</td>
         </tr>
         {{ end }}
     </table>

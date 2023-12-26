@@ -45,26 +45,25 @@ func openDatabase() (*sql.DB, error) {
 	if err != nil {
 		return nil, err
 	}
-	return db, nil
-}
 
-func createTable(db *sql.DB) error {
-	_, err := db.Exec(`
+	_, err = db.Exec(`
         CREATE TABLE IF NOT EXISTS named_addresses (
             Name TEXT PRIMARY KEY,
             Address TEXT,
             OwnerId TEXT,
-            Active BOOLEAN DEFAULT true
+            Active BOOLEAN
         )
     `)
-	return err
+	if err != nil {
+		return nil, err
+	}
+
+	return db, nil
 }
 
 func generateRandomURL() string {
 	const charset = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
 	var urlShort string
-
-	// Generate a random URL
 	for i := 0; i < 6; i++ {
 		urlShort += string(charset[rand.Intn(len(charset))])
 	}
@@ -73,7 +72,6 @@ func generateRandomURL() string {
 }
 
 func (s *SQLiteStore) Create(addr NamedAddress) error {
-	fmt.Println(addr)
 	if !strings.HasPrefix(addr.Address, "http://") && !strings.HasPrefix(addr.Address, "https://") {
 		return errors.New("Address must start with http:// or https://")
 	}
@@ -85,8 +83,6 @@ func (s *SQLiteStore) Create(addr NamedAddress) error {
 }
 
 func (s *SQLiteStore) Get(name string) (NamedAddress, error) {
-	// TODO: SELECT database by name
-	fmt.Println("GET NAME: ", name)
 	row := s.db.QueryRow("SELECT Name, Address, OwnerID, Active FROM named_addresses WHERE Name = ?", name)
 	namedAddress := NamedAddress{}
 	err := row.Scan(&namedAddress.Name, &namedAddress.Address, &namedAddress.OwnerId, &namedAddress.Active)
@@ -188,7 +184,7 @@ func (s *Server) handler(w http.ResponseWriter, r *http.Request) {
 			// TODO
 			return
 		}
-		fmt.Println("redirection URL: ", r.URL.Path)
+		fmt.Println("redirection URL: ", namedAddress.Address)
 		// Redirect to the address
 		http.Redirect(w, r, namedAddress.Address, http.StatusSeeOther)
 		return
@@ -232,9 +228,7 @@ func main() {
 		fmt.Println("Error opening database:", err)
 		return
 	}
-	createTable(db)
+	// createTable(db)
 	s := Server{&SQLiteStore{db}}
 	s.Start()
-	fmt.Println("Server listening on :8080")
-
 }
