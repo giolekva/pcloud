@@ -7,8 +7,6 @@ import (
 	"os"
 
 	"github.com/spf13/cobra"
-	"helm.sh/helm/v3/pkg/action"
-	"helm.sh/helm/v3/pkg/kube"
 
 	"github.com/giolekva/pcloud/core/installer"
 )
@@ -105,29 +103,9 @@ func bootstrapCmdRun(cmd *cobra.Command, args []string) error {
 	b := installer.NewBootstrapper(
 		installer.NewFSChartLoader(bootstrapFlags.chartsDir),
 		nsCreator,
-		actionConfigFactory{rootFlags.kubeConfig},
+		installer.NewActionConfigFactory(rootFlags.kubeConfig),
 	)
 	return b.Run(envConfig)
-}
-
-type actionConfigFactory struct {
-	kubeConfigPath string
-}
-
-func (f actionConfigFactory) New(namespace string) (*action.Configuration, error) {
-	config := new(action.Configuration)
-	if err := config.Init(
-		kube.GetConfig(f.kubeConfigPath, "", namespace),
-		namespace,
-		"",
-		func(fmtString string, args ...any) {
-			fmt.Printf(fmtString, args...)
-			fmt.Println()
-		},
-	); err != nil {
-		return nil, err
-	}
-	return config, nil
 }
 
 func newServiceIPs(from, to string) (installer.EnvServiceIPs, error) {

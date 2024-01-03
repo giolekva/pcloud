@@ -76,7 +76,7 @@ func (m *AppManager) Install(app App, ns NamespaceGenerator, suffixGen SuffixGen
 	if err != nil {
 		return err
 	}
-	derivedValues, err := deriveValues(config, app.ConfigSchema(), CreateNetworks(globalConfig))
+	derivedValues, err := deriveValues(config, app.Schema(), CreateNetworks(globalConfig))
 	if err != nil {
 		fmt.Println(err)
 		return err
@@ -113,7 +113,7 @@ func (m *AppManager) Update(app App, instanceId string, config map[string]any) e
 	if err != nil {
 		return err
 	}
-	derivedValues, err := deriveValues(config, app.ConfigSchema(), CreateNetworks(globalConfig))
+	derivedValues, err := deriveValues(config, app.Schema(), CreateNetworks(globalConfig))
 	if err != nil {
 		return err
 	}

@@ -1,0 +1,130 @@
+package installer
+
+import (
+	"encoding/json"
+	"fmt"
+	"strings"
+
+	"cuelang.org/go/cue"
+	"cuelang.org/go/cue/cuecontext"
+)
+
+type Kind int
+
+const (
+	KindBoolean Kind = 0
+	KindString       = 1
+	KindStruct       = 2
+	KindNetwork      = 3
+)
+
+type Schema interface {
+	Kind() Kind
+	Fields() map[string]Schema
+}
+
+const networkSchema = `
+#Network: {
+	IngressClass: string
+	CertificateIssuer: string
+	Domain: string
+}
+
+value: %s
+
+valid: #Network & value
+`
+
+func isNetwork(v cue.Value) bool {
+	if v.Value().Kind() != cue.StructKind {
+		return false
+	}
+	value := fmt.Sprintf("%#v", v)
+	s := fmt.Sprintf(networkSchema, value)
+	c := cuecontext.New()
+	u := c.CompileString(s)
+	return u.Err() == nil && u.Validate() == nil
+}
+
+type basicSchema struct {
+	kind Kind
+}
+
+func (s basicSchema) Kind() Kind {
+	return s.kind
+}
+
+func (s basicSchema) Fields() map[string]Schema {
+	return nil
+}
+
+type structSchema struct {
+	fields map[string]Schema
+}
+
+func (s structSchema) Kind() Kind {
+	return KindStruct
+}
+
+func (s structSchema) Fields() map[string]Schema {
+	return s.fields
+}
+
+func NewCueSchema(v cue.Value) (Schema, error) {
+	switch v.Value().Kind() {
+	case cue.StringKind:
+		return basicSchema{KindString}, nil
+	case cue.StructKind:
+		if isNetwork(v) {
+			return basicSchema{KindNetwork}, nil
+		}
+		s := structSchema{make(map[string]Schema)}
+		f, err := v.Fields()
+		if err != nil {
+			return nil, err
+		}
+		for f.Next() {
+			scm, err := NewCueSchema(f.Value())
+			if err != nil {
+				return nil, err
+			}
+			s.fields[f.Selector().String()] = scm
+		}
+		return s, nil
+	default:
+		return nil, fmt.Errorf("SHOULD NOT REACH!")
+	}
+}
+
+func newSchema(schema map[string]any) (Schema, error) {
+	switch schema["type"] {
+	case "string":
+		if r, ok := schema["role"]; ok && r == "network" {
+			return basicSchema{KindNetwork}, nil
+		} else {
+			return basicSchema{KindString}, nil
+		}
+	case "object":
+		s := structSchema{make(map[string]Schema)}
+		props := schema["properties"].(map[string]any)
+		for name, schema := range props {
+			sm, _ := schema.(map[string]any)
+			scm, err := newSchema(sm)
+			if err != nil {
+				return nil, err
+			}
+			s.fields[name] = scm
+		}
+		return s, nil
+	default:
+		return nil, fmt.Errorf("SHOULD NOT REACH!")
+	}
+}
+
+func NewJSONSchema(schema string) (Schema, error) {
+	ret := make(map[string]any)
+	if err := json.NewDecoder(strings.NewReader(schema)).Decode(&ret); err != nil {
+		return nil, err
+	}
+	return newSchema(ret)
+}

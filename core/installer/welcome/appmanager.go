@@ -71,7 +71,6 @@ type app struct {
 	Icon             template.HTML         `json:"icon"`
 	ShortDescription string                `json:"shortDescription"`
 	Slug             string                `json:"slug"`
-	Schema           string                `json:"schema"`
 	Instances        []installer.AppConfig `json:"instances,omitempty"`
 }
 
@@ -82,7 +81,7 @@ func (s *AppManagerServer) handleAppRepo(c echo.Context) error {
 	}
 	resp := make([]app, len(all))
 	for i, a := range all {
-		resp[i] = app{a.Name, a.Icon, a.ShortDescription, a.Name, a.Schema, nil}
+		resp[i] = app{a.Name, a.Icon, a.ShortDescription, a.Name, nil}
 	}
 	return c.JSON(http.StatusOK, resp)
 }
@@ -116,7 +115,7 @@ func (s *AppManagerServer) handleApp(c echo.Context) error {
 			}
 		}
 	}
-	return c.JSON(http.StatusOK, app{a.Name, a.Icon, a.ShortDescription, a.Name, a.Schema, instances})
+	return c.JSON(http.StatusOK, app{a.Name, a.Icon, a.ShortDescription, a.Name, instances})
 }
 
 func (s *AppManagerServer) handleInstance(c echo.Context) error {
@@ -146,7 +145,7 @@ func (s *AppManagerServer) handleInstance(c echo.Context) error {
 	if err != nil {
 		return err
 	}
-	return c.JSON(http.StatusOK, app{a.Name, a.Icon, a.ShortDescription, a.Name, a.Schema, []installer.AppConfig{instance}})
+	return c.JSON(http.StatusOK, app{a.Name, a.Icon, a.ShortDescription, a.Name, []installer.AppConfig{instance}})
 }
 
 type file struct {
@@ -293,7 +292,7 @@ func (s *AppManagerServer) handleIndex(c echo.Context) error {
 	}
 	resp := make([]app, len(all))
 	for i, a := range all {
-		resp[i] = app{a.Name, a.Icon, a.ShortDescription, a.Name, a.Schema, nil}
+		resp[i] = app{a.Name, a.Icon, a.ShortDescription, a.Name, nil}
 	}
 	return tmpl.Execute(c.Response(), resp)
 }

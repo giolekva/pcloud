@@ -2,22 +2,20 @@
   {{ $readonly := .ReadOnly }}
   {{ $networks := .AvailableNetworks }}
   {{ $data := .Data }}
-  {{ range $name, $schema := .Schema.properties }}
-    {{ if eq $schema.type "string" }}
+  {{ range $name, $schema := .Schema.Fields }}
+    {{ if or (eq $schema.Kind 0) (eq $schema.Kind 1) }}
       <label for="{{ $name }}">
         <span>{{ $name }}</span>
       </label>
-      {{ if eq (index $schema "role") "network" }}
-        <select oninput="valueChanged({{ $name }}, this.value)" {{ if $readonly }}disabled{{ end }} >
-          {{ if not $readonly }}<option disabled selected value> -- select an option -- </option>{{ end }}
-          {{ range $networks }}
-            <option {{if eq .Name (index $data $name) }}selected{{ end }}>{{ .Name }}</option>
-          {{ end }}
-        </select>
-      {{ else }}
-        <input type="text" name="{{ $name }}" oninput="valueChanged({{ $name }}, this.value)" {{ if $readonly }}disabled{{ end }} value="{{ index $data $name }}"/>
-      {{ end }}
-    {{ end }}
+	  <input type="text" name="{{ $name }}" oninput="valueChanged({{ $name }}, this.value)" {{ if $readonly }}disabled{{ end }} value="{{ index $data $name }}"/>
+	{{ else if eq $schema.Kind 3 }}
+	  <select oninput="valueChanged({{ $name }}, this.value)" {{ if $readonly }}disabled{{ end }} >
+		{{ if not $readonly }}<option disabled selected value> -- select an option -- </option>{{ end }}
+		{{ range $networks }}
+		  <option {{if eq .Name (index $data $name) }}selected{{ end }}>{{ .Name }}</option>
+		{{ end }}
+	  </select>
+	{{ end }}
   {{ end }}
 {{ end }}
 
@@ -26,7 +24,7 @@
 <h1>{{ .App.Icon }}{{ .App.Name }}</h1>
 <pre id="readme"></pre>
 
-{{ $schema := .App.ConfigSchema }}
+{{ $schema := .App.Schema }}
 {{ $networks := .AvailableNetworks }}
 
 <form id="config-form">

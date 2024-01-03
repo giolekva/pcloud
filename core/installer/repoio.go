@@ -375,35 +375,31 @@ func ReadYaml[T any](r io.Reader, o *T) error {
 	}
 }
 
-func deriveValues(values any, schema map[string]any, networks []Network) (map[string]any, error) {
+func deriveValues(values any, schema Schema, networks []Network) (map[string]any, error) {
 	ret := make(map[string]any)
 	for k, v := range values.(map[string]any) { // TODO(giolekva): validate
-		def, err := fieldSchema(schema, k)
-		if err != nil {
-			return nil, err
-		}
-		t, ok := def["type"]
+		def, ok := schema.Fields()[k]
 		if !ok {
-			return nil, fmt.Errorf("Found field with undefined type: %s", k)
+			return nil, fmt.Errorf("Field not found: %s", k)
 		}
-		if t == "string" {
-			role, ok := def["role"]
-			if ok && role == "network" {
-				n, err := findNetwork(networks, v.(string)) // TODO(giolekva): validate
-				if err != nil {
-					return nil, err
-				}
-				ret[k] = n
-			} else {
-				ret[k] = v
-			}
-		} else if t == "boolean" {
+		switch def.Kind() {
+		case KindBoolean:
+		case KindString:
 			ret[k] = v
-		} else {
-			ret[k], err = deriveValues(v, def, networks)
+		case KindNetwork:
+			n, err := findNetwork(networks, v.(string)) // TODO(giolekva): validate
 			if err != nil {
 				return nil, err
 			}
+			ret[k] = n
+		case KindStruct:
+			r, err := deriveValues(v, def, networks)
+			if err != nil {
+				return nil, err
+			}
+			ret[k] = r
+		default:
+			return nil, fmt.Errorf("Should not reach!")
 		}
 	}
 	return ret, nil
@@ -416,26 +412,6 @@ func findNetwork(networks []Network, name string) (Network, error) {
 		}
 	}
 	return Network{}, fmt.Errorf("Network not found: %s", name)
-}
-
-func fieldSchema(schema map[string]any, key string) (map[string]any, error) {
-	properties, ok := schema["properties"]
-	if !ok {
-		return nil, fmt.Errorf("Properties not found")
-	}
-	propMap, ok := properties.(map[string]any)
-	if !ok {
-		return nil, fmt.Errorf("Expected properties to be map")
-	}
-	def, ok := propMap[key]
-	if !ok {
-		return nil, fmt.Errorf("Unknown field: %s", key)
-	}
-	ret, ok := def.(map[string]any)
-	if !ok {
-		return nil, fmt.Errorf("Invalid schema")
-	}
-	return ret, nil
 }
 
 type Network struct {
