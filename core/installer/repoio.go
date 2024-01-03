@@ -278,14 +278,18 @@ func (r *repoIO) InstallApp(app App, appRootDir string, values map[string]any, d
 	}
 	{
 		appKust := NewKustomization()
-		for _, t := range app.Templates {
-			appKust.AddResources(t.Name())
-			out, err := r.Writer(path.Join(appRootDir, t.Name()))
+		resources, err := app.Render(derived)
+		if err != nil {
+			return err
+		}
+		for name, contents := range resources {
+			appKust.AddResources(name)
+			out, err := r.Writer(path.Join(appRootDir, name))
 			if err != nil {
 				return err
 			}
 			defer out.Close()
-			if err := t.Execute(out, derived); err != nil {
+			if _, err := out.Write(contents); err != nil {
 				return err
 			}
 		}

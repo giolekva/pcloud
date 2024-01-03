@@ -2,6 +2,7 @@ package installer
 
 import (
 	"archive/tar"
+	"bytes"
 	"compress/gzip"
 	"embed"
 	"fmt"
@@ -35,13 +36,25 @@ type appConfig struct {
 type App struct {
 	Name       string
 	Namespaces []string
-	Templates  []*template.Template
+	templates  []*template.Template
 	schema     Schema
 	Readme     *template.Template
 }
 
 func (a App) Schema() Schema {
 	return a.schema
+}
+
+func (a App) Render(derived Derived) (map[string][]byte, error) {
+	ret := make(map[string][]byte)
+	for _, t := range a.templates {
+		var buf bytes.Buffer
+		if err := t.Execute(&buf, derived); err != nil {
+			return nil, err
+		}
+		ret[t.Name()] = buf.Bytes()
+	}
+	return ret, nil
 }
 
 type StoreApp struct {
@@ -808,7 +821,7 @@ func loadApp(fs billy.Filesystem) (StoreApp, error) {
 			Readme:     readmeTmpl,
 			schema:     schema,
 			Namespaces: appCfg.Namespaces,
-			Templates:  tmpls,
+			templates:  tmpls,
 		},
 		ShortDescription: appCfg.Description,
 		Icon:             appCfg.Icon,

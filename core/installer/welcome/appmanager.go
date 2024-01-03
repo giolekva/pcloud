@@ -155,7 +155,6 @@ type file struct {
 
 type rendered struct {
 	Readme string `json:"readme"`
-	Files  []file `json:"files"`
 }
 
 func (s *AppManagerServer) handleAppRender(c echo.Context) error {
@@ -179,9 +178,9 @@ func (s *AppManagerServer) handleAppRender(c echo.Context) error {
 			}
 		}
 	}
-	all := map[string]any{
-		"Global": global.Values,
-		"Values": values,
+	all := installer.Derived{
+		Global: global.Values,
+		Values: values,
 	}
 	a, err := s.r.Find(slug)
 	if err != nil {
@@ -193,16 +192,6 @@ func (s *AppManagerServer) handleAppRender(c echo.Context) error {
 	}
 	var resp rendered
 	resp.Readme = readme.String()
-	for _, tmpl := range a.Templates { // TODO(giolekva): deduplicate with Install
-		var f bytes.Buffer
-		if err := tmpl.Execute(&f, all); err != nil {
-			fmt.Printf("%+v\n", all)
-			fmt.Println(err.Error())
-			return err
-		} else {
-			resp.Files = append(resp.Files, file{tmpl.Name(), f.String()})
-		}
-	}
 	out, err := json.Marshal(resp)
 	if err != nil {
 		return err
