@@ -77,6 +77,9 @@ helm: {
 
 #Global: {
 	id: string
+	pcloudEnvName: string
+	domain: string
+	namespacePrefix: string
 	...
 }
 
@@ -99,10 +102,25 @@ charts: {
 	}
 }
 
+#Helm: {
+	name: string
+	dependsOn: [...#Helm] | *[]
+	...
+}
+
+helm: {
+	for key, value in helm {
+		"\(key)": #Helm & value & {
+			name: key
+		}
+	}
+}
+
 #HelmRelease: {
 	_name: string
 	_chart: #Chart
 	_values: _
+	_dependencies: [...#Helm] | *[]
 
 	apiVersion: "helm.toolkit.fluxcd.io/v2beta1"
 	kind: "HelmRelease"
@@ -112,6 +130,12 @@ charts: {
 	}
 	spec: {
 		interval: "1m0s"
+		dependsOn: [
+			for d in _dependencies {
+				name: d.name
+				namespace: release.namespace
+			}
+    	]
 		chart: {
 			spec: _chart
 		}
@@ -125,6 +149,7 @@ output: {
 			_name: name
 			_chart: r.chart
 			_values: r.values
+			_dependencies: r.dependsOn
 		}
 	}
 }
