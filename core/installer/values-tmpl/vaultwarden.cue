@@ -7,20 +7,20 @@ input: #Input
 
 _domain: "\(input.subdomain).\(input.network.domain)"
 
-readme: "rpuppy application will be installed on \(input.network.name) network and be accessible to any user on https://\(_domain)"
+readme: "Installs vaultwarden on private network accessible at \(_domain)"
 
 images: {
-	rpuppy: {
-		repository: "giolekva"
-		name: "rpuppy"
-		tag: "latest"
-		pullPolicy: "Always"
+	vaultwarden: {
+		repository: "vaultwarden"
+		name: "server"
+		tag: "1.28.1"
+		pullPolicy: "IfNotPresent"
 	}
 }
 
 charts: {
-	rpuppy: {
-		chart: "charts/rpuppy"
+	vaultwarden: {
+		chart: "charts/vaultwarden"
 		sourceRef: {
 			kind: "GitRepository"
 			name: "pcloud"
@@ -30,16 +30,16 @@ charts: {
 }
 
 helm: {
-	rpuppy: {
-		chart: charts.rpuppy
+	vaultwarden: {
+		chart: charts.vaultwarden
 		values: {
 			ingressClassName: input.network.ingressClass
 			certificateIssuer: input.network.certificateIssuer
 			domain: _domain
 			image: {
-				repository: images.rpuppy.fullName
-				tag: images.rpuppy.tag
-				pullPolicy: images.rpuppy.pullPolicy
+				repository: images.vaultwarden.fullName
+				tag: images.vaultwarden.tag
+				pullPolicy: images.vaultwarden.pullPolicy
 			}
 		}
 	}

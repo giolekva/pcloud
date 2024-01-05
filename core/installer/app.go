@@ -283,7 +283,7 @@ func CreateAppCoreAuth(fs embed.FS, tmpls *template.Template) App {
 }
 
 func CreateAppVaultwarden(fs embed.FS, tmpls *template.Template) StoreApp {
-	schema, err := readJSONSchemaFromFile(fs, "values-tmpl/vaultwarden.jsonschema")
+	cfg, schema, err := readCueConfigFromFile(fs, "values-tmpl/vaultwarden.cue")
 	if err != nil {
 		panic(err)
 	}
@@ -296,10 +296,10 @@ func CreateAppVaultwarden(fs embed.FS, tmpls *template.Template) StoreApp {
 			},
 			schema,
 			tmpls.Lookup("vaultwarden.md"),
-			nil,
+			cfg,
 		},
 		Icon:             `<svg xmlns="http://www.w3.org/2000/svg" width="50" height="50" viewBox="0 0 48 48"><path fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" d="M35.38 25.63V9.37H24v28.87a34.93 34.93 0 0 0 5.41-3.48q6-4.66 6-9.14Zm4.87-19.5v19.5A11.58 11.58 0 0 1 39.4 30a16.22 16.22 0 0 1-2.11 3.81a23.52 23.52 0 0 1-3 3.24a34.87 34.87 0 0 1-3.22 2.62c-1 .69-2 1.35-3.07 2s-1.82 1-2.27 1.26l-1.08.51a1.53 1.53 0 0 1-1.32 0l-1.08-.51c-.45-.22-1.21-.64-2.27-1.26s-2.09-1.27-3.07-2A34.87 34.87 0 0 1 13.7 37a23.52 23.52 0 0 1-3-3.24A16.22 16.22 0 0 1 8.6 30a11.58 11.58 0 0 1-.85-4.32V6.13A1.64 1.64 0 0 1 9.38 4.5h29.24a1.64 1.64 0 0 1 1.63 1.63Z"/></svg>`,
-		ShortDescription: "Open source implementation of Bitwarden password manager. Can be used with official client applications.",
+		ShortDescription: "Alternative implementation of the Bitwarden server API written in Rust and compatible with upstream Bitwarden clients, perfect for self-hosted deployment where running the official resource-heavy service might not be ideal.",
 	}
 }
 
@@ -432,20 +432,28 @@ func CreateAppJellyfin(fs embed.FS, tmpls *template.Template) StoreApp {
 	}
 }
 
-func CreateAppRpuppy(fs embed.FS, tmpls *template.Template) StoreApp {
-	contents, err := fs.ReadFile("values-tmpl/rpuppy.cue")
+func readCueConfigFromFile(fs embed.FS, f string) (*cue.Value, Schema, error) {
+	contents, err := fs.ReadFile(f)
 	if err != nil {
-		panic(err)
+		return nil, nil, err
 	}
 	ctx := cuecontext.New()
 	cfg := ctx.CompileBytes(contents)
-	if cfg.Err() != nil {
-		panic(cfg.Err())
+	if err := cfg.Err(); err != nil {
+		return nil, nil, err
 	}
 	if err := cfg.Validate(); err != nil {
-		panic(err)
+		return nil, nil, err
 	}
 	schema, err := NewCueSchema(cfg.LookupPath(cue.ParsePath("input")))
+	if err != nil {
+		return nil, nil, err
+	}
+	return &cfg, schema, nil
+}
+
+func CreateAppRpuppy(fs embed.FS, tmpls *template.Template) StoreApp {
+	cfg, schema, err := readCueConfigFromFile(fs, "values-tmpl/rpuppy.cue")
 	if err != nil {
 		panic(err)
 	}
@@ -458,7 +466,7 @@ func CreateAppRpuppy(fs embed.FS, tmpls *template.Template) StoreApp {
 			},
 			schema,
 			tmpls.Lookup("rpuppy.md"),
-			&cfg,
+			cfg,
 		},
 		`<svg xmlns="http://www.w3.org/2000/svg" width="50" height="50" viewBox="0 0 256 256"><path fill="currentColor" d="M100 140a8 8 0 1 1-8-8a8 8 0 0 1 8 8Zm64 8a8 8 0 1 0-8-8a8 8 0 0 0 8 8Zm64.94-9.11a12.12 12.12 0 0 1-5 1.11a11.83 11.83 0 0 1-9.35-4.62l-2.59-3.29V184a36 36 0 0 1-36 36H80a36 36 0 0 1-36-36v-51.91l-2.53 3.27A11.88 11.88 0 0 1 32.1 140a12.08 12.08 0 0 1-5-1.11a11.82 11.82 0 0 1-6.84-13.14l16.42-88a12 12 0 0 1 14.7-9.43h.16L104.58 44h46.84l53.08-15.6h.16a12 12 0 0 1 14.7 9.43l16.42 88a11.81 11.81 0 0 1-6.84 13.06ZM97.25 50.18L49.34 36.1a4.18 4.18 0 0 0-.92-.1a4 4 0 0 0-3.92 3.26l-16.42 88a4 4 0 0 0 7.08 3.22ZM204 121.75L150 52h-44l-54 69.75V184a28 28 0 0 0 28 28h44v-18.34l-14.83-14.83a4 4 0 0 1 5.66-5.66L128 186.34l13.17-13.17a4 4 0 0 1 5.66 5.66L132 193.66V212h44a28 28 0 0 0 28-28Zm23.92 5.48l-16.42-88a4 4 0 0 0-4.84-3.16l-47.91 14.11l62.11 80.28a4 4 0 0 0 7.06-3.23Z"/></svg>`,
 		"Delights users with randomly generate puppy pictures. Can be configured to be reachable only from private network or publicly.",
