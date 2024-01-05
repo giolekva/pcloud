@@ -17,7 +17,7 @@ spec:
     readOnly: false
     volumeHandle: {{ .Values.pcloudInstanceId }}-qbittorrent-data
     volumeAttributes:
-      source: "//samba.lekva-app-torrent.svc.cluster.local/share"
+      source: "//samba.{{ .Values.namespacePrefix }}app-torrent.svc.cluster.local/share"
     nodeStageSecretRef:
       name: qbittorrent-samba-creds
-      namespace: lekva-app-jellyfin
+      namespace: {{ .Release.Namespace }}

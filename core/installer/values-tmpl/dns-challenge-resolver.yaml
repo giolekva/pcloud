@@ -1,3 +1,0 @@
-certManager:
-  namespace: dodo-cert-manager
-  serviceAccountName: dodo-cert-manager

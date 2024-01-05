@@ -16,6 +16,7 @@ const (
 	KindString       = 1
 	KindStruct       = 2
 	KindNetwork      = 3
+	KindNumber       = 4
 )
 
 type Schema interface {
@@ -27,24 +28,26 @@ const networkSchema = `
 #Network: {
     name: string
 	ingressClass: string
-	certificateIssuer: string
+	certificateIssuer: string | *""
 	domain: string
 }
 
-value: %s
-
-valid: #Network & value
+value: { %s }
 `
 
 func isNetwork(v cue.Value) bool {
 	if v.Value().Kind() != cue.StructKind {
 		return false
 	}
-	value := fmt.Sprintf("%#v", v)
-	s := fmt.Sprintf(networkSchema, value)
+	s := fmt.Sprintf(networkSchema, fmt.Sprintf("%#v", v))
 	c := cuecontext.New()
 	u := c.CompileString(s)
-	return u.Err() == nil && u.Validate() == nil
+	network := u.LookupPath(cue.ParsePath("#Network"))
+	vv := u.LookupPath(cue.ParsePath("value"))
+	if err := network.Subsume(vv); err == nil {
+		return true
+	}
+	return false
 }
 
 type basicSchema struct {
@@ -77,6 +80,8 @@ func NewCueSchema(v cue.Value) (Schema, error) {
 		return basicSchema{KindString}, nil
 	case cue.BoolKind:
 		return basicSchema{KindBoolean}, nil
+	case cue.NumberKind:
+		return basicSchema{KindNumber}, nil
 	case cue.StructKind:
 		if isNetwork(v) {
 			return basicSchema{KindNetwork}, nil

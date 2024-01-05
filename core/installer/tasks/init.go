@@ -21,7 +21,7 @@ func SetupConfigRepoTask(env Env, st *state) Task {
 func NewCreateConfigRepoTask(env Env, st *state) Task {
 	t := newLeafTask("Install Git server", func() error {
 		appsRepo := installer.NewInMemoryAppRepository(installer.CreateAllApps())
-		ssApp, err := appsRepo.Find("soft-serve")
+		ssApp, err := appsRepo.Find("config-repo")
 		if err != nil {
 			return err
 		}
@@ -35,14 +35,9 @@ func NewCreateConfigRepoTask(env Env, st *state) Task {
 			return err
 		}
 		ssValues := map[string]any{
-			"ChartRepositoryNamespace": env.PCloudEnvName,
-			"ServiceType":              "ClusterIP",
-			"PrivateKey":               string(ssKeys.RawPrivateKey()),
-			"PublicKey":                string(ssKeys.RawAuthorizedKey()),
-			"AdminKey":                 string(ssAdminKeys.RawAuthorizedKey()),
-			"Ingress": map[string]any{
-				"Enabled": false,
-			},
+			"privateKey": string(ssKeys.RawPrivateKey()),
+			"publicKey":  string(ssKeys.RawAuthorizedKey()),
+			"adminKey":   string(ssAdminKeys.RawAuthorizedKey()),
 		}
 		derived := installer.Derived{
 			Global: installer.Values{

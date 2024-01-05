@@ -1,7 +1,0 @@
-{
-  "type": "object",
-  "properties": {
-    "Subdomain": { "type": "string", "default": "vaultwarden" }
-  },
-  "additionalProperties": false
-}

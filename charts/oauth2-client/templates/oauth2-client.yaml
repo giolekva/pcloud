@@ -1,0 +1,17 @@
+apiVersion: hydra.ory.sh/v1alpha1
+kind: OAuth2Client
+metadata:
+  name: {{ .Values.name }}
+  namespace: {{ .Release.Namespace }}
+spec:
+  secretName: {{ .Values.secretName }}
+  grantTypes: {{ .Values.grantTypes }}
+  responseTypes: {{ .Values.reponseTypes }}
+  scope: {{ .Values.scope }}
+  redirectUris: {{ .Values.redirectUris }}
+  hydraAdmin:
+    endpoint: /admin/clients
+    forwardedProto: https
+    port: 80
+    url: {{ .Values.hydraAdmin }}
+  tokenEndpointAuthMethod: {{ .Values.tokenEndpointAuthMethod }}

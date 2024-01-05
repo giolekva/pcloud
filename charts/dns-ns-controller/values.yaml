@@ -2,6 +2,11 @@ image:
   repository: giolekva/dns-ns-controller
   tag: latest
   pullPolicy: Always
+kubeRBACProxy:
+  image:
+    repository: gcr.io/kubebuilder/kube-rbac-proxy
+    tag: v0.13.0
+    pullPolicy: IfNotPresent
 installCRDs: false
 volume:
   claimName: data

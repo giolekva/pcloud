@@ -1,0 +1,8 @@
+name: oauth2-client
+secretName: oauth2-credentials
+grantTypes: []
+responseTypes: []
+scope: ""
+redirectUris: []
+hydraAdmin: ""
+tokenEndpointAuthMethod: ""
