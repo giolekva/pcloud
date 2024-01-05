@@ -25,9 +25,10 @@ type Schema interface {
 
 const networkSchema = `
 #Network: {
-	IngressClass: string
-	CertificateIssuer: string
-	Domain: string
+    name: string
+	ingressClass: string
+	certificateIssuer: string
+	domain: string
 }
 
 value: %s
@@ -71,15 +72,17 @@ func (s structSchema) Fields() map[string]Schema {
 }
 
 func NewCueSchema(v cue.Value) (Schema, error) {
-	switch v.Value().Kind() {
+	switch v.IncompleteKind() {
 	case cue.StringKind:
 		return basicSchema{KindString}, nil
+	case cue.BoolKind:
+		return basicSchema{KindBoolean}, nil
 	case cue.StructKind:
 		if isNetwork(v) {
 			return basicSchema{KindNetwork}, nil
 		}
 		s := structSchema{make(map[string]Schema)}
-		f, err := v.Fields()
+		f, err := v.Fields(cue.Schema())
 		if err != nil {
 			return nil, err
 		}

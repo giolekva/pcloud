@@ -20,11 +20,12 @@ images: {
 
 charts: {
 	rpuppy: {
-		source: {
+		chart: "charts/rpuppy"
+		sourceRef: {
 			kind: "GitRepository"
-			address: "pcloud"
+			name: "pcloud"
+			namespace: global.id
 		}
-		chart: "./charts/rpuppy"
 	}
 }
 
@@ -63,11 +64,28 @@ helm: {
 	fullNameWithTag: "\(fullName):\(tag)"
 }
 
+#Chart: {
+	chart: string
+	sourceRef: #SourceRef
+}
+
+#SourceRef: {
+	kind: "GitRepository" | "HelmRepository"
+	name: string
+	namespace: string // TODO(gio): default global.id
+}
+
 #Global: {
 	id: string
+	...
+}
+
+#Release: {
+	namespace: string
 }
 
 global: #Global
+release: #Release
 
 images: {
 	for key, value in images {
@@ -75,39 +93,38 @@ images: {
 	}
 }
 
+charts: {
+	for key, value in charts {
+		"\(key)": #Chart & value
+	}
+}
+
 #HelmRelease: {
 	_name: string
-	_chart: string
+	_chart: #Chart
 	_values: _
 
 	apiVersion: "helm.toolkit.fluxcd.io/v2beta1"
 	kind: "HelmRelease"
 	metadata: {
 		name: _name
-   		namespace: "{{ .Release.Namespace }}"
+   		namespace: release.namespace
 	}
 	spec: {
 		interval: "1m0s"
 		chart: {
-			spec: {
-				chart: _chart
-				sourceRef: {
-					kind: "HelmRepository"
-					name: "pcloud"
-					namespace: global.id
-				}
-			}
+			spec: _chart
 		}
 		values: _values
 	}
 }
 
-output: [
+output: {
 	for name, r in helm {
-		#HelmRelease & {
+		"\(name)": #HelmRelease & {
 			_name: name
-			_chart: "rpuppy"
+			_chart: r.chart
 			_values: r.values
 		}
 	}
-]
+}

@@ -22,7 +22,7 @@ type EnvConfig struct {
 }
 
 type Config struct {
-	Values Values `json:"values"`
+	Values Values `json:"input"` // TODO(gio): rename
 }
 
 type Values struct {

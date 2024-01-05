@@ -219,13 +219,13 @@ func (r *repoIO) RemoveDir(path string) error {
 }
 
 type Release struct {
-	Namespace string `json:"Namespace"`
+	Namespace string `json:"namespace"`
 }
 
 type Derived struct {
-	Release Release        `json:"Release"`
-	Global  Values         `json:"Global"`
-	Values  map[string]any `json:"Values"`
+	Release Release        `json:"release"`
+	Global  Values         `json:"global"`
+	Values  map[string]any `json:"input"` // TODO(gio): rename to input
 }
 
 type AppConfig struct {
@@ -278,11 +278,11 @@ func (r *repoIO) InstallApp(app App, appRootDir string, values map[string]any, d
 	}
 	{
 		appKust := NewKustomization()
-		resources, err := app.Render(derived)
+		rendered, err := app.Render(derived)
 		if err != nil {
 			return err
 		}
-		for name, contents := range resources {
+		for name, contents := range rendered.Resources {
 			appKust.AddResources(name)
 			out, err := r.Writer(path.Join(appRootDir, name))
 			if err != nil {
@@ -419,8 +419,8 @@ func findNetwork(networks []Network, name string) (Network, error) {
 }
 
 type Network struct {
-	Name              string
-	IngressClass      string
-	CertificateIssuer string
-	Domain            string
+	Name              string `json:"name,omitempty"`
+	IngressClass      string `json:"ingressClass,omitempty"`
+	CertificateIssuer string `json:"certificateIssuer,omitempty"`
+	Domain            string `json:"domain,omitempty"`
 }

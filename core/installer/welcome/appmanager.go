@@ -1,7 +1,6 @@
 package welcome
 
 import (
-	"bytes"
 	"context"
 	"embed"
 	"encoding/json"
@@ -171,10 +170,10 @@ func (s *AppManagerServer) handleAppRender(c echo.Context) error {
 	if err := json.Unmarshal(contents, &values); err != nil {
 		return err
 	}
-	if network, ok := values["Network"]; ok {
+	if network, ok := values["network"]; ok {
 		for _, n := range installer.CreateNetworks(global) {
 			if n.Name == network { // TODO(giolekva): handle not found
-				values["Network"] = n
+				values["network"] = n
 			}
 		}
 	}
@@ -186,12 +185,12 @@ func (s *AppManagerServer) handleAppRender(c echo.Context) error {
 	if err != nil {
 		return err
 	}
-	var readme bytes.Buffer
-	if err := a.Readme.Execute(&readme, all); err != nil {
+	r, err := a.Render(all)
+	if err != nil {
 		return err
 	}
 	var resp rendered
-	resp.Readme = readme.String()
+	resp.Readme = r.Readme
 	out, err := json.Marshal(resp)
 	if err != nil {
 		return err
@@ -300,7 +299,6 @@ func (s *AppManagerServer) handleAppUI(c echo.Context) error {
 	}
 	appTmpl, err := template.Must(baseTmpl.Clone()).Parse(appHtmlTmpl)
 	if err != nil {
-		fmt.Println(err)
 		return err
 	}
 	global, err := s.m.Config()
@@ -321,7 +319,6 @@ func (s *AppManagerServer) handleAppUI(c echo.Context) error {
 		Instances:         instances,
 		AvailableNetworks: installer.CreateNetworks(global),
 	})
-	fmt.Println(err)
 	return err
 }
 
@@ -333,7 +330,6 @@ func (s *AppManagerServer) handleInstanceUI(c echo.Context) error {
 	appTmpl, err := template.Must(baseTmpl.Clone()).Parse(appHtmlTmpl)
 	// tmpl, err := newTemplate().ParseFS(mgrTmpl, "appmanager-tmpl/base.html", "appmanager-tmpl/app.html")
 	if err != nil {
-		fmt.Println(err)
 		return err
 	}
 	global, err := s.m.Config()
@@ -359,7 +355,6 @@ func (s *AppManagerServer) handleInstanceUI(c echo.Context) error {
 		Instances:         instances,
 		AvailableNetworks: installer.CreateNetworks(global),
 	})
-	fmt.Println(err)
 	return err
 }
 
