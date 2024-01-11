@@ -27,7 +27,7 @@ const networkSchema = `
 #Network: {
     name: string
 	ingressClass: string
-	certificateIssuer: string
+	certificateIssuer: string | *""
 	domain: string
 }
 

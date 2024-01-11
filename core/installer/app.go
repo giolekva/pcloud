@@ -391,7 +391,7 @@ func CreateAppMaddy(fs embed.FS, tmpls *template.Template) StoreApp {
 }
 
 func CreateAppQBittorrent(fs embed.FS, tmpls *template.Template) StoreApp {
-	schema, err := readJSONSchemaFromFile(fs, "values-tmpl/qbittorrent.jsonschema")
+	cfg, schema, err := readCueConfigFromFile(fs, "values-tmpl/qbittorrent.cue")
 	if err != nil {
 		panic(err)
 	}
@@ -404,7 +404,7 @@ func CreateAppQBittorrent(fs embed.FS, tmpls *template.Template) StoreApp {
 			},
 			schema,
 			tmpls.Lookup("qbittorrent.md"),
-			nil,
+			cfg,
 		},
 		`<svg xmlns="http://www.w3.org/2000/svg" width="50" height="50" viewBox="0 0 48 48"><circle cx="24" cy="24" r="21.5" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"/><path fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" d="M26.651 22.364a5.034 5.034 0 0 1 5.035-5.035h0a5.034 5.034 0 0 1 5.034 5.035v3.272a5.034 5.034 0 0 1-5.034 5.035h0a5.034 5.034 0 0 1-5.035-5.035m0 5.035V10.533m-5.302 15.103a5.034 5.034 0 0 1-5.035 5.035h0a5.034 5.034 0 0 1-5.034-5.035v-3.272a5.034 5.034 0 0 1 5.034-5.035h0a5.034 5.034 0 0 1 5.035 5.035m0-5.035v20.138"/></svg>`,
 		"qBittorrent is a cross-platform free and open-source BitTorrent client written in native C++. It relies on Boost, Qt 6 toolkit and the libtorrent-rasterbar library, with an optional search engine written in Python.",
@@ -412,7 +412,7 @@ func CreateAppQBittorrent(fs embed.FS, tmpls *template.Template) StoreApp {
 }
 
 func CreateAppJellyfin(fs embed.FS, tmpls *template.Template) StoreApp {
-	schema, err := readJSONSchemaFromFile(fs, "values-tmpl/jellyfin.jsonschema")
+	cfg, schema, err := readCueConfigFromFile(fs, "values-tmpl/jellyfin.cue")
 	if err != nil {
 		panic(err)
 	}
@@ -425,7 +425,7 @@ func CreateAppJellyfin(fs embed.FS, tmpls *template.Template) StoreApp {
 			},
 			schema,
 			nil,
-			nil,
+			cfg,
 		},
 		`<svg xmlns="http://www.w3.org/2000/svg" width="50" height="50" viewBox="0 0 48 48"><path fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" d="M24 20c-1.62 0-6.85 9.48-6.06 11.08s11.33 1.59 12.12 0S25.63 20 24 20Z"/><path fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" d="M24 5.5c-4.89 0-20.66 28.58-18.25 33.4s34.13 4.77 36.51 0S28.9 5.5 24 5.5Zm12 29.21c-1.56 3.13-22.35 3.17-23.93 0S20.8 12.83 24 12.83s13.52 18.76 12 21.88Z"/></svg>`,
 		"Jellyfin is a free and open-source media server and suite of multimedia applications designed to organize, manage, and share digital media files to networked devices.",
