@@ -37,12 +37,39 @@
             <!-- <td>{{ .Active }}</td> -->
             <td>
                 <label for="switch">
-                    <input type="checkbox" id="switch" name="switch" role="switch" {{ if .Active }}checked{{ end }}>
+                    <input type="checkbox" id="switch-{{ .Name }}" name="switch" role="switch" {{ if .Active }}checked{{ end }}
+                    onclick="toggle('{{ .Name }}',{{not .Active}})"
+                    >
                 </label>
             </td>
         </tr>
         {{ end }}
     </table>
 </body>
-
+<script>
+    function toggle(name,status) {
+        const data = {
+            "name": name,
+            "active": status
+        }
+        console.log("DATA: ", data)
+        fetch("/api/", {
+            method: "POST",
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(data)
+        })
+        .then(response => {
+            if (response.ok) {
+                window.location.reload();
+            }
+        })
+        // .then (data => console.log("success: ", data))
+        .catch((error) => {
+            console.error('Error:', error);
+        });
+        // console.log(name,status," CHANGED!")
+    } 
+</script>
 </html>

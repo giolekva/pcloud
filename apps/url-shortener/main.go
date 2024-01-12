@@ -3,6 +3,7 @@ package main
 import (
 	"database/sql"
 	"embed"
+	"encoding/json"
 	"flag"
 	"fmt"
 	"html/template"
@@ -29,8 +30,7 @@ type NamedAddress struct {
 type Store interface {
 	Create(addr NamedAddress) error
 	Get(name string) (NamedAddress, error)
-	Activate(name string) error
-	Deactivate(name string) error
+	UpdateStatus(name string, active bool) error
 	ChangeOwner(name, ownerId string) error
 	List(ownerId string) ([]NamedAddress, error)
 }
@@ -107,13 +107,12 @@ func (s *SQLiteStore) Get(name string) (NamedAddress, error) {
 	return namedAddress, nil
 }
 
-func (s *SQLiteStore) Activate(name string) error {
+func (s *SQLiteStore) UpdateStatus(name string, active bool) error {
 	//TODO
-	return nil
-}
-
-func (s *SQLiteStore) Deactivate(name string) error {
-	//TODO
+	_, err := s.db.Exec("UPDATE named_addresses SET active = ? WHERE name = ?", active, name)
+	if err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -157,6 +156,7 @@ type Server struct {
 
 func (s *Server) Start() {
 	http.HandleFunc("/", s.handler)
+	http.HandleFunc("/api/", s.togglehandler)
 	log.Fatal(http.ListenAndServe(":8080", nil))
 }
 
@@ -201,6 +201,11 @@ func (s *Server) handler(w http.ResponseWriter, r *http.Request) {
 		if err != nil {
 			return
 		}
+		if !namedAddress.Active {
+			// when named address is not active
+			http.Error(w, "address not found", http.StatusNotFound)
+			return
+		}
 		// Redirect to the address
 		http.Redirect(w, r, namedAddress.Address, http.StatusSeeOther)
 		return
@@ -226,6 +231,35 @@ func (s *Server) handler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	renderHTML(w, r, tmpl, pageVariables)
+}
+
+type UpdateRequest struct {
+	Name   string `json:"name"`
+	Active bool   `json:"active"`
+}
+
+func (s *Server) togglehandler(w http.ResponseWriter, r *http.Request) {
+	var data UpdateRequest
+	if r.Method == http.MethodPost {
+		if err := json.NewDecoder(r.Body).Decode(&data); err != nil {
+			http.Error(w, "Failed to decode JSON data", http.StatusBadRequest)
+			return
+		}
+		namedAddress, err := s.store.Get(data.Name)
+		if err != nil {
+			http.Error(w, fmt.Sprintf("Failed to get named_address for name %s", data.Name), http.StatusInternalServerError)
+			return
+		}
+		//TODO tabo is just random. later should be changed to actual owner_id
+		if namedAddress.OwnerId != "tabo" {
+			http.Error(w, "Invalid owner ID", http.StatusUnauthorized)
+			return
+		}
+		if err := s.store.UpdateStatus(data.Name, data.Active); err != nil {
+			http.Error(w, fmt.Sprintf("Failed to update status for name %s", data.Name), http.StatusInternalServerError)
+			return
+		}
+	}
 }
 
 func main() {
