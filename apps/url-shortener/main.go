@@ -35,10 +35,6 @@ type Store interface {
 	List(ownerId string) ([]NamedAddress, error)
 }
 
-type SQLiteStore struct {
-	db *sql.DB
-}
-
 type NameAlreadyTaken struct {
 	Name string
 }
@@ -47,24 +43,26 @@ func (er NameAlreadyTaken) Error() string {
 	return fmt.Sprintf("Name '%s' is already taken", er.Name)
 }
 
+type SQLiteStore struct {
+	db *sql.DB
+}
+
 func openDatabase() (*sql.DB, error) {
 	db, err := sql.Open("sqlite3", *dbPath)
 	if err != nil {
 		return nil, err
 	}
-
 	_, err = db.Exec(`
         CREATE TABLE IF NOT EXISTS named_addresses (
             name TEXT PRIMARY KEY,
             address TEXT,
-            ownerId TEXT,
+            owner_id TEXT,
             active BOOLEAN
         )
     `)
 	if err != nil {
 		return nil, err
 	}
-
 	return db, nil
 }
 
@@ -74,13 +72,12 @@ func generateRandomURL() string {
 	for i := 0; i < 6; i++ {
 		urlShort += string(charset[rand.Intn(len(charset))])
 	}
-
 	return urlShort
 }
 
 func (s *SQLiteStore) Create(addr NamedAddress) error {
 	_, err := s.db.Exec(`
-		INSERT INTO named_addresses (name, address, ownerId, active)
+		INSERT INTO named_addresses (name, address, owner_id, active)
 		VALUES (?, ?, ?, ?)
 	`, addr.Name, addr.Address, addr.OwnerId, addr.Active)
 	if err != nil {
@@ -96,7 +93,7 @@ func (s *SQLiteStore) Create(addr NamedAddress) error {
 }
 
 func (s *SQLiteStore) Get(name string) (NamedAddress, error) {
-	row := s.db.QueryRow("SELECT name, address, ownerID, active FROM named_addresses WHERE name = ?", name)
+	row := s.db.QueryRow("SELECT name, address, owner_id, active FROM named_addresses WHERE name = ?", name)
 	namedAddress := NamedAddress{}
 	err := row.Scan(&namedAddress.Name, &namedAddress.Address, &namedAddress.OwnerId, &namedAddress.Active)
 	if err != nil {
@@ -109,24 +106,26 @@ func (s *SQLiteStore) Get(name string) (NamedAddress, error) {
 }
 
 func (s *SQLiteStore) Activate(name string) error {
+	//TODO
 	return nil
 }
 
 func (s *SQLiteStore) Deactivate(name string) error {
+	//TODO
 	return nil
 }
 
 func (s *SQLiteStore) ChangeOwner(name, ownerId string) error {
+	//TODO
 	return nil
 }
 
 func (s *SQLiteStore) List(ownerId string) ([]NamedAddress, error) {
-	rows, err := s.db.Query("SELECT name, address, ownerId, active FROM named_addresses WHERE ownerId = ?", ownerId)
+	rows, err := s.db.Query("SELECT name, address, owner_id, active FROM named_addresses WHERE owner_id = ?", ownerId)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-
 	var namedAddresses []NamedAddress
 	for rows.Next() {
 		var namedAddress NamedAddress
@@ -135,7 +134,6 @@ func (s *SQLiteStore) List(ownerId string) ([]NamedAddress, error) {
 		}
 		namedAddresses = append(namedAddresses, namedAddress)
 	}
-
 	return namedAddresses, nil
 }
 
@@ -177,7 +175,7 @@ func (s *Server) handler(w http.ResponseWriter, r *http.Request) {
 			namedAddress := NamedAddress{
 				Name:    cn,
 				Address: address,
-				OwnerId: "tabo",
+				OwnerId: "tabo", //TODO. Owner ID should be taken from http header
 				Active:  true,
 			}
 			if err := s.store.Create(namedAddress); err == nil {
@@ -194,7 +192,6 @@ func (s *Server) handler(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 	}
-
 	// Get Name from request path for redirection
 	name := strings.TrimPrefix(r.URL.Path, "/")
 	if name != "" {
@@ -206,31 +203,26 @@ func (s *Server) handler(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, namedAddress.Address, http.StatusSeeOther)
 		return
 	}
-
 	// Retrieve named addresses for the owner
 	namedAddresses, err := s.store.List("tabo")
 	if err != nil {
 		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 		return
 	}
-
 	// Combine data for rendering
 	pageVariables := PageVariables{
 		NamedAddresses: namedAddresses,
 	}
-
 	indexHtmlContent, err := indexHTML.ReadFile("index.html")
 	if err != nil {
 		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 		return
 	}
-
 	tmpl, err := template.New("index").Parse(string(indexHtmlContent))
 	if err != nil {
 		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 		return
 	}
-
 	renderHTML(w, r, tmpl, pageVariables)
 }
 
@@ -238,8 +230,7 @@ func main() {
 	flag.Parse()
 	db, err := openDatabase()
 	if err != nil {
-		fmt.Println("Error opening database:", err)
-		return
+		panic(err)
 	}
 	s := Server{&SQLiteStore{db}}
 	s.Start()
