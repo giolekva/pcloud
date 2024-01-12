@@ -5,6 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>URL Shortener</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@1/css/pico.min.css">
 </head>
 
 <body>
@@ -25,15 +26,20 @@
         <tr>
             <th>Name</th>
             <th>Address</th>
-            <th>Owner</th>
+            <!-- <th>Owner</th> -->
             <th>Active</th>
         </tr>
         {{ range .NamedAddresses }}
         <tr>
             <td><a href="{{ .Name }}" target="_blank">{{ .Name }}</a></td>
             <td>{{ .Address }}</td>
-            <td>{{ .OwnerId }}</td>
-            <td>{{ .Active }}</td>
+            <!-- <td>{{ .OwnerId }}</td> -->
+            <!-- <td>{{ .Active }}</td> -->
+            <td>
+                <label for="switch">
+                    <input type="checkbox" id="switch" name="switch" role="switch" {{ if .Active }}checked{{ end }}>
+                </label>
+            </td>
         </tr>
         {{ end }}
     </table>
