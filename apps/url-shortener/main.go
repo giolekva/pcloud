@@ -47,11 +47,12 @@ type SQLiteStore struct {
 	db *sql.DB
 }
 
-func openDatabase() (*sql.DB, error) {
-	db, err := sql.Open("sqlite3", *dbPath)
+func NewSQLiteStore(path string) (*SQLiteStore, error) {
+	db, err := sql.Open("sqlite3", path)
 	if err != nil {
 		return nil, err
 	}
+
 	_, err = db.Exec(`
         CREATE TABLE IF NOT EXISTS named_addresses (
             name TEXT PRIMARY KEY,
@@ -63,7 +64,8 @@ func openDatabase() (*sql.DB, error) {
 	if err != nil {
 		return nil, err
 	}
-	return db, nil
+
+	return &SQLiteStore{db: db}, nil
 }
 
 func generateRandomURL() string {
@@ -228,10 +230,10 @@ func (s *Server) handler(w http.ResponseWriter, r *http.Request) {
 
 func main() {
 	flag.Parse()
-	db, err := openDatabase()
+	db, err := NewSQLiteStore(*dbPath)
 	if err != nil {
 		panic(err)
 	}
-	s := Server{&SQLiteStore{db}}
+	s := Server{store: db}
 	s.Start()
 }
