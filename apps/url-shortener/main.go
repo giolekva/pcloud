@@ -150,6 +150,11 @@ func renderHTML(w http.ResponseWriter, r *http.Request, tpl *template.Template, 
 	}
 }
 
+func getLoggedInUser(r *http.Request) (string, error) {
+	// TODO(dato): should make a request to get loggedin user
+	return "tabo", nil
+}
+
 type Server struct {
 	store Store
 }
@@ -174,10 +179,15 @@ func (s *Server) handler(w http.ResponseWriter, r *http.Request) {
 				cn = generateRandomURL()
 			}
 			// check if custom exists
+			loggedInUser, err := getLoggedInUser(r)
+			if err != nil {
+				http.Error(w, "User Not Logged In", http.StatusUnauthorized)
+				return
+			}
 			namedAddress := NamedAddress{
 				Name:    cn,
 				Address: address,
-				OwnerId: "tabo", //TODO. Owner ID should be taken from http header
+				OwnerId: loggedInUser,
 				Active:  true,
 			}
 			if err := s.store.Create(namedAddress); err == nil {
@@ -211,7 +221,12 @@ func (s *Server) handler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	// Retrieve named addresses for the owner
-	namedAddresses, err := s.store.List("tabo")
+	loggedInUser, err := getLoggedInUser(r)
+	if err != nil {
+		http.Error(w, "User Not Logged In", http.StatusUnauthorized)
+		return
+	}
+	namedAddresses, err := s.store.List(loggedInUser)
 	if err != nil {
 		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 		return
@@ -250,8 +265,12 @@ func (s *Server) togglehandler(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, fmt.Sprintf("Failed to get named_address for name %s", data.Name), http.StatusInternalServerError)
 			return
 		}
-		//TODO tabo is just random. later should be changed to actual owner_id
-		if namedAddress.OwnerId != "tabo" {
+		loggedInUser, err := getLoggedInUser(r)
+		if err != nil {
+			http.Error(w, "User Not Logged In", http.StatusUnauthorized)
+			return
+		}
+		if namedAddress.OwnerId != loggedInUser {
 			http.Error(w, "Invalid owner ID", http.StatusUnauthorized)
 			return
 		}
