@@ -1,1 +1,0 @@
-Installs PCloud App Manager

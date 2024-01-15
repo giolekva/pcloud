@@ -1,8 +1,0 @@
-{
-  "type": "object",
-  "properties": {
-    "RepoAddr": { "type": "string", "default": "ssh://192.168.0.11/example" },
-	"SSHPrivateKey": { "type": "string", "default": "foo bar" }
-  },
-  "additionalProperties": false
-}

@@ -399,13 +399,13 @@ func (b Bootstrapper) installInfrastructureServices(repo RepoIO, nsGen Namespace
 			Global: Values{
 				PCloudEnvName: env.Name,
 			},
+			Release: Release{},
+			Values:  make(map[string]any),
 		}
 		if len(namespaces) > 0 {
 			derived.Release.Namespace = namespaces[0]
 		}
-		values := map[string]any{
-			"IngressPublicIP": env.ServiceIPs.IngressPublic.String(),
-		}
+		values := map[string]any{}
 		return repo.InstallApp(*app, filepath.Join("/infrastructure", app.Name), values, derived)
 	}
 	appsToInstall := []string{
@@ -414,7 +414,6 @@ func (b Bootstrapper) installInfrastructureServices(repo RepoIO, nsGen Namespace
 		"csi-driver-smb",
 		"ingress-public",
 		"cert-manager",
-		"cert-manager-webhook-pcloud",
 	}
 	for _, name := range appsToInstall {
 		if err := install(name); err != nil {
@@ -453,7 +452,7 @@ spec:
   interval: 1m0s
   url: https://github.com/giolekva/pcloud
   ref:
-    branch: main
+    branch: cuelang
 `, env.Name)))
 		if err != nil {
 			return err
@@ -507,10 +506,10 @@ func (b Bootstrapper) installEnvManager(ss *soft.Client, repo RepoIO, nsGen Name
 			PCloudEnvName: env.Name,
 		},
 		Values: map[string]any{
-			"RepoIP":        env.ServiceIPs.ConfigRepo,
-			"RepoPort":      22,
-			"RepoName":      "config",
-			"SSHPrivateKey": string(keys.RawPrivateKey()),
+			"repoIP":        env.ServiceIPs.ConfigRepo,
+			"repoPort":      22,
+			"repoName":      "config",
+			"sshPrivateKey": string(keys.RawPrivateKey()),
 		},
 	}
 	if len(namespaces) > 0 {
@@ -542,12 +541,12 @@ func (b Bootstrapper) installDNSZoneManager(ss *soft.Client, repo RepoIO, nsGen 
 				PCloudEnvName: env.Name,
 			},
 			Values: map[string]any{
-				"Volume": map[string]any{
-					"ClaimName": volumeClaimName,
-					"MountPath": volumeMountPath,
-					"Size":      "1Gi",
+				"volume": map[string]any{
+					"claimName": volumeClaimName,
+					"mountPath": volumeMountPath,
+					"size":      "1Gi",
 				},
-				"APIConfigMapName": dnsAPIConfigMapName,
+				"apiConfigMapName": dnsAPIConfigMapName,
 			},
 			Release: Release{
 				Namespace: ns,

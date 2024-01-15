@@ -81,7 +81,7 @@ spec:
   interval: 1m0s
   url: https://github.com/giolekva/pcloud
   ref:
-    branch: main
+    branch: cuelang
 `, env.Name)
 			if err != nil {
 				return err
@@ -114,29 +114,29 @@ func SetupNetwork(env Env, st *state) Task {
 				return err
 			}
 			if err := st.appManager.Install(*app, st.nsGen, installer.NewSuffixGenerator("-ingress-private"), map[string]any{
-				"Name":       fmt.Sprintf("%s-ingress-private", env.Name),
-				"From":       ingressPrivateIP.String(),
-				"To":         ingressPrivateIP.String(),
-				"AutoAssign": false,
-				"Namespace":  "metallb-system",
+				"name":       fmt.Sprintf("%s-ingress-private", env.Name),
+				"from":       ingressPrivateIP.String(),
+				"to":         ingressPrivateIP.String(),
+				"autoAssign": false,
+				"namespace":  "metallb-system",
 			}); err != nil {
 				return err
 			}
 			if err := st.appManager.Install(*app, st.nsGen, installer.NewSuffixGenerator("-headscale"), map[string]any{
-				"Name":       fmt.Sprintf("%s-headscale", env.Name),
-				"From":       headscaleIP.String(),
-				"To":         headscaleIP.String(),
-				"AutoAssign": false,
-				"Namespace":  "metallb-system",
+				"name":       fmt.Sprintf("%s-headscale", env.Name),
+				"from":       headscaleIP.String(),
+				"to":         headscaleIP.String(),
+				"autoAssign": false,
+				"namespace":  "metallb-system",
 			}); err != nil {
 				return err
 			}
 			if err := st.appManager.Install(*app, st.nsGen, st.emptySuffixGen, map[string]any{
-				"Name":       env.Name,
-				"From":       "10.1.0.100", // TODO(gio): auto-generate
-				"To":         "10.1.0.254",
-				"AutoAssign": false,
-				"Namespace":  "metallb-system",
+				"name":       env.Name,
+				"from":       "10.1.0.100", // TODO(gio): auto-generate
+				"to":         "10.1.0.254",
+				"autoAssign": false,
+				"namespace":  "metallb-system",
 			}); err != nil {
 				return err
 			}
@@ -147,10 +147,10 @@ func SetupNetwork(env Env, st *state) Task {
 				return err
 			}
 			if err := st.appManager.Install(*app, st.nsGen, st.emptySuffixGen, map[string]any{
-				"PrivateNetwork": map[string]any{
-					"Hostname": "private-network-proxy",
-					"Username": "private-network-proxy",
-					"IPSubnet": "10.1.0.0/24",
+				"privateNetwork": map[string]any{
+					"hostname": "private-network-proxy",
+					"username": "private-network-proxy",
+					"ipSubnet": "10.1.0.0/24",
 				},
 			}); err != nil {
 				return err
@@ -178,9 +178,9 @@ func SetupCertificateIssuers(env Env, st *state) Task {
 			return err
 		}
 		if err := st.appManager.Install(*app, st.nsGen, st.emptySuffixGen, map[string]any{
-			"APIConfigMap": map[string]any{
-				"Name":      "api-config", // TODO(gio): take from global pcloud config
-				"Namespace": fmt.Sprintf("%s-dns-zone-manager", env.PCloudEnvName),
+			"apiConfigMap": map[string]any{
+				"name":      "api-config", // TODO(gio): take from global pcloud config
+				"namespace": fmt.Sprintf("%s-dns-zone-manager", env.PCloudEnvName),
 			},
 		}); err != nil {
 			return err
@@ -197,7 +197,7 @@ func SetupAuth(env Env, st *state) Task {
 			return err
 		}
 		if err := st.appManager.Install(*app, st.nsGen, st.emptySuffixGen, map[string]any{
-			"Subdomain": "test", // TODO(giolekva): make core-auth chart actually use this
+			"subdomain": "test", // TODO(giolekva): make core-auth chart actually use this
 		}); err != nil {
 			return err
 		}
@@ -217,7 +217,7 @@ func SetupHeadscale(env Env, st *state) Task {
 			return err
 		}
 		if err := st.appManager.Install(*app, st.nsGen, st.emptySuffixGen, map[string]any{
-			"Subdomain": "headscale",
+			"subdomain": "headscale",
 		}); err != nil {
 			return err
 		}
@@ -248,8 +248,8 @@ func SetupWelcome(env Env, st *state) Task {
 			return err
 		}
 		if err := st.appManager.Install(*app, st.nsGen, st.emptySuffixGen, map[string]any{
-			"RepoAddr":      st.ssClient.GetRepoAddress("config"),
-			"SSHPrivateKey": string(keys.RawPrivateKey()),
+			"repoAddr":      st.ssClient.GetRepoAddress("config"),
+			"sshPrivateKey": string(keys.RawPrivateKey()),
 		}); err != nil {
 			return err
 		}
@@ -280,8 +280,8 @@ func SetupAppStore(env Env, st *state) Task {
 			return err
 		}
 		if err := st.appManager.Install(*app, st.nsGen, st.emptySuffixGen, map[string]any{
-			"RepoAddr":      st.ssClient.GetRepoAddress("config"),
-			"SSHPrivateKey": string(keys.RawPrivateKey()),
+			"repoAddr":      st.ssClient.GetRepoAddress("config"),
+			"sshPrivateKey": string(keys.RawPrivateKey()),
 		}); err != nil {
 			return err
 		}

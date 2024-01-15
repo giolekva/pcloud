@@ -25,6 +25,139 @@ import (
 //go:embed values-tmpl
 var valuesTmpls embed.FS
 
+const cueBaseConfigImports = `
+import (
+    "list"
+)
+`
+
+// TODO(gio): import
+const cueBaseConfig = `
+readme: string | *""
+
+#Network: {
+	name: string
+	ingressClass: string
+	certificateIssuer: string | *""
+	domain: string
+}
+
+#Image: {
+	registry: string | *"docker.io"
+	repository: string
+	name: string
+	tag: string
+	pullPolicy: string | *"IfNotPresent"
+	imageName: "\(repository)/\(name)"
+	fullName: "\(registry)/\(imageName)"
+	fullNameWithTag: "\(fullName):\(tag)"
+}
+
+#Chart: {
+	chart: string
+	sourceRef: #SourceRef
+}
+
+#SourceRef: {
+	kind: "GitRepository" | "HelmRepository"
+	name: string
+	namespace: string // TODO(gio): default global.id
+}
+
+#Global: {
+	id: string | *""
+	pcloudEnvName: string | *""
+	domain: string | *""
+    privateDomain: string | *""
+	namespacePrefix: string | *""
+	...
+}
+
+#Release: {
+	namespace: string
+}
+
+global: #Global
+release: #Release
+
+_ingressPrivate: "\(global.id)-ingress-private"
+_ingressPublic: "\(global.pcloudEnvName)-ingress-public"
+_issuerPrivate: "\(global.id)-private"
+_issuerPublic: "\(global.id)-public"
+
+images: {
+	for key, value in images {
+		"\(key)": #Image & value
+	}
+}
+
+charts: {
+	for key, value in charts {
+		"\(key)": #Chart & value
+	}
+}
+
+#ResourceReference: {
+    name: string
+    namespace: string
+}
+
+#Helm: {
+	name: string
+	dependsOn: [...#Helm] | *[]
+    dependsOnExternal: [...#ResourceReference] | *[]
+	...
+}
+
+helm: {
+	for key, value in helm {
+		"\(key)": #Helm & value & {
+			name: key
+		}
+	}
+}
+
+#HelmRelease: {
+	_name: string
+	_chart: #Chart
+	_values: _
+	_dependencies: [...#Helm] | *[]
+	_externalDependencies: [...#ResourceReference] | *[]
+
+	apiVersion: "helm.toolkit.fluxcd.io/v2beta1"
+	kind: "HelmRelease"
+	metadata: {
+		name: _name
+   		namespace: release.namespace
+	}
+	spec: {
+		interval: "1m0s"
+		dependsOn: list.Concat([_externalDependencies, [
+			for d in _dependencies {
+				name: d.name
+				namespace: release.namespace
+			}
+    	]])
+		chart: {
+			spec: _chart
+		}
+		values: _values
+	}
+}
+
+output: {
+	for name, r in helm {
+		"\(name)": #HelmRelease & {
+			_name: name
+			_chart: r.chart
+			_values: r.values
+			_dependencies: r.dependsOn
+            _externalDependencies: r.dependsOnExternal
+		}
+	}
+}
+`
+
 type Named interface {
 	Nam() string
 }
@@ -53,6 +186,10 @@ func (a App) Schema() Schema {
 type Rendered struct {
 	Readme    string
 	Resources map[string][]byte
+}
+
+func cleanName(s string) string {
+	return strings.ReplaceAll(strings.ReplaceAll(s, "\"", ""), "'", "")
 }
 
 func (a App) Render(derived Derived) (Rendered, error) {
@@ -84,7 +221,7 @@ func (a App) Render(derived Derived) (Rendered, error) {
 			return Rendered{}, err
 		}
 		for i.Next() {
-			name := fmt.Sprintf("%s.yaml", i.Selector().String())
+			name := fmt.Sprintf("%s.yaml", cleanName(i.Selector().String()))
 			contents, err := cueyaml.Encode(i.Value())
 			if err != nil {
 				return Rendered{}, err
@@ -168,12 +305,12 @@ func CreateAllApps() []App {
 		CreateAppManager(valuesTmpls, tmpls),
 		CreateIngressPublic(valuesTmpls, tmpls),
 		CreateCertManager(valuesTmpls, tmpls),
-		CreateCertManagerWebhookGandi(valuesTmpls, tmpls),
 		CreateCSIDriverSMB(valuesTmpls, tmpls),
 		CreateResourceRendererController(valuesTmpls, tmpls),
 		CreateHeadscaleController(valuesTmpls, tmpls),
 		CreateDNSZoneManager(valuesTmpls, tmpls),
 		CreateFluxcdReconciler(valuesTmpls, tmpls),
+		CreateAppConfigRepo(valuesTmpls, tmpls),
 	}
 	for _, a := range CreateStoreApps() {
 		ret = append(ret, a.App)
@@ -213,7 +350,7 @@ func readJSONSchemaFromFile(fs embed.FS, f string) (Schema, error) {
 
 // TODO(gio): service account needs permission to create/update secret
 func CreateAppIngressPrivate(fs embed.FS, tmpls *template.Template) App {
-	schema, err := readJSONSchemaFromFile(fs, "values-tmpl/private-network.jsonschema")
+	cfg, schema, err := readCueConfigFromFile(fs, "values-tmpl/private-network.cue")
 	if err != nil {
 		panic(err)
 	}
@@ -226,46 +363,46 @@ func CreateAppIngressPrivate(fs embed.FS, tmpls *template.Template) App {
 		},
 		schema,
 		tmpls.Lookup("private-network.md"),
-		nil,
+		cfg,
 	}
 }
 
 func CreateCertificateIssuerPrivate(fs embed.FS, tmpls *template.Template) App {
-	schema, err := readJSONSchemaFromFile(fs, "values-tmpl/certificate-issuer-private.jsonschema")
+	cfg, schema, err := readCueConfigFromFile(fs, "values-tmpl/certificate-issuer-private.cue")
 	if err != nil {
 		panic(err)
 	}
 	return App{
 		"certificate-issuer-private",
-		[]string{},
+		[]string{"ingress-private"},
 		[]*template.Template{
 			tmpls.Lookup("certificate-issuer-private.yaml"),
 		},
 		schema,
 		tmpls.Lookup("certificate-issuer-private.md"),
-		nil,
+		cfg,
 	}
 }
 
 func CreateCertificateIssuerPublic(fs embed.FS, tmpls *template.Template) App {
-	schema, err := readJSONSchemaFromFile(fs, "values-tmpl/certificate-issuer-public.jsonschema")
+	cfg, schema, err := readCueConfigFromFile(fs, "values-tmpl/certificate-issuer-public.cue")
 	if err != nil {
 		panic(err)
 	}
 	return App{
 		"certificate-issuer-public",
-		[]string{},
+		[]string{"ingress-private"},
 		[]*template.Template{
 			tmpls.Lookup("certificate-issuer-public.yaml"),
 		},
 		schema,
 		tmpls.Lookup("certificate-issuer-public.md"),
-		nil,
+		cfg,
 	}
 }
 
 func CreateAppCoreAuth(fs embed.FS, tmpls *template.Template) App {
-	schema, err := readJSONSchemaFromFile(fs, "values-tmpl/core-auth.jsonschema")
+	cfg, schema, err := readCueConfigFromFile(fs, "values-tmpl/core-auth.cue")
 	if err != nil {
 		panic(err)
 	}
@@ -278,7 +415,7 @@ func CreateAppCoreAuth(fs embed.FS, tmpls *template.Template) App {
 		},
 		schema,
 		tmpls.Lookup("core-auth.md"),
-		nil,
+		cfg,
 	}
 }
 
@@ -348,7 +485,7 @@ func CreateAppPihole(fs embed.FS, tmpls *template.Template) StoreApp {
 }
 
 func CreateAppPenpot(fs embed.FS, tmpls *template.Template) StoreApp {
-	schema, err := readJSONSchemaFromFile(fs, "values-tmpl/penpot.jsonschema")
+	cfg, schema, err := readCueConfigFromFile(fs, "values-tmpl/penpot.cue")
 	if err != nil {
 		panic(err)
 	}
@@ -361,7 +498,7 @@ func CreateAppPenpot(fs embed.FS, tmpls *template.Template) StoreApp {
 			},
 			schema,
 			tmpls.Lookup("penpot.md"),
-			nil,
+			cfg,
 		},
 		// "simple-icons:pihole",
 		`<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"><path fill="currentColor" d="M7.654 0L5.13 3.554v2.01L2.934 6.608l-.02-.009v13.109l8.563 4.045L12 24l.523-.247l8.563-4.045V6.6l-.017.008l-2.196-1.045V3.555l-.077-.108L16.349.001l-2.524 3.554v.004L11.989.973l-1.823 2.566l-.065-.091zm.447 2.065l.976 1.374H6.232l.964-1.358zm8.694 0l.976 1.374h-2.845l.965-1.358zm-4.36.971l.976 1.375h-2.845l.965-1.359zM5.962 4.132h1.35v4.544l-1.35-.638Zm2.042 0h1.343v5.506l-1.343-.635zm6.652 0h1.35V9l-1.35.637zm2.042 0h1.343v3.905l-1.343.634zm-6.402.972h1.35v5.62l-1.35-.638zm2.042 0h1.343v4.993l-1.343.634zm6.534 1.493l1.188.486l-1.188.561zM5.13 6.6v1.047l-1.187-.561ZM3.96 8.251l7.517 3.55v10.795l-7.516-3.55zm16.08 0v10.794l-7.517 3.55V11.802z"/></svg>`,
@@ -432,13 +569,9 @@ func CreateAppJellyfin(fs embed.FS, tmpls *template.Template) StoreApp {
 	}
 }
 
-func readCueConfigFromFile(fs embed.FS, f string) (*cue.Value, Schema, error) {
-	contents, err := fs.ReadFile(f)
-	if err != nil {
-		return nil, nil, err
-	}
+func processCueConfig(contents string) (*cue.Value, Schema, error) {
 	ctx := cuecontext.New()
-	cfg := ctx.CompileBytes(contents)
+	cfg := ctx.CompileString(cueBaseConfigImports + contents + cueBaseConfig)
 	if err := cfg.Err(); err != nil {
 		return nil, nil, err
 	}
@@ -450,6 +583,14 @@ func readCueConfigFromFile(fs embed.FS, f string) (*cue.Value, Schema, error) {
 		return nil, nil, err
 	}
 	return &cfg, schema, nil
+}
+
+func readCueConfigFromFile(fs embed.FS, f string) (*cue.Value, Schema, error) {
+	contents, err := fs.ReadFile(f)
+	if err != nil {
+		return nil, nil, err
+	}
+	return processCueConfig(string(contents))
 }
 
 func CreateAppRpuppy(fs embed.FS, tmpls *template.Template) StoreApp {
@@ -473,8 +614,23 @@ func CreateAppRpuppy(fs embed.FS, tmpls *template.Template) StoreApp {
 	}
 }
 
+func CreateAppConfigRepo(fs embed.FS, tmpls *template.Template) App {
+	cfg, schema, err := readCueConfigFromFile(fs, "values-tmpl/config-repo.cue")
+	if err != nil {
+		panic(err)
+	}
+	return App{
+		"config-repo",
+		[]string{"config-repo"},
+		[]*template.Template{},
+		schema,
+		nil,
+		cfg,
+	}
+}
+
 func CreateAppSoftServe(fs embed.FS, tmpls *template.Template) StoreApp {
-	schema, err := readJSONSchemaFromFile(fs, "values-tmpl/soft-serve.jsonschema")
+	cfg, schema, err := readCueConfigFromFile(fs, "values-tmpl/soft-serve.cue")
 	if err != nil {
 		panic(err)
 	}
@@ -487,7 +643,7 @@ func CreateAppSoftServe(fs embed.FS, tmpls *template.Template) StoreApp {
 			},
 			schema,
 			tmpls.Lookup("soft-serve.md"),
-			nil,
+			cfg,
 		},
 		`<svg xmlns="http://www.w3.org/2000/svg" width="50" height="50" viewBox="0 0 48 48"><g fill="none" stroke="currentColor" stroke-linecap="round" stroke-width="4"><path stroke-linejoin="round" d="M15.34 22.5L21 37l3 6l3-6l5.66-14.5"/><path d="M19 32h10"/><path stroke-linejoin="round" d="M24 3c-6 0-8 6-8 6s-6 2-6 7s5 7 5 7s3.5-2 9-2s9 2 9 2s5-2 5-7s-6-7-6-7s-2-6-8-6Z"/></g></svg>`,
 		"A tasty, self-hostable Git server for the command line. 🍦",
@@ -495,7 +651,7 @@ func CreateAppSoftServe(fs embed.FS, tmpls *template.Template) StoreApp {
 }
 
 func CreateAppHeadscale(fs embed.FS, tmpls *template.Template) App {
-	schema, err := readJSONSchemaFromFile(fs, "values-tmpl/headscale.jsonschema")
+	cfg, schema, err := readCueConfigFromFile(fs, "values-tmpl/headscale.cue")
 	if err != nil {
 		panic(err)
 	}
@@ -507,12 +663,12 @@ func CreateAppHeadscale(fs embed.FS, tmpls *template.Template) App {
 		},
 		schema,
 		tmpls.Lookup("headscale.md"),
-		nil,
+		cfg,
 	}
 }
 
 func CreateAppHeadscaleUser(fs embed.FS, tmpls *template.Template) App {
-	schema, err := readJSONSchemaFromFile(fs, "values-tmpl/headscale-user.jsonschema")
+	cfg, schema, err := readCueConfigFromFile(fs, "values-tmpl/headscale-user.cue")
 	if err != nil {
 		panic(err)
 	}
@@ -524,12 +680,12 @@ func CreateAppHeadscaleUser(fs embed.FS, tmpls *template.Template) App {
 		},
 		schema,
 		tmpls.Lookup("headscale-user.md"),
-		nil,
+		cfg,
 	}
 }
 
 func CreateMetallbIPAddressPool(fs embed.FS, tmpls *template.Template) App {
-	schema, err := readJSONSchemaFromFile(fs, "values-tmpl/metallb-ipaddresspool.jsonschema")
+	cfg, schema, err := readCueConfigFromFile(fs, "values-tmpl/metallb-ipaddresspool.cue")
 	if err != nil {
 		panic(err)
 	}
@@ -541,12 +697,12 @@ func CreateMetallbIPAddressPool(fs embed.FS, tmpls *template.Template) App {
 		},
 		schema,
 		tmpls.Lookup("metallb-ipaddresspool.md"),
-		nil,
+		cfg,
 	}
 }
 
 func CreateEnvManager(fs embed.FS, tmpls *template.Template) App {
-	schema, err := readJSONSchemaFromFile(fs, "values-tmpl/env-manager.jsonschema")
+	cfg, schema, err := readCueConfigFromFile(fs, "values-tmpl/env-manager.cue")
 	if err != nil {
 		panic(err)
 	}
@@ -558,12 +714,12 @@ func CreateEnvManager(fs embed.FS, tmpls *template.Template) App {
 		},
 		schema,
 		tmpls.Lookup("env-manager.md"),
-		nil,
+		cfg,
 	}
 }
 
 func CreateWelcome(fs embed.FS, tmpls *template.Template) App {
-	schema, err := readJSONSchemaFromFile(fs, "values-tmpl/welcome.jsonschema")
+	cfg, schema, err := readCueConfigFromFile(fs, "values-tmpl/welcome.cue")
 	if err != nil {
 		panic(err)
 	}
@@ -575,12 +731,12 @@ func CreateWelcome(fs embed.FS, tmpls *template.Template) App {
 		},
 		schema,
 		tmpls.Lookup("welcome.md"),
-		nil,
+		cfg,
 	}
 }
 
 func CreateAppManager(fs embed.FS, tmpls *template.Template) App {
-	schema, err := readJSONSchemaFromFile(fs, "values-tmpl/appmanager.jsonschema")
+	cfg, schema, err := readCueConfigFromFile(fs, "values-tmpl/appmanager.cue")
 	if err != nil {
 		panic(err)
 	}
@@ -592,12 +748,12 @@ func CreateAppManager(fs embed.FS, tmpls *template.Template) App {
 		},
 		schema,
 		tmpls.Lookup("appmanager.md"),
-		nil,
+		cfg,
 	}
 }
 
 func CreateIngressPublic(fs embed.FS, tmpls *template.Template) App {
-	schema, err := readJSONSchemaFromFile(fs, "values-tmpl/ingress-public.jsonschema")
+	cfg, schema, err := readCueConfigFromFile(fs, "values-tmpl/ingress-public.cue")
 	if err != nil {
 		panic(err)
 	}
@@ -609,12 +765,12 @@ func CreateIngressPublic(fs embed.FS, tmpls *template.Template) App {
 		},
 		schema,
 		tmpls.Lookup("ingress-public.md"),
-		nil,
+		cfg,
 	}
 }
 
 func CreateCertManager(fs embed.FS, tmpls *template.Template) App {
-	schema, err := readJSONSchemaFromFile(fs, "values-tmpl/cert-manager.jsonschema")
+	cfg, schema, err := readCueConfigFromFile(fs, "values-tmpl/cert-manager.cue")
 	if err != nil {
 		panic(err)
 	}
@@ -626,29 +782,12 @@ func CreateCertManager(fs embed.FS, tmpls *template.Template) App {
 		},
 		schema,
 		tmpls.Lookup("cert-manager.md"),
-		nil,
-	}
-}
-
-func CreateCertManagerWebhookGandi(fs embed.FS, tmpls *template.Template) App {
-	schema, err := readJSONSchemaFromFile(fs, "values-tmpl/cert-manager-webhook-pcloud.jsonschema")
-	if err != nil {
-		panic(err)
-	}
-	return App{
-		"cert-manager-webhook-pcloud",
-		[]string{},
-		[]*template.Template{
-			tmpls.Lookup("cert-manager-webhook-pcloud.yaml"),
-		},
-		schema,
-		tmpls.Lookup("cert-manager-webhook-pcloud.md"),
-		nil,
+		cfg,
 	}
 }
 
 func CreateCSIDriverSMB(fs embed.FS, tmpls *template.Template) App {
-	schema, err := readJSONSchemaFromFile(fs, "values-tmpl/csi-driver-smb.jsonschema")
+	cfg, schema, err := readCueConfigFromFile(fs, "values-tmpl/csi-driver-smb.cue")
 	if err != nil {
 		panic(err)
 	}
@@ -660,12 +799,12 @@ func CreateCSIDriverSMB(fs embed.FS, tmpls *template.Template) App {
 		},
 		schema,
 		tmpls.Lookup("csi-driver-smb.md"),
-		nil,
+		cfg,
 	}
 }
 
 func CreateResourceRendererController(fs embed.FS, tmpls *template.Template) App {
-	schema, err := readJSONSchemaFromFile(fs, "values-tmpl/resource-renderer-controller.jsonschema")
+	cfg, schema, err := readCueConfigFromFile(fs, "values-tmpl/resource-renderer-controller.cue")
 	if err != nil {
 		panic(err)
 	}
@@ -677,12 +816,12 @@ func CreateResourceRendererController(fs embed.FS, tmpls *template.Template) App
 		},
 		schema,
 		tmpls.Lookup("resource-renderer-controller.md"),
-		nil,
+		cfg,
 	}
 }
 
 func CreateHeadscaleController(fs embed.FS, tmpls *template.Template) App {
-	schema, err := readJSONSchemaFromFile(fs, "values-tmpl/headscale-controller.jsonschema")
+	cfg, schema, err := readCueConfigFromFile(fs, "values-tmpl/headscale-controller.cue")
 	if err != nil {
 		panic(err)
 	}
@@ -694,12 +833,12 @@ func CreateHeadscaleController(fs embed.FS, tmpls *template.Template) App {
 		},
 		schema,
 		tmpls.Lookup("headscale-controller.md"),
-		nil,
+		cfg,
 	}
 }
 
 func CreateDNSZoneManager(fs embed.FS, tmpls *template.Template) App {
-	schema, err := readJSONSchemaFromFile(fs, "values-tmpl/dns-zone-controller.jsonschema")
+	cfg, schema, err := readCueConfigFromFile(fs, "values-tmpl/dns-zone-manager.cue")
 	if err != nil {
 		panic(err)
 	}
@@ -713,12 +852,12 @@ func CreateDNSZoneManager(fs embed.FS, tmpls *template.Template) App {
 		},
 		schema,
 		tmpls.Lookup("dns-zone-controller.md"),
-		nil,
+		cfg,
 	}
 }
 
 func CreateFluxcdReconciler(fs embed.FS, tmpls *template.Template) App {
-	schema, err := readJSONSchemaFromFile(fs, "values-tmpl/fluxcd-reconciler.jsonschema")
+	cfg, schema, err := readCueConfigFromFile(fs, "values-tmpl/fluxcd-reconciler.cue")
 	if err != nil {
 		panic(err)
 	}
@@ -730,7 +869,7 @@ func CreateFluxcdReconciler(fs embed.FS, tmpls *template.Template) App {
 		},
 		schema,
 		tmpls.Lookup("fluxcd-reconciler.md"),
-		nil,
+		cfg,
 	}
 }
 

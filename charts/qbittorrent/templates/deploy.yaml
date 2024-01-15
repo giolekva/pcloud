@@ -76,8 +76,8 @@ spec:
         - name: data
           mountPath: /downloads
           readOnly: false
-      nodeSelector:
-       "kubernetes.io/hostname": rpi05
+      # nodeSelector:
+      #  "kubernetes.io/hostname": rpi05
         # command:
         # - torrent
         # - --port=8080

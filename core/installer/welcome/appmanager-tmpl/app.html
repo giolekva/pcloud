@@ -3,7 +3,17 @@
   {{ $networks := .AvailableNetworks }}
   {{ $data := .Data }}
   {{ range $name, $schema := .Schema.Fields }}
-    {{ if or (eq $schema.Kind 0) (eq $schema.Kind 1) }}
+    {{ if eq $schema.Kind 0 }}
+      <label for="{{ $name }}">
+        <span>{{ $name }}</span>
+      </label>
+	  <input type="checkbox" role="swtich" name="{{ $name }}" oninput="valueChanged({{ $name }}, this.value)" {{ if $readonly }}disabled{{ end }} {{ if index $data $name }}checked{{ end }}/>
+    {{ else if eq $schema.Kind 1 }}
+      <label for="{{ $name }}">
+        <span>{{ $name }}</span>
+      </label>
+	  <input type="text" name="{{ $name }}" oninput="valueChanged({{ $name }}, this.value)" {{ if $readonly }}disabled{{ end }} value="{{ index $data $name }}"/>
+    {{ else if eq $schema.Kind 4 }}
       <label for="{{ $name }}">
         <span>{{ $name }}</span>
       </label>

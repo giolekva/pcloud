@@ -1,1 +1,0 @@
-Installs resource-renderer controller

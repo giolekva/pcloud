@@ -47,7 +47,7 @@ func AddNewEnvTask(env Env, st *state) Task {
 		for _, key := range ssPublicKeys {
 			fmt.Fprintf(&knownHosts, "%s %s\n", repoHost, key)
 		}
-		for _, tmpl := range tmpls.Templates() {
+		for _, tmpl := range tmpls.Templates() { // TODO(gio): migrate to cue
 			dstPath := path.Join("environments", env.Name, tmpl.Name())
 			dst, err := st.repo.Writer(dstPath)
 			if err != nil {

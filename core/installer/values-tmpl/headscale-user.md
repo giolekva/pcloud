@@ -1,1 +1,0 @@
-Creates Headscale user resource
