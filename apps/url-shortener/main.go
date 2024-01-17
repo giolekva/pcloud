@@ -15,10 +15,14 @@ import (
 	"github.com/mattn/go-sqlite3"
 )
 
+var port = flag.Int("port", 8080, "Port to listen on")
 var dbPath = flag.String("db-path", "url-shortener.db", "Path to the SQLite file")
 
 //go:embed index.html
 var indexHTML embed.FS
+
+//go:embed static/*
+var f embed.FS
 
 type NamedAddress struct {
 	Name    string
@@ -160,9 +164,10 @@ type Server struct {
 }
 
 func (s *Server) Start() {
+	http.Handle("/static/", http.FileServer(http.FS(f)))
 	http.HandleFunc("/", s.handler)
 	http.HandleFunc("/api/update/", s.toggleHandler)
-	log.Fatal(http.ListenAndServe(":8080", nil))
+	log.Fatal(http.ListenAndServe(fmt.Sprintf(":%d", *port), nil))
 }
 
 func (s *Server) handler(w http.ResponseWriter, r *http.Request) {

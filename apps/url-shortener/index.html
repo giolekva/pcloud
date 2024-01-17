@@ -1,12 +1,13 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="light">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>URL Shortener</title>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@1/css/pico.min.css">
+    <link rel="stylesheet" href="/static/pico.min.css">
+    <script type="application/javascript" src="/static/main.js"></script>
 </head>
-<body>
+<body class="container">
     <h1>URL Shortener</h1>
     <form action="/" method="post">
         <label for="address">Address:</label>
@@ -33,27 +34,4 @@
         {{- end -}}
     </table>
 </body>
-<script type="application/javascript">
-    function toggle(name, status) {
-        const data = {
-            "name": name,
-            "active": status,
-        };
-        fetch("/api/update/", {
-            method: "POST",
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify(data),
-        })
-        .then(response => {
-            if (response.ok) {
-                window.location.reload();
-            }
-        })
-        .catch((error) => {
-            console.error('Error:', error);
-        });
-    }
-</script>
 </html>
