@@ -3,6 +3,7 @@ package main
 import (
 	"database/sql"
 	"embed"
+	"encoding/json"
 	"flag"
 	"fmt"
 	"html/template"
@@ -29,8 +30,7 @@ type NamedAddress struct {
 type Store interface {
 	Create(addr NamedAddress) error
 	Get(name string) (NamedAddress, error)
-	Activate(name string) error
-	Deactivate(name string) error
+	UpdateStatus(name string, active bool) error
 	ChangeOwner(name, ownerId string) error
 	List(ownerId string) ([]NamedAddress, error)
 }
@@ -107,13 +107,12 @@ func (s *SQLiteStore) Get(name string) (NamedAddress, error) {
 	return namedAddress, nil
 }
 
-func (s *SQLiteStore) Activate(name string) error {
+func (s *SQLiteStore) UpdateStatus(name string, active bool) error {
 	//TODO
-	return nil
-}
-
-func (s *SQLiteStore) Deactivate(name string) error {
-	//TODO
+	_, err := s.db.Exec("UPDATE named_addresses SET active = ? WHERE name = ?", active, name)
+	if err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -151,16 +150,27 @@ func renderHTML(w http.ResponseWriter, r *http.Request, tpl *template.Template, 
 	}
 }
 
+func getLoggedInUser(r *http.Request) (string, error) {
+	// TODO(dato): should make a request to get loggedin user
+	return "tabo", nil
+}
+
 type Server struct {
 	store Store
 }
 
 func (s *Server) Start() {
 	http.HandleFunc("/", s.handler)
+	http.HandleFunc("/api/update/", s.toggleHandler)
 	log.Fatal(http.ListenAndServe(":8080", nil))
 }
 
 func (s *Server) handler(w http.ResponseWriter, r *http.Request) {
+	loggedInUser, err := getLoggedInUser(r)
+	if err != nil {
+		http.Error(w, "User Not Logged In", http.StatusUnauthorized)
+		return
+	}
 	if r.Method == http.MethodPost {
 		customName := r.PostFormValue("custom")
 		address := r.PostFormValue("address")
@@ -173,11 +183,10 @@ func (s *Server) handler(w http.ResponseWriter, r *http.Request) {
 			if cn == "" {
 				cn = generateRandomURL()
 			}
-			// check if custom exists
 			namedAddress := NamedAddress{
 				Name:    cn,
 				Address: address,
-				OwnerId: "tabo", //TODO. Owner ID should be taken from http header
+				OwnerId: loggedInUser,
 				Active:  true,
 			}
 			if err := s.store.Create(namedAddress); err == nil {
@@ -201,17 +210,18 @@ func (s *Server) handler(w http.ResponseWriter, r *http.Request) {
 		if err != nil {
 			return
 		}
-		// Redirect to the address
+		if !namedAddress.Active {
+			http.Error(w, "address not found", http.StatusNotFound)
+			return
+		}
 		http.Redirect(w, r, namedAddress.Address, http.StatusSeeOther)
 		return
 	}
-	// Retrieve named addresses for the owner
-	namedAddresses, err := s.store.List("tabo")
+	namedAddresses, err := s.store.List(loggedInUser)
 	if err != nil {
 		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 		return
 	}
-	// Combine data for rendering
 	pageVariables := PageVariables{
 		NamedAddresses: namedAddresses,
 	}
@@ -226,6 +236,42 @@ func (s *Server) handler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	renderHTML(w, r, tmpl, pageVariables)
+}
+
+type UpdateRequest struct {
+	Name   string `json:"name"`
+	Active bool   `json:"active"`
+}
+
+func (s *Server) toggleHandler(w http.ResponseWriter, r *http.Request) {
+	var data UpdateRequest
+	if r.Method == http.MethodPost {
+		loggedInUser, err := getLoggedInUser(r)
+		if err != nil {
+			http.Error(w, "User Not Logged In", http.StatusUnauthorized)
+			return
+		}
+		if err := json.NewDecoder(r.Body).Decode(&data); err != nil {
+			http.Error(w, "Failed to decode JSON data", http.StatusBadRequest)
+			return
+		}
+		namedAddress, err := s.store.Get(data.Name)
+		if err != nil {
+			http.Error(w, fmt.Sprintf("Failed to get named_address for name %s", data.Name), http.StatusInternalServerError)
+			return
+		}
+		if namedAddress.OwnerId != loggedInUser {
+			http.Error(w, "Invalid owner ID", http.StatusUnauthorized)
+			return
+		}
+		if err := s.store.UpdateStatus(data.Name, data.Active); err != nil {
+			http.Error(w, fmt.Sprintf("Failed to update status for name %s", data.Name), http.StatusInternalServerError)
+			return
+		}
+	} else {
+		http.Error(w, "Method Not Allowed", http.StatusMethodNotAllowed)
+		return
+	}
 }
 
 func main() {
