@@ -5,7 +5,11 @@ input: {
 
 _domain: "\(input.subdomain).\(input.network.domain)"
 
+name: "qbitorrent"
+namespace: "app-qbittorrent"
 readme: "qbittorrent application will be installed on \(input.network.name) network and be accessible to any user on https://\(_domain)"
+description: "qBittorrent is a cross-platform free and open-source BitTorrent client written in native C++. It relies on Boost, Qt 6 toolkit and the libtorrent-rasterbar library, with an optional search engine written in Python."
+icon: "<svg xmlns='http://www.w3.org/2000/svg' width='50' height='50' viewBox='0 0 48 48'><circle cx='24' cy='24' r='21.5' fill='none' stroke='currentColor' stroke-linecap='round' stroke-linejoin='round'/><path fill='none' stroke='currentColor' stroke-linecap='round' stroke-linejoin='round' d='M26.651 22.364a5.034 5.034 0 0 1 5.035-5.035h0a5.034 5.034 0 0 1 5.034 5.035v3.272a5.034 5.034 0 0 1-5.034 5.035h0a5.034 5.034 0 0 1-5.035-5.035m0 5.035V10.533m-5.302 15.103a5.034 5.034 0 0 1-5.035 5.035h0a5.034 5.034 0 0 1-5.034-5.035v-3.272a5.034 5.034 0 0 1 5.034-5.035h0a5.034 5.034 0 0 1 5.035 5.035m0-5.035v20.138'/></svg>"
 
 images: {
 	qbittorrent: {

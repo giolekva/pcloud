@@ -28,3 +28,6 @@ push: push_arm64 push_amd64
 	podman manifest create giolekva/app-repository:latest giolekva/app-repository:arm64 giolekva/app-repository:amd64
 	podman manifest push giolekva/app-repository:latest docker://docker.io/giolekva/app-repository:latest
 	podman manifest rm giolekva/app-repository:latest
+
+run:
+	go run cmd/*.go

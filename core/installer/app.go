@@ -990,77 +990,54 @@ func NewFSAppRepository(fs billy.Filesystem) (AppRepository[StoreApp], error) {
 }
 
 func loadApp(fs billy.Filesystem) (StoreApp, error) {
-	cfg, err := fs.Open("Chart.yaml")
+	items, err := fs.ReadDir(".")
 	if err != nil {
 		return StoreApp{}, err
 	}
-	defer cfg.Close()
-	b, err := io.ReadAll(cfg)
-	if err != nil {
-		return StoreApp{}, err
-	}
-	var appCfg appConfig
-	if err := yaml.Unmarshal(b, &appCfg); err != nil {
-		return StoreApp{}, err
-	}
-	rb, err := fs.Open("README.md")
-	if err != nil {
-		return StoreApp{}, err
-	}
-	defer rb.Close()
-	readme, err := io.ReadAll(rb)
-	if err != nil {
-		return StoreApp{}, err
-	}
-	readmeTmpl, err := template.New("README.md").Parse(string(readme))
-	if err != nil {
-		return StoreApp{}, err
-	}
-	sb, err := fs.Open("schema.json")
-	if err != nil {
-		return StoreApp{}, err
-	}
-	defer sb.Close()
-	scm, err := io.ReadAll(sb)
-	if err != nil {
-		return StoreApp{}, err
-	}
-	schema, err := NewJSONSchema(string(scm))
-	if err != nil {
-		return StoreApp{}, err
-	}
-	tFiles, err := fs.ReadDir("templates")
-	if err != nil {
-		return StoreApp{}, err
-	}
-	tmpls := make([]*template.Template, 0)
-	for _, t := range tFiles {
-		if !strings.HasSuffix(t.Name(), ".yaml") {
+	var contents bytes.Buffer
+	for _, i := range items {
+		if i.IsDir() {
 			continue
 		}
-		inp, err := fs.Open(fs.Join("templates", t.Name()))
+		f, err := fs.Open(i.Name())
 		if err != nil {
 			return StoreApp{}, err
 		}
-		b, err := io.ReadAll(inp)
-		if err != nil {
+		defer f.Close()
+		if _, err := io.Copy(&contents, f); err != nil {
 			return StoreApp{}, err
 		}
-		tmpl, err := template.New(t.Name()).Parse(string(b))
-		if err != nil {
-			return StoreApp{}, err
-		}
-		tmpls = append(tmpls, tmpl)
 	}
+	cfg, schema, err := processCueConfig(contents.String())
+	if err != nil {
+		return StoreApp{}, err
+	}
+	return newCueApp(cfg, schema)
+}
+
+type cueAppConfig struct {
+	Name        string `json:"name"`
+	Namespace   string `json:"namespace"`
+	Description string `json:"description"`
+	Icon        string `json:"icon"`
+}
+
+func newCueApp(cfg *cue.Value, schema Schema) (StoreApp, error) {
+	var config cueAppConfig
+	if err := cfg.Decode(&config); err != nil {
+		return StoreApp{}, err
+	}
+	fmt.Printf("%#v\n", config)
 	return StoreApp{
 		App: App{
-			Name:       appCfg.Name,
-			Readme:     readmeTmpl,
+			Name:       config.Name,
+			Readme:     nil,
 			schema:     schema,
-			Namespaces: appCfg.Namespaces,
-			templates:  tmpls,
+			Namespaces: []string{config.Namespace},
+			templates:  []*template.Template{},
+			cfg:        cfg,
 		},
-		ShortDescription: appCfg.Description,
-		Icon:             appCfg.Icon,
+		ShortDescription: config.Description,
+		Icon:             htemplate.HTML(config.Icon),
 	}, nil
 }

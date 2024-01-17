@@ -10,7 +10,7 @@ import (
 
 var port = flag.Int("port", 8080, "Port to listen on")
 var appsDir = flag.String("apps-dir", "./apps", "Directory listing application archives")
-var schemeWithHost = flag.String("scheme-with-host", "", "http://localhost:8080")
+var schemeWithHost = flag.String("scheme-with-host", "http://localhost:8080", "")
 
 func main() {
 	flag.Parse()
