@@ -26,21 +26,16 @@
         <tr>
             <th>Name</th>
             <th>Address</th>
-            <!-- <th>Owner</th> -->
             <th>Active</th>
         </tr>
         {{ range .NamedAddresses }}
         <tr>
             <td><a href="{{ .Name }}" target="_blank">{{ .Name }}</a></td>
             <td>{{ .Address }}</td>
-            <!-- <td>{{ .OwnerId }}</td> -->
-            <!-- <td>{{ .Active }}</td> -->
             <td>
-                <label for="switch">
-                    <input type="checkbox" id="switch-{{ .Name }}" name="switch" role="switch" {{ if .Active }}checked{{ end }}
-                    onclick="toggle('{{ .Name }}',{{not .Active}})"
-                    >
-                </label>
+                <input type="checkbox" role="switch" {{ if .Active }}checked{{ end }}
+                onclick="toggle('{{ .Name }}',{{ not .Active }})"
+                >
             </td>
         </tr>
         {{ end }}
@@ -53,7 +48,7 @@
             "active": status
         }
         console.log("DATA: ", data)
-        fetch("/api/", {
+        fetch("/api/update/", {
             method: "POST",
             headers: {
                 'Content-Type': 'application/json',

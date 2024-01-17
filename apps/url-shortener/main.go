@@ -161,11 +161,17 @@ type Server struct {
 
 func (s *Server) Start() {
 	http.HandleFunc("/", s.handler)
-	http.HandleFunc("/api/", s.togglehandler)
+	http.HandleFunc("/api/update/", s.toggleHandler)
 	log.Fatal(http.ListenAndServe(":8080", nil))
 }
 
 func (s *Server) handler(w http.ResponseWriter, r *http.Request) {
+	// check if custom exists
+	loggedInUser, err := getLoggedInUser(r)
+	if err != nil {
+		http.Error(w, "User Not Logged In", http.StatusUnauthorized)
+		return
+	}
 	if r.Method == http.MethodPost {
 		customName := r.PostFormValue("custom")
 		address := r.PostFormValue("address")
@@ -177,12 +183,6 @@ func (s *Server) handler(w http.ResponseWriter, r *http.Request) {
 			cn := customName
 			if cn == "" {
 				cn = generateRandomURL()
-			}
-			// check if custom exists
-			loggedInUser, err := getLoggedInUser(r)
-			if err != nil {
-				http.Error(w, "User Not Logged In", http.StatusUnauthorized)
-				return
 			}
 			namedAddress := NamedAddress{
 				Name:    cn,
@@ -221,11 +221,6 @@ func (s *Server) handler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	// Retrieve named addresses for the owner
-	loggedInUser, err := getLoggedInUser(r)
-	if err != nil {
-		http.Error(w, "User Not Logged In", http.StatusUnauthorized)
-		return
-	}
 	namedAddresses, err := s.store.List(loggedInUser)
 	if err != nil {
 		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
@@ -253,9 +248,14 @@ type UpdateRequest struct {
 	Active bool   `json:"active"`
 }
 
-func (s *Server) togglehandler(w http.ResponseWriter, r *http.Request) {
+func (s *Server) toggleHandler(w http.ResponseWriter, r *http.Request) {
 	var data UpdateRequest
 	if r.Method == http.MethodPost {
+		loggedInUser, err := getLoggedInUser(r)
+		if err != nil {
+			http.Error(w, "User Not Logged In", http.StatusUnauthorized)
+			return
+		}
 		if err := json.NewDecoder(r.Body).Decode(&data); err != nil {
 			http.Error(w, "Failed to decode JSON data", http.StatusBadRequest)
 			return
@@ -263,11 +263,6 @@ func (s *Server) togglehandler(w http.ResponseWriter, r *http.Request) {
 		namedAddress, err := s.store.Get(data.Name)
 		if err != nil {
 			http.Error(w, fmt.Sprintf("Failed to get named_address for name %s", data.Name), http.StatusInternalServerError)
-			return
-		}
-		loggedInUser, err := getLoggedInUser(r)
-		if err != nil {
-			http.Error(w, "User Not Logged In", http.StatusUnauthorized)
 			return
 		}
 		if namedAddress.OwnerId != loggedInUser {
@@ -278,6 +273,9 @@ func (s *Server) togglehandler(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, fmt.Sprintf("Failed to update status for name %s", data.Name), http.StatusInternalServerError)
 			return
 		}
+	} else {
+		http.Error(w, "Method Not Allowed", http.StatusMethodNotAllowed)
+		return
 	}
 }
 
