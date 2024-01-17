@@ -41,13 +41,12 @@
         {{ end }}
     </table>
 </body>
-<script>
-    function toggle(name,status) {
+<script type="application/javascript">
+    function toggle(name, status) {
         const data = {
             "name": name,
             "active": status
-        }
-        console.log("DATA: ", data)
+        };
         fetch("/api/update/", {
             method: "POST",
             headers: {
