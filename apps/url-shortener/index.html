@@ -1,26 +1,20 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>URL Shortener</title>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@1/css/pico.min.css">
 </head>
-
 <body>
     <h1>URL Shortener</h1>
-
     <form action="/" method="post">
         <label for="address">Address:</label>
         <input type="text" id="address" name="address" required>
-
         <label for="custom">Custom Name (optional):</label>
         <input type="text" id="custom" name="custom">
-
         <button type="submit">Shorten URL</button>
     </form>
-
     <h2>Named Addresses:</h2>
     <table>
         <tr>
@@ -28,31 +22,29 @@
             <th>Address</th>
             <th>Active</th>
         </tr>
-        {{ range .NamedAddresses }}
+        {{- range .NamedAddresses -}}
         <tr>
             <td><a href="{{ .Name }}" target="_blank">{{ .Name }}</a></td>
             <td>{{ .Address }}</td>
             <td>
-                <input type="checkbox" role="switch" {{ if .Active }}checked{{ end }}
-                onclick="toggle('{{ .Name }}',{{ not .Active }})"
-                >
+                <input type="checkbox" role="switch" {{ if .Active }}checked{{ end }} onclick="toggle('{{ .Name }}', {{ not .Active }});">
             </td>
         </tr>
-        {{ end }}
+        {{- end -}}
     </table>
 </body>
 <script type="application/javascript">
     function toggle(name, status) {
         const data = {
             "name": name,
-            "active": status
+            "active": status,
         };
         fetch("/api/update/", {
             method: "POST",
             headers: {
                 'Content-Type': 'application/json',
             },
-            body: JSON.stringify(data)
+            body: JSON.stringify(data),
         })
         .then(response => {
             if (response.ok) {
@@ -62,6 +54,6 @@
         .catch((error) => {
             console.error('Error:', error);
         });
-    } 
+    }
 </script>
 </html>

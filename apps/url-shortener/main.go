@@ -166,7 +166,6 @@ func (s *Server) Start() {
 }
 
 func (s *Server) handler(w http.ResponseWriter, r *http.Request) {
-	// check if custom exists
 	loggedInUser, err := getLoggedInUser(r)
 	if err != nil {
 		http.Error(w, "User Not Logged In", http.StatusUnauthorized)
@@ -212,21 +211,17 @@ func (s *Server) handler(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		if !namedAddress.Active {
-			// when named address is not active
 			http.Error(w, "address not found", http.StatusNotFound)
 			return
 		}
-		// Redirect to the address
 		http.Redirect(w, r, namedAddress.Address, http.StatusSeeOther)
 		return
 	}
-	// Retrieve named addresses for the owner
 	namedAddresses, err := s.store.List(loggedInUser)
 	if err != nil {
 		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 		return
 	}
-	// Combine data for rendering
 	pageVariables := PageVariables{
 		NamedAddresses: namedAddresses,
 	}
