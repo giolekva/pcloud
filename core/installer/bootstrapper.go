@@ -383,8 +383,8 @@ func (b Bootstrapper) installInfrastructureServices(repo RepoIO, nsGen Namespace
 		if err != nil {
 			return err
 		}
-		namespaces := make([]string, len(app.Namespaces))
-		for i, n := range app.Namespaces {
+		namespaces := make([]string, len(app.Namespaces()))
+		for i, n := range app.Namespaces() {
 			namespaces[i], err = nsGen.Generate(n)
 			if err != nil {
 				return err
@@ -406,7 +406,7 @@ func (b Bootstrapper) installInfrastructureServices(repo RepoIO, nsGen Namespace
 			derived.Release.Namespace = namespaces[0]
 		}
 		values := map[string]any{}
-		return repo.InstallApp(*app, filepath.Join("/infrastructure", app.Name), values, derived)
+		return repo.InstallApp(app, filepath.Join("/infrastructure", app.Name()), values, derived)
 	}
 	appsToInstall := []string{
 		"resource-renderer-controller",
@@ -489,8 +489,8 @@ func (b Bootstrapper) installEnvManager(ss *soft.Client, repo RepoIO, nsGen Name
 	if err != nil {
 		return err
 	}
-	namespaces := make([]string, len(app.Namespaces))
-	for i, n := range app.Namespaces {
+	namespaces := make([]string, len(app.Namespaces()))
+	for i, n := range app.Namespaces() {
 		namespaces[i], err = nsGen.Generate(n)
 		if err != nil {
 			return err
@@ -515,7 +515,7 @@ func (b Bootstrapper) installEnvManager(ss *soft.Client, repo RepoIO, nsGen Name
 	if len(namespaces) > 0 {
 		derived.Release.Namespace = namespaces[0]
 	}
-	return repo.InstallApp(*app, filepath.Join("/infrastructure", app.Name), derived.Values, derived)
+	return repo.InstallApp(app, filepath.Join("/infrastructure", app.Name()), derived.Values, derived)
 }
 
 func (b Bootstrapper) installDNSZoneManager(ss *soft.Client, repo RepoIO, nsGen NamespaceGenerator, nsCreator NamespaceCreator, env EnvConfig) error {
@@ -552,7 +552,7 @@ func (b Bootstrapper) installDNSZoneManager(ss *soft.Client, repo RepoIO, nsGen 
 				Namespace: ns,
 			},
 		}
-		if err := repo.InstallApp(*app, filepath.Join("/infrastructure", app.Name), derived.Values, derived); err != nil {
+		if err := repo.InstallApp(app, filepath.Join("/infrastructure", app.Name()), derived.Values, derived); err != nil {
 			return err
 		}
 	}
@@ -565,7 +565,7 @@ func (b Bootstrapper) installFluxcdReconciler(ss *soft.Client, repo RepoIO, nsGe
 	if err != nil {
 		return err
 	}
-	ns, err := nsGen.Generate(app.Namespaces[0])
+	ns, err := nsGen.Generate(app.Namespaces()[0])
 	if err != nil {
 		return err
 	}
@@ -581,7 +581,7 @@ func (b Bootstrapper) installFluxcdReconciler(ss *soft.Client, repo RepoIO, nsGe
 			Namespace: ns,
 		},
 	}
-	if err := repo.InstallApp(*app, filepath.Join("/infrastructure", app.Name), derived.Values, derived); err != nil {
+	if err := repo.InstallApp(app, filepath.Join("/infrastructure", app.Name()), derived.Values, derived); err != nil {
 		return err
 	}
 	return nil

@@ -52,7 +52,7 @@ func NewCreateConfigRepoTask(env Env, st *state) Task {
 		if err := st.nsCreator.Create(env.Name); err != nil {
 			return err
 		}
-		if err := st.repo.InstallApp(*ssApp, filepath.Join("/environments", env.Name, "config-repo"), ssValues, derived); err != nil {
+		if err := st.repo.InstallApp(ssApp, filepath.Join("/environments", env.Name, "config-repo"), ssValues, derived); err != nil {
 			return err
 		}
 		return nil

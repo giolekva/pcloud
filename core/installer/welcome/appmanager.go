@@ -30,14 +30,14 @@ var appHtmlTmpl string
 type AppManagerServer struct {
 	port       int
 	m          *installer.AppManager
-	r          installer.AppRepository[installer.StoreApp]
+	r          installer.AppRepository
 	reconciler tasks.Reconciler
 }
 
 func NewAppManagerServer(
 	port int,
 	m *installer.AppManager,
-	r installer.AppRepository[installer.StoreApp],
+	r installer.AppRepository,
 	reconciler tasks.Reconciler,
 ) *AppManagerServer {
 	return &AppManagerServer{
@@ -80,7 +80,7 @@ func (s *AppManagerServer) handleAppRepo(c echo.Context) error {
 	}
 	resp := make([]app, len(all))
 	for i, a := range all {
-		resp[i] = app{a.Name, a.Icon, a.ShortDescription, a.Name, nil}
+		resp[i] = app{a.Name(), a.Icon(), a.Description(), a.Name(), nil}
 	}
 	return c.JSON(http.StatusOK, resp)
 }
@@ -114,7 +114,7 @@ func (s *AppManagerServer) handleApp(c echo.Context) error {
 			}
 		}
 	}
-	return c.JSON(http.StatusOK, app{a.Name, a.Icon, a.ShortDescription, a.Name, instances})
+	return c.JSON(http.StatusOK, app{a.Name(), a.Icon(), a.Description(), a.Name(), instances})
 }
 
 func (s *AppManagerServer) handleInstance(c echo.Context) error {
@@ -144,7 +144,7 @@ func (s *AppManagerServer) handleInstance(c echo.Context) error {
 	if err != nil {
 		return err
 	}
-	return c.JSON(http.StatusOK, app{a.Name, a.Icon, a.ShortDescription, a.Name, []installer.AppConfig{instance}})
+	return c.JSON(http.StatusOK, app{a.Name(), a.Icon(), a.Description(), a.Name(), []installer.AppConfig{instance}})
 }
 
 type file struct {
@@ -224,7 +224,7 @@ func (s *AppManagerServer) handleAppInstall(c echo.Context) error {
 	log.Printf("Configuration: %+v\n", config)
 	nsGen := installer.NewPrefixGenerator(config.Values.NamespacePrefix)
 	suffixGen := installer.NewFixedLengthRandomSuffixGenerator(3)
-	if err := s.m.Install(a.App, nsGen, suffixGen, values); err != nil {
+	if err := s.m.Install(a, nsGen, suffixGen, values); err != nil {
 		log.Printf("%s\n", err.Error())
 		return err
 	}
@@ -251,7 +251,7 @@ func (s *AppManagerServer) handleAppUpdate(c echo.Context) error {
 	if err != nil {
 		return err
 	}
-	if err := s.m.Update(a.App, slug, values); err != nil {
+	if err := s.m.Update(a, slug, values); err != nil {
 		return err
 	}
 	ctx, _ := context.WithTimeout(context.Background(), 2*time.Minute)
@@ -280,13 +280,13 @@ func (s *AppManagerServer) handleIndex(c echo.Context) error {
 	}
 	resp := make([]app, len(all))
 	for i, a := range all {
-		resp[i] = app{a.Name, a.Icon, a.ShortDescription, a.Name, nil}
+		resp[i] = app{a.Name(), a.Icon(), a.Description(), a.Name(), nil}
 	}
 	return tmpl.Execute(c.Response(), resp)
 }
 
-type appContext[T any] struct {
-	App               *T
+type appContext struct {
+	App               installer.App
 	Instance          *installer.AppConfig
 	Instances         []installer.AppConfig
 	AvailableNetworks []installer.Network
@@ -314,7 +314,7 @@ func (s *AppManagerServer) handleAppUI(c echo.Context) error {
 	if err != nil {
 		return err
 	}
-	err = appTmpl.Execute(c.Response(), appContext[installer.StoreApp]{
+	err = appTmpl.Execute(c.Response(), appContext{
 		App:               a,
 		Instances:         instances,
 		AvailableNetworks: installer.CreateNetworks(global),
@@ -345,11 +345,11 @@ func (s *AppManagerServer) handleInstanceUI(c echo.Context) error {
 	if err != nil {
 		return err
 	}
-	instances, err := s.m.FindAllInstances(a.Name)
+	instances, err := s.m.FindAllInstances(a.Name())
 	if err != nil {
 		return err
 	}
-	err = appTmpl.Execute(c.Response(), appContext[installer.StoreApp]{
+	err = appTmpl.Execute(c.Response(), appContext{
 		App:               a,
 		Instance:          &instance,
 		Instances:         instances,

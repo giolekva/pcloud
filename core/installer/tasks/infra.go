@@ -113,7 +113,7 @@ func SetupNetwork(env Env, st *state) Task {
 			if err != nil {
 				return err
 			}
-			if err := st.appManager.Install(*app, st.nsGen, installer.NewSuffixGenerator("-ingress-private"), map[string]any{
+			if err := st.appManager.Install(app, st.nsGen, installer.NewSuffixGenerator("-ingress-private"), map[string]any{
 				"name":       fmt.Sprintf("%s-ingress-private", env.Name),
 				"from":       ingressPrivateIP.String(),
 				"to":         ingressPrivateIP.String(),
@@ -122,7 +122,7 @@ func SetupNetwork(env Env, st *state) Task {
 			}); err != nil {
 				return err
 			}
-			if err := st.appManager.Install(*app, st.nsGen, installer.NewSuffixGenerator("-headscale"), map[string]any{
+			if err := st.appManager.Install(app, st.nsGen, installer.NewSuffixGenerator("-headscale"), map[string]any{
 				"name":       fmt.Sprintf("%s-headscale", env.Name),
 				"from":       headscaleIP.String(),
 				"to":         headscaleIP.String(),
@@ -131,7 +131,7 @@ func SetupNetwork(env Env, st *state) Task {
 			}); err != nil {
 				return err
 			}
-			if err := st.appManager.Install(*app, st.nsGen, st.emptySuffixGen, map[string]any{
+			if err := st.appManager.Install(app, st.nsGen, st.emptySuffixGen, map[string]any{
 				"name":       env.Name,
 				"from":       "10.1.0.100", // TODO(gio): auto-generate
 				"to":         "10.1.0.254",
@@ -146,7 +146,7 @@ func SetupNetwork(env Env, st *state) Task {
 			if err != nil {
 				return err
 			}
-			if err := st.appManager.Install(*app, st.nsGen, st.emptySuffixGen, map[string]any{
+			if err := st.appManager.Install(app, st.nsGen, st.emptySuffixGen, map[string]any{
 				"privateNetwork": map[string]any{
 					"hostname": "private-network-proxy",
 					"username": "private-network-proxy",
@@ -167,7 +167,7 @@ func SetupCertificateIssuers(env Env, st *state) Task {
 		if err != nil {
 			return err
 		}
-		if err := st.appManager.Install(*app, st.nsGen, st.emptySuffixGen, map[string]any{}); err != nil {
+		if err := st.appManager.Install(app, st.nsGen, st.emptySuffixGen, map[string]any{}); err != nil {
 			return err
 		}
 		return nil
@@ -177,7 +177,7 @@ func SetupCertificateIssuers(env Env, st *state) Task {
 		if err != nil {
 			return err
 		}
-		if err := st.appManager.Install(*app, st.nsGen, st.emptySuffixGen, map[string]any{
+		if err := st.appManager.Install(app, st.nsGen, st.emptySuffixGen, map[string]any{
 			"apiConfigMap": map[string]any{
 				"name":      "api-config", // TODO(gio): take from global pcloud config
 				"namespace": fmt.Sprintf("%s-dns-zone-manager", env.PCloudEnvName),
@@ -196,7 +196,7 @@ func SetupAuth(env Env, st *state) Task {
 		if err != nil {
 			return err
 		}
-		if err := st.appManager.Install(*app, st.nsGen, st.emptySuffixGen, map[string]any{
+		if err := st.appManager.Install(app, st.nsGen, st.emptySuffixGen, map[string]any{
 			"subdomain": "test", // TODO(giolekva): make core-auth chart actually use this
 		}); err != nil {
 			return err
@@ -216,7 +216,7 @@ func SetupHeadscale(env Env, st *state) Task {
 		if err != nil {
 			return err
 		}
-		if err := st.appManager.Install(*app, st.nsGen, st.emptySuffixGen, map[string]any{
+		if err := st.appManager.Install(app, st.nsGen, st.emptySuffixGen, map[string]any{
 			"subdomain": "headscale",
 		}); err != nil {
 			return err
@@ -247,7 +247,7 @@ func SetupWelcome(env Env, st *state) Task {
 		if err != nil {
 			return err
 		}
-		if err := st.appManager.Install(*app, st.nsGen, st.emptySuffixGen, map[string]any{
+		if err := st.appManager.Install(app, st.nsGen, st.emptySuffixGen, map[string]any{
 			"repoAddr":      st.ssClient.GetRepoAddress("config"),
 			"sshPrivateKey": string(keys.RawPrivateKey()),
 		}); err != nil {
@@ -279,7 +279,7 @@ func SetupAppStore(env Env, st *state) Task {
 		if err != nil {
 			return err
 		}
-		if err := st.appManager.Install(*app, st.nsGen, st.emptySuffixGen, map[string]any{
+		if err := st.appManager.Install(app, st.nsGen, st.emptySuffixGen, map[string]any{
 			"repoAddr":      st.ssClient.GetRepoAddress("config"),
 			"sshPrivateKey": string(keys.RawPrivateKey()),
 		}); err != nil {

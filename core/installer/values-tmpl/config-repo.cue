@@ -4,6 +4,8 @@ input: {
 	adminKey: string
 }
 
+namespace: "config-repo"
+
 images: {
 	softserve: {
 		repository: "charmcli"

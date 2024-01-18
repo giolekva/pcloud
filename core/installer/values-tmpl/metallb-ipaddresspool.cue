@@ -6,6 +6,8 @@ input: {
 	namespace: string
 }
 
+namespace: "metallb-ipaddresspool"
+
 images: {}
 
 charts: {

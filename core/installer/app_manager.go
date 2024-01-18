@@ -59,8 +59,8 @@ func (m *AppManager) Install(app App, ns NamespaceGenerator, suffixGen SuffixGen
 	if err != nil {
 		return err
 	}
-	namespaces := make([]string, len(app.Namespaces))
-	for i, n := range app.Namespaces {
+	namespaces := make([]string, len(app.Namespaces()))
+	for i, n := range app.Namespaces() {
 		ns, err := ns.Generate(n)
 		if err != nil {
 			return err
@@ -91,7 +91,7 @@ func (m *AppManager) Install(app App, ns NamespaceGenerator, suffixGen SuffixGen
 	fmt.Printf("%+v\n", derived)
 	err = m.repoIO.InstallApp(
 		app,
-		filepath.Join(appDir, app.Name+suffix),
+		filepath.Join(appDir, app.Name()+suffix),
 		config,
 		derived,
 	)

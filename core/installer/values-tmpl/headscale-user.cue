@@ -5,6 +5,8 @@ input: {
 	}
 }
 
+namespace: "app-headscale"
+
 images: {}
 
 charts: {

@@ -268,7 +268,7 @@ func (r *repoIO) InstallApp(app App, appRootDir string, values map[string]any, d
 			return err
 		}
 		cfg := AppConfig{
-			AppId:   app.Name,
+			AppId:   app.Name(),
 			Config:  values,
 			Derived: derived,
 		}

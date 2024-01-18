@@ -6,6 +6,8 @@ input: {
 	}
 }
 
+namespace: "ingress-private"
+
 images: {
 	"ingress-nginx": {
 		registry: "registry.k8s.io"

@@ -5,6 +5,8 @@ input: {
 	}
 }
 
+namespace: "ingress-private"
+
 images: {}
 
 charts: {
