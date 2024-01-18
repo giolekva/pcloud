@@ -152,7 +152,7 @@ func (s *Server) createAdminAccount(w http.ResponseWriter, r *http.Request) {
 				http.Error(w, err.Error(), http.StatusInternalServerError)
 				return
 			}
-			if err := appManager.Install(*app, nsGen, suffixGen, map[string]any{
+			if err := appManager.Install(app, nsGen, suffixGen, map[string]any{
 				"username": req.Username,
 				"preAuthKey": map[string]any{
 					"enabled": false,

@@ -6,6 +6,9 @@ input: {
 	namespace: string
 }
 
+name: "metallb-ipaddresspool"
+namespace: "metallb-ipaddresspool"
+
 images: {}
 
 charts: {

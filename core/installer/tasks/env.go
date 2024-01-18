@@ -20,7 +20,7 @@ type state struct {
 	fluxUserName   string
 	keys           *keygen.KeyPair
 	appManager     *installer.AppManager
-	appsRepo       installer.AppRepository[installer.App]
+	appsRepo       installer.AppRepository
 	nsGen          installer.NamespaceGenerator
 	emptySuffixGen installer.SuffixGenerator
 }

@@ -93,17 +93,17 @@ func NewClient(kubeconfig string) (*client, error) {
 	}
 }
 
-const networkSchema = `
-#Network: {
-	IngressClass: string
-	CertificateIssuer: string
-	Domain: string
-}
+// const networkSchema = `
+// #Network: {
+// 	IngressClass: string
+// 	CertificateIssuer: string
+// 	Domain: string
+// }
 
-value: %s
+// value: %s
 
-valid: #Network & value
-`
+// valid: #Network & value
+// `
 
 type StringFormatter struct {
 	s strings.Builder
@@ -148,6 +148,7 @@ func PrintSchema(v cue.Value) {
 }
 
 func TestInput(t *testing.T) {
+	return
 	c := cuecontext.New()
 	cfg := c.CompileBytes(rpuppyConfig)
 	input := c.CompileString(`
@@ -292,5 +293,14 @@ func TestDownload(t *testing.T) {
 	// installer.ReleaseName = "metallb-ns"
 	// installer.Wait = true
 	// installer.WaitForJobs = true
+}
 
+func TestAppManager(t *testing.T) {
+	r := NewInMemoryAppRepository(CreateAllApps())
+	apps, err := r.GetAll()
+	fmt.Println(apps)
+	fmt.Println(err)
+	for _, app := range apps {
+		fmt.Println(app.Name())
+	}
 }

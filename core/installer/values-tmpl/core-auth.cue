@@ -2,7 +2,10 @@ input: {
 	subdomain: string
 }
 
-userSchema: ###"""
+name: "core-auth"
+namespace: "core-auth"
+
+_userSchema: ###"""
 {
   "$id": "https://schemas.ory.sh/presets/kratos/quickstart/email-password/identity.schema.json",
   "$schema": "http://json-schema.org/draft-07/schema#",
@@ -311,7 +314,7 @@ helm: {
 						}
 					}
 					identitySchemas: {
-                        "identity.schema.json": userSchema
+                        "identity.schema.json": _userSchema
 					}
 				}
 			}

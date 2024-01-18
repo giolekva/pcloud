@@ -87,7 +87,7 @@ func appManagerCmdRun(cmd *cobra.Command, args []string) error {
 		return err
 	}
 	log.Println("Creating repository")
-	var r installer.AppRepository[installer.StoreApp]
+	var r installer.AppRepository
 	if appManagerFlags.appRepoAddr != "" {
 		fs := memfs.New()
 		err = installer.FetchAppsFromHTTPRepository(appManagerFlags.appRepoAddr, fs)
@@ -99,7 +99,7 @@ func appManagerCmdRun(cmd *cobra.Command, args []string) error {
 			return err
 		}
 	} else {
-		r = installer.NewInMemoryAppRepository[installer.StoreApp](installer.CreateStoreApps())
+		r = installer.NewInMemoryAppRepository(installer.CreateStoreApps())
 	}
 	s := welcome.NewAppManagerServer(
 		appManagerFlags.port,

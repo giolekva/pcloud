@@ -2,6 +2,9 @@ import (
 	"encoding/base64"
 )
 
+name: "app-manager"
+namespace: "core-appmanager"
+
 input: {
 	repoAddr: string
 	sshPrivateKey: string

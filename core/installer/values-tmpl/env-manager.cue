@@ -2,6 +2,9 @@ import (
 	"encoding/base64"
 )
 
+name: "env-manager"
+namespace: "env-manager"
+
 input: {
 	repoIP: string
 	repoPort: number

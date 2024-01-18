@@ -2,6 +2,9 @@ import (
 	"encoding/base64"
 )
 
+name: "welcome"
+namespace: "app-welcome"
+
 input: {
 	repoAddr: string
 	sshPrivateKey: string

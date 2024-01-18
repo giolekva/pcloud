@@ -1,5 +1,8 @@
 input: {}
 
+name: "csi-driver-smb"
+namespace: "csi-driver-smb"
+
 _baseImage: {
 	registry: "registry.k8s.io"
 	repository: "sig-storage"
