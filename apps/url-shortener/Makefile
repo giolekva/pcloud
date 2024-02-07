@@ -1,5 +1,10 @@
 repo_name ?= giolekva
 podman ?= podman
+manifest_dest = ""
+ifeq ($(podman), podman)
+manifest_dest=docker://docker.io/$(repo_name)/url-shortener:latest
+endif
+
 
 clean:
 	rm -f url-shortener*
@@ -28,5 +33,5 @@ push_amd64: clean build_amd64
 
 push: push_arm64 push_amd64
 	$(podman) manifest create $(repo_name)/url-shortener:latest $(repo_name)/url-shortener:arm64 $(repo_name)/url-shortener:amd64
-	$(podman) manifest push $(repo_name)/url-shortener:latest docker://docker.io/$(repo_name)/url-shortener:latest
+	$(podman) manifest push $(repo_name)/url-shortener:latest $(manifest_dest)
 	$(podman) manifest rm $(repo_name)/url-shortener:latest
