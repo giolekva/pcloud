@@ -1,6 +1,6 @@
 repo_name ?= giolekva
 podman ?= podman
-manifest_dest = ""
+manifest_dest =
 ifeq ($(podman), podman)
 manifest_dest=docker://docker.io/$(repo_name)/url-shortener:latest
 endif
