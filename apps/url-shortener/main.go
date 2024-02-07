@@ -12,7 +12,9 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/mattn/go-sqlite3"
+	"github.com/ncruces/go-sqlite3"
+	_ "github.com/ncruces/go-sqlite3/driver"
+	_ "github.com/ncruces/go-sqlite3/embed"
 )
 
 var port = flag.Int("port", 8080, "Port to listen on")
@@ -87,10 +89,10 @@ func (s *SQLiteStore) Create(addr NamedAddress) error {
 		VALUES (?, ?, ?, ?)
 	`, addr.Name, addr.Address, addr.OwnerId, addr.Active)
 	if err != nil {
-		sqliteErr, ok := err.(sqlite3.Error)
+		sqliteErr, ok := err.(*sqlite3.Error)
 		// sqliteErr.ExtendedCode and sqlite3.ErrConstraintUnique are not the same. probably some lib error.
 		// had to use actual code of unique const error
-		if ok && sqliteErr.ExtendedCode == 1555 {
+		if ok && sqliteErr.ExtendedCode() == 1555 {
 			return NameAlreadyTaken{Name: addr.Name}
 		}
 		return err
