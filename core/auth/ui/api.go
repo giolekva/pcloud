@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"io"
 	"net/http"
 
 	"github.com/gorilla/mux"
@@ -14,6 +13,14 @@ type APIServer struct {
 	r          *mux.Router
 	serv       *http.Server
 	kratosAddr string
+}
+
+type ErrorResponse struct {
+	Error struct {
+		Code    int    `json:"code"`
+		Status  string `json:"status"`
+		Message string `json:"message"`
+	} `json:"error"`
 }
 
 func NewAPIServer(port int, kratosAddr string) *APIServer {
@@ -64,13 +71,24 @@ func (s *APIServer) identityCreate(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		http.Error(w, "failed", http.StatusInternalServerError)
 		return
-	} else if resp.StatusCode != http.StatusCreated {
-		var buf bytes.Buffer
-		if _, err := io.Copy(&buf, resp.Body); err != nil {
-			http.Error(w, "failed to copy response body", http.StatusInternalServerError)
-		} else {
-			http.Error(w, buf.String(), resp.StatusCode)
+	}
+	if resp.StatusCode != http.StatusCreated {
+		var e ErrorResponse
+		if err := json.NewDecoder(resp.Body).Decode(&e); err != nil {
+			http.Error(w, "failed to decode", http.StatusInternalServerError)
+			return
 		}
+		fmt.Printf("%+v\n", e)
+		if e.Error.Status == "Conflict" {
+			http.Error(w, "Username is not available.", http.StatusConflict)
+			return
+		}
+		// var buf bytes.Buffer
+		// if _, err := io.Copy(&buf, resp.Body); err != nil {
+		// 	http.Error(w, "failed to copy response body", http.StatusInternalServerError)
+		// } else {
+		// 	http.Error(w, buf.String(), resp.StatusCode)
+		// }
 	}
 }
 

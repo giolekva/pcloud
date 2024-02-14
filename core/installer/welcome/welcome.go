@@ -5,6 +5,7 @@ import (
 	"embed"
 	"encoding/json"
 	"fmt"
+	"html/template"
 	"io"
 	"log"
 	"net/http"
@@ -52,10 +53,7 @@ func (s *Server) Start() {
 }
 
 func (s *Server) createAdminAccountForm(w http.ResponseWriter, _ *http.Request) {
-	if _, err := w.Write(indexHtml); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
+	renderErrorMessage(w, "")
 }
 
 type createAccountReq struct {
@@ -102,6 +100,23 @@ func extractReq(r *http.Request) (createAccountReq, error) {
 	return req, nil
 }
 
+func renderErrorMessage(w http.ResponseWriter, errorMessage string) {
+	tmpl, err := template.New("create-account").Parse(string(indexHtml))
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	data := struct {
+		ErrorMessage string
+	}{
+		ErrorMessage: errorMessage,
+	}
+	if err := tmpl.Execute(w, data); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+}
+
 func (s *Server) createAdminAccount(w http.ResponseWriter, r *http.Request) {
 	req, err := extractReq(r)
 	if err != nil {
@@ -128,9 +143,14 @@ func (s *Server) createAdminAccount(w http.ResponseWriter, r *http.Request) {
 		}
 		// TODO(gio): better handle status code and error message
 		if resp.StatusCode != http.StatusOK {
-			var e bytes.Buffer
-			io.Copy(&e, resp.Body)
-			http.Error(w, e.String(), http.StatusInternalServerError)
+			// TODO rendering etc
+			var respBody bytes.Buffer
+			if _, err := io.Copy(&respBody, resp.Body); err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+			}
+			respStr := respBody.String()
+			fmt.Println(respStr)
+			renderErrorMessage(w, respStr)
 			return
 		}
 	}

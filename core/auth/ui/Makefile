@@ -19,15 +19,15 @@ build_amd64:
 	go build -o server_amd64 *.go
 
 push_arm64: clean build_arm64
-	podman build --platform linux/arm64 --tag=giolekva/auth-ui:arm64 .
-	podman push giolekva/auth-ui:arm64
+	docker build --platform linux/arm64 --tag=dtabidze/auth-ui:arm64 .
+	docker push dtabidze/auth-ui:arm64
 
 push_amd64: clean build_amd64
-	podman build --platform linux/amd64 --tag=giolekva/auth-ui:amd64 .
-	podman push giolekva/auth-ui:amd64
+	docker build --platform linux/amd64 --tag=dtabidze/auth-ui:amd64 .
+	docker push dtabidze/auth-ui:amd64
 
 
 push: push_arm64 push_amd64
-	podman manifest create giolekva/auth-ui:latest giolekva/auth-ui:arm64 giolekva/auth-ui:amd64
-	podman manifest push giolekva/auth-ui:latest docker://docker.io/giolekva/auth-ui:latest
-	podman manifest rm giolekva/auth-ui:latest
+	docker manifest create dtabidze/auth-ui:latest dtabidze/auth-ui:arm64 dtabidze/auth-ui:amd64
+	docker manifest push dtabidze/auth-ui:latest
+	docker manifest rm dtabidze/auth-ui:latest

@@ -4,8 +4,8 @@ clean:
 	rm -f pcloud
 
 push_fluxcd_arm64:
-	docker build --file=Dockerfile.flux --tag=giolekva/flux:latest . --platform=linux/arm64
-	docker push giolekva/flux:latest
+	docker build --file=Dockerfile.flux --tag=dtabidze/flux:latest . --platform=linux/arm64
+	docker push dtabidze/flux:latest
 
 build: export CGO_ENABLED=0
 build: clean
@@ -54,18 +54,18 @@ build_amd64:
 push_arm64: clean build_arm64
 	mkdir tmp
 	cp -r ../../charts tmp/
-	podman build --platform linux/arm64 --tag=giolekva/pcloud-installer:arm64 .
+	docker build --platform linux/arm64 --tag=dtabidze/pcloud-installer:arm64 .
 	rm -rf tmp
-	podman push giolekva/pcloud-installer:arm64
+	docker push dtabidze/pcloud-installer:arm64
 
 push_amd64: clean build_amd64
 	mkdir tmp
 	cp -r ../../charts tmp/
-	podman build --platform linux/amd64 --tag=giolekva/pcloud-installer:amd64 .
+	docker build --platform linux/amd64 --tag=dtabidze/pcloud-installer:amd64 .
 	rm -rf tmp
-	podman push giolekva/pcloud-installer:amd64
+	docker push dtabidze/pcloud-installer:amd64
 
 push: push_arm64 push_amd64
-	podman manifest create giolekva/pcloud-installer:latest giolekva/pcloud-installer:arm64 giolekva/pcloud-installer:amd64
-	podman manifest push giolekva/pcloud-installer:latest docker://docker.io/giolekva/pcloud-installer:latest
-	podman manifest rm giolekva/pcloud-installer:latest
+	docker manifest create dtabidze/pcloud-installer:latest dtabidze/pcloud-installer:arm64 dtabidze/pcloud-installer:amd64
+	docker manifest push dtabidze/pcloud-installer:latest 
+	docker manifest rm dtabidze/pcloud-installer:latest
