@@ -117,7 +117,13 @@ func (s *Server) createAdminAccount(w http.ResponseWriter, r *http.Request) {
 		}
 		resp, err := http.Post(s.createAccountAddr, "application/json", &buf)
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+			var respBody bytes.Buffer
+			if _, err := io.Copy(&respBody, resp.Body); err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+			}
+			respStr := respBody.String()
+			log.Println(respStr)
+			http.Error(w, respStr, http.StatusInternalServerError)
 			return
 		}
 		// TODO(gio): better handle status code and error message

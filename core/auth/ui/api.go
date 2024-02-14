@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 
 	"github.com/gorilla/mux"
@@ -60,9 +61,16 @@ func (s *APIServer) identityCreate(w http.ResponseWriter, r *http.Request) {
 	var buf bytes.Buffer
 	fmt.Fprintf(&buf, identityCreateTmpl, req.Password, req.Username)
 	resp, err := http.Post(s.identitiesEndpoint(), "application/json", &buf)
-	if err != nil || resp.StatusCode != http.StatusCreated {
+	if err != nil {
 		http.Error(w, "failed", http.StatusInternalServerError)
 		return
+	} else if resp.StatusCode != http.StatusCreated {
+		var buf bytes.Buffer
+		if _, err := io.Copy(&buf, resp.Body); err != nil {
+			http.Error(w, "failed to copy response body", http.StatusInternalServerError)
+		} else {
+			http.Error(w, buf.String(), resp.StatusCode)
+		}
 	}
 }
 
