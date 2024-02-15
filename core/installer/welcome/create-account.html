@@ -6,10 +6,10 @@
 		<meta name="viewport" content="width=device-width, initial-scale=1" />
 	</head>
 	<body>
-		{{ if .ErrorMessage }}
-		<h1>{{ .ErrorMessage }}</h1>
-		{{ end }}
 		<main class="container">
+			{{ if .ErrorMessage }}
+			<small>{{ .ErrorMessage }}</small>
+			{{ end }}
 			<form action="" method="POST">
 			  <input
 				type="text"

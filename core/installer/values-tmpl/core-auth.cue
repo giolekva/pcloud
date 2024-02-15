@@ -233,6 +233,7 @@ helm: {
 							methods: {
 								password: {
 									enabled: true
+									min_password_length: 6
 								}
 							}
 							flows: {
