@@ -349,7 +349,7 @@ func CreateStoreApps() []App {
 }
 
 func createApps(configs []string) []App {
-	ret := make([]App, len(configs))
+	ret := make([]App, 0)
 	for _, cfgFile := range configs {
 		cfg, err := readCueConfigFromFile(valuesTmpls, cfgFile)
 		if err != nil {

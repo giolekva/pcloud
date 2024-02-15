@@ -5,6 +5,7 @@ input: {
 	}
 }
 
+name: "headscale-user"
 namespace: "app-headscale"
 
 images: {}
