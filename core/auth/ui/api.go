@@ -59,6 +59,25 @@ type identityCreateReq struct {
 	Password string `json:"password,omitempty"`
 }
 
+func handleIdentityCreateError(w http.ResponseWriter, resp *http.Response) {
+	var e ErrorResponse
+	if err := json.NewDecoder(resp.Body).Decode(&e); err != nil {
+		fmt.Printf("%+v\n", e)
+		http.Error(w, "failed to decode", http.StatusInternalServerError)
+		return
+	}
+	fmt.Printf("%+v\n", e)
+
+	switch e.Error.Status {
+	case "Conflict":
+		http.Error(w, "Username is not available.", http.StatusConflict)
+	case "Bad Request":
+		http.Error(w, "Username is less than 3 characters.", http.StatusBadRequest)
+	default:
+		http.Error(w, "Unexpected error.", http.StatusInternalServerError)
+	}
+}
+
 func (s *APIServer) identityCreate(w http.ResponseWriter, r *http.Request) {
 	var req identityCreateReq
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -72,23 +91,20 @@ func (s *APIServer) identityCreate(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "failed", http.StatusInternalServerError)
 		return
 	}
+	// logging
+	// defer resp.Body.Close()
+	// body, err := ioutil.ReadAll(resp.Body)
+	// if err != nil {
+	// 	http.Error(w, "failed", http.StatusInternalServerError)
+	// 	return
+	// }
+	// fmt.Printf("Response Status: %s\n", resp.Status)
+	// fmt.Println("Response Body:", string(body))
+	//
+	fmt.Println("Status Code:", resp.StatusCode)
 	if resp.StatusCode != http.StatusCreated {
-		var e ErrorResponse
-		if err := json.NewDecoder(resp.Body).Decode(&e); err != nil {
-			http.Error(w, "failed to decode", http.StatusInternalServerError)
-			return
-		}
-		fmt.Printf("%+v\n", e)
-		if e.Error.Status == "Conflict" {
-			http.Error(w, "Username is not available.", http.StatusConflict)
-			return
-		}
-		// var buf bytes.Buffer
-		// if _, err := io.Copy(&buf, resp.Body); err != nil {
-		// 	http.Error(w, "failed to copy response body", http.StatusInternalServerError)
-		// } else {
-		// 	http.Error(w, buf.String(), resp.StatusCode)
-		// }
+		handleIdentityCreateError(w, resp)
+		return
 	}
 }
 
