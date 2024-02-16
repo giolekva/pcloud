@@ -16,6 +16,7 @@
 				name="username"
 				placeholder="Username"
 				aria-label="Username"
+				value="{{ .FormData.Username }}"
 				required
 			  />
 			  <input
@@ -23,6 +24,7 @@
 				name="password"
 				placeholder="Password"
 				aria-label="Password"
+				value="{{ .FormData.Password }}"
 				required
 				/>
 			  <input
@@ -30,6 +32,7 @@
 				name="secret-token"
 				placeholder="Secret Token"
 				aria-label="Secret Token"
+				value="{{ .FormData.SecretToken }}"
 				required
 			  />
 			  <button type="submit">Create Account</button>

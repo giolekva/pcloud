@@ -52,8 +52,16 @@ func (s *Server) Start() {
 	log.Fatal(http.ListenAndServe(fmt.Sprintf(":%d", s.port), nil))
 }
 
-func (s *Server) createAdminAccountForm(w http.ResponseWriter, _ *http.Request) {
-	renderErrorMessage(w, "")
+func (s *Server) createAdminAccountForm(w http.ResponseWriter, r *http.Request) {
+
+	previousFormData := createAccountReq{}
+	if err := r.ParseForm(); err == nil {
+		previousFormData.Username = r.Form.Get("username")
+		previousFormData.Password = r.Form.Get("password")
+		previousFormData.SecretToken = r.Form.Get("secret-token")
+	}
+
+	renderErrorMessage(w, "", previousFormData)
 }
 
 type createAccountReq struct {
@@ -100,7 +108,7 @@ func extractReq(r *http.Request) (createAccountReq, error) {
 	return req, nil
 }
 
-func renderErrorMessage(w http.ResponseWriter, errorMessage string) {
+func renderErrorMessage(w http.ResponseWriter, errorMessage string, formData createAccountReq) {
 	tmpl, err := template.New("create-account").Parse(string(indexHtml))
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -108,8 +116,10 @@ func renderErrorMessage(w http.ResponseWriter, errorMessage string) {
 	}
 	data := struct {
 		ErrorMessage string
+		FormData     createAccountReq
 	}{
 		ErrorMessage: errorMessage,
+		FormData:     formData,
 	}
 	if err := tmpl.Execute(w, data); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -150,7 +160,7 @@ func (s *Server) createAdminAccount(w http.ResponseWriter, r *http.Request) {
 			}
 			respStr := respBody.String()
 			fmt.Println(respStr)
-			renderErrorMessage(w, respStr)
+			renderErrorMessage(w, respStr, req)
 			return
 		}
 	}
