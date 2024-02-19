@@ -1,11 +1,14 @@
+repo_name ?= dtabidze
+podman ?= docker
+
 clean:
 	rm -rf tmp
 	rm -f server_*
 	rm -f pcloud
 
 push_fluxcd_arm64:
-	docker build --file=Dockerfile.flux --tag=dtabidze/flux:latest . --platform=linux/arm64
-	docker push dtabidze/flux:latest
+	$(podman) build --file=Dockerfile.flux --tag=$(repo_name)/flux:latest . --platform=linux/arm64
+	docker push $(repo_name)/flux:latest
 
 build: export CGO_ENABLED=0
 build: clean
@@ -54,18 +57,18 @@ build_amd64:
 push_arm64: clean build_arm64
 	mkdir tmp
 	cp -r ../../charts tmp/
-	docker build --platform linux/arm64 --tag=dtabidze/pcloud-installer:arm64 .
+	$(podman) build --platform linux/arm64 --tag=$(repo_name)/pcloud-installer:arm64 .
 	rm -rf tmp
-	docker push dtabidze/pcloud-installer:arm64
+	$(podman) push $(repo_name)/pcloud-installer:arm64
 
 push_amd64: clean build_amd64
 	mkdir tmp
 	cp -r ../../charts tmp/
-	docker build --platform linux/amd64 --tag=dtabidze/pcloud-installer:amd64 .
+	$(podman) build --platform linux/amd64 --tag=$(repo_name)/pcloud-installer:amd64 .
 	rm -rf tmp
-	docker push dtabidze/pcloud-installer:amd64
+	$(podman) push $(repo_name)/pcloud-installer:amd64
 
 push: push_arm64 push_amd64
-	docker manifest create dtabidze/pcloud-installer:latest dtabidze/pcloud-installer:arm64 dtabidze/pcloud-installer:amd64
-	docker manifest push dtabidze/pcloud-installer:latest 
-	docker manifest rm dtabidze/pcloud-installer:latest
+	$(podman) manifest create $(repo_name)/pcloud-installer:latest $(repo_name)/pcloud-installer:arm64 $(repo_name)/pcloud-installer:amd64
+	$(podman) manifest push $(repo_name)/pcloud-installer:latest 
+	$(podman) manifest rm $(repo_name)/pcloud-installer:latest

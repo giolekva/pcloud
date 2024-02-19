@@ -53,15 +53,7 @@ func (s *Server) Start() {
 }
 
 func (s *Server) createAdminAccountForm(w http.ResponseWriter, r *http.Request) {
-
-	previousFormData := createAccountReq{}
-	if err := r.ParseForm(); err == nil {
-		previousFormData.Username = r.Form.Get("username")
-		previousFormData.Password = r.Form.Get("password")
-		previousFormData.SecretToken = r.Form.Get("secret-token")
-	}
-
-	renderErrorMessage(w, "", previousFormData)
+	renderRegistrationForm(w, "", createAccountReq{})
 }
 
 type createAccountReq struct {
@@ -108,7 +100,7 @@ func extractReq(r *http.Request) (createAccountReq, error) {
 	return req, nil
 }
 
-func renderErrorMessage(w http.ResponseWriter, errorMessage string, formData createAccountReq) {
+func renderRegistrationForm(w http.ResponseWriter, errorMessage string, formData createAccountReq) {
 	tmpl, err := template.New("create-account").Parse(string(indexHtml))
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -151,16 +143,13 @@ func (s *Server) createAdminAccount(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, respStr, http.StatusInternalServerError)
 			return
 		}
-		// TODO(gio): better handle status code and error message
 		if resp.StatusCode != http.StatusOK {
-			// TODO rendering etc
 			var respBody bytes.Buffer
 			if _, err := io.Copy(&respBody, resp.Body); err != nil {
 				http.Error(w, err.Error(), http.StatusInternalServerError)
 			}
 			respStr := respBody.String()
-			fmt.Println(respStr)
-			renderErrorMessage(w, respStr, req)
+			renderRegistrationForm(w, respStr, req)
 			return
 		}
 	}
