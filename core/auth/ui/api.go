@@ -59,22 +59,14 @@ type identityCreateReq struct {
 	Password string `json:"password,omitempty"`
 }
 
-func handleIdentityCreateError(w http.ResponseWriter, resp *http.Response) {
-	var e ErrorResponse
-	if err := json.NewDecoder(resp.Body).Decode(&e); err != nil {
-		fmt.Printf("%+v\n", e)
-		http.Error(w, "failed to decode", http.StatusInternalServerError)
-		return
-	}
-	fmt.Printf("%+v\n", e)
-
-	switch e.Error.Status {
+func handleIdentityCreateError(errResp ErrorResponse) string {
+	switch errResp.Error.Status {
 	case "Conflict":
-		http.Error(w, "Username is not available.", http.StatusConflict)
+		return "Username is not available."
 	case "Bad Request":
-		http.Error(w, "Username is less than 3 characters.", http.StatusBadRequest)
+		return "Username is less than 3 characters."
 	default:
-		http.Error(w, "Unexpected error.", http.StatusInternalServerError)
+		return "Unexpected error."
 	}
 }
 
@@ -91,19 +83,16 @@ func (s *APIServer) identityCreate(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "failed", http.StatusInternalServerError)
 		return
 	}
-	// logging
-	// defer resp.Body.Close()
-	// body, err := ioutil.ReadAll(resp.Body)
-	// if err != nil {
-	// 	http.Error(w, "failed", http.StatusInternalServerError)
-	// 	return
-	// }
-	// fmt.Printf("Response Status: %s\n", resp.Status)
-	// fmt.Println("Response Body:", string(body))
-	//
 	fmt.Println("Status Code:", resp.StatusCode)
 	if resp.StatusCode != http.StatusCreated {
-		handleIdentityCreateError(w, resp)
+		var e ErrorResponse
+		if err := json.NewDecoder(resp.Body).Decode(&e); err != nil {
+			fmt.Printf("%+v\n", e)
+			http.Error(w, "failed to decode", http.StatusInternalServerError)
+			return
+		}
+		errorMessage := handleIdentityCreateError(e)
+		http.Error(w, errorMessage, http.StatusInternalServerError)
 		return
 	}
 }

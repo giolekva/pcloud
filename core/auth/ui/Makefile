@@ -1,3 +1,6 @@
+repo_name ?= dtabidze
+podman ?= docker
+
 clean:
 	rm -f server server_*
 
@@ -19,15 +22,15 @@ build_amd64:
 	go build -o server_amd64 *.go
 
 push_arm64: clean build_arm64
-	docker build --platform linux/arm64 --tag=dtabidze/auth-ui:arm64 .
-	docker push dtabidze/auth-ui:arm64
+	$(podman) build --platform linux/arm64 --tag=$(repo_name)/auth-ui:arm64 .
+	$(podman) push $(repo_name)/auth-ui:arm64
 
 push_amd64: clean build_amd64
-	docker build --platform linux/amd64 --tag=dtabidze/auth-ui:amd64 .
-	docker push dtabidze/auth-ui:amd64
+	$(podman) build --platform linux/amd64 --tag=$(repo_name)/auth-ui:amd64 .
+	$(podman) push $(repo_name)/auth-ui:amd64
 
 
 push: push_arm64 push_amd64
-	docker manifest create dtabidze/auth-ui:latest dtabidze/auth-ui:arm64 dtabidze/auth-ui:amd64
-	docker manifest push dtabidze/auth-ui:latest
-	docker manifest rm dtabidze/auth-ui:latest
+	$(podman) manifest create $(repo_name)/auth-ui:latest $(repo_name)/auth-ui:arm64 $(repo_name)/auth-ui:amd64
+	$(podman) manifest push $(repo_name)/auth-ui:latest
+	$(podman) manifest rm $(repo_name)/auth-ui:latest
