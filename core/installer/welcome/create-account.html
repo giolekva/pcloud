@@ -1,42 +1,67 @@
 <!DOCTYPE html>
 <html lang="en" data-theme="light">
-	<head>
-        <link rel="stylesheet" href="/static/pico.min.css">
-		<meta charset="utf-8" />
-		<meta name="viewport" content="width=device-width, initial-scale=1" />
-	</head>
-	<body>
-		<main class="container">
-			{{ if .ErrorMessage }}
-			<small>{{ .ErrorMessage }}</small>
-			{{ end }}
-			<form action="" method="POST">
-			  <input
-				type="text"
-				name="username"
-				placeholder="Username"
-				aria-label="Username"
-				value="{{ .FormData.Username }}"
-				required
-			  />
-			  <input
-				type="password"
-				name="password"
-				placeholder="Password"
-				aria-label="Password"
-				value="{{ .FormData.Password }}"
+<head>
+    <link rel="stylesheet" href="/static/pico.min.css">
+    <style>
+        .container {
+            position: relative; 
+        }
+        .error-message {
+            position: relative; 
+            left: 2px;
+            width: 100%;
+            margin-bottom: 1px;
+        }
+		.input-field {
+			margin-bottom: 14px;
+		}
+        .form-container {
+            margin-top: 0px; 
+        }
+    </style>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+</head>
+<body>
+    <main class="container">
+        <!-- <div class="error-message">
+            {{ if .ErrorMessage }}
+            <small>{{ .ErrorMessage }}</small>
+            {{ end }}
+        </div> -->
+        <div class="form-container">
+            <form action="" method="POST">
+                <input class="input-field"
+                type="text"
+                name="username"
+                placeholder="Username"
+                aria-label="Username"
+                value="{{ .FormData.Username }}"
+				aria-invalid="{{ if .ErrorMessage }}true{{ else }}undefined{{ end }}"
 				required
 				/>
-			  <input
-				type="text"
-				name="secret-token"
-				placeholder="Secret Token"
-				aria-label="Secret Token"
-				value="{{ .FormData.SecretToken }}"
-				required
-			  />
-			  <button type="submit">Create Account</button>
-			</form>
-		</main>
-	</body>
+				{{ if .ErrorMessage }}
+				<small class="error-message" aria-live="assertive">{{ .ErrorMessage }}</small>
+				{{ end }}
+                <input class="input-field"
+                type="password"
+                name="password"
+                placeholder="Password"
+                aria-label="Password"
+                value="{{ .FormData.Password }}"
+                required
+                />
+                <input class="input-field"
+                type="text"
+                name="secret-token"
+                placeholder="Secret Token"
+                aria-label="Secret Token"
+                value="{{ .FormData.SecretToken }}"
+                required
+                />
+                <button type="submit">Create Account</button>
+            </form>
+        </div>
+    </main>
+</body>
 </html>
