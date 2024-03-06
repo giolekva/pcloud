@@ -70,10 +70,47 @@ func extractErrorMessage(errResp ErrorResponse) string {
 	}
 }
 
+type ValidationError struct {
+	Field   string `json:"field"`
+	Message string `json:"message"`
+}
+
+type CombinedErrors struct {
+	Errors []ValidationError `json:"errors"`
+}
+
+func validateUsername(username string) []ValidationError {
+	var errors []ValidationError
+	if len(username) < 3 {
+		errors = append(errors, ValidationError{"username", "Username must be at least 3 characters long."})
+	}
+	// TODO other validations
+	return errors
+}
+
+func validatePassword(password string) []ValidationError {
+	var errors []ValidationError
+	if len(password) < 6 {
+		errors = append(errors, ValidationError{"password", "Password must be at least 6 characters long."})
+	}
+	// TODO other validations
+	return errors
+}
+
 func (s *APIServer) identityCreate(w http.ResponseWriter, r *http.Request) {
 	var req identityCreateReq
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, "request can not be parsed", http.StatusBadRequest)
+		return
+	}
+	usernameErrors := validateUsername(req.Username)
+	passwordErrors := validatePassword(req.Password)
+	allErrors := append(usernameErrors, passwordErrors...)
+	if len(allErrors) > 0 {
+		response := CombinedErrors{Errors: allErrors}
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(response)
 		return
 	}
 	var buf bytes.Buffer
@@ -84,6 +121,7 @@ func (s *APIServer) identityCreate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	fmt.Println("Status Code:", resp.StatusCode)
+	// TODO Handle kratos respones
 	if resp.StatusCode != http.StatusCreated {
 		var e ErrorResponse
 		if err := json.NewDecoder(resp.Body).Decode(&e); err != nil {
