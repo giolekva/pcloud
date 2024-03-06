@@ -16,20 +16,16 @@
                 placeholder="Username"
                 aria-label="Username"
                 value="{{ .FormData.Username }}"
-                aria-invalid="{{ if .ErrorMessages }}{{ $hasUsernameError := false }}{{ range .ErrorMessages }}{{ if and (not $hasUsernameError) (eq .field "username") }}{{ $hasUsernameError = true }}{{ end }}{{ end }}{{ $hasUsernameError }}{{ else }}undefined{{ end }}"
+                aria-invalid="{{ if .ErrorMessages.Errors }}{{ $hasUsernameError := false }}{{ range .ErrorMessages.Errors }}{{ if eq .field "username" }}{{ $hasUsernameError = true }}{{ end }}{{ end }}{{ $hasUsernameError }}{{ else }}undefined{{ end }}"
                 required
                 />
-                {{ if .ErrorMessages }}
-                    {{ $usernameErrors := slice }}
-                    {{ range .ErrorMessages }}
+                {{ if .ErrorMessages.Errors }}
+                    {{ range .ErrorMessages.Errors }}
                         {{ if eq .field "username" }}
-                            {{ $usernameErrors = append $usernameErrors .message }}
+                            <small class="error-message" aria-live="assertive">
+                                {{ .message }}
+                            </small>
                         {{ end }}
-                    {{ end }}
-                    {{ if $usernameErrors }}
-                        <small class="error-message" aria-live="assertive">
-                            Username is {{ join ", " $usernameErrors }}
-                        </small>
                     {{ end }}
                 {{ end }}
                 <input class="input-field"
@@ -38,22 +34,18 @@
                 placeholder="Password"
                 aria-label="Password"
                 value="{{ .FormData.Password }}"
-                aria-invalid="{{ if .ErrorMessages }}{{ $hasPasswordError := false }}{{ range .ErrorMessages }}{{ if and (not $hasPasswordError) (eq .field "password") }}{{ $hasPasswordError = true }}{{ end }}{{ end }}{{ $hasPasswordError }}{{ else }}undefined{{ end }}"
-                required
-                />
-                {{ if .ErrorMessages }}
-                    {{ $passwordErrors := slice }}
-                    {{ range .ErrorMessages }}
-                        {{ if eq .field "password" }}
-                            {{ $passwordErrors = append $passwordErrors .message }}
-                        {{ end }}
-                    {{ end }}
-                    {{ if $passwordErrors }}
-                        <small class="error-message" aria-live="assertive">
-                            Password is {{ join ", " $passwordErrors }}
-                        </small>
-                    {{ end }}
-                {{ end }}
+				aria-invalid="{{ if .ErrorMessages.Errors }}{{ $hasPasswordError := false }}{{ range .ErrorMessages.Errors }}{{ if eq .field "password" }}{{ $hasPasswordError = true }}{{ end }}{{ end }}{{ $hasPasswordError }}{{ else }}undefined{{ end }}"
+				required
+				/>
+				{{ if .ErrorMessages.Errors }}
+					{{ range .ErrorMessages.Errors }}
+						{{ if eq .field "password" }}
+							<small class="error-message" aria-live="assertive">
+								{{ .message }}
+							</small>
+						{{ end }}
+					{{ end }}
+				{{ end }}
                 <input class="input-field"
                 type="text"
                 name="secret-token"
