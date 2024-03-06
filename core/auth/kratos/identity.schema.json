@@ -12,6 +12,7 @@
           "format": "username",
           "title": "Username",
           "minLength": 3,
+          "pattern": "^[a-zA-Z0-9-_@%&*^$]+$",
           "ory.sh/kratos": {
             "credentials": {
               "password": {
@@ -19,9 +20,15 @@
               }
             }
           }
+        },
+        "password": {
+          "type": "string",
+          "title": "Password",
+          "minLength": 6
         }
       },
-      "additionalProperties": false
+      "additionalProperties": false,
+      "required": ["username", "password"]
     }
   }
 }
