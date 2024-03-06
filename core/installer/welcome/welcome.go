@@ -53,7 +53,7 @@ func (s *Server) Start() {
 }
 
 func (s *Server) createAdminAccountForm(w http.ResponseWriter, r *http.Request) {
-	renderRegistrationForm(w, "", createAccountReq{})
+	renderRegistrationForm(w, []byte(`{"errors": []}`), createAccountReq{})
 }
 
 type createAccountReq struct {
@@ -100,18 +100,18 @@ func extractReq(r *http.Request) (createAccountReq, error) {
 	return req, nil
 }
 
-func renderRegistrationForm(w http.ResponseWriter, errorMessage string, formData createAccountReq) {
+func renderRegistrationForm(w http.ResponseWriter, errorsJSON []byte, formData createAccountReq) {
 	tmpl, err := template.New("create-account").Parse(string(indexHtml))
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 	data := struct {
-		ErrorMessage string
-		FormData     createAccountReq
+		ErrorMessages []byte
+		FormData      createAccountReq
 	}{
-		ErrorMessage: errorMessage,
-		FormData:     formData,
+		ErrorMessages: errorsJSON,
+		FormData:      formData,
 	}
 	if err := tmpl.Execute(w, data); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
