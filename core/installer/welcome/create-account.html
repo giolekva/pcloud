@@ -2,33 +2,12 @@
 <html lang="en" data-theme="light">
 <head>
     <link rel="stylesheet" href="/static/pico.min.css">
-    <style>
-        .container {
-            position: relative; 
-        }
-        .error-message {
-            position: relative; 
-            left: 2px;
-            width: 100%;
-            margin-bottom: 1px;
-        }
-		.input-field {
-			margin-bottom: 14px;
-		}
-        .form-container {
-            margin-top: 0px; 
-        }
-    </style>
+    <link rel="stylesheet" href="/static/errors.css">
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
 </head>
 <body>
     <main class="container">
-        <!-- <div class="error-message">
-            {{ if .ErrorMessage }}
-            <small>{{ .ErrorMessage }}</small>
-            {{ end }}
-        </div> -->
         <div class="form-container">
             <form action="" method="POST">
                 <input class="input-field"
@@ -37,20 +16,44 @@
                 placeholder="Username"
                 aria-label="Username"
                 value="{{ .FormData.Username }}"
-				aria-invalid="{{ if .ErrorMessage }}true{{ else }}undefined{{ end }}"
-				required
-				/>
-				{{ if .ErrorMessage }}
-				<small class="error-message" aria-live="assertive">{{ .ErrorMessage }}</small>
-				{{ end }}
+                aria-invalid="{{ if .ErrorMessages }}{{ $hasUsernameError := false }}{{ range .ErrorMessages }}{{ if and (not $hasUsernameError) (eq .field "username") }}{{ $hasUsernameError = true }}{{ end }}{{ end }}{{ $hasUsernameError }}{{ else }}undefined{{ end }}"
+                required
+                />
+                {{ if .ErrorMessages }}
+                    {{ $usernameErrors := slice }}
+                    {{ range .ErrorMessages }}
+                        {{ if eq .field "username" }}
+                            {{ $usernameErrors = append $usernameErrors .message }}
+                        {{ end }}
+                    {{ end }}
+                    {{ if $usernameErrors }}
+                        <small class="error-message" aria-live="assertive">
+                            Username is {{ join ", " $usernameErrors }}
+                        </small>
+                    {{ end }}
+                {{ end }}
                 <input class="input-field"
                 type="password"
                 name="password"
                 placeholder="Password"
                 aria-label="Password"
                 value="{{ .FormData.Password }}"
+                aria-invalid="{{ if .ErrorMessages }}{{ $hasPasswordError := false }}{{ range .ErrorMessages }}{{ if and (not $hasPasswordError) (eq .field "password") }}{{ $hasPasswordError = true }}{{ end }}{{ end }}{{ $hasPasswordError }}{{ else }}undefined{{ end }}"
                 required
                 />
+                {{ if .ErrorMessages }}
+                    {{ $passwordErrors := slice }}
+                    {{ range .ErrorMessages }}
+                        {{ if eq .field "password" }}
+                            {{ $passwordErrors = append $passwordErrors .message }}
+                        {{ end }}
+                    {{ end }}
+                    {{ if $passwordErrors }}
+                        <small class="error-message" aria-live="assertive">
+                            Password is {{ join ", " $passwordErrors }}
+                        </small>
+                    {{ end }}
+                {{ end }}
                 <input class="input-field"
                 type="text"
                 name="secret-token"
