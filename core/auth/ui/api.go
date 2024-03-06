@@ -59,7 +59,7 @@ type identityCreateReq struct {
 	Password string `json:"password,omitempty"`
 }
 
-func handleIdentityCreateError(errResp ErrorResponse) string {
+func extractErrorMessage(errResp ErrorResponse) string {
 	switch errResp.Error.Status {
 	case "Conflict":
 		return "Username is not available."
@@ -91,7 +91,7 @@ func (s *APIServer) identityCreate(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "failed to decode", http.StatusInternalServerError)
 			return
 		}
-		errorMessage := handleIdentityCreateError(e)
+		errorMessage := extractErrorMessage(e)
 		http.Error(w, errorMessage, http.StatusInternalServerError)
 		return
 	}
