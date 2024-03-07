@@ -59,15 +59,17 @@ type identityCreateReq struct {
 	Password string `json:"password,omitempty"`
 }
 
-func extractErrorMessage(errResp ErrorResponse) string {
+func extractKratosErrorMessage(errResp ErrorResponse) []ValidationError {
+	var errors []ValidationError
 	switch errResp.Error.Status {
 	case "Conflict":
-		return "Username is not available."
+		errors = append(errors, ValidationError{"username", "Username is not available."})
 	case "Bad Request":
-		return "Username is less than 3 characters."
+		errors = append(errors, ValidationError{"username", "Username is less than 3 characters."})
 	default:
-		return "Unexpected error."
+		errors = append(errors, ValidationError{"username", "Unexpexted Error."})
 	}
+	return errors
 }
 
 type ValidationError struct {
@@ -110,7 +112,10 @@ func (s *APIServer) identityCreate(w http.ResponseWriter, r *http.Request) {
 		response := CombinedErrors{Errors: allErrors}
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(response)
+		if err := json.NewEncoder(w).Encode(response); err != nil {
+			http.Error(w, "failed to decode", http.StatusInternalServerError)
+			return
+		}
 		return
 	}
 	var buf bytes.Buffer
@@ -125,12 +130,17 @@ func (s *APIServer) identityCreate(w http.ResponseWriter, r *http.Request) {
 	if resp.StatusCode != http.StatusCreated {
 		var e ErrorResponse
 		if err := json.NewDecoder(resp.Body).Decode(&e); err != nil {
-			fmt.Printf("%+v\n", e)
 			http.Error(w, "failed to decode", http.StatusInternalServerError)
 			return
 		}
-		errorMessage := extractErrorMessage(e)
-		http.Error(w, errorMessage, http.StatusInternalServerError)
+		errorMessages := extractKratosErrorMessage(e)
+		response := CombinedErrors{Errors: errorMessages}
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusBadRequest)
+		if err := json.NewEncoder(w).Encode(response); err != nil {
+			http.Error(w, "failed to decode", http.StatusInternalServerError)
+			return
+		}
 		return
 	}
 }
