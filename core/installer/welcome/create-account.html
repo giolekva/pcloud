@@ -16,34 +16,30 @@
                 placeholder="Username"
                 aria-label="Username"
                 value="{{ .FormData.Username }}"
-                aria-invalid="{{ if .ErrorMessages.Errors }}{{ $hasUsernameError := false }}{{ range .ErrorMessages.Errors }}{{ if eq .field "username" }}{{ $hasUsernameError = true }}{{ end }}{{ end }}{{ $hasUsernameError }}{{ else }}undefined{{ end }}"
+				aria-invalid="{{ if .UsernameErrors }}true{{ else }}undefined{{ end }}"
                 required
                 />
-                {{ if .ErrorMessages.Errors }}
-                    {{ range .ErrorMessages.Errors }}
-                        {{ if eq .field "username" }}
-                            <small class="error-message" aria-live="assertive">
-                                {{ .message }}
-                            </small>
-                        {{ end }}
-                    {{ end }}
-                {{ end }}
+				{{ if .UsernameErrors }}
+					{{ range .UsernameErrors }}
+						<small class="error-message" aria-live="assertive">
+							{{ . }}
+						</small>
+					{{ end }}
+				{{ end }}
                 <input class="input-field"
                 type="password"
                 name="password"
                 placeholder="Password"
                 aria-label="Password"
                 value="{{ .FormData.Password }}"
-				aria-invalid="{{ if .ErrorMessages.Errors }}{{ $hasPasswordError := false }}{{ range .ErrorMessages.Errors }}{{ if eq .field "password" }}{{ $hasPasswordError = true }}{{ end }}{{ end }}{{ $hasPasswordError }}{{ else }}undefined{{ end }}"
+				aria-invalid="{{ if .PasswordErrors }}true{{ else }}undefined{{ end }}"
 				required
 				/>
-				{{ if .ErrorMessages.Errors }}
-					{{ range .ErrorMessages.Errors }}
-						{{ if eq .field "password" }}
-							<small class="error-message" aria-live="assertive">
-								{{ .message }}
-							</small>
-						{{ end }}
+				{{ if .PasswordErrors }}
+					{{ range .PasswordErrors }}
+						<small class="error-message" aria-live="assertive">
+							{{ . }}
+						</small>
 					{{ end }}
 				{{ end }}
                 <input class="input-field"

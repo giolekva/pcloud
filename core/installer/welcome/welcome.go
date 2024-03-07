@@ -53,7 +53,7 @@ func (s *Server) Start() {
 }
 
 func (s *Server) createAdminAccountForm(w http.ResponseWriter, r *http.Request) {
-	renderRegistrationForm(w, []byte(`{"errors": []}`), createAccountReq{})
+	renderRegistrationForm(w, []string{}, []string{}, createAccountReq{})
 }
 
 type createAccountReq struct {
@@ -65,6 +65,15 @@ type createAccountReq struct {
 type apiCreateAccountReq struct {
 	Username string `json:"username,omitempty"`
 	Password string `json:"password,omitempty"`
+}
+
+type ValidationError struct {
+	Field   string `json:"field"`
+	Message string `json:"message"`
+}
+
+type ErrorResponse struct {
+	Errors []ValidationError `json:"errors"`
 }
 
 func getFormValue(v url.Values, name string) (string, error) {
@@ -100,18 +109,20 @@ func extractReq(r *http.Request) (createAccountReq, error) {
 	return req, nil
 }
 
-func renderRegistrationForm(w http.ResponseWriter, errorsJSON []byte, formData createAccountReq) {
+func renderRegistrationForm(w http.ResponseWriter, usernameErrors []string, passwordErrors []string, formData createAccountReq) {
 	tmpl, err := template.New("create-account").Parse(string(indexHtml))
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 	data := struct {
-		ErrorMessages []byte
-		FormData      createAccountReq
+		UsernameErrors []string
+		PasswordErrors []string
+		FormData       createAccountReq
 	}{
-		ErrorMessages: errorsJSON,
-		FormData:      formData,
+		UsernameErrors: usernameErrors,
+		PasswordErrors: passwordErrors,
+		FormData:       formData,
 	}
 	if err := tmpl.Execute(w, data); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -144,12 +155,21 @@ func (s *Server) createAdminAccount(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		if resp.StatusCode != http.StatusOK {
-			var respBody bytes.Buffer
-			if _, err := io.Copy(&respBody, resp.Body); err != nil {
-				http.Error(w, err.Error(), http.StatusInternalServerError)
+			var errResponse ErrorResponse
+			if err := json.NewDecoder(resp.Body).Decode(&errResponse); err != nil {
+				http.Error(w, "Error Decoding JSON", http.StatusInternalServerError)
+				return
 			}
-			respStr := respBody.String()
-			renderRegistrationForm(w, respStr, req)
+			var usernameErrors, passwordErrors []string
+			for _, err := range errResponse.Errors {
+				if err.Field == "username" {
+					usernameErrors = append(usernameErrors, err.Message)
+				}
+				if err.Field == "password" {
+					passwordErrors = append(passwordErrors, err.Message)
+				}
+			}
+			renderRegistrationForm(w, usernameErrors, passwordErrors, req)
 			return
 		}
 	}
