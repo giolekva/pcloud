@@ -15,7 +15,7 @@
                 name="username"
                 placeholder="Username"
                 aria-label="Username"
-                value="{{ .FormData.Username }}"
+                value="{{ .Data.Username }}"
 				aria-invalid="{{ if .UsernameErrors }}true{{ else }}undefined{{ end }}"
                 required
                 />
@@ -31,7 +31,7 @@
                 name="password"
                 placeholder="Password"
                 aria-label="Password"
-                value="{{ .FormData.Password }}"
+                value="{{ .Data.Password }}"
 				aria-invalid="{{ if .PasswordErrors }}true{{ else }}undefined{{ end }}"
 				required
 				/>
@@ -47,7 +47,7 @@
                 name="secret-token"
                 placeholder="Secret Token"
                 aria-label="Secret Token"
-                value="{{ .FormData.SecretToken }}"
+                value="{{ .Data.SecretToken }}"
                 required
                 />
                 <button type="submit">Create Account</button>

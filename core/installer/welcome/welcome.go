@@ -53,7 +53,13 @@ func (s *Server) Start() {
 }
 
 func (s *Server) createAdminAccountForm(w http.ResponseWriter, r *http.Request) {
-	renderRegistrationForm(w, []string{}, []string{}, createAccountReq{})
+	renderRegistrationForm(w, formData{})
+}
+
+type formData struct {
+	UsernameErrors []string
+	PasswordErrors []string
+	Data           createAccountReq
 }
 
 type createAccountReq struct {
@@ -109,20 +115,11 @@ func extractReq(r *http.Request) (createAccountReq, error) {
 	return req, nil
 }
 
-func renderRegistrationForm(w http.ResponseWriter, usernameErrors []string, passwordErrors []string, formData createAccountReq) {
+func renderRegistrationForm(w http.ResponseWriter, data formData) {
 	tmpl, err := template.New("create-account").Parse(string(indexHtml))
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
-	}
-	data := struct {
-		UsernameErrors []string
-		PasswordErrors []string
-		FormData       createAccountReq
-	}{
-		UsernameErrors: usernameErrors,
-		PasswordErrors: passwordErrors,
-		FormData:       formData,
 	}
 	if err := tmpl.Execute(w, data); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -169,7 +166,11 @@ func (s *Server) createAdminAccount(w http.ResponseWriter, r *http.Request) {
 					passwordErrors = append(passwordErrors, err.Message)
 				}
 			}
-			renderRegistrationForm(w, usernameErrors, passwordErrors, req)
+			renderRegistrationForm(w, formData{
+				usernameErrors,
+				passwordErrors,
+				req,
+			})
 			return
 		}
 	}
