@@ -99,6 +99,16 @@ func validatePassword(password string) []ValidationError {
 	return errors
 }
 
+func replyWithErrors(w http.ResponseWriter, errors []ValidationError) {
+	response := CombinedErrors{Errors: errors}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusBadRequest)
+	if err := json.NewEncoder(w).Encode(response); err != nil {
+		http.Error(w, "failed to decode", http.StatusInternalServerError)
+		return
+	}
+}
+
 func (s *APIServer) identityCreate(w http.ResponseWriter, r *http.Request) {
 	var req identityCreateReq
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -109,13 +119,7 @@ func (s *APIServer) identityCreate(w http.ResponseWriter, r *http.Request) {
 	passwordErrors := validatePassword(req.Password)
 	allErrors := append(usernameErrors, passwordErrors...)
 	if len(allErrors) > 0 {
-		response := CombinedErrors{Errors: allErrors}
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusBadRequest)
-		if err := json.NewEncoder(w).Encode(response); err != nil {
-			http.Error(w, "failed to decode", http.StatusInternalServerError)
-			return
-		}
+		replyWithErrors(w, allErrors)
 		return
 	}
 	var buf bytes.Buffer
@@ -125,8 +129,6 @@ func (s *APIServer) identityCreate(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "failed", http.StatusInternalServerError)
 		return
 	}
-	fmt.Println("Status Code:", resp.StatusCode)
-	// TODO Handle kratos respones
 	if resp.StatusCode != http.StatusCreated {
 		var e ErrorResponse
 		if err := json.NewDecoder(resp.Body).Decode(&e); err != nil {
@@ -134,13 +136,7 @@ func (s *APIServer) identityCreate(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		errorMessages := extractKratosErrorMessage(e)
-		response := CombinedErrors{Errors: errorMessages}
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusBadRequest)
-		if err := json.NewEncoder(w).Encode(response); err != nil {
-			http.Error(w, "failed to decode", http.StatusInternalServerError)
-			return
-		}
+		replyWithErrors(w, errorMessages)
 		return
 	}
 }
