@@ -7,6 +7,9 @@ input: {
 	}
 }
 
+name: "dns-zone-manager"
+namespace: "dns-zone-manager"
+
 images: {
 	dnsZoneController: {
 		repository: "giolekva"

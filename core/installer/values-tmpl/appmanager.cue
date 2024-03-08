@@ -7,6 +7,9 @@ input: {
 	sshPrivateKey: string
 }
 
+name: "app-manager"
+namespace: "appmanager"
+
 images: {
 	appmanager: {
 		repository: "giolekva"

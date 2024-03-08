@@ -2,6 +2,7 @@ input: {
 	subdomain: string
 }
 
+name: "headscale"
 namespace: "app-headscale"
 
 images: {

@@ -1,5 +1,8 @@
 input: {}
 
+name: "ingress-public"
+namespace: "ingress-public"
+
 images: {
 	ingressNginx: {
 		registry: "registry.k8s.io"

@@ -1,5 +1,8 @@
 input: {}
 
+name: "headscale-controller"
+namespace: "core-headscale"
+
 images: {
 	headscaleController: {
 		repository: "giolekva"

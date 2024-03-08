@@ -2,6 +2,7 @@ input: {}
 
 images: {}
 
+name: "certificate-issuer-public"
 namespace: "ingress-private"
 
 charts: {

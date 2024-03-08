@@ -9,6 +9,9 @@ input: {
 	sshPrivateKey: string
 }
 
+name: "env-manager"
+namespace: "env-manager"
+
 images: {
 	envManager: {
 		repository: "giolekva"
