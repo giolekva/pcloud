@@ -2,6 +2,7 @@ input: {
 	subdomain: string
 }
 
+name: "core-auth"
 namespace: "core-auth"
 
 _userSchema: ###"""

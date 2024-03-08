@@ -4,6 +4,7 @@ input: {
 	adminKey: string
 }
 
+name: "config-repo"
 namespace: "config-repo"
 
 images: {

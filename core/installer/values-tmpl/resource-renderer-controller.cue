@@ -1,5 +1,8 @@
 input: {}
 
+name: "resource-renderer-controller"
+namespace: "rr-controller"
+
 images: {
 	resourceRenderer: {
 		repository: "giolekva"

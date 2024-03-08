@@ -5,6 +5,7 @@ input: {
 	}
 }
 
+name: "certificate-issuer-private"
 namespace: "ingress-private"
 
 images: {}

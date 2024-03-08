@@ -6,6 +6,7 @@ input: {
 	}
 }
 
+name: "private-network"
 namespace: "ingress-private"
 
 images: {

@@ -1,5 +1,8 @@
 input: {}
 
+name: "cert-manager"
+namespace: "cert-manager"
+
 images: {
 	certManager: {
 		registry: "quay.io"

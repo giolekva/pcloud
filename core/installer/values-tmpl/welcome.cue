@@ -8,6 +8,9 @@ input: {
 	createAccountAddr: string
 }
 
+name: "welcome"
+namespace: "app-welcome"
+
 images: {
 	welcome: {
 		repository: "giolekva"

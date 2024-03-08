@@ -1,5 +1,8 @@
 input: {}
 
+name: "fluxcd-reconciler"
+namespace: "fluxcd-reconciler"
+
 images: {
 	fluxcdReconciler: {
 		repository: "giolekva"
