@@ -1,0 +1,18 @@
+.container {
+    position: relative; 
+}
+
+.error-message {
+    position: relative; 
+    left: 2px;
+    width: 100%;
+    margin-bottom: 1px;
+}
+
+.input-field {
+    margin-bottom: 14px;
+}
+
+.form-container {
+    margin-top: 0px; 
+}
