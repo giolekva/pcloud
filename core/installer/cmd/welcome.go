@@ -1,8 +1,9 @@
 package main
 
 import (
-	"golang.org/x/crypto/ssh"
 	"os"
+
+	"golang.org/x/crypto/ssh"
 
 	"github.com/spf13/cobra"
 
@@ -16,6 +17,7 @@ var welcomeFlags struct {
 	sshKey            string
 	port              int
 	createAccountAddr string
+	loginAddr         string
 }
 
 func welcomeCmd() *cobra.Command {
@@ -44,6 +46,12 @@ func welcomeCmd() *cobra.Command {
 	cmd.Flags().StringVar(
 		&welcomeFlags.createAccountAddr,
 		"create-account-addr",
+		"",
+		"",
+	)
+	cmd.Flags().StringVar(
+		&welcomeFlags.loginAddr,
+		"login-addr",
 		"",
 		"",
 	)
@@ -76,6 +84,7 @@ func welcomeCmdRun(cmd *cobra.Command, args []string) error {
 		installer.NewRepoIO(repo, signer),
 		nsCreator,
 		welcomeFlags.createAccountAddr,
+		welcomeFlags.loginAddr,
 	)
 	s.Start()
 	return nil
