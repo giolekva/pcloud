@@ -297,7 +297,7 @@ func (r *repoIO) InstallApp(app App, appRootDir string, values map[string]any, d
 			return err
 		}
 	}
-	return r.CommitAndPush(fmt.Sprintf("install: %s", app.Name))
+	return r.CommitAndPush(fmt.Sprintf("install: %s", app.Name()))
 }
 
 func (r *repoIO) RemoveApp(appRootDir string) error {
