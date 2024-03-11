@@ -3,13 +3,11 @@ package main
 import (
 	"os"
 
-	"golang.org/x/crypto/ssh"
-
-	"github.com/spf13/cobra"
-
 	"github.com/giolekva/pcloud/core/installer"
 	"github.com/giolekva/pcloud/core/installer/soft"
 	"github.com/giolekva/pcloud/core/installer/welcome"
+	"github.com/spf13/cobra"
+	"golang.org/x/crypto/ssh"
 )
 
 var welcomeFlags struct {
