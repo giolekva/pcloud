@@ -19,7 +19,7 @@ import (
 //go:embed create-account.html
 var indexHtml []byte
 
-//go:embed registration-success.html
+//go:embed create-account-success.html
 var successHtml []byte
 
 //go:embed static/*
@@ -30,7 +30,7 @@ type Server struct {
 	repo              installer.RepoIO
 	nsCreator         installer.NamespaceCreator
 	createAccountAddr string
-	loginURL          string
+	loginAddr         string
 }
 
 func NewServer(
@@ -38,14 +38,14 @@ func NewServer(
 	repo installer.RepoIO,
 	nsCreator installer.NamespaceCreator,
 	createAccountAddr string,
-	loginURL string,
+	loginAddr string,
 ) *Server {
 	return &Server{
 		port,
 		repo,
 		nsCreator,
 		createAccountAddr,
-		loginURL,
+		loginAddr,
 	}
 }
 
@@ -133,13 +133,13 @@ func renderRegistrationForm(w http.ResponseWriter, data formData) {
 	}
 }
 
-func renderRegistrationSuccess(w http.ResponseWriter, loginURL string) {
+func renderRegistrationSuccess(w http.ResponseWriter, loginAddr string) {
 	data := struct {
-		LoginURL string
+		LoginAddr string
 	}{
-		LoginURL: loginURL,
+		LoginAddr: loginAddr,
 	}
-	tmpl, err := template.New("registration-success").Parse(string(successHtml))
+	tmpl, err := template.New("create-account-success").Parse(string(successHtml))
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -232,5 +232,5 @@ func (s *Server) createAdminAccount(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 	}
-	renderRegistrationSuccess(w, s.loginURL)
+	renderRegistrationSuccess(w, s.loginAddr)
 }
