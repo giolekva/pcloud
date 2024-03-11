@@ -19,6 +19,9 @@ import (
 //go:embed create-account.html
 var indexHtml []byte
 
+//go:embed registration-success.html
+var successHtml []byte
+
 //go:embed static/*
 var staticAssets embed.FS
 
@@ -27,6 +30,7 @@ type Server struct {
 	repo              installer.RepoIO
 	nsCreator         installer.NamespaceCreator
 	createAccountAddr string
+	loginURL          string
 }
 
 func NewServer(
@@ -34,12 +38,14 @@ func NewServer(
 	repo installer.RepoIO,
 	nsCreator installer.NamespaceCreator,
 	createAccountAddr string,
+	loginURL string,
 ) *Server {
 	return &Server{
 		port,
 		repo,
 		nsCreator,
 		createAccountAddr,
+		loginURL,
 	}
 }
 
@@ -117,6 +123,23 @@ func extractReq(r *http.Request) (createAccountReq, error) {
 
 func renderRegistrationForm(w http.ResponseWriter, data formData) {
 	tmpl, err := template.New("create-account").Parse(string(indexHtml))
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	if err := tmpl.Execute(w, data); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+}
+
+func renderRegistrationSuccess(w http.ResponseWriter, loginURL string) {
+	data := struct {
+		LoginURL string
+	}{
+		LoginURL: loginURL,
+	}
+	tmpl, err := template.New("registration-success").Parse(string(successHtml))
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -209,8 +232,5 @@ func (s *Server) createAdminAccount(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 	}
-	if _, err := w.Write([]byte("OK")); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
+	renderRegistrationSuccess(w, s.loginURL)
 }
