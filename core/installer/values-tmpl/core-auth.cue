@@ -39,13 +39,13 @@ images: {
 	kratos: {
 		repository: "oryd"
 		name: "kratos"
-		tag: "v0.13.0"
+		tag: "v1.1.0-distroless"
 		pullPolicy: "IfNotPresent"
 	}
 	hydra: {
 		repository: "oryd"
 		name: "hydra"
-		tag: "v2.1.2"
+		tag: "v2.2.0-distroless"
 		pullPolicy: "IfNotPresent"
 	}
 	"hydra-maester": {
