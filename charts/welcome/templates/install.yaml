@@ -110,6 +110,7 @@ spec:
         - --ssh-key=/pcloud/ssh-key/private
         - --port=8080
         - --create-account-addr={{ .Values.createAccountAddr }}
+        - --login-addr={{ .Values.loginAddr }} 
         volumeMounts:
         - name: ssh-key
           readOnly: true
