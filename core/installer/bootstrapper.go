@@ -427,6 +427,9 @@ func configureMainRepo(repo RepoIO, env EnvConfig) error {
 	if err := repo.WriteYaml("config.yaml", env); err != nil {
 		return err
 	}
+	if err := repo.WriteYaml("env-cidrs.yaml", EnvCIDRs{}); err != nil {
+		return err
+	}
 	kust := NewKustomization()
 	kust.AddResources(
 		fmt.Sprintf("%s-flux", env.Name),
