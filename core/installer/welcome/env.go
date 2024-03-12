@@ -365,9 +365,9 @@ func findNextStartIP(cidrs installer.EnvCIDRs) (net.IP, error) {
 		return nil, err
 	}
 	for _, cidr := range cidrs {
-		i, ok := netip.AddrFromSlice(cidr.IP)
-		if !ok {
-			return nil, fmt.Errorf("Must not reach")
+		i, err := netip.ParseAddr(cidr.IP.String())
+		if err != nil {
+			return nil, err
 		}
 		if i.Compare(m) > 0 {
 			m = i
