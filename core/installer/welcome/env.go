@@ -11,6 +11,7 @@ import (
 	"log"
 	"net"
 	"net/http"
+	"net/netip"
 	"strings"
 
 	"github.com/gorilla/mux"
@@ -293,6 +294,10 @@ func (s *EnvServer) createEnv(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
+	if err := s.repo.CommitAndPush(fmt.Sprintf("Allocate CIDR for %s", req.Name)); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
 	// if err := s.acceptInvitation(req.SecretToken); err != nil {
 	// 	http.Error(w, err.Error(), http.StatusInternalServerError)
 	// 	return
@@ -302,6 +307,27 @@ func (s *EnvServer) createEnv(w http.ResponseWriter, r *http.Request) {
 		return
 	} else {
 		req.Name = name
+	}
+	var cidrs installer.EnvCIDRs
+	cidrsR, err := s.repo.Reader("env-cidrs.yaml")
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	defer cidrsR.Close()
+	if err := installer.ReadYaml(cidrsR, &cidrs); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	startIP, err := findNextStartIP(cidrs)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	cidrs = append(cidrs, installer.EnvCIDR{req.Name, startIP})
+	if err := s.repo.WriteYaml("env-cidrs.yaml", cidrs); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
 	}
 	t, dns := tasks.NewCreateEnvTask(
 		tasks.Env{
@@ -315,6 +341,7 @@ func (s *EnvServer) createEnv(w http.ResponseWriter, r *http.Request) {
 			net.ParseIP("135.181.48.180"),
 			net.ParseIP("65.108.39.172"),
 		},
+		startIP,
 		s.nsCreator,
 		s.repo,
 	)
@@ -330,4 +357,34 @@ func (s *EnvServer) createEnv(w http.ResponseWriter, r *http.Request) {
 	s.dns[key] = dns
 	go t.Start()
 	http.Redirect(w, r, fmt.Sprintf("/env/%s", key), http.StatusSeeOther)
+}
+
+func findNextStartIP(cidrs installer.EnvCIDRs) (net.IP, error) {
+	m, err := netip.ParseAddr("10.0.0.0")
+	if err != nil {
+		return nil, err
+	}
+	for _, cidr := range cidrs {
+		i, ok := netip.AddrFromSlice(cidr.IP)
+		if !ok {
+			return nil, fmt.Errorf("Must not reach")
+		}
+		if i.Compare(m) > 0 {
+			m = i
+		}
+	}
+	sl := m.AsSlice()
+	sl[2]++
+	if sl[2] == 0b11111111 {
+		sl[2] = 0
+		sl[1]++
+	}
+	if sl[1] == 0b11111111 {
+		return nil, fmt.Errorf("Can not allocate")
+	}
+	ret, ok := netip.AddrFromSlice(sl)
+	if !ok {
+		return nil, fmt.Errorf("Must not reach")
+	}
+	return net.ParseIP(ret.String()), nil
 }
