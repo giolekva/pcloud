@@ -1,0 +1,15 @@
+image:
+  repository: giolekva/url-shortener
+  name: url-shortener
+  tag: latest
+  pullPolicy: Always
+
+ingressClassName: ingress-public
+certificateIssuer: example-public
+domain: url-shortener.example.com
+
+storage:
+  size: 1Gi
+  dbPath: url-shortener.db
+
+port: 8080

@@ -1,0 +1,77 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: url-shortener
+  namespace: {{ .Release.Namespace }}
+spec:
+  type: ClusterIP
+  selector:
+    app: url-shortener
+  ports:
+    - name: http
+      protocol: TCP
+      port: 80
+      targetPort: 8080
+
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: ingress
+  namespace: {{ .Release.Namespace }}
+{{- if .Values.certificateIssuer }}
+  annotations:
+    acme.cert-manager.io/http01-edit-in-place: "true"
+    cert-manager.io/cluster-issuer: {{ .Values.certificateIssuer }}
+{{- end }}
+spec:
+  ingressClassName: {{ .Values.ingressClassName }}
+{{- if .Values.certificateIssuer }}
+  tls:
+  - hosts:
+    - {{ .Values.domain }}
+    secretName: cert-url-shortener
+{{- end }}
+  rules:
+  - host: {{ .Values.domain }}
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: url-shortener
+            port:
+              name: http
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: url-shortener
+  namespace: {{ .Release.Namespace }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: url-shortener
+  template:
+    metadata:
+      labels:
+        app: url-shortener
+    spec:
+      containers:
+      - name: url-shortener
+        image: {{ .Values.image.repository }}:{{ .Values.image.tag }}
+        ports:
+        - name: http
+          containerPort: 8080
+          protocol: TCP
+        command: ["url-shortener", "--port={{ .Values.port }}", "--db-path={{ .Values.dbPath }}"]
+        volumeMounts:
+        - name: url-shortener
+          mountPath: /data
+      volumes:
+      - name: url-shortener
+        persistentVolumeClaim:
+          claimName: url-shortener
