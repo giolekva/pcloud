@@ -104,9 +104,9 @@ spec:
 
 func SetupNetwork(env Env, startIP net.IP, st *state) Task {
 	t := newLeafTask("Setup network", func() error {
-		startAddr, ok := netip.AddrFromSlice(startIP)
-		if !ok {
-			return fmt.Errorf("Must not reach")
+		startAddr, err := netip.ParseAddr(startIP.String())
+		if err != nil {
+			return err
 		}
 		if !startAddr.Is4() {
 			return fmt.Errorf("Expected IPv4, got %s instead", startAddr)
