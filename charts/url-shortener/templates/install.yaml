@@ -11,8 +11,7 @@ spec:
     - name: http
       protocol: TCP
       port: 80
-      targetPort: 8080
-
+      targetPort: {{ .Values.port }}
 ---
 apiVersion: networking.k8s.io/v1
 kind: Ingress
@@ -64,7 +63,7 @@ spec:
         image: {{ .Values.image.repository }}:{{ .Values.image.tag }}
         ports:
         - name: http
-          containerPort: 8080
+          containerPort: {{ .Values.port }}
           protocol: TCP
         command: 
         - url-shortener
