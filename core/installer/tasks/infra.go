@@ -169,7 +169,7 @@ func SetupNetwork(env Env, startIP net.IP, st *state) Task {
 				"privateNetwork": map[string]any{
 					"hostname": "private-network-proxy",
 					"username": "private-network-proxy",
-					"ipSubnet": "10.1.0.0/24",
+					"ipSubnet": fmt.Sprintf("%s/24", startIP.String()),
 				},
 			}); err != nil {
 				return err
