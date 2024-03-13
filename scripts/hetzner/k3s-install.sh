@@ -5,10 +5,10 @@ USER=root
 K3S_VERSION="v1.28.3+k3s2"
 
 MASTER_INIT="192.168.100.1"
-MASTERS=("192.168.100.2" "192.168.100.3")
+MASTERS=("192.168.100.2")
 WORKERS=()
 
-# --node-taint dodo=dodo:NoSchedule 
+# --node-taint dodo=dodo:NoSchedule
 k3sup install \
 	  --ssh-key ~/.ssh/id_ed25519 \
       --k3s-channel stable \
