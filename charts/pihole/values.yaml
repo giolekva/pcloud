@@ -1,10 +1,9 @@
 pihole: {}
 oauth2:
   cookieSecret: "1234123443214321"
-  secretName: oauth2-secret
+  secretName: oauth2-client
   configName: oauth2-proxy
 domain: pihole.p.example.com
-hydraPublic: https://hydra.example.com
 profileUrl: https://profile.example.com
 ingressClassName: private
 

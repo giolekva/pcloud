@@ -21,6 +21,14 @@ images: {
 }
 
 charts: {
+	oauth2Client: {
+		chart: "charts/oauth2-client"
+		sourceRef: {
+			kind: "GitRepository"
+			name: "pcloud"
+			namespace: global.id
+		}
+	}
 	pihole: {
 		chart: "charts/pihole"
 		sourceRef: {
@@ -31,7 +39,21 @@ charts: {
 	}
 }
 
+_oauth2ClientSecretName: "oauth2-client"
+
 helm: {
+	"oauth2-client": {
+		chart: charts.oauth2Client
+		values: {
+			name: "oauth2-client"
+			secretName: _oauth2ClientSecretName
+			grantTypes: ["authorization_code"]
+			responseTypes: ["code"]
+			scope: "openid profile email"
+			redirectUris: ["https://\(_domain)/oauth2/callback"]
+			hydraAdmin: "http://hydra-admin.\(global.namespacePrefix)core-auth.svc.cluster.local"
+		}
+	}
 	pihole: {
 		chart: charts.pihole
 		values: {
@@ -81,11 +103,10 @@ helm: {
 				}
 			}
 			oauth2: {
+				cookieSecret: "1234123443214321"
 				secretName: "oauth2-secret"
 				configName: "oauth2-proxy"
-				hydraAdmin: "http://hydra-admin.\(global.namespacePrefix)core-auth.svc"
 			}
-			hydraPublic: "https://hydra.\(global.domain)"
 			profileUrl: "https://accounts-ui.\(global.domain)"
 			ingressClassName: input.network.ingressClass
 			certificateIssuer: input.network.certificateIssuer
