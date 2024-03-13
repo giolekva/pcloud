@@ -56,7 +56,7 @@ func NewCreateEnvTask(
 			[]Task{
 				SetupConfigRepoTask(env, &st),
 				NewActivateEnvTask(env, &st),
-				SetupZoneTask(env, &st),
+				SetupZoneTask(env, startIP, &st),
 			},
 			SetupInfra(env, startIP, &st)...,
 		)...,

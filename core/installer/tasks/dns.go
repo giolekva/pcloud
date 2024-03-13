@@ -14,10 +14,10 @@ import (
 
 type Check func(ch Check) error
 
-func SetupZoneTask(env Env, st *state) Task {
+func SetupZoneTask(env Env, ingressIP net.IP, st *state) Task {
 	return newSequentialParentTask(
 		fmt.Sprintf("Setup DNS zone records for %s", env.Domain),
-		CreateZoneRecords(env.Domain, st.publicIPs, env, st),
+		CreateZoneRecords(env.Domain, st.publicIPs, ingressIP, env, st),
 		WaitToPropagate(env.Domain, st.publicIPs),
 	)
 }
@@ -25,6 +25,7 @@ func SetupZoneTask(env Env, st *state) Task {
 func CreateZoneRecords(
 	name string,
 	expected []net.IP,
+	ingressIP net.IP,
 	env Env,
 	st *state,
 ) Task {
@@ -52,7 +53,7 @@ metadata:
   namespace: {{ .namespace }}
 spec:
   zone: {{ .zone }}
-  privateIP: 10.1.0.1
+  privateIP: {{ .ingressIP }}
   publicIPs:
 {{ range .publicIPs }}
   - {{ .String }}
@@ -85,6 +86,7 @@ data:
 				"zone":      env.Domain,
 				"dnssec":    key,
 				"publicIPs": st.publicIPs,
+				"ingressIP": ingressIP.String(),
 			}); err != nil {
 				return err
 			}
