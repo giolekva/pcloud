@@ -39,7 +39,7 @@ helm: {
 			repoAddr: input.repoAddr
 			sshPrivateKey: base64.Encode(null, input.sshPrivateKey)
 			createAccountAddr: "http://api.\(global.namespacePrefix)core-auth.svc.cluster.local/identities"
-			loginAddr: "http://accounts-ui.\(global.domain)"
+			loginAddr: "https://accounts-ui.\(global.domain)"
 			ingress: {
 				className: _ingressPublic
 				domain: "welcome.\(global.domain)"
