@@ -177,7 +177,7 @@ spec:
         - headscale-api
         - --port={{ .Values.api.port }}
         - --config=/headscale/config/config.yaml
-        - --domain={{ .Values.api.rootDomain }}
+        - --ip-subnet={{ .Values.api.ipSubnet }}
         - --acls=/headscale/acls/config.hujson
         volumeMounts:
         - name: data

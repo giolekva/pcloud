@@ -5,6 +5,7 @@ import (
 	"flag"
 	"fmt"
 	"log"
+	"net"
 	"net/http"
 	"os"
 	"text/template"
@@ -15,28 +16,21 @@ import (
 var port = flag.Int("port", 3000, "Port to listen on")
 var config = flag.String("config", "", "Path to headscale config")
 var acls = flag.String("acls", "", "Path to the headscale acls file")
-var domain = flag.String("domain", "", "Environment domain")
+var ipSubnet = flag.String("ip-subnet", "10.1.0.0/24", "IP subnet of the private network")
 
 // TODO(gio): make internal network cidr and proxy user configurable
 const defaultACLs = `
 {
   "autoApprovers": {
     "routes": {
-      // "10.1.0.0/24": ["private-network-proxy@{{ .Domain }}"],
-      "10.1.0.0/24": ["*"],
+      "{{ .ipSubnet }}": ["*"],
     },
   },
   "acls": [
     { // Everyone has passthough access to private-network-proxy node
       "action": "accept",
       "src": ["*"],
-      "dst": ["10.1.0.0/24:*", "private-network-proxy:0"],
-    },
-  ],
-  "tests": [
-    {
-      "src": "*",
-      "accept": ["10.1.0.1:80", "10.1.0.1:443"],
+      "dst": ["{{ .ipSubnet }}:*", "private-network-proxy:0"],
     },
   ],
 }
@@ -94,24 +88,28 @@ func (s *server) enableRoute(c echo.Context) error {
 	}
 }
 
-func updateACLs(domain, acls string) error {
+func updateACLs(cidr net.IPNet, aclsPath string) error {
 	tmpl, err := template.New("acls").Parse(defaultACLs)
 	if err != nil {
 		return err
 	}
-	out, err := os.Create(acls)
+	out, err := os.Create(aclsPath)
 	if err != nil {
 		return err
 	}
 	defer out.Close()
 	return tmpl.Execute(out, map[string]any{
-		"Domain": domain,
+		"ipSubnet": cidr.String(),
 	})
 }
 
 func main() {
 	flag.Parse()
-	updateACLs(*domain, *acls)
+	_, cidr, err := net.ParseCIDR(*ipSubnet)
+	if err != nil {
+		panic(err)
+	}
+	updateACLs(*cidr, *acls)
 	c := newClient(*config)
 	s := newServer(*port, c)
 	s.start()

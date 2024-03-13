@@ -35,7 +35,7 @@ func SetupInfra(env Env, startIP net.IP, st *state) []Task {
 			SetupNetwork(env, startIP, st),
 			SetupCertificateIssuers(env, st),
 			SetupAuth(env, st),
-			SetupHeadscale(env, st),
+			SetupHeadscale(env, startIP, st),
 			SetupWelcome(env, st),
 			SetupAppStore(env, st),
 		),
@@ -229,7 +229,7 @@ func SetupAuth(env Env, st *state) Task {
 	)
 }
 
-func SetupHeadscale(env Env, st *state) Task {
+func SetupHeadscale(env Env, startIP net.IP, st *state) Task {
 	t := newLeafTask("Setup", func() error {
 		app, err := st.appsRepo.Find("headscale")
 		if err != nil {
@@ -237,6 +237,7 @@ func SetupHeadscale(env Env, st *state) Task {
 		}
 		if err := st.appManager.Install(app, st.nsGen, st.emptySuffixGen, map[string]any{
 			"subdomain": "headscale",
+			"ipSubnet":  fmt.Sprintf("%s/24", startIP),
 		}); err != nil {
 			return err
 		}
