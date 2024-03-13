@@ -41,6 +41,7 @@ type DNSZoneRef struct {
 func NewCreateEnvTask(
 	env Env,
 	publicIPs []net.IP,
+	startIP net.IP,
 	nsCreator installer.NamespaceCreator,
 	repo installer.RepoIO,
 ) (Task, DNSZoneRef) {
@@ -55,9 +56,9 @@ func NewCreateEnvTask(
 			[]Task{
 				SetupConfigRepoTask(env, &st),
 				NewActivateEnvTask(env, &st),
-				SetupZoneTask(env, &st),
+				SetupZoneTask(env, startIP, &st),
 			},
-			SetupInfra(env, &st)...,
+			SetupInfra(env, startIP, &st)...,
 		)...,
 	)
 	rctx, done := context.WithCancel(context.Background())

@@ -15,7 +15,7 @@ oauth2:
 ipAddressPool: example-headscale
 api:
   port: 8585
-  rootDomain: example.com
+  ipSubnet: 10.1.0.0/24
   image:
     repository: giolekva/headscale-api
     tag: latest

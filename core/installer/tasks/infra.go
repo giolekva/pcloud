@@ -2,6 +2,7 @@ package tasks
 
 import (
 	"fmt"
+	"net"
 	"net/netip"
 
 	"github.com/miekg/dns"
@@ -9,7 +10,7 @@ import (
 	"github.com/giolekva/pcloud/core/installer"
 )
 
-func SetupInfra(env Env, st *state) []Task {
+func SetupInfra(env Env, startIP net.IP, st *state) []Task {
 	t := newLeafTask("Create client", func() error {
 		repo, err := st.ssClient.GetRepo("config")
 		if err != nil {
@@ -31,10 +32,10 @@ func SetupInfra(env Env, st *state) []Task {
 		&t,
 		newConcurrentParentTask(
 			"Core services",
-			SetupNetwork(env, st),
+			SetupNetwork(env, startIP, st),
 			SetupCertificateIssuers(env, st),
 			SetupAuth(env, st),
-			SetupHeadscale(env, st),
+			SetupHeadscale(env, startIP, st),
 			SetupWelcome(env, st),
 			SetupAppStore(env, st),
 		),
@@ -101,13 +102,31 @@ spec:
 	return &t
 }
 
-func SetupNetwork(env Env, st *state) Task {
+func SetupNetwork(env Env, startIP net.IP, st *state) Task {
 	t := newLeafTask("Setup network", func() error {
-		ingressPrivateIP, err := netip.ParseAddr("10.1.0.1")
+		startAddr, err := netip.ParseAddr(startIP.String())
 		if err != nil {
 			return err
 		}
+		if !startAddr.Is4() {
+			return fmt.Errorf("Expected IPv4, got %s instead", startAddr)
+		}
+		addr := startAddr.AsSlice()
+		if addr[3] != 0 {
+			return fmt.Errorf("Expected last byte to be zero, got %d instead", addr[3])
+		}
+		addr[3] = 10
+		fromIP, ok := netip.AddrFromSlice(addr)
+		if !ok {
+			return fmt.Errorf("Must not reach")
+		}
+		addr[3] = 254
+		toIP, ok := netip.AddrFromSlice(addr)
+		if !ok {
+			return fmt.Errorf("Must not reach")
+		}
 		{
+			ingressPrivateIP := startAddr
 			headscaleIP := ingressPrivateIP.Next()
 			app, err := st.appsRepo.Find("metallb-ipaddresspool")
 			if err != nil {
@@ -133,8 +152,8 @@ func SetupNetwork(env Env, st *state) Task {
 			}
 			if err := st.appManager.Install(app, st.nsGen, st.emptySuffixGen, map[string]any{
 				"name":       env.Name,
-				"from":       "10.1.0.100", // TODO(gio): auto-generate
-				"to":         "10.1.0.254",
+				"from":       fromIP.String(),
+				"to":         toIP.String(),
 				"autoAssign": false,
 				"namespace":  "metallb-system",
 			}); err != nil {
@@ -150,7 +169,7 @@ func SetupNetwork(env Env, st *state) Task {
 				"privateNetwork": map[string]any{
 					"hostname": "private-network-proxy",
 					"username": "private-network-proxy",
-					"ipSubnet": "10.1.0.0/24",
+					"ipSubnet": fmt.Sprintf("%s/24", startIP.String()),
 				},
 			}); err != nil {
 				return err
@@ -210,7 +229,7 @@ func SetupAuth(env Env, st *state) Task {
 	)
 }
 
-func SetupHeadscale(env Env, st *state) Task {
+func SetupHeadscale(env Env, startIP net.IP, st *state) Task {
 	t := newLeafTask("Setup", func() error {
 		app, err := st.appsRepo.Find("headscale")
 		if err != nil {
@@ -218,6 +237,7 @@ func SetupHeadscale(env Env, st *state) Task {
 		}
 		if err := st.appManager.Install(app, st.nsGen, st.emptySuffixGen, map[string]any{
 			"subdomain": "headscale",
+			"ipSubnet":  fmt.Sprintf("%s/24", startIP),
 		}); err != nil {
 			return err
 		}

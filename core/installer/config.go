@@ -1,6 +1,7 @@
 package installer
 
 import (
+	"net"
 	"net/netip"
 )
 
@@ -20,6 +21,13 @@ type EnvConfig struct {
 	AdminPublicKey            []byte        `json:"adminPublicKey"`
 	ServiceIPs                EnvServiceIPs `json:"serviceIPs"`
 }
+
+type EnvCIDR struct {
+	Name string
+	IP   net.IP
+}
+
+type EnvCIDRs []EnvCIDR
 
 type Config struct {
 	Values Values `json:"input"` // TODO(gio): rename

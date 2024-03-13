@@ -1,5 +1,6 @@
 input: {
 	subdomain: string
+	ipSubnet: string
 }
 
 name: "headscale"
@@ -58,7 +59,7 @@ helm: {
 			ipAddressPool: "\(global.id)-headscale"
 			api: {
 				port: 8585
-				rootDomain: global.domain
+				ipSubnet: input.ipSubnet
 				image: {
 					repository: images.api.fullName
 					tag: images.api.tag
