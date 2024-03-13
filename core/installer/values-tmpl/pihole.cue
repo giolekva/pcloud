@@ -105,8 +105,9 @@ helm: {
 			oauth2: {
 				cookieSecret: "1234123443214321"
 				secretName: "oauth2-secret"
-				configName: "oauth2-proxy"
+				issuer: "https://hydra.\(global.domain)"
 			}
+			configName: "oauth2-proxy"
 			profileUrl: "https://accounts-ui.\(global.domain)"
 			ingressClassName: input.network.ingressClass
 			certificateIssuer: input.network.certificateIssuer

@@ -9,7 +9,9 @@ certificateIssuer: lekva-public
 domain: headscale.example.com
 publicBaseDomain: example.com
 ipAddressPool: example-headscale
-oauth2ClientSecretName: oauth2-client
+oauth2:
+  secretName: oauth2-client
+  issuer: https://oidc-issuer.example.com
 api:
   port: 8585
   ipSubnet: 10.1.0.0/24

@@ -78,6 +78,7 @@ helm: {
 			subdomain: input.subdomain
 			oauth2: {
 				secretName: "oauth2-client"
+				issuer: "https://hydra.\(global.domain)"
 			}
 			postgresql: {
 				host: "postgres"

@@ -74,7 +74,10 @@ helm: {
 			domain: _domain
 			publicBaseDomain: global.domain
 			ipAddressPool: "\(global.id)-headscale"
-			oauth2ClientSecretName: _oauth2ClientSecretName
+			oauth2: {
+				secretName: _oauth2ClientSecretName
+				issuer: "https://hydra.\(global.domain)"
+			}
 			api: {
 				port: 8585
 				ipSubnet: input.ipSubnet
