@@ -22,6 +22,14 @@ images: {
 }
 
 charts: {
+	oauth2Client: {
+		chart: "charts/oauth2-client"
+		sourceRef: {
+			kind: "GitRepository"
+			name: "pcloud"
+			namespace: global.id
+		}
+	}
 	headscale: {
 		chart: "charts/headscale"
 		sourceRef: {
@@ -32,7 +40,22 @@ charts: {
 	}
 }
 
+_domain: "\(input.subdomain).\(global.domain)"
+_oauth2ClientSecretName: "oauth2-client"
+
 helm: {
+	"oauth2-client": {
+		chart: charts.oauth2Client
+		values: {
+			name: "oauth2-client"
+			secretName: _oauth2ClientSecretName
+			grantTypes: ["authorization_code"]
+			responseTypes: ["code"]
+			scope: "openid profile email"
+			redirectUris: ["https://\(_domain)/oidc/callback"]
+			hydraAdmin: "http://hydra-admin.\(global.namespacePrefix)core-auth.svc.cluster.local"
+		}
+	}
 	headscale: {
 		chart: charts.headscale
 		dependsOnExternal: [{
@@ -48,15 +71,10 @@ helm: {
 			storage: size: "5Gi"
 			ingressClassName: _ingressPublic
 			certificateIssuer: _issuerPublic
-			domain: "\(input.subdomain).\(global.domain)"
+			domain: _domain
 			publicBaseDomain: global.domain
-			oauth2: {
-				hydraAdmin: "http://hydra-admin.\(global.namespacePrefix)core-auth.svc.cluster.local"
-				hydraPublic: "https://hydra.\(global.domain)"
-				clientId: "headscale"
-				secretName: "oauth2-client-headscale"
-			}
 			ipAddressPool: "\(global.id)-headscale"
+			oauth2ClientSecretName: _oauth2ClientSecretName
 			api: {
 				port: 8585
 				ipSubnet: input.ipSubnet

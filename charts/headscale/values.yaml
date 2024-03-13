@@ -8,11 +8,8 @@ ingressClassName: pcloud-ingress-public
 certificateIssuer: lekva-public
 domain: headscale.example.com
 publicBaseDomain: example.com
-oauth2:
-  hydraAdmin: http://hydra-admin
-  hydraPublic: https://hydra.example.com
-  secretName: oauth2-client-headscale
 ipAddressPool: example-headscale
+oauth2ClientSecretName: oauth2-client
 api:
   port: 8585
   ipSubnet: 10.1.0.0/24

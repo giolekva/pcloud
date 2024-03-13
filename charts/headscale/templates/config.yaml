@@ -4,7 +4,7 @@ metadata:
   name: config-renderer
   namespace: {{ .Release.Namespace }}
 spec:
-  secretName: {{ .Values.oauth2.secretName }}
+  secretName: {{ .Values.oauth2ClientSecretName }}
   resourceTemplate: |
     apiVersion: v1
     kind: ConfigMap
