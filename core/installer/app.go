@@ -33,6 +33,7 @@ var storeAppConfigs = []string{
 	"values-tmpl/rpuppy.cue",
 	"values-tmpl/soft-serve.cue",
 	"values-tmpl/vaultwarden.cue",
+	"values-tmpl/url-shortener.cue",
 }
 
 var infraAppConfigs = []string{
