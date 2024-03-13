@@ -67,7 +67,7 @@ spec:
           protocol: TCP
         command: 
         - url-shortener
-        - --port="{{ .Values.port }}
+        - --port={{ .Values.port }}
         - --db-path="/data/urls.db"
         volumeMounts:
         - name: url-shortener
