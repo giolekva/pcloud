@@ -43,7 +43,6 @@ spec:
             name: url-shortener
             port:
               name: http
-
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -67,7 +66,10 @@ spec:
         - name: http
           containerPort: 8080
           protocol: TCP
-        command: ["url-shortener", "--port={{ .Values.port }}", "--db-path={{ .Values.dbPath }}"]
+        command: 
+        - url-shortener
+        - --port="{{ .Values.port }}
+        - --db-path="/data/urls.db"
         volumeMounts:
         - name: url-shortener
           mountPath: /data
