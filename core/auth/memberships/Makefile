@@ -1,4 +1,4 @@
-repo_name ?= giolekva
+repo_name ?= dtabidze
 podman ?= podman
 manifest_dest =
 ifeq ($(podman), podman)
