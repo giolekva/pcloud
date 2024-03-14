@@ -46,6 +46,11 @@ _oauth2ClientSecretName: "oauth2-client"
 helm: {
 	"oauth2-client": {
 		chart: charts.oauth2Client
+		// TODO(gio): remove once hydra maester is installed as part of dodo itself
+		dependsOnExternal: [{
+			name: "auth"
+			namespace: "\(global.namespacePrefix)core-auth"
+		}]
 		values: {
 			name: "oauth2-client"
 			secretName: _oauth2ClientSecretName
