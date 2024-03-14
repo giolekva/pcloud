@@ -18,7 +18,7 @@ charts: {
 		sourceRef: {
 			kind: "GitRepository"
 			name: "pcloud"
-			namespace: global.id
+			namespace: global.pcloudEnvName
 		}
 	}
 }
