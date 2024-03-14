@@ -15,7 +15,7 @@ images: {
 	matrix: {
 		repository: "matrixdotorg"
 		name: "synapse"
-		tag: "latest"
+		tag: "v1.98.0"
 		pullPolicy: "IfNotPresent"
 	}
 	postgres: {
