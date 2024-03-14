@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>URL Shortener</title>
+    <link rel="stylesheet" href="/static/pico.2.0.6.min.css">
+    <!-- <script type="application/javascript" src="/static/main.js"></script> -->
+</head>
+<body class="container">
+    <h1>Groups Managment</h1>
+    <form action="/" method="post">
+        <label for="group-name">Group Name:</label>
+        <input type="text" id="group-name" name="group-name" required>
+        <label for="description">Group Description:</label>
+        <input type="text" id="description" name="description">
+        <button type="submit">Create New Group</button>
+    </form>
+    <h2>Groups You are In</h2>
+    <table>
+        <tr>
+            <th>Name</th>
+            <th>Description</th>
+            <th>Membership</th>
+        </tr>
+        {{- range .Groups -}}
+        <tr>
+            <td>{{ .Name }}</td>
+            <td>{{ .Description }}</td>
+        </tr>
+        {{- end -}}
+    </table>
+</body>
+</html>
