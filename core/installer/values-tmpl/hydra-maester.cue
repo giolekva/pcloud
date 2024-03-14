@@ -13,7 +13,7 @@ images: {
 }
 
 charts: {
-	hydraMaster: {
+	hydraMaester: {
 		chart: "charts/hydra-maester"
 		sourceRef: {
 			kind: "GitRepository"
