@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>URL Shortener</title>
+    <link rel="stylesheet" href="/static/pico.2.0.6.min.css">
+</head>
+<body class="container">
+    <h1>{{ .GroupName }} Group Managment</h1>
+    <form action="/adduser" method="post">
+        <input type="hidden" id="group-name" name="group" value="{{ .GroupName }}">
+        <label for="group-name">Username:</label>
+        <input type="text" id="username" name="username" required>
+        <label for="status">Status:</label>
+        <select id="status" name="status" required>
+            <option value="Member" selected>Member</option>
+            <option value="Owner">Owner</option>
+        </select>
+        <button type="submit">Add User Into this Group</button>
+    </form>
+    <h2>Members of {{ .GroupName }} Group</h2>
+    <table>
+        <tr>
+            <th>Username</th>
+            <th>Membership</th>
+            <th>Action</th>
+        </tr>
+        {{- range .OwnerUsers }}
+        <tr>
+            <td>{{ . }}</td>
+            <td>Owner</td>
+            <td>Delete</td>
+        </tr>
+        {{- end }}
+        {{- range .MembershipUsers }}
+        <tr>
+            <td>{{ . }}</td>
+            <td>Member</td>
+            <td>Delete</td>
+        </tr>
+        {{- end }}
+    </table>
+</body>
+</html>

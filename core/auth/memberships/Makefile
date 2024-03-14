@@ -1,5 +1,5 @@
 repo_name ?= dtabidze
-podman ?= podman
+podman ?= docker
 manifest_dest =
 ifeq ($(podman), podman)
 manifest_dest=docker://docker.io/$(repo_name)/memberships:latest

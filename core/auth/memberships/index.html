@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>URL Shortener</title>
     <link rel="stylesheet" href="/static/pico.2.0.6.min.css">
+    <script type="application/javascript" src="/static/main.js"></script>
 </head>
 <body class="container">
     <h1>Groups Managment</h1>
@@ -24,7 +25,7 @@
         </tr>
         {{- range . -}}
         <tr>
-            <td>{{ .Group.Name }}</td>
+            <td><a href="/group/{{ .Group.Name }}" class="group-link">{{ .Group.Name }}</a></td>
             <td>{{ .Group.Description }}</td>
             <td>{{ .Membership }}</td>
         </tr>
