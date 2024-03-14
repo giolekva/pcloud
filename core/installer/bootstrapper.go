@@ -455,7 +455,7 @@ spec:
   interval: 1m0s
   url: https://github.com/giolekva/pcloud
   ref:
-    branch: cuelang
+    branch: main
 `, env.Name)))
 		if err != nil {
 			return err
