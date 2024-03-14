@@ -5,8 +5,7 @@ image:
 domain: example.com
 subdomain: matrix
 oauth2:
-  hydraAdmin: http://hydra-admin
-  hydraPublic: https://hydra.example.com
+  issuer: https://oidc-issuer.example.com
   secretName: oauth2-client
 postgresql:
   host: postgresql

@@ -1,3 +1,9 @@
+repo_name ?= giolekva
+podman ?= docker
+ifeq ($(podman), podman)
+manifest_dest=docker://docker.io/$(repo_name)/headscale-api:latest
+endif
+
 clean:
 	rm -f server_*
 
@@ -16,15 +22,15 @@ build_amd64:
 	go build -o server_amd64 *.go
 
 push_arm64: clean build_arm64
-	podman build --platform linux/arm64 --tag=giolekva/headscale-api:arm64 .
-	podman push giolekva/headscale-api:arm64
+	$(podman) build --platform linux/arm64 --tag=$(repo_name)/headscale-api:arm64 .
+	$(podman) push $(repo_name)/headscale-api:arm64
 
 push_amd64: clean build_amd64
-	podman build --platform linux/amd64 --tag=giolekva/headscale-api:amd64 .
-	podman push giolekva/headscale-api:amd64
+	$(podman) build --platform linux/amd64 --tag=$(repo_name)/headscale-api:amd64 .
+	$(podman) push $(repo_name)/headscale-api:amd64
 
 
 push: push_arm64 push_amd64
-	podman manifest create giolekva/headscale-api:latest giolekva/headscale-api:arm64 giolekva/headscale-api:amd64
-	podman manifest push giolekva/headscale-api:latest docker://docker.io/giolekva/headscale-api:latest
-	podman manifest rm giolekva/headscale-api:latest
+	$(podman) manifest create $(repo_name)/headscale-api:latest $(repo_name)/headscale-api:arm64 $(repo_name)/headscale-api:amd64
+	$(podman) manifest push $(repo_name)/headscale-api:latest $(manifest_dest)
+	$(podman) manifest rm $(repo_name)/headscale-api:latest

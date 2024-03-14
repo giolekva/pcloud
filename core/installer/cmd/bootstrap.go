@@ -79,7 +79,8 @@ func bootstrapCmd() *cobra.Command {
 }
 
 func bootstrapCmdRun(cmd *cobra.Command, args []string) error {
-	// TODO(gio): remove installer.CreateAllApps()
+	// TODO(gio): remove
+	installer.CreateAllApps()
 	adminPubKey, err := os.ReadFile(bootstrapFlags.adminPubKey)
 	if err != nil {
 		return err

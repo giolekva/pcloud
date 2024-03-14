@@ -9,7 +9,7 @@ spec:
     apiVersion: v1
     kind: ConfigMap
     metadata:
-      name: {{ .Values.oauth2.configName }}
+      name: {{ .Values.configName }}
       namespace: {{ .Release.Namespace }}
     data:
       oauth2-proxy.cfg: |
@@ -53,6 +53,6 @@ spec:
         cookie_httponly = true
 
         provider = "oidc"
-        oidc_issuer_url = "{{ .Values.hydraPublic }}"
+        oidc_issuer_url = "{{ .Values.oauth2.issuer }}"
         provider_display_name = "PCloud"
         profile_url = "{{ .Values.profileUrl }}"
