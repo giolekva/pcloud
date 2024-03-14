@@ -104,7 +104,7 @@ helm: {
 			}
 			oauth2: {
 				cookieSecret: "1234123443214321"
-				secretName: "oauth2-secret"
+				secretName: _oauth2ClientSecretName
 				issuer: "https://hydra.\(global.domain)"
 			}
 			configName: "oauth2-proxy"
