@@ -19,10 +19,10 @@ var port = flag.Int("port", 8080, "ort to listen on")
 var dbPath = flag.String("db-path", "memberships.db", "Path to SQLite file")
 
 //go:embed index.html
-var indexHTML embed.FS
+var indexHtml []byte
 
 //go:embed group.html
-var addUser embed.FS
+var groupHTML []byte
 
 //go:embed static
 var f embed.FS
@@ -32,12 +32,14 @@ type SQLiteStore struct {
 }
 
 type Store interface {
-	CreateGroup(loggedInUsername string, group Group) error
-	GetOwnerGroups(username string) ([]Group, error)
+	CreateGroup(owner string, group Group) error
+	GetGroupsOwnedBy(username string) ([]Group, error)
 	GetMembershipGroups(username string) ([]Group, error)
-	AddUserIntoGroup(loggedInUsername, targetUsername, groupName string, status string) error
-	GetOwnerUsers(groupname string) ([]string, error)
-	GetMembershipUsers(groupname string) ([]string, error)
+	IsGroupOwner(user, groupName string) (bool, error)
+	AddGroupMember(targetUsername, groupName string) error
+	AddGroupOwner(targetUsername, groupName string) error
+	GetGroupOwners(groupname string) ([]string, error)
+	GetGroupMembers(groupname string) ([]string, error)
 }
 
 type Server struct {
@@ -112,7 +114,7 @@ func (s *SQLiteStore) queryGroups(query string, args ...interface{}) ([]Group, e
 	return groups, nil
 }
 
-func (s *SQLiteStore) GetOwnerGroups(username string) ([]Group, error) {
+func (s *SQLiteStore) GetGroupsOwnedBy(username string) ([]Group, error) {
 	query := `
         SELECT groups.name, groups.description 
         FROM groups 
@@ -154,6 +156,22 @@ func (s *SQLiteStore) CreateGroup(username string, group Group) error {
 	return nil
 }
 
+func (s *SQLiteStore) IsGroupOwner(user, groupName string) (bool, error) {
+	query := `
+        SELECT EXISTS (
+            SELECT 1
+            FROM owners
+            WHERE username = ? AND group_name = ?
+        )
+    `
+	var exists bool
+	err := s.db.QueryRow(query, user, groupName).Scan(&exists)
+	if err != nil {
+		return false, err
+	}
+	return exists, nil
+}
+
 func userExistsInTable(db *sql.DB, tableName, username, groupName string) (bool, error) {
 	query := fmt.Sprintf("SELECT username FROM %s WHERE username = ? AND group_name = ?", tableName)
 	row := db.QueryRow(query, username, groupName)
@@ -168,32 +186,7 @@ func userExistsInTable(db *sql.DB, tableName, username, groupName string) (bool,
 	return true, nil
 }
 
-func (s *SQLiteStore) AddUserIntoGroup(loggedInUsername, targetUsername, groupName string, status string) error {
-	// TODO(dtabidze): should check if username u adding exists(ask ORY)
-	ownerGroups, err := s.GetOwnerGroups(loggedInUsername)
-	if err != nil {
-		return err
-	}
-	var isOwner bool
-	for _, group := range ownerGroups {
-		if group.Name == groupName {
-			isOwner = true
-			break
-		}
-	}
-	if !isOwner {
-		// or You don't have permission, You are not owner of this group.
-		return fmt.Errorf("%s is not the owner of group %s", loggedInUsername, groupName)
-	}
-
-	existsInOwners, err := userExistsInTable(s.db, "owners", targetUsername, groupName)
-	if err != nil {
-		return err
-	}
-	if existsInOwners {
-		return fmt.Errorf("%s is already an owner of group %s", targetUsername, groupName)
-	}
-
+func (s *SQLiteStore) AddGroupMember(targetUsername, groupName string) error {
 	existsInUserToGroup, err := userExistsInTable(s.db, "user_to_group", targetUsername, groupName)
 	if err != nil {
 		return err
@@ -201,17 +194,22 @@ func (s *SQLiteStore) AddUserIntoGroup(loggedInUsername, targetUsername, groupNa
 	if existsInUserToGroup {
 		return fmt.Errorf("%s is already a member of group %s", targetUsername, groupName)
 	}
-
-	var insertQuery string
-	if status == "Owner" {
-		insertQuery = `INSERT INTO owners (username, group_name) VALUES (?, ?)`
-	} else if status == "Member" {
-		insertQuery = `INSERT INTO user_to_group (username, group_name) VALUES (?, ?)`
-	} else {
-		return fmt.Errorf("Invalid status: %s", status)
+	_, err = s.db.Exec(`INSERT INTO user_to_group (username, group_name) VALUES (?, ?)`, targetUsername, groupName)
+	if err != nil {
+		return err
 	}
+	return nil
+}
 
-	_, err = s.db.Exec(insertQuery, targetUsername, groupName)
+func (s *SQLiteStore) AddGroupOwner(targetUsername, groupName string) error {
+	existsInOwners, err := userExistsInTable(s.db, "owners", targetUsername, groupName)
+	if err != nil {
+		return err
+	}
+	if existsInOwners {
+		return fmt.Errorf("%s is already an owner of group %s", targetUsername, groupName)
+	}
+	_, err = s.db.Exec(`INSERT INTO owners (username, group_name) VALUES (?, ?)`, targetUsername, groupName)
 	if err != nil {
 		return err
 	}
@@ -220,7 +218,7 @@ func (s *SQLiteStore) AddUserIntoGroup(loggedInUsername, targetUsername, groupNa
 
 func getLoggedInUser(r *http.Request) (string, error) {
 	// TODO(dtabidze): should make a request to get loggedin user
-	return "lekva", nil
+	return "tabo", nil
 }
 
 func (s *Server) Start() {
@@ -264,7 +262,7 @@ func (s *Server) handler(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	var data []GroupData
-	ownerGroups, err := s.store.GetOwnerGroups(loggedInUser)
+	ownerGroups, err := s.store.GetGroupsOwnedBy(loggedInUser)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -280,12 +278,7 @@ func (s *Server) handler(w http.ResponseWriter, r *http.Request) {
 	for _, group := range membershipGroups {
 		data = append(data, GroupData{Group: group, Membership: "Member"})
 	}
-	indexHTMLContent, err := indexHTML.ReadFile("index.html")
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-	tmpl, err := template.New("index").Parse(string(indexHTMLContent))
+	tmpl, err := template.New("index").Parse(string(indexHtml))
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -314,33 +307,28 @@ func (s *SQLiteStore) getUsersByGroup(table, groupname string) ([]string, error)
 	return users, nil
 }
 
-func (s *SQLiteStore) GetOwnerUsers(groupname string) ([]string, error) {
+func (s *SQLiteStore) GetGroupOwners(groupname string) ([]string, error) {
 	return s.getUsersByGroup("owners", groupname)
 }
 
-func (s *SQLiteStore) GetMembershipUsers(groupname string) ([]string, error) {
+func (s *SQLiteStore) GetGroupMembers(groupname string) ([]string, error) {
 	return s.getUsersByGroup("user_to_group", groupname)
 }
 
 func (s *Server) groupHandler(w http.ResponseWriter, r *http.Request) {
 	groupName := strings.TrimPrefix(r.URL.Path, "/group/")
 	fmt.Println("Group Name:", groupName)
-	groupHTMLContect, err := addUser.ReadFile("group.html")
+	tmpl, err := template.New("group").Parse(string(groupHTML))
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	tmpl, err := template.New("group").Parse(string(groupHTMLContect))
+	ownerUsers, err := s.store.GetGroupOwners(groupName)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	ownerUsers, err := s.store.GetOwnerUsers(groupName)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-	membershipUsers, err := s.store.GetMembershipUsers(groupName)
+	membershipUsers, err := s.store.GetGroupMembers(groupName)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -374,7 +362,24 @@ func (s *Server) addUserHandler(w http.ResponseWriter, r *http.Request) {
 	groupName := r.FormValue("group")
 	username := r.FormValue("username")
 	status := r.FormValue("status")
-	err = s.store.AddUserIntoGroup(loggedInUser, username, groupName, status)
+	isOwner, err := s.store.IsGroupOwner(loggedInUser, groupName)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	if !isOwner {
+		http.Error(w, fmt.Sprintf("You are not the owner of the group %s", groupName), http.StatusUnauthorized)
+		return
+	}
+	switch status {
+	case "Owner":
+		err = s.store.AddGroupOwner(username, groupName)
+	case "Member":
+		err = s.store.AddGroupMember(username, groupName)
+	default:
+		http.Error(w, "Invalid status", http.StatusBadRequest)
+		return
+	}
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
