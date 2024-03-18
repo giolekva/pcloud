@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Group Membership Managment</title>
     <link rel="stylesheet" href="/static/pico.2.0.6.min.css">
-    <link rel="stylesheet" href="/static/group.css">
+    <link rel="stylesheet" href="/static/main.css">
 </head>
 <body class="container">
     <div>
@@ -24,6 +24,17 @@
         </select>
         <button type="submit">Add Member</button>
     </form>
+    <hr class="divider">
+    <form action="/addchildgroup" method="post">
+        <input type="hidden" id="parent-group" name="parent-group" value="{{ .GroupName }}">
+        <label for="child-group">Select Child Group:</label>
+        <select id="child-group" name="child-group" required>
+            {{- range .AvailableGroups }}
+            <option value="{{ . }}">{{ . }}</option>
+            {{- end }}
+        </select>
+        <button type="submit">Create Child Group</button>
+    </form>    
     <h4>Owners</h4>
     <table>
         <tr>

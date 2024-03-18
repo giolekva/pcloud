@@ -29,6 +29,7 @@ var f embed.FS
 
 type Store interface {
 	CreateGroup(owner string, group Group) error
+	AddChildGroup(parent, child string) error
 	GetGroupsOwnedBy(user string) ([]Group, error)
 	GetMembershipGroups(user string) ([]Group, error)
 	IsGroupOwner(user, group string) (bool, error)
@@ -36,8 +37,8 @@ type Store interface {
 	AddGroupOwner(user, group string) error
 	GetGroupOwners(group string) ([]string, error)
 	GetGroupMembers(group string) ([]string, error)
-	GetGroupDescription(groupName string) (string, error)
-	userGroupPairExists(table, user, group string) (bool, error)
+	GetGroupDescription(group string) (string, error)
+	GetAvailableGroupsAsChild(group string) ([]string, error)
 }
 
 type Server struct {
@@ -237,14 +238,63 @@ func (s *SQLiteStore) GetGroupMembers(group string) ([]string, error) {
 	return s.getUsersByGroup("user_to_group", group)
 }
 
-func (s *SQLiteStore) GetGroupDescription(groupName string) (string, error) {
+func (s *SQLiteStore) GetGroupDescription(group string) (string, error) {
 	var description string
 	query := `SELECT description FROM groups WHERE name = ?`
-	err := s.db.QueryRow(query, groupName).Scan(&description)
+	err := s.db.QueryRow(query, group).Scan(&description)
 	if err != nil {
 		return "", err
 	}
 	return description, nil
+}
+
+func (s *SQLiteStore) parentChildGroupPairExists(parent, child string) (bool, error) {
+	query := `SELECT EXISTS (SELECT 1 FROM group_to_group WHERE parent_group = ? AND child_group = ?)`
+	var exists bool
+	err := s.db.QueryRow(query, parent, child).Scan(&exists)
+	if err != nil {
+		return false, err
+	}
+	return exists, nil
+}
+
+func (s *SQLiteStore) AddChildGroup(parent, child string) error {
+	existsInGroupToGroup, err := s.parentChildGroupPairExists(parent, child)
+	if err != nil {
+		return err
+	}
+	if existsInGroupToGroup {
+		return fmt.Errorf("child group name %s already exists in group %s", child, parent)
+	}
+	_, err = s.db.Exec(`INSERT INTO group_to_group (parent_group, child_group) VALUES (?, ?)`, parent, child)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *SQLiteStore) GetAvailableGroupsAsChild(group string) ([]string, error) {
+	// TODO(dtabidze): Might have to add further logic to filter available groups as children.
+	query := `
+		SELECT name FROM groups
+		WHERE name != ? AND name NOT IN (
+			SELECT child_group FROM group_to_group WHERE parent_group = ?
+		)
+	`
+	rows, err := s.db.Query(query, group, group)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var availableGroups []string
+	for rows.Next() {
+		var groupName string
+		if err := rows.Scan(&groupName); err != nil {
+			return nil, err
+		}
+		availableGroups = append(availableGroups, groupName)
+	}
+	return availableGroups, nil
 }
 
 func getLoggedInUser(r *http.Request) (string, error) {
@@ -257,6 +307,7 @@ func (s *Server) Start() {
 	http.HandleFunc("/", s.homePageHandler)
 	http.HandleFunc("/group/", s.groupHandler)
 	http.HandleFunc("/adduser", s.addUserHandler)
+	http.HandleFunc("/addchildgroup", s.addChildGroupHandler)
 	log.Fatal(http.ListenAndServe(fmt.Sprintf(":%d", *port), nil))
 }
 
@@ -337,16 +388,23 @@ func (s *Server) groupHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
+	availableGroups, err := s.store.GetAvailableGroupsAsChild(groupName)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
 	data := struct {
-		GroupName   string
-		Description string
-		Owners      []string
-		Members     []string
+		GroupName       string
+		Description     string
+		Owners          []string
+		Members         []string
+		AvailableGroups []string
 	}{
-		GroupName:   groupName,
-		Description: description,
-		Owners:      owners,
-		Members:     members,
+		GroupName:       groupName,
+		Description:     description,
+		Owners:          owners,
+		Members:         members,
+		AvailableGroups: availableGroups,
 	}
 	err = tmpl.Execute(w, data)
 	if err != nil {
@@ -391,6 +449,26 @@ func (s *Server) addUserHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	http.Redirect(w, r, "/group/"+groupName, http.StatusSeeOther)
+}
+
+func (s *Server) addChildGroupHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	_, err := getLoggedInUser(r)
+	if err != nil {
+		http.Error(w, "User Not Logged In", http.StatusUnauthorized)
+		return
+	}
+	parentGroup := r.FormValue("parent-group")
+	childGroup := r.FormValue("child-group")
+	err = s.store.AddChildGroup(parentGroup, childGroup)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	http.Redirect(w, r, "/group/"+parentGroup, http.StatusSeeOther)
 }
 
 func main() {
