@@ -5,9 +5,14 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Group Membership Managment</title>
     <link rel="stylesheet" href="/static/pico.2.0.6.min.css">
+    <link rel="stylesheet" href="/static/group.css">
 </head>
 <body class="container">
-    <h1>{{ .GroupName }} Group Managment</h1>
+    <div>
+        <h2 class="headline">{{ .GroupName }} Group Management</h2>
+        <p class="description">{{ .Description }}</p>
+    </div>
+    <hr class="divider">
     <form action="/adduser" method="post">
         <input type="hidden" id="group-name" name="group" value="{{ .GroupName }}">
         <label for="group-name">Username:</label>
@@ -17,26 +22,30 @@
             <option value="Member" selected>Member</option>
             <option value="Owner">Owner</option>
         </select>
-        <button type="submit">Add User Into this Group</button>
+        <button type="submit">Add Member</button>
     </form>
-    <h2>Members of {{ .GroupName }} Group</h2>
+    <h4>Owners</h4>
     <table>
         <tr>
             <th>Username</th>
-            <th>Membership</th>
             <th>Action</th>
         </tr>
-        {{- range .OwnerUsers }}
+        {{- range .Owners }}
         <tr>
             <td>{{ . }}</td>
-            <td>Owner</td>
             <td>Delete</td>
         </tr>
         {{- end }}
-        {{- range .MembershipUsers }}
+    </table>
+    <h4>Members</h4>
+    <table>
+        <tr>
+            <th>Username</th>
+            <th>Action</th>
+        </tr>
+        {{- range .Members }}
         <tr>
             <td>{{ . }}</td>
-            <td>Member</td>
             <td>Delete</td>
         </tr>
         {{- end }}
