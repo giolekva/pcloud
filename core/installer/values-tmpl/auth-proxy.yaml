@@ -1,0 +1,6 @@
+ingressClassName: dodo-ingress-public
+certificateIssuer: uhfe-public
+domain: wt.t12.dodo.cloud
+upstream: rpuppy.uhfe-app-rpuppy-pmx.svc.cluster.local
+whoAmIAddr: https://accounts.t12.dodo.cloud/sessions/whoami
+loginAddr: https://accounts-ui.t12.dodo.cloud/login

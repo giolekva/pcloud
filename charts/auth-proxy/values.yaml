@@ -1,0 +1,10 @@
+image:
+  repository: giolekva/auth-proxy
+  tag: latest
+  pullPolicy: Always
+ingressClassName: ingress-public
+certificateIssuer: example-public
+domain: foo.example.com
+upstream: bar.svc.cluster.local
+whoAmIAddr: https://accounts.example.com/sessions/whoami
+loginAddr: https://accounts-ui.example.com/login
