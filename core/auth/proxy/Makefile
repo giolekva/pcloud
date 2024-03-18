@@ -1,4 +1,4 @@
-repo_name ?= dtabidze
+repo_name ?= giolekva
 podman ?= docker
 ifeq ($(podman), podman)
 manifest_dest=docker://docker.io/$(repo_name)/pcloud-installer:latest
@@ -25,15 +25,15 @@ build_amd64:
 	go build -o server_amd64 *.go
 
 push_arm64: clean build_arm64
-	$(podman) build --platform linux/arm64 --tag=$(repo_name)/auth-ui:arm64 .
-	$(podman) push $(repo_name)/auth-ui:arm64
+	$(podman) build --platform linux/arm64 --tag=$(repo_name)/auth-proxy:arm64 .
+	$(podman) push $(repo_name)/auth-proxy:arm64
 
 push_amd64: clean build_amd64
-	$(podman) build --platform linux/amd64 --tag=$(repo_name)/auth-ui:amd64 .
-	$(podman) push $(repo_name)/auth-ui:amd64
+	$(podman) build --platform linux/amd64 --tag=$(repo_name)/auth-proxy:amd64 .
+	$(podman) push $(repo_name)/auth-proxy:amd64
 
 
 push: push_arm64 push_amd64
-	$(podman) manifest create $(repo_name)/auth-ui:latest $(repo_name)/auth-ui:arm64 $(repo_name)/auth-ui:amd64
-	$(podman) manifest push $(repo_name)/auth-ui:latest $(manifest_dest)
-	$(podman) manifest rm $(repo_name)/auth-ui:latest
+	$(podman) manifest create $(repo_name)/auth-proxy:latest $(repo_name)/auth-proxy:arm64 $(repo_name)/auth-proxy:amd64
+	$(podman) manifest push $(repo_name)/auth-proxy:latest $(manifest_dest)
+	$(podman) manifest rm $(repo_name)/auth-proxy:latest

@@ -239,9 +239,14 @@ func (s *Server) loginInitiate(w http.ResponseWriter, r *http.Request) {
 		// 	HttpOnly: true,
 		// })
 	}
+	returnTo := r.Form.Get("return_to")
 	flow, ok := r.Form["flow"]
 	if !ok {
-		http.Redirect(w, r, s.kratos+"/self-service/login/browser", http.StatusSeeOther)
+		addr := s.kratos + "/self-service/login/browser"
+		if returnTo != "" {
+			addr += fmt.Sprintf("?return_to=%s", returnTo)
+		}
+		http.Redirect(w, r, addr, http.StatusSeeOther)
 		return
 	}
 	csrfToken, err := getCSRFToken("login", flow[0], r.Cookies())
@@ -283,6 +288,32 @@ func postToKratos(flowType, flow string, cookies []*http.Cookie, req io.Reader) 
 	}
 	client.Jar.SetCookies(b, cookies)
 	resp, err := client.Post(fmt.Sprintf(*kratos+"/self-service/"+flowType+"?flow=%s", flow), "application/json", req)
+	if err != nil {
+		return nil, err
+	}
+	return resp, nil
+}
+
+func postFormToKratos(flowType, flow string, cookies []*http.Cookie, data url.Values) (*http.Response, error) {
+	jar, err := cookiejar.New(nil)
+	if err != nil {
+		return nil, err
+	}
+	client := &http.Client{
+		Jar: jar,
+		Transport: &http.Transport{
+			TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+		},
+		CheckRedirect: func(req *http.Request, via []*http.Request) error {
+			return http.ErrUseLastResponse
+		},
+	}
+	b, err := url.Parse(*kratos + "/self-service/" + flowType + "/browser")
+	if err != nil {
+		return nil, err
+	}
+	client.Jar.SetCookies(b, cookies)
+	resp, err := client.PostForm(fmt.Sprintf(*kratos+"/self-service/"+flowType+"?flow=%s", flow), data)
 	if err != nil {
 		return nil, err
 	}
@@ -360,6 +391,7 @@ func extractError(r io.Reader) error {
 	if err != nil {
 		return err
 	}
+	fmt.Printf("++ %s\n", respBody)
 	t, err := regogo.Get(string(respBody), "input.ui.messages[0].type")
 	if err != nil {
 		return err
@@ -384,21 +416,17 @@ func (s *Server) login(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, s.kratos+"/self-service/login/browser", http.StatusSeeOther)
 		return
 	}
-	req := loginReq{
-		CSRFToken: r.FormValue("csrf_token"),
-		Method:    "password",
-		Password:  r.FormValue("password"),
-		Username:  r.FormValue("username"),
+	req := url.Values{
+		"csrf_token": []string{r.FormValue("csrf_token")},
+		"method":     []string{"password"},
+		"password":   []string{r.FormValue("password")},
+		"identifier": []string{r.FormValue("username")},
 	}
-	var reqBody bytes.Buffer
-	if err := json.NewEncoder(&reqBody).Encode(req); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-	resp, err := postToKratos("login", flow[0], r.Cookies(), &reqBody)
-	if err == nil {
-		err = extractError(resp.Body)
-	}
+	resp, err := postFormToKratos("login", flow[0], r.Cookies(), req)
+	fmt.Printf("--- %d\n", resp.StatusCode)
+	var vv bytes.Buffer
+	io.Copy(&vv, resp.Body)
+	fmt.Println(vv.String())
 	if err != nil {
 		if challenge, _ := r.Cookie("login_challenge"); challenge != nil {
 			redirectTo, err := s.hydra.LoginRejectChallenge(challenge.Value, err.Error())
@@ -429,7 +457,11 @@ func (s *Server) login(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, redirectTo, http.StatusSeeOther)
 		return
 	}
-	http.Redirect(w, r, "/", http.StatusSeeOther)
+	if resp.StatusCode == http.StatusSeeOther {
+		http.Redirect(w, r, resp.Header.Get("Location"), http.StatusSeeOther)
+	} else {
+		http.Redirect(w, r, "/", http.StatusSeeOther)
+	}
 }
 
 func (s *Server) logout(w http.ResponseWriter, r *http.Request) {

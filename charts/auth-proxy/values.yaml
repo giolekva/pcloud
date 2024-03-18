@@ -1,0 +1,10 @@
+image:
+  repository: giolekva/auth-proxy
+  tag: latest
+  pullPolicy: Always
+ingressClassName: ingress-public
+certificateIssuer: example-public
+domain: foo.example.com
+upstream: bar.svc.cluster.local
+authAddr: https://accounts.t12.dodo.cloud/sessions/whoami
+sessionCookie: session
