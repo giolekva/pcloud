@@ -19,10 +19,10 @@ var port = flag.Int("port", 8080, "ort to listen on")
 var dbPath = flag.String("db-path", "memberships.db", "Path to SQLite file")
 
 //go:embed index.html
-var indexHtml []byte
+var indexHTML string
 
 //go:embed group.html
-var groupHTML []byte
+var groupHTML string
 
 //go:embed static
 var f embed.FS
@@ -33,13 +33,13 @@ type SQLiteStore struct {
 
 type Store interface {
 	CreateGroup(owner string, group Group) error
-	GetGroupsOwnedBy(username string) ([]Group, error)
-	GetMembershipGroups(username string) ([]Group, error)
-	IsGroupOwner(user, groupName string) (bool, error)
-	AddGroupMember(targetUsername, groupName string) error
-	AddGroupOwner(targetUsername, groupName string) error
-	GetGroupOwners(groupname string) ([]string, error)
-	GetGroupMembers(groupname string) ([]string, error)
+	GetGroupsOwnedBy(user string) ([]Group, error)
+	GetMembershipGroups(user string) ([]Group, error)
+	IsGroupOwner(user, group string) (bool, error)
+	AddGroupMember(user, group string) error
+	AddGroupOwner(user, group string) error
+	GetGroupOwners(group string) ([]string, error)
+	GetGroupMembers(group string) ([]string, error)
 }
 
 type Server struct {
@@ -114,27 +114,25 @@ func (s *SQLiteStore) queryGroups(query string, args ...interface{}) ([]Group, e
 	return groups, nil
 }
 
-func (s *SQLiteStore) GetGroupsOwnedBy(username string) ([]Group, error) {
+func (s *SQLiteStore) GetGroupsOwnedBy(user string) ([]Group, error) {
 	query := `
         SELECT groups.name, groups.description 
         FROM groups 
         JOIN owners ON groups.name = owners.group_name 
-        WHERE owners.username = ?
-    `
-	return s.queryGroups(query, username)
+        WHERE owners.username = ?`
+	return s.queryGroups(query, user)
 }
 
-func (s *SQLiteStore) GetMembershipGroups(username string) ([]Group, error) {
+func (s *SQLiteStore) GetMembershipGroups(user string) ([]Group, error) {
 	query := `
         SELECT groups.name, groups.description 
         FROM groups 
         JOIN user_to_group ON groups.name = user_to_group.group_name 
-        WHERE user_to_group.username = ?
-    `
-	return s.queryGroups(query, username)
+        WHERE user_to_group.username = ?`
+	return s.queryGroups(query, user)
 }
 
-func (s *SQLiteStore) CreateGroup(username string, group Group) error {
+func (s *SQLiteStore) CreateGroup(owner string, group Group) error {
 	query := `INSERT INTO groups (name, description) VALUES (?, ?)`
 	_, err := s.db.Exec(query, group.Name, group.Description)
 	if err != nil {
@@ -149,23 +147,22 @@ func (s *SQLiteStore) CreateGroup(username string, group Group) error {
 		return err
 	}
 	query = `INSERT INTO owners (username, group_name) VALUES (?, ?)`
-	_, err = s.db.Exec(query, username, group.Name)
+	_, err = s.db.Exec(query, owner, group.Name)
 	if err != nil {
 		return err
 	}
 	return nil
 }
 
-func (s *SQLiteStore) IsGroupOwner(user, groupName string) (bool, error) {
+func (s *SQLiteStore) IsGroupOwner(user, group string) (bool, error) {
 	query := `
         SELECT EXISTS (
             SELECT 1
             FROM owners
             WHERE username = ? AND group_name = ?
-        )
-    `
+        )`
 	var exists bool
-	err := s.db.QueryRow(query, user, groupName).Scan(&exists)
+	err := s.db.QueryRow(query, user, group).Scan(&exists)
 	if err != nil {
 		return false, err
 	}
@@ -186,30 +183,30 @@ func userExistsInTable(db *sql.DB, tableName, username, groupName string) (bool,
 	return true, nil
 }
 
-func (s *SQLiteStore) AddGroupMember(targetUsername, groupName string) error {
-	existsInUserToGroup, err := userExistsInTable(s.db, "user_to_group", targetUsername, groupName)
+func (s *SQLiteStore) AddGroupMember(user, group string) error {
+	existsInUserToGroup, err := userExistsInTable(s.db, "user_to_group", user, group)
 	if err != nil {
 		return err
 	}
 	if existsInUserToGroup {
-		return fmt.Errorf("%s is already a member of group %s", targetUsername, groupName)
+		return fmt.Errorf("%s is already a member of group %s", user, group)
 	}
-	_, err = s.db.Exec(`INSERT INTO user_to_group (username, group_name) VALUES (?, ?)`, targetUsername, groupName)
+	_, err = s.db.Exec(`INSERT INTO user_to_group (username, group_name) VALUES (?, ?)`, user, group)
 	if err != nil {
 		return err
 	}
 	return nil
 }
 
-func (s *SQLiteStore) AddGroupOwner(targetUsername, groupName string) error {
-	existsInOwners, err := userExistsInTable(s.db, "owners", targetUsername, groupName)
+func (s *SQLiteStore) AddGroupOwner(user, group string) error {
+	existsInOwners, err := userExistsInTable(s.db, "owners", user, group)
 	if err != nil {
 		return err
 	}
 	if existsInOwners {
-		return fmt.Errorf("%s is already an owner of group %s", targetUsername, groupName)
+		return fmt.Errorf("%s is already an owner of group %s", user, group)
 	}
-	_, err = s.db.Exec(`INSERT INTO owners (username, group_name) VALUES (?, ?)`, targetUsername, groupName)
+	_, err = s.db.Exec(`INSERT INTO owners (username, group_name) VALUES (?, ?)`, user, group)
 	if err != nil {
 		return err
 	}
@@ -278,7 +275,7 @@ func (s *Server) handler(w http.ResponseWriter, r *http.Request) {
 	for _, group := range membershipGroups {
 		data = append(data, GroupData{Group: group, Membership: "Member"})
 	}
-	tmpl, err := template.New("index").Parse(string(indexHtml))
+	tmpl, err := template.New("index").Parse(indexHTML)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -307,18 +304,17 @@ func (s *SQLiteStore) getUsersByGroup(table, groupname string) ([]string, error)
 	return users, nil
 }
 
-func (s *SQLiteStore) GetGroupOwners(groupname string) ([]string, error) {
-	return s.getUsersByGroup("owners", groupname)
+func (s *SQLiteStore) GetGroupOwners(group string) ([]string, error) {
+	return s.getUsersByGroup("owners", group)
 }
 
-func (s *SQLiteStore) GetGroupMembers(groupname string) ([]string, error) {
-	return s.getUsersByGroup("user_to_group", groupname)
+func (s *SQLiteStore) GetGroupMembers(group string) ([]string, error) {
+	return s.getUsersByGroup("user_to_group", group)
 }
 
 func (s *Server) groupHandler(w http.ResponseWriter, r *http.Request) {
 	groupName := strings.TrimPrefix(r.URL.Path, "/group/")
-	fmt.Println("Group Name:", groupName)
-	tmpl, err := template.New("group").Parse(string(groupHTML))
+	tmpl, err := template.New("group").Parse(groupHTML)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
