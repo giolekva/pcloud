@@ -205,7 +205,7 @@ func (s *SQLiteStore) AddGroupOwner(user, group string) error {
 	if existsInOwners {
 		return fmt.Errorf("%s is already an owner of group %s", user, group)
 	}
-	if _, err = s.db.Exec(`INSERT INTO owners (username, group_name) VALUES (?, ?)`, user, group); err != nil {
+	if _, err = tx.Exec(`INSERT INTO owners (username, group_name) VALUES (?, ?)`, user, group); err != nil {
 		return err
 	}
 	if err := tx.Commit(); err != nil {
