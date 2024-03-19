@@ -1,0 +1,8 @@
+ingressClassName: ingress-public
+certificateIssuer: example-public
+domain: woof.example.com
+service:
+  name: woof
+  port:
+    number: 80
+    name: ""

@@ -29,19 +29,40 @@ charts: {
 			namespace: global.id
 		}
 	}
+	ingress: {
+		chart: "charts/ingress"
+		sourceRef: {
+			kind: "GitRepository"
+			name: "pcloud"
+			namespace: global.id
+		}
+	}
 }
+
+_rpuppy: "rpuppy"
+_httpPortName: "http"
 
 helm: {
 	rpuppy: {
 		chart: charts.rpuppy
 		values: {
-			ingressClassName: input.network.ingressClass
-			certificateIssuer: input.network.certificateIssuer
-			domain: _domain
 			image: {
 				repository: images.rpuppy.fullName
 				tag: images.rpuppy.tag
 				pullPolicy: images.rpuppy.pullPolicy
+			}
+			portName: _httpPortName
+		}
+	}
+	ingress: {
+		chart: charts.ingress
+		values: {
+			domain: _domain
+			ingressClassName: input.network.ingressClass
+			certificateIssuer: input.network.certificateIssuer
+			service: {
+				name: _rpuppy
+				port: name: _httpPortName
 			}
 		}
 	}

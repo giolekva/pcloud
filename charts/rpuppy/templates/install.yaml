@@ -8,55 +8,10 @@ spec:
   selector:
     app: rpuppy
   ports:
-  - name: http
+  - name: {{ .Values.portName }}
     port: 80
-    targetPort: http
+    targetPort: {{ .Values.portName }}
     protocol: TCP
-# ---
-# apiVersion: cert-manager.io/v1
-# kind: Certificate
-# metadata:
-#   name: rpuppy
-#   namespace: {{ .Release.Namespace }}
-#   # annotations:
-#   #   helm.sh/resource-policy: keep
-# spec:
-#   secretName: cert-rpuppy
-#   dnsNames:
-#   - {{ .Values.domain }}
-#   issuerRef:
-#     kind: ClusterIssuer
-#     name: {{ .Values.certificateIssuer}}
----
-apiVersion: networking.k8s.io/v1
-kind: Ingress
-metadata:
-  name: ingress
-  namespace: {{ .Release.Namespace }}
-  {{- if .Values.certificateIssuer }}
-  annotations:
-    acme.cert-manager.io/http01-edit-in-place: "true"
-    cert-manager.io/cluster-issuer: {{ .Values.certificateIssuer }}
-  {{- end }}
-spec:
-  ingressClassName: {{ .Values.ingressClassName }}
-  {{- if .Values.certificateIssuer }}
-  tls:
-  - hosts:
-    - {{ .Values.domain }}
-    secretName: cert-rpuppy
-  {{- end }}
-  rules:
-  - host: {{ .Values.domain }}
-    http:
-      paths:
-      - path: /
-        pathType: Prefix
-        backend:
-          service:
-            name: rpuppy
-            port:
-              name: http
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -78,10 +33,12 @@ spec:
         image: {{ .Values.image.repository }}:{{ .Values.image.tag }}
         imagePullPolicy: {{ .Values.image.pullPolicy }}
         ports:
-        - name: http
+        - name: {{ .Values.portName }}
           containerPort: 8080
           protocol: TCP
-        command: ["rpuppy", "--port=8080"]
+        command:
+        - rpuppy
+        - --port=8080
         resources:
           requests:
             memory: "10Mi"
