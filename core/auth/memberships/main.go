@@ -161,31 +161,44 @@ func (s *SQLiteStore) IsGroupOwner(user, group string) (bool, error) {
 	return exists, nil
 }
 
-func (s *SQLiteStore) userGroupPairExists(table, user, group string) (bool, error) {
+func (s *SQLiteStore) userGroupPairExists(tx *sql.Tx, table, user, group string) (bool, error) {
 	query := fmt.Sprintf("SELECT EXISTS (SELECT 1 FROM %s WHERE username = ? AND group_name = ?)", table)
 	var exists bool
-	if err := s.db.QueryRow(query, user, group).Scan(&exists); err != nil {
+	if err := tx.QueryRow(query, user, group).Scan(&exists); err != nil {
 		return false, err
 	}
 	return exists, nil
 }
 
 func (s *SQLiteStore) AddGroupMember(user, group string) error {
-	existsInUserToGroup, err := s.userGroupPairExists("user_to_group", user, group)
+	tx, err := s.db.Begin()
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	existsInUserToGroup, err := s.userGroupPairExists(tx, "user_to_group", user, group)
 	if err != nil {
 		return err
 	}
 	if existsInUserToGroup {
 		return fmt.Errorf("%s is already a member of group %s", user, group)
 	}
-	if _, err := s.db.Exec(`INSERT INTO user_to_group (username, group_name) VALUES (?, ?)`, user, group); err != nil {
+	if _, err := tx.Exec(`INSERT INTO user_to_group (username, group_name) VALUES (?, ?)`, user, group); err != nil {
+		return err
+	}
+	if err := tx.Commit(); err != nil {
 		return err
 	}
 	return nil
 }
 
 func (s *SQLiteStore) AddGroupOwner(user, group string) error {
-	existsInOwners, err := s.userGroupPairExists("owners", user, group)
+	tx, err := s.db.Begin()
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	existsInOwners, err := s.userGroupPairExists(tx, "owners", user, group)
 	if err != nil {
 		return err
 	}
@@ -193,6 +206,9 @@ func (s *SQLiteStore) AddGroupOwner(user, group string) error {
 		return fmt.Errorf("%s is already an owner of group %s", user, group)
 	}
 	if _, err = s.db.Exec(`INSERT INTO owners (username, group_name) VALUES (?, ?)`, user, group); err != nil {
+		return err
+	}
+	if err := tx.Commit(); err != nil {
 		return err
 	}
 	return nil
