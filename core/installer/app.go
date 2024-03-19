@@ -55,6 +55,7 @@ var infraAppConfigs = []string{
 	"values-tmpl/private-network.cue",
 	"values-tmpl/resource-renderer-controller.cue",
 	"values-tmpl/welcome.cue",
+	"values-tmpl/memberships.cue",
 }
 
 const cueBaseConfigImports = `
