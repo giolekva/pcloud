@@ -1,0 +1,32 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ template "pihole.fullname" . }}-custom-dnsmasq
+  labels:
+    app: {{ template "pihole.name" . }}
+    chart: {{ template "pihole.chart" . }}
+    release: {{ .Release.Name }}
+    heritage: {{ .Release.Service }}
+data:
+  02-custom.conf: |
+    addn-hosts=/etc/addn-hosts
+  {{- range .Values.dnsmasq.upstreamServers }}
+    {{ . }}
+  {{- end }}
+  {{- range .Values.dnsmasq.customDnsEntries }}
+    {{ . }}
+  {{- end }}
+  {{- if .Values.serviceDns.loadBalancerIP }}
+    dhcp-option=6,{{ .Values.serviceDns.loadBalancerIP }}
+  {{- end }}
+  {{- range .Values.dnsmasq.customSettings }}
+    {{ . }}
+  {{- end }}
+  addn-hosts: |
+  {{- range .Values.dnsmasq.additionalHostsEntries }}
+    {{ . }}
+  {{- end }}
+  05-pihole-custom-cname.conf: |
+  {{- range .Values.dnsmasq.customCnameEntries }}
+    {{ . }}
+  {{- end }}

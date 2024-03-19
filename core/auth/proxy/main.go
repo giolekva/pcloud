@@ -50,6 +50,7 @@ func handle(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
+	fmt.Printf("%+v\n", user)
 	if user == nil {
 		if r.Method != http.MethodGet {
 			http.Error(w, "Unauthorized", http.StatusUnauthorized)
@@ -77,14 +78,26 @@ func handle(w http.ResponseWriter, r *http.Request) {
 		Transport: &http.Transport{
 			TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
 		},
+		CheckRedirect: func(req *http.Request, via []*http.Request) error {
+			return http.ErrUseLastResponse
+		},
 	}
-	if resp, err := client.Do(rc); err != nil {
+	resp, err := client.Do(rc)
+	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
-	} else if _, err := io.Copy(w, resp.Body); err != nil {
+	}
+	for name, values := range resp.Header {
+		for _, value := range values {
+			w.Header().Add(name, value)
+		}
+	}
+	w.WriteHeader(resp.StatusCode)
+	if _, err := io.Copy(w, resp.Body); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
+	fmt.Println("----- DOOOONE")
 }
 
 func queryWhoAmI(cookies []*http.Cookie) (*user, error) {

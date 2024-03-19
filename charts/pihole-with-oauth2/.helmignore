@@ -14,14 +14,10 @@
 *.swp
 *.bak
 *.tmp
+*.orig
 *~
 # Various IDEs
 .project
 .idea/
 *.tmproj
-
-# Manually added entries
-ci/
-examples/
-Makefile
-README.md.gotmpl
+.vscode/

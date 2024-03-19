@@ -1,10 +1,15 @@
-apiVersion: v2
+apiVersion: v1
+appVersion: 2023.11.0
+description: Installs pihole in kubernetes
+home: https://github.com/MoJo2600/pihole-kubernetes/tree/master/charts/pihole
+icon: https://i2.wp.com/pi-hole.net/wp-content/uploads/2016/12/Vortex-R.png
+maintainers:
+- email: christian.erhardt@mojo2k.de
+  name: MoJo2600
 name: pihole
-description: A Helm chart for PCloud Pihole service
-type: application
-version: 0.0.1
-appVersion: "0.0.1"
-dependencies:
-- name: pihole
-  version: 2.20.1
-  repository: https://mojo2600.github.io/pihole-kubernetes/
+sources:
+- https://github.com/MoJo2600/pihole-kubernetes/tree/master/charts/pihole
+- https://pi-hole.net/
+- https://github.com/pi-hole
+- https://github.com/pi-hole/docker-pi-hole
+version: 2.20.1
