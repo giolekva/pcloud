@@ -128,20 +128,24 @@ func (s *SQLiteStore) GetMembershipGroups(user string) ([]Group, error) {
 }
 
 func (s *SQLiteStore) CreateGroup(owner string, group Group) error {
+	tx, err := s.db.Begin()
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
 	query := `INSERT INTO groups (name, description) VALUES (?, ?)`
-	if _, err := s.db.Exec(query, group.Name, group.Description); err != nil {
+	if _, err := tx.Exec(query, group.Name, group.Description); err != nil {
 		sqliteErr, ok := err.(*sqlite3.Error)
 		if ok && sqliteErr.ExtendedCode() == 1555 {
 			return fmt.Errorf("Group with the name %s already exists", group.Name)
 		}
-		// TODO(dtabidze): have to research go-sqlite3 lib to handle errors better
-		// if ok && sqliteErr.Code == sqlite.ErrConstraintUnique {
-		// 	return fmt.Errorf("Group with the name %s already exists", group.Name)
-		// }
 		return err
 	}
 	query = `INSERT INTO owners (username, group_name) VALUES (?, ?)`
-	if _, err := s.db.Exec(query, owner, group.Name); err != nil {
+	if _, err := tx.Exec(query, owner, group.Name); err != nil {
+		return err
+	}
+	if err := tx.Commit(); err != nil {
 		return err
 	}
 	return nil
@@ -252,24 +256,32 @@ func (s *SQLiteStore) GetGroupDescription(group string) (string, error) {
 	return description, nil
 }
 
-func (s *SQLiteStore) parentChildGroupPairExists(parent, child string) (bool, error) {
+func (s *SQLiteStore) parentChildGroupPairExists(tx *sql.Tx, parent, child string) (bool, error) {
 	query := `SELECT EXISTS (SELECT 1 FROM group_to_group WHERE parent_group = ? AND child_group = ?)`
 	var exists bool
-	if err := s.db.QueryRow(query, parent, child).Scan(&exists); err != nil {
+	if err := tx.QueryRow(query, parent, child).Scan(&exists); err != nil {
 		return false, err
 	}
 	return exists, nil
 }
 
 func (s *SQLiteStore) AddChildGroup(parent, child string) error {
-	existsInGroupToGroup, err := s.parentChildGroupPairExists(parent, child)
+	tx, err := s.db.Begin()
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	existsInGroupToGroup, err := s.parentChildGroupPairExists(tx, parent, child)
 	if err != nil {
 		return err
 	}
 	if existsInGroupToGroup {
 		return fmt.Errorf("child group name %s already exists in group %s", child, parent)
 	}
-	if _, err := s.db.Exec(`INSERT INTO group_to_group (parent_group, child_group) VALUES (?, ?)`, parent, child); err != nil {
+	if _, err := tx.Exec(`INSERT INTO group_to_group (parent_group, child_group) VALUES (?, ?)`, parent, child); err != nil {
+		return err
+	}
+	if err := tx.Commit(); err != nil {
 		return err
 	}
 	return nil
@@ -327,8 +339,8 @@ func (s *Server) Start() {
 	http.HandleFunc("/", s.homePageHandler)
 	http.HandleFunc("/group/", s.groupHandler)
 	http.HandleFunc("/create-group", s.createGroupHandler)
-	http.HandleFunc("/adduser", s.addUserHandler)
-	http.HandleFunc("/addchildgroup", s.addChildGroupHandler)
+	http.HandleFunc("/add-user", s.addUserHandler)
+	http.HandleFunc("/add-child-group", s.addChildGroupHandler)
 	log.Fatal(http.ListenAndServe(fmt.Sprintf(":%d", *port), nil))
 }
 

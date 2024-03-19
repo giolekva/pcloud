@@ -13,7 +13,7 @@
         <p class="description">{{ .Description }}</p>
     </div>
     <hr class="divider">
-    <form action="/adduser" method="post">
+    <form action="/add-user" method="post">
         <input type="hidden" id="group-name" name="group" value="{{ .GroupName }}">
         <label for="group-name">Username:</label>
         <input type="text" id="username" name="username" required>
@@ -25,7 +25,7 @@
         <button type="submit">Add Member</button>
     </form>
     <hr class="divider">
-    <form action="/addchildgroup" method="post">
+    <form action="/add-child-group" method="post">
         <input type="hidden" id="parent-group" name="parent-group" value="{{ .GroupName }}">
         <label for="child-group">Select Child Group:</label>
         <select id="child-group" name="child-group" required>
