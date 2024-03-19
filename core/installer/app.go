@@ -147,7 +147,7 @@ charts: {
 	...
 }
 
-helm: {
+helmValidate: {
 	for key, value in helm {
 		"\(key)": #Helm & value & {
 			name: key
@@ -184,7 +184,7 @@ helm: {
 }
 
 output: {
-	for name, r in helm {
+	for name, r in helmValidate {
 		"\(name)": #HelmRelease & {
 			_name: name
 			_chart: r.chart

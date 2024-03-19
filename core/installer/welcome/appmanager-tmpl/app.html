@@ -7,7 +7,7 @@
       <label for="{{ $name }}">
         <span>{{ $name }}</span>
       </label>
-	  <input type="checkbox" role="swtich" name="{{ $name }}" oninput="valueChanged({{ $name }}, this.value)" {{ if $readonly }}disabled{{ end }} {{ if index $data $name }}checked{{ end }}/>
+	  <input type="checkbox" role="swtich" name="{{ $name }}" oninput="valueChanged({{ $name }}, this.checked)" {{ if $readonly }}disabled{{ end }} {{ if index $data $name }}checked{{ end }}/>
     {{ else if eq $schema.Kind 1 }}
       <label for="{{ $name }}">
         <span>{{ $name }}</span>

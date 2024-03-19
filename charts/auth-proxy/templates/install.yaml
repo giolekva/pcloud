@@ -8,40 +8,10 @@ spec:
   selector:
     app: auth-proxy
   ports:
-  - name: http
+  - name: {{ .Values.portName }}
     port: 80
-    targetPort: http
+    targetPort: {{ .Values.portName }}
     protocol: TCP
----
-apiVersion: networking.k8s.io/v1
-kind: Ingress
-metadata:
-  name: ingress-auth
-  namespace: {{ .Release.Namespace }}
-  {{- if .Values.certificateIssuer }}
-  annotations:
-    acme.cert-manager.io/http01-edit-in-place: "true"
-    cert-manager.io/cluster-issuer: {{ .Values.certificateIssuer }}
-  {{- end }}
-spec:
-  ingressClassName: {{ .Values.ingressClassName }}
-  {{- if .Values.certificateIssuer }}
-  tls:
-  - hosts:
-    - {{ .Values.domain }}
-    secretName: cert-auth-proxy
-  {{- end }}
-  rules:
-  - host: {{ .Values.domain }}
-    http:
-      paths:
-      - path: /
-        pathType: Prefix
-        backend:
-          service:
-            name: auth-proxy
-            port:
-              name: http
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -63,7 +33,7 @@ spec:
         image: {{ .Values.image.repository }}:{{ .Values.image.tag }}
         imagePullPolicy: {{ .Values.image.pullPolicy }}
         ports:
-        - name: http
+        - name: {{ .Values.portName }}
           containerPort: 8080
           protocol: TCP
         command:

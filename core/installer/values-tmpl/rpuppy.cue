@@ -1,6 +1,7 @@
 input: {
 	network: #Network
 	subdomain: string
+	requireAuth: bool
 }
 
 _domain: "\(input.subdomain).\(input.network.domain)"
@@ -15,6 +16,12 @@ images: {
 	rpuppy: {
 		repository: "giolekva"
 		name: "rpuppy"
+		tag: "latest"
+		pullPolicy: "Always"
+	}
+	authProxy: {
+		repository: "giolekva"
+		name: "auth-proxy"
 		tag: "latest"
 		pullPolicy: "Always"
 	}
@@ -37,9 +44,18 @@ charts: {
 			namespace: global.id
 		}
 	}
+	authProxy: {
+		chart: "charts/auth-proxy"
+		sourceRef: {
+			kind: "GitRepository"
+			name: "pcloud"
+			namespace: global.id
+		}
+	}
 }
 
-_rpuppy: "rpuppy"
+_rpuppyServiceName: "rpuppy"
+_authProxyServiceName: "auth-proxy"
 _httpPortName: "http"
 
 helm: {
@@ -54,6 +70,22 @@ helm: {
 			portName: _httpPortName
 		}
 	}
+	if input.requireAuth {
+		"auth-proxy": {
+			chart: charts.authProxy
+			values: {
+				image: {
+					repository: images.authProxy.fullName
+					tag: images.authProxy.tag
+					pullPolicy: images.authProxy.pullPolicy
+				}
+				upstream: "\(_rpuppyServiceName).\(release.namespace).svc.cluster.local"
+				whoAmIAddr: "https://accounts.\(global.domain)/sessions/whoami"
+				loginAddr: "https://accounts-ui.\(global.domain)/login"
+				portName: _httpPortName
+			}
+		}
+	}
 	ingress: {
 		chart: charts.ingress
 		values: {
@@ -61,7 +93,12 @@ helm: {
 			ingressClassName: input.network.ingressClass
 			certificateIssuer: input.network.certificateIssuer
 			service: {
-				name: _rpuppy
+				if input.requireAuth {
+					name: _authProxyServiceName
+				}
+				if !input.requireAuth {
+					name: _rpuppyServiceName
+				}
 				port: name: _httpPortName
 			}
 		}
