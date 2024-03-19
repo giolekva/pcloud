@@ -50,7 +50,6 @@ func handle(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	fmt.Printf("%+v\n", user)
 	if user == nil {
 		if r.Method != http.MethodGet {
 			http.Error(w, "Unauthorized", http.StatusUnauthorized)
@@ -62,17 +61,12 @@ func handle(w http.ResponseWriter, r *http.Request) {
 	}
 	rc := r.Clone(context.Background())
 	rc.Header.Add("X-User", user.Identity.Traits.Username)
-	ru := url.URL{
-		Scheme:      "http",
-		Host:        *upstream,
-		RawPath:     r.URL.RawPath,
-		RawQuery:    r.URL.RawQuery,
-		RawFragment: r.URL.RawFragment,
-		// Path:        r.URL.Path,
-		// Query:       r.URL.Query,
-		// Fragment:    r.URL.Fragment,
+	ru, err := url.Parse(fmt.Sprintf("http://%s%s", *upstream, r.URL.RequestURI()))
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
 	}
-	rc.URL = &ru
+	rc.URL = ru
 	rc.RequestURI = ""
 	client := &http.Client{
 		Transport: &http.Transport{
@@ -97,7 +91,6 @@ func handle(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	fmt.Println("----- DOOOONE")
 }
 
 func queryWhoAmI(cookies []*http.Cookie) (*user, error) {
