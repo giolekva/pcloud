@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Group Membership Managment</title>
+    <link rel="stylesheet" href="/static/pico.2.0.6.min.css">
+    <link rel="stylesheet" href="/static/main.css">
+</head>
+<body class="container">
+    <div>
+        <h2 class="headline">{{ .GroupName }} Group Management</h2>
+        <p class="description">{{ .Description }}</p>
+    </div>
+    <hr class="divider">
+    <form action="/add-user" method="post">
+        <input type="hidden" id="group-name" name="group" value="{{ .GroupName }}">
+        <label for="group-name">Username:</label>
+        <input type="text" id="username" name="username" required>
+        <label for="status">Status:</label>
+        <select id="status" name="status" required>
+            <option value="Member" selected>Member</option>
+            <option value="Owner">Owner</option>
+        </select>
+        <button type="submit">Add Member</button>
+    </form>
+    <hr class="divider">
+    <form action="/add-child-group" method="post">
+        <input type="hidden" id="parent-group" name="parent-group" value="{{ .GroupName }}">
+        <label for="child-group">Select Child Group:</label>
+        <select id="child-group" name="child-group" required>
+            {{- range .AvailableGroups }}
+            <option value="{{ . }}">{{ . }}</option>
+            {{- end }}
+        </select>
+        <button type="submit">Create Child Group</button>
+    </form>
+    <h4>Owners</h4>
+    <table>
+        <tr>
+            <th>Username</th>
+            <th>Action</th>
+        </tr>
+        {{- range .Owners }}
+        <tr>
+            <td>{{ . }}</td>
+            <td>Delete</td>
+        </tr>
+        {{- end }}
+    </table>
+    <h4>Members</h4>
+    <table>
+        <tr>
+            <th>Username</th>
+            <th>Action</th>
+        </tr>
+        {{- range .Members }}
+        <tr>
+            <td>{{ . }}</td>
+            <td>Delete</td>
+        </tr>
+        {{- end }}
+    </table>
+</body>
+</html>

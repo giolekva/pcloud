@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Group Managment</title>
+    <link rel="stylesheet" href="/static/pico.2.0.6.min.css">
+</head>
+<body class="container">
+    <h1>Groups Managment</h1>
+    <form action="/create-group" method="post">
+        <label for="group-name">Group Name:</label>
+        <input type="text" id="group-name" name="group-name" required>
+        <label for="description">Group Description:</label>
+        <input type="text" id="description" name="description">
+        <button type="submit">Create Group</button>
+    </form>
+    <h4>Owner</h4>
+    <table>
+        <tr>
+            <th>Name</th>
+            <th>Description</th>
+        </tr>
+        {{- range .OwnerGroups -}}
+        <tr>
+            <td><a href="/group/{{ .Name }}">{{ .Name }}</a></td>
+            <td>{{ .Description }}</td>
+        </tr>
+        {{- end -}}
+    </table>
+    <h4>Member</h4>
+    <table>
+        <tr>
+            <th>Name</th>
+            <th>Description</th>
+        </tr>
+        {{- range .MembershipGroups -}}
+        <tr>
+            <td><a href="/group/{{ .Name }}">{{ .Name }}</a></td>
+            <td>{{ .Description }}</td>
+        </tr>
+        {{- end -}}
+    </table>
+</body>
+</html>
