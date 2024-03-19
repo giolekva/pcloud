@@ -48,12 +48,6 @@ images: {
 		tag: "v2.2.0-distroless"
 		pullPolicy: "IfNotPresent"
 	}
-	"hydra-maester": {
-		repository: "giolekva"
-		name: "ory-hydra-maester"
-		tag: "latest"
-		pullPolicy: "Always"
-	}
 	ui: {
 		repository: "giolekva"
 		name: "auth-ui"
@@ -378,18 +372,7 @@ helm: {
 					enabled: true
 				}
 				maester: {
-					enabled: true
-				}
-				"hydra-maester": {
-					adminService: {
-						name: "hydra-admin"
-						port: 80
-					}
-					image: {
-						repository: images["hydra-maester"].fullName
-						tag: images["hydra-maester"].tag
-						pullPolicy: images["hydra-maester"].pullPolicy
-					}
+					enabled: false
 				}
 				hydra: {
 					automigration: {

@@ -65,10 +65,10 @@ spec:
         - name: http
           containerPort: {{ .Values.port }}
           protocol: TCP
-        command: 
+        command:
         - url-shortener
         - --port={{ .Values.port }}
-        - --db-path="/data/urls.db"
+        - --db-path=/data/urls.db
         volumeMounts:
         - name: url-shortener
           mountPath: /data

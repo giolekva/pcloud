@@ -15,7 +15,7 @@ images: {
 	matrix: {
 		repository: "matrixdotorg"
 		name: "synapse"
-		tag: "latest"
+		tag: "v1.98.0"
 		pullPolicy: "IfNotPresent"
 	}
 	postgres: {
@@ -27,6 +27,14 @@ images: {
 }
 
 charts: {
+	oauth2Client: {
+		chart: "charts/oauth2-client"
+		sourceRef: {
+			kind: "GitRepository"
+			name: "pcloud"
+			namespace: global.id
+		}
+	}
 	matrix: {
 		chart: "charts/matrix"
 		sourceRef: {
@@ -45,7 +53,21 @@ charts: {
 	}
 }
 
+_oauth2ClientSecretName: "oauth2-client"
+
 helm: {
+	"oauth2-client": {
+		chart: charts.oauth2Client
+		values: {
+			name: "oauth2-client"
+			secretName: _oauth2ClientSecretName
+			grantTypes: ["authorization_code"]
+			responseTypes: ["code"]
+			scope: "openid profile"
+			redirectUris: ["https://\(_domain)/_synapse/client/oidc/callback"]
+			hydraAdmin: "http://hydra-admin.\(global.namespacePrefix)core-auth.svc.cluster.local"
+		}
+	}
 	matrix: {
 		dependsOn: [
 			postgres
@@ -55,9 +77,8 @@ helm: {
 			domain: global.domain
 			subdomain: input.subdomain
 			oauth2: {
-				hydraAdmin: "http://hydra-admin.\(global.namespacePrefix)core-auth.svc.cluster.local"
-				hydraPublic: "https://hydra.\(global.domain)"
 				secretName: "oauth2-client"
+				issuer: "https://hydra.\(global.domain)"
 			}
 			postgresql: {
 				host: "postgres"

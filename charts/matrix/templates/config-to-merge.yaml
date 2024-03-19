@@ -33,7 +33,7 @@ spec:
           - idp_id: pcloud
             idp_name: "PCloud"
             skip_verification: true
-            issuer: {{ .Values.oauth2.hydraPublic }}
+            issuer: {{ .Values.oauth2.issuer }}
             client_id: "{{`{{ .client_id }}`}}"
             client_secret: "{{`{{ .client_secret }}`}}"
             scopes: ["openid", "profile"]

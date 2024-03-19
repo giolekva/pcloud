@@ -273,7 +273,7 @@ spec:
         # OpenID Connect
         oidc:
           only_start_if_oidc_is_available: true
-          issuer: {{ .Values.oauth2.hydraPublic }}
+          issuer: {{ .Values.oauth2.issuer }}
           client_id: {{`{{ .client_id }}`}}
           client_secret: {{`{{ .client_secret }}`}}
           scope: ["openid", "profile", "email"]

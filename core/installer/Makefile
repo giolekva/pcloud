@@ -1,5 +1,8 @@
 repo_name ?= dtabidze
 podman ?= docker
+ifeq ($(podman), podman)
+manifest_dest=docker://docker.io/$(repo_name)/pcloud-installer:latest
+endif
 
 clean:
 	rm -rf tmp
@@ -70,5 +73,5 @@ push_amd64: clean build_amd64
 
 push: push_arm64 push_amd64
 	$(podman) manifest create $(repo_name)/pcloud-installer:latest $(repo_name)/pcloud-installer:arm64 $(repo_name)/pcloud-installer:amd64
-	$(podman) manifest push $(repo_name)/pcloud-installer:latest 
+	$(podman) manifest push $(repo_name)/pcloud-installer:latest $(manifest_dest)
 	$(podman) manifest rm $(repo_name)/pcloud-installer:latest

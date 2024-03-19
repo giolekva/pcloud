@@ -97,6 +97,10 @@ func (b Bootstrapper) Run(env EnvConfig) error {
 	if err := b.installEnvManager(ss, repoIO, nsGen, b.ns, env); err != nil {
 		return err
 	}
+	fmt.Println("Installing Ory Hydra Maester")
+	if err := b.installOryHydraMaester(ss, repoIO, nsGen, b.ns, env); err != nil {
+		return err
+	}
 	fmt.Println("Environment ready to use")
 	return nil
 }
@@ -455,7 +459,7 @@ spec:
   interval: 1m0s
   url: https://github.com/giolekva/pcloud
   ref:
-    branch: cuelang
+    branch: main
 `, env.Name)))
 		if err != nil {
 			return err
@@ -514,6 +518,36 @@ func (b Bootstrapper) installEnvManager(ss *soft.Client, repo RepoIO, nsGen Name
 			"repoName":      "config",
 			"sshPrivateKey": string(keys.RawPrivateKey()),
 		},
+	}
+	if len(namespaces) > 0 {
+		derived.Release.Namespace = namespaces[0]
+	}
+	return repo.InstallApp(app, filepath.Join("/infrastructure", app.Name()), derived.Values, derived)
+}
+
+func (b Bootstrapper) installOryHydraMaester(ss *soft.Client, repo RepoIO, nsGen NamespaceGenerator, nsCreator NamespaceCreator, env EnvConfig) error {
+	appRepo := NewInMemoryAppRepository(CreateAllApps())
+	app, err := appRepo.Find("hydra-maester")
+	if err != nil {
+		return err
+	}
+	namespaces := make([]string, len(app.Namespaces()))
+	for i, n := range app.Namespaces() {
+		namespaces[i], err = nsGen.Generate(n)
+		if err != nil {
+			return err
+		}
+	}
+	for _, n := range namespaces {
+		if err := nsCreator.Create(n); err != nil {
+			return err
+		}
+	}
+	derived := Derived{
+		Global: Values{
+			PCloudEnvName: env.Name,
+		},
+		Values: map[string]any{},
 	}
 	if len(namespaces) > 0 {
 		derived.Release.Namespace = namespaces[0]

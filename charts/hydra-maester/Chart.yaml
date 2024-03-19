@@ -1,0 +1,7 @@
+apiVersion: v2
+appVersion: v0.0.23
+description: A Helm chart for Kubernetes
+icon: https://raw.githubusercontent.com/ory/docs/master/docs/static/img/logo-hydra.svg
+name: hydra-maester
+type: application
+version: 0.33.1

@@ -56,6 +56,7 @@ var infraAppConfigs = []string{
 	"values-tmpl/resource-renderer-controller.cue",
 	"values-tmpl/welcome.cue",
 	"values-tmpl/memberships.cue",
+	"values-tmpl/hydra-maester.cue",
 }
 
 const cueBaseConfigImports = `
