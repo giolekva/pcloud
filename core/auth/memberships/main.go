@@ -590,26 +590,27 @@ func (s *Server) addChildGroupHandler(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, "/group/"+parentGroup, http.StatusSeeOther)
 }
 
+type UserInfo struct {
+	MemberOf []string `json:"memberOf"`
+}
+
 func (s *Server) apiMemberOfHandler(w http.ResponseWriter, r *http.Request) {
-	fmt.Println("apiMemberOfHandler called")
 	vars := mux.Vars(r)
 	user, ok := vars["username"]
 	if !ok {
 		http.Error(w, "Username parameter is required", http.StatusBadRequest)
 		return
 	}
-	associatedGroups, err := s.store.GetAllTransitiveGroupsForUser(user)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-	response, err := json.Marshal(map[string]interface{}{"memberOf": associatedGroups})
+	transitiveGroups, err := s.store.GetAllTransitiveGroupsForUser(user)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 	w.Header().Set("Content-Type", "application/json")
-	w.Write(response)
+	if err := json.NewEncoder(w).Encode(UserInfo{transitiveGroups}); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
 }
 
 func main() {
