@@ -1,3 +1,5 @@
+github.com/gorilla/mux v1.8.1 h1:TuBL49tXwgrFYWhqrNgrUNEY92u81SPhu7sTdzQEiWY=
+github.com/gorilla/mux v1.8.1/go.mod h1:AKf9I4AEqPTmMytcMc0KkNouC66V3BtZ4qD5fmWSiMQ=
 github.com/ncruces/go-sqlite3 v0.12.2 h1:NO8lFyFTA6aUtDWviQX2Rzqi1RX3X52peWq/MLgV1Gc=
 github.com/ncruces/go-sqlite3 v0.12.2/go.mod h1:+8dWcBxb2Yar4EcCwav1a21MpKZbztwOYBLSRYt9bMY=
 github.com/ncruces/julianday v1.0.0 h1:fH0OKwa7NWvniGQtxdJRxAgkBMolni2BjDHaWTxqt7M=

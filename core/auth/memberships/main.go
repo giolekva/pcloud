@@ -3,16 +3,18 @@ package main
 import (
 	"database/sql"
 	"embed"
+	"encoding/json"
 	"flag"
 	"fmt"
 	"html/template"
 	"log"
 	"net/http"
-	"strings"
 
 	"github.com/ncruces/go-sqlite3"
 	_ "github.com/ncruces/go-sqlite3/driver"
 	_ "github.com/ncruces/go-sqlite3/embed"
+
+	"github.com/gorilla/mux"
 )
 
 var port = flag.Int("port", 8080, "ort to listen on")
@@ -39,6 +41,7 @@ type Store interface {
 	GetGroupMembers(group string) ([]string, error)
 	GetGroupDescription(group string) (string, error)
 	GetAvailableGroupsAsChild(group string) ([]string, error)
+	GetAllAssociatedGroups(user string) ([]string, error)
 }
 
 type Server struct {
@@ -311,6 +314,62 @@ func (s *SQLiteStore) GetAvailableGroupsAsChild(group string) ([]string, error) 
 	return availableGroups, nil
 }
 
+func (s *SQLiteStore) GetAllAssociatedGroups(user string) ([]string, error) {
+	directGroups, err := s.GetMembershipGroups(user)
+	if err != nil {
+		return nil, err
+	}
+	allGroups := make(map[string]bool)
+	for _, group := range directGroups {
+		if err := s.getParentGroups(group.Name, allGroups); err != nil {
+			return nil, err
+		}
+	}
+	var result []string
+	for group := range allGroups {
+		result = append(result, group)
+	}
+	return result, nil
+}
+
+func (s *SQLiteStore) getParentGroups(group string, allGroups map[string]bool) error {
+	if allGroups[group] {
+		return nil
+	}
+	allGroups[group] = true
+	parentGroups, err := s.getParentGroupsFromDB(group)
+	if err != nil {
+		return err
+	}
+	for _, parentGroup := range parentGroups {
+		if err := s.getParentGroups(parentGroup, allGroups); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (s *SQLiteStore) getParentGroupsFromDB(group string) ([]string, error) {
+	query := "SELECT parent_group FROM group_to_group WHERE child_group = ?"
+	rows, err := s.db.Query(query, group)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var parentGroups []string
+	for rows.Next() {
+		var parentGroup string
+		if err := rows.Scan(&parentGroup); err != nil {
+			return nil, err
+		}
+		parentGroups = append(parentGroups, parentGroup)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return parentGroups, nil
+}
+
 func getLoggedInUser(r *http.Request) (string, error) {
 	// TODO(dtabidze): should make a request to get loggedin user
 	return "tabo", nil
@@ -335,13 +394,28 @@ func convertStatus(status string) (Status, error) {
 }
 
 func (s *Server) Start() {
-	http.Handle("/static/", http.FileServer(http.FS(staticResources)))
-	http.HandleFunc("/", s.homePageHandler)
-	http.HandleFunc("/group/", s.groupHandler)
-	http.HandleFunc("/create-group", s.createGroupHandler)
-	http.HandleFunc("/add-user", s.addUserHandler)
-	http.HandleFunc("/add-child-group", s.addChildGroupHandler)
-	log.Fatal(http.ListenAndServe(fmt.Sprintf(":%d", *port), nil))
+	// http.Handle("/static/", http.FileServer(http.FS(staticResources)))
+	// http.HandleFunc("/", s.homePageHandler)
+	// http.HandleFunc("/group/", s.groupHandler)
+	// http.HandleFunc("/create-group", s.createGroupHandler)
+	// http.HandleFunc("/add-user", s.addUserHandler)
+	// http.HandleFunc("/add-child-group", s.addChildGroupHandler)
+	// log.Fatal(http.ListenAndServe(fmt.Sprintf(":%d", *port), nil))
+
+	router := mux.NewRouter()
+	router.PathPrefix("/static/").Handler(http.StripPrefix("/static/", http.FileServer(http.FS(staticResources))))
+	// router.PathPrefix("/static/").Handler(http.StripPrefix("/static/", http.FileServer(http.Dir("/static/"))))
+	// router.PathPrefix("/static/").Handler(http.StripPrefix("/static/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	// 	w.Header().Set("Content-Type", "text/css") // Set MIME type for CSS files
+	// 	http.FileServer(http.FS(staticResources)).ServeHTTP(w, r)
+	// })))
+	router.HandleFunc("/", s.homePageHandler)
+	router.HandleFunc("/group/{group-name}", s.groupHandler)
+	router.HandleFunc("/create-group", s.createGroupHandler)
+	router.HandleFunc("/add-user", s.addUserHandler)
+	router.HandleFunc("/add-child-group", s.addChildGroupHandler)
+	router.HandleFunc("/api/user/{username}", s.apiMemberOfHandler)
+	log.Fatal(http.ListenAndServe(fmt.Sprintf(":%d", *port), router))
 }
 
 type GroupData struct {
@@ -422,7 +496,9 @@ func (s *Server) createGroupHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) groupHandler(w http.ResponseWriter, r *http.Request) {
-	groupName := strings.TrimPrefix(r.URL.Path, "/group/")
+	// groupName := strings.TrimPrefix(r.URL.Path, "/group/")
+	vars := mux.Vars(r)
+	groupName := vars["group-name"]
 	tmpl, err := template.New("group").Parse(groupHTML)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -524,6 +600,28 @@ func (s *Server) addChildGroupHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	http.Redirect(w, r, "/group/"+parentGroup, http.StatusSeeOther)
+}
+
+func (s *Server) apiMemberOfHandler(w http.ResponseWriter, r *http.Request) {
+	fmt.Println("apiMemberOfHandler called")
+	vars := mux.Vars(r)
+	user, ok := vars["username"]
+	if !ok {
+		http.Error(w, "Username parameter is required", http.StatusBadRequest)
+		return
+	}
+	associatedGroups, err := s.store.GetAllAssociatedGroups(user)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	response, err := json.Marshal(map[string]interface{}{"memberOf": associatedGroups})
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.Write(response)
 }
 
 func main() {
