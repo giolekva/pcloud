@@ -33,7 +33,7 @@ type Store interface {
 	CreateGroup(owner string, group Group) error
 	AddChildGroup(parent, child string) error
 	GetGroupsOwnedBy(user string) ([]Group, error)
-	GetMembershipGroups(user string) ([]Group, error)
+	GetGroupsUserBelongsTo(user string) ([]Group, error)
 	IsGroupOwner(user, group string) (bool, error)
 	AddGroupMember(user, group string) error
 	AddGroupOwner(user, group string) error
@@ -41,7 +41,8 @@ type Store interface {
 	GetGroupMembers(group string) ([]string, error)
 	GetGroupDescription(group string) (string, error)
 	GetAvailableGroupsAsChild(group string) ([]string, error)
-	GetAllAssociatedGroups(user string) ([]string, error)
+	GetAllTransitiveGroupsForUser(user string) ([]string, error)
+	GetGroupsGroupBelongsTo(group string) ([]string, error)
 }
 
 type Server struct {
@@ -121,7 +122,7 @@ func (s *SQLiteStore) GetGroupsOwnedBy(user string) ([]Group, error) {
 	return s.queryGroups(query, user)
 }
 
-func (s *SQLiteStore) GetMembershipGroups(user string) ([]Group, error) {
+func (s *SQLiteStore) GetGroupsUserBelongsTo(user string) ([]Group, error) {
 	query := `
         SELECT groups.name, groups.description
         FROM groups
@@ -314,8 +315,8 @@ func (s *SQLiteStore) GetAvailableGroupsAsChild(group string) ([]string, error) 
 	return availableGroups, nil
 }
 
-func (s *SQLiteStore) GetAllAssociatedGroups(user string) ([]string, error) {
-	directGroups, err := s.GetMembershipGroups(user)
+func (s *SQLiteStore) GetAllTransitiveGroupsForUser(user string) ([]string, error) {
+	directGroups, err := s.GetGroupsUserBelongsTo(user)
 	if err != nil {
 		return nil, err
 	}
@@ -337,7 +338,7 @@ func (s *SQLiteStore) getParentGroups(group string, allGroups map[string]bool) e
 		return nil
 	}
 	allGroups[group] = true
-	parentGroups, err := s.getParentGroupsFromDB(group)
+	parentGroups, err := s.GetGroupsGroupBelongsTo(group)
 	if err != nil {
 		return err
 	}
@@ -349,7 +350,7 @@ func (s *SQLiteStore) getParentGroups(group string, allGroups map[string]bool) e
 	return nil
 }
 
-func (s *SQLiteStore) getParentGroupsFromDB(group string) ([]string, error) {
+func (s *SQLiteStore) GetGroupsGroupBelongsTo(group string) ([]string, error) {
 	query := "SELECT parent_group FROM group_to_group WHERE child_group = ?"
 	rows, err := s.db.Query(query, group)
 	if err != nil {
@@ -394,27 +395,14 @@ func convertStatus(status string) (Status, error) {
 }
 
 func (s *Server) Start() {
-	// http.Handle("/static/", http.FileServer(http.FS(staticResources)))
-	// http.HandleFunc("/", s.homePageHandler)
-	// http.HandleFunc("/group/", s.groupHandler)
-	// http.HandleFunc("/create-group", s.createGroupHandler)
-	// http.HandleFunc("/add-user", s.addUserHandler)
-	// http.HandleFunc("/add-child-group", s.addChildGroupHandler)
-	// log.Fatal(http.ListenAndServe(fmt.Sprintf(":%d", *port), nil))
-
 	router := mux.NewRouter()
-	router.PathPrefix("/static/").Handler(http.StripPrefix("/static/", http.FileServer(http.FS(staticResources))))
-	// router.PathPrefix("/static/").Handler(http.StripPrefix("/static/", http.FileServer(http.Dir("/static/"))))
-	// router.PathPrefix("/static/").Handler(http.StripPrefix("/static/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-	// 	w.Header().Set("Content-Type", "text/css") // Set MIME type for CSS files
-	// 	http.FileServer(http.FS(staticResources)).ServeHTTP(w, r)
-	// })))
-	router.HandleFunc("/", s.homePageHandler)
+	router.PathPrefix("/static/").Handler(http.FileServer(http.FS(staticResources)))
 	router.HandleFunc("/group/{group-name}", s.groupHandler)
 	router.HandleFunc("/create-group", s.createGroupHandler)
 	router.HandleFunc("/add-user", s.addUserHandler)
 	router.HandleFunc("/add-child-group", s.addChildGroupHandler)
 	router.HandleFunc("/api/user/{username}", s.apiMemberOfHandler)
+	router.HandleFunc("/", s.homePageHandler)
 	log.Fatal(http.ListenAndServe(fmt.Sprintf(":%d", *port), router))
 }
 
@@ -447,7 +435,7 @@ func (s *Server) homePageHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	membershipGroups, err := s.store.GetMembershipGroups(loggedInUser)
+	membershipGroups, err := s.store.GetGroupsUserBelongsTo(loggedInUser)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -610,7 +598,7 @@ func (s *Server) apiMemberOfHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Username parameter is required", http.StatusBadRequest)
 		return
 	}
-	associatedGroups, err := s.store.GetAllAssociatedGroups(user)
+	associatedGroups, err := s.store.GetAllTransitiveGroupsForUser(user)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
