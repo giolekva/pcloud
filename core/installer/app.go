@@ -73,6 +73,11 @@ readme: string | *""
 icon: string | *""
 namespace: string | *""
 
+#Auth: {
+  enabled: bool
+  groups: string // TODO(gio): []string
+}
+
 #Network: {
 	name: string
 	ingressClass: string

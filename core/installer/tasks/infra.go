@@ -35,6 +35,7 @@ func SetupInfra(env Env, startIP net.IP, st *state) []Task {
 			SetupNetwork(env, startIP, st),
 			SetupCertificateIssuers(env, st),
 			SetupAuth(env, st),
+			SetupGroupMemberships(env, st),
 			SetupHeadscale(env, startIP, st),
 			SetupWelcome(env, st),
 			SetupAppStore(env, st),
@@ -226,6 +227,24 @@ func SetupAuth(env Env, st *state) Task {
 		"Authentication services",
 		&t,
 		waitForAddr(fmt.Sprintf("https://accounts-ui.%s", env.Domain)),
+	)
+}
+
+func SetupGroupMemberships(env Env, st *state) Task {
+	t := newLeafTask("Setup", func() error {
+		app, err := st.appsRepo.Find("memberships")
+		if err != nil {
+			return err
+		}
+		if err := st.appManager.Install(app, st.nsGen, st.emptySuffixGen, map[string]any{}); err != nil {
+			return err
+		}
+		return nil
+	})
+	return newSequentialParentTask(
+		"Group Membership",
+		&t,
+		waitForAddr(fmt.Sprintf("https://memberships.p.%s", env.Domain)),
 	)
 }
 

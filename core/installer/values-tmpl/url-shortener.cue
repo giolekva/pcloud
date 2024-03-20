@@ -1,7 +1,7 @@
 input: {
     network: #Network
     subdomain: string
-	requireAuth: bool
+	auth: #Auth
 }
 
 _domain: "\(input.subdomain).\(input.network.domain)"
@@ -73,7 +73,7 @@ helm: {
             portName: _httpPortName
         }
     }
-	if input.requireAuth {
+	if input.auth.enabled {
 		"auth-proxy": {
 			chart: charts.authProxy
 			values: {
@@ -85,6 +85,8 @@ helm: {
 				upstream: "\(_urlShortenerServiceName).\(release.namespace).svc.cluster.local"
 				whoAmIAddr: "https://accounts.\(global.domain)/sessions/whoami"
 				loginAddr: "https://accounts-ui.\(global.domain)/login"
+				membershipAddr: "http://memberships.\(global.id)-core-auth-memberships.svc.cluster.local/api/user"
+				groups: input.auth.groups
 				portName: _httpPortName
 			}
 		}
@@ -96,10 +98,10 @@ helm: {
 			ingressClassName: input.network.ingressClass
 			certificateIssuer: input.network.certificateIssuer
 			service: {
-				if input.requireAuth {
+				if input.auth.enabled {
 					name: _authProxyServiceName
 				}
-				if !input.requireAuth {
+				if !input.auth.enabled {
 					name: _urlShortenerServiceName
 				}
 				port: name: _httpPortName
