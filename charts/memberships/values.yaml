@@ -1,11 +1,7 @@
 image:
   repository: giolekva/memberships
-  name: memberships
   tag: latest
   pullPolicy: Always
-ingressClassName: ingress-public
-certificateIssuer: example-public
-domain: memberships.example.com
 storage:
   size: 1Gi
-port: 8080
+portName: http

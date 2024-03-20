@@ -1,6 +1,7 @@
 input: {
     network: #Network
     subdomain: string
+    requireAuth: bool
 }
 
 _domain: "\(input.subdomain).\(input.network.domain)"
@@ -18,6 +19,12 @@ images: {
         tag: "latest"
         pullPolicy: "Always"
     }
+    authProxy: {
+        repository: "giolekva"
+        name: "auth-proxy"
+        tag: "latest"
+        pullPolicy: "Always"
+    }
 }
 
 charts: {
@@ -29,24 +36,74 @@ charts: {
             namespace: global.id
         }
     }
+    ingress: {
+        chart: "charts/ingress"
+        sourceRef: {
+            kind: "GitRepository"
+            name: "pcloud"
+            namespace: global.id
+        }
+    }
+    authProxy: {
+        chart: "charts/auth-proxy"
+        sourceRef: {
+            kind: "GitRepository"
+            name: "pcloud"
+            namespace: global.id
+        }
+    }
 }
+
+_membershipsServiceName: "memberships"
+_authProxyServiceName: "auth-proxy"
+_httpPortName: "http"
 
 helm: {
     "memberships": {
         chart: charts.memberships
         values: {
-            ingressClassName: input.network.ingressClass
-            certificateIssuer: input.network.certificateIssuer
-            domain: _domain
             storage: {
                 size: "1Gi"
             }
             image: {
-                repository: images.memberships.name
+                repository: images.memberships.fullName
                 tag: images.memberships.tag
                 pullPolicy: images.memberships.pullPolicy
             }
-            port: 8080
+            portName: _httpPortName
+        }
+    }
+    if input.requireAuth {
+        "auth-proxy": {
+            chart: charts.authProxy
+            values: {
+                image: {
+                    repository: images.authProxy.fullName
+                    tag: images.authProxy.tag
+                    pullPolicy: images.authProxy.pullPolicy
+                }
+                upstream: "\(_membershipsServiceName).\(release.namespace).svc.cluster.local"
+                whoAmIAddr: "https://accounts.\(global.domain)/sessions/whoami"
+                loginAddr: "https://accounts-ui.\(global.domain)/login"
+                portName: _httpPortName
+            }
+        }
+    }
+    ingress: {
+        chart: charts.ingress
+        values: {
+            domain: _domain
+            ingressClassName: input.network.ingressClass
+            certificateIssuer: input.network.certificateIssuer
+            service: {
+                if input.requireAuth {
+                    name: _authProxyServiceName
+                }
+                if !input.requireAuth {
+                    name: _membershipsServiceName
+                }
+                port: name: _httpPortName
+            }
         }
     }
 }

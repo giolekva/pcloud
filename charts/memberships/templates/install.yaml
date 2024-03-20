@@ -8,40 +8,10 @@ spec:
   selector:
     app: memberships
   ports:
-    - name: http
+    - name: {{ .Values.portName }}
       protocol: TCP
       port: 80
-      targetPort: {{ .Values.port }}
----
-apiVersion: networking.k8s.io/v1
-kind: Ingress
-metadata:
-  name: ingress
-  namespace: {{ .Release.Namespace }}
-{{- if .Values.certificateIssuer }}
-  annotations:
-    acme.cert-manager.io/http01-edit-in-place: "true"
-    cert-manager.io/cluster-issuer: {{ .Values.certificateIssuer }}
-{{- end }}
-spec:
-  ingressClassName: {{ .Values.ingressClassName }}
-{{- if .Values.certificateIssuer }}
-  tls:
-  - hosts:
-    - {{ .Values.domain }}
-    secretName: cert-memberships
-{{- end }}
-  rules:
-  - host: {{ .Values.domain }}
-    http:
-      paths:
-      - path: /
-        pathType: Prefix
-        backend:
-          service:
-            name: memberships
-            port:
-              name: http
+      targetPort: {{ .Values.portName }}
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -62,12 +32,12 @@ spec:
       - name: memberships
         image: {{ .Values.image.repository }}:{{ .Values.image.tag }}
         ports:
-        - name: http
-          containerPort: {{ .Values.port }}
+        - name: {{ .Values.portName }}
+          containerPort: 8080
           protocol: TCP
         command:
         - memberships
-        - --port={{ .Values.port }}
+        - --port=8080
         - --db-path=/data/memberships.db
         volumeMounts:
         - name: memberships
