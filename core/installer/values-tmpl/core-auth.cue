@@ -128,10 +128,12 @@ helm: {
 	}
 	auth: {
 		chart: charts.auth
-		dependsOn: [postgres]
-		dependsOnExternal: [{
+		dependsOn: [{
 			name: "ingress-nginx"
 			namespace: "\(global.namespacePrefix)ingress-private"
+		}, {
+			name: "postgres"
+			namespace: release.namespace
 		}]
 		values: {
 			kratos: {

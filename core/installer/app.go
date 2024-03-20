@@ -59,12 +59,6 @@ var infraAppConfigs = []string{
 	"values-tmpl/hydra-maester.cue",
 }
 
-const cueBaseConfigImports = `
-import (
-    "list"
-)
-`
-
 // TODO(gio): import
 const cueBaseConfig = `
 name: string | *""
@@ -147,8 +141,7 @@ charts: {
 
 #Helm: {
 	name: string
-	dependsOn: [...#Helm] | *[]
-    dependsOnExternal: [...#ResourceReference] | *[]
+    dependsOn: [...#ResourceReference] | *[]
 	...
 }
 
@@ -164,8 +157,7 @@ helmValidate: {
 	_name: string
 	_chart: #Chart
 	_values: _
-	_dependencies: [...#Helm] | *[]
-	_externalDependencies: [...#ResourceReference] | *[]
+	_dependencies: [...#ResourceReference] | *[]
 
 	apiVersion: "helm.toolkit.fluxcd.io/v2beta1"
 	kind: "HelmRelease"
@@ -175,12 +167,7 @@ helmValidate: {
 	}
 	spec: {
 		interval: "1m0s"
-		dependsOn: list.Concat([_externalDependencies, [
-			for d in _dependencies {
-				name: d.name
-				namespace: release.namespace
-			}
-    	]])
+		dependsOn: _dependencies
 		chart: {
 			spec: _chart
 		}
@@ -195,7 +182,6 @@ output: {
 			_chart: r.chart
 			_values: r.values
 			_dependencies: r.dependsOn
-            _externalDependencies: r.dependsOnExternal
 		}
 	}
 }
@@ -541,7 +527,7 @@ func cleanName(s string) string {
 
 func processCueConfig(contents string) (*cue.Value, error) {
 	ctx := cuecontext.New()
-	cfg := ctx.CompileString(cueBaseConfigImports + contents + cueBaseConfig)
+	cfg := ctx.CompileString(contents + cueBaseConfig)
 	if err := cfg.Err(); err != nil {
 		return nil, err
 	}

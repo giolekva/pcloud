@@ -19,7 +19,7 @@ charts: {
 helm: {
 	"certificate-issuer-public": {
 		chart: charts["certificate-issuer-public"]
-		dependsOnExternal: [{
+		dependsOn: [{
 			name: "ingress-nginx"
 			namespace: "\(global.namespacePrefix)ingress-private"
 		}]
