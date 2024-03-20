@@ -13,11 +13,15 @@ import (
 	"net/http/cookiejar"
 	"net/url"
 	"strings"
+
+	"golang.org/x/exp/slices"
 )
 
 var port = flag.Int("port", 3000, "Port to listen on")
 var whoAmIAddr = flag.String("whoami-addr", "", "Kratos whoami endpoint address")
 var loginAddr = flag.String("login-addr", "", "Login page address")
+var membershipAddr = flag.String("membership-addr", "", "Group membership API endpoint")
+var groups = flag.String("groups", "", "Comma separated list of groups. User must be part of at least one of them. If empty group membership will not be checked.")
 var upstream = flag.String("upstream", "", "Upstream service address")
 
 type user struct {
@@ -61,6 +65,25 @@ func handle(w http.ResponseWriter, r *http.Request) {
 		addr := fmt.Sprintf("%s?return_to=%s", *loginAddr, curr.String())
 		http.Redirect(w, r, addr, http.StatusSeeOther)
 		return
+	}
+	if *groups != "" {
+		hasPermission := false
+		tg, err := getTransitiveGroups(user.Identity.Traits.Username)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		for _, i := range strings.Split(*groups, ",") {
+			if slices.Contains(tg, strings.TrimSpace(i)) {
+				hasPermission = true
+				break
+			}
+		}
+		if !hasPermission {
+			http.Error(w, "not authorized", http.StatusUnauthorized)
+			return
+		}
+
 	}
 	rc := r.Clone(context.Background())
 	rc.Header.Add("X-User", user.Identity.Traits.Username)
@@ -148,8 +171,27 @@ func queryWhoAmI(cookies []*http.Cookie) (*user, error) {
 	return nil, fmt.Errorf("Unknown error: %s", tmp)
 }
 
+type MembershipInfo struct {
+	MemberOf []string `json:"memberOf"`
+}
+
+func getTransitiveGroups(user string) ([]string, error) {
+	resp, err := http.Get(fmt.Sprintf("%s/%s", *membershipAddr, user))
+	if err != nil {
+		return nil, err
+	}
+	var info MembershipInfo
+	if err := json.NewDecoder(resp.Body).Decode(&info); err != nil {
+		return nil, err
+	}
+	return info.MemberOf, nil
+}
+
 func main() {
 	flag.Parse()
+	if *groups != "" && *membershipAddr == "" {
+		log.Fatal("membership-addr flag is required when groups are provided")
+	}
 	http.HandleFunc("/", handle)
 	fmt.Printf("Starting HTTP server on port: %d\n", *port)
 	log.Fatal(http.ListenAndServe(fmt.Sprintf(":%d", *port), nil))
