@@ -43,6 +43,8 @@ type Store interface {
 	GetAvailableGroupsAsChild(group string) ([]string, error)
 	GetAllTransitiveGroupsForUser(user string) ([]string, error)
 	GetGroupsGroupBelongsTo(group string) ([]string, error)
+	GetDirectChildrenGroups(group string) ([]string, error)
+	GetParentGroups(group string, allGroups map[string]bool) error
 }
 
 type Server struct {
@@ -322,7 +324,7 @@ func (s *SQLiteStore) GetAllTransitiveGroupsForUser(user string) ([]string, erro
 	}
 	allGroups := make(map[string]bool)
 	for _, group := range directGroups {
-		if err := s.getParentGroups(group.Name, allGroups); err != nil {
+		if err := s.GetParentGroups(group.Name, allGroups); err != nil {
 			return nil, err
 		}
 	}
@@ -333,7 +335,7 @@ func (s *SQLiteStore) GetAllTransitiveGroupsForUser(user string) ([]string, erro
 	return result, nil
 }
 
-func (s *SQLiteStore) getParentGroups(group string, allGroups map[string]bool) error {
+func (s *SQLiteStore) GetParentGroups(group string, allGroups map[string]bool) error {
 	if allGroups[group] {
 		return nil
 	}
@@ -343,7 +345,7 @@ func (s *SQLiteStore) getParentGroups(group string, allGroups map[string]bool) e
 		return err
 	}
 	for _, parentGroup := range parentGroups {
-		if err := s.getParentGroups(parentGroup, allGroups); err != nil {
+		if err := s.GetParentGroups(parentGroup, allGroups); err != nil {
 			return err
 		}
 	}
@@ -371,9 +373,33 @@ func (s *SQLiteStore) GetGroupsGroupBelongsTo(group string) ([]string, error) {
 	return parentGroups, nil
 }
 
+func (s *SQLiteStore) GetDirectChildrenGroups(group string) ([]string, error) {
+	query := "SELECT child_group FROM group_to_group WHERE parent_group = ?"
+	rows, err := s.db.Query(query, group)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var childrenGroups []string
+	for rows.Next() {
+		var childGroup string
+		if err := rows.Scan(&childGroup); err != nil {
+			return nil, err
+		}
+		childrenGroups = append(childrenGroups, childGroup)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return childrenGroups, nil
+}
+
 func getLoggedInUser(r *http.Request) (string, error) {
-	// TODO(dtabidze): should make a request to get loggedin user
-	return "tabo", nil
+	if user := r.Header.Get("X-User"); user != "" {
+		return user, nil
+	} else {
+		return "", fmt.Errorf("unauthenticated")
+	}
 }
 
 type Status int
@@ -484,7 +510,6 @@ func (s *Server) createGroupHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) groupHandler(w http.ResponseWriter, r *http.Request) {
-	// groupName := strings.TrimPrefix(r.URL.Path, "/group/")
 	vars := mux.Vars(r)
 	groupName := vars["group-name"]
 	tmpl, err := template.New("group").Parse(groupHTML)
@@ -512,18 +537,53 @@ func (s *Server) groupHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
+	allParentGroups := make(map[string]bool)
+	if err := s.store.GetParentGroups(groupName, allParentGroups); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	parentGroups := make([]Group, 0, len(allParentGroups))
+	for group := range allParentGroups {
+		if group != groupName {
+			description, err := s.store.GetGroupDescription(group)
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
+			parentGroup := Group{Name: group, Description: description}
+			parentGroups = append(parentGroups, parentGroup)
+		}
+	}
+	childrenGroups, err := s.store.GetDirectChildrenGroups(groupName)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	childGroups := make([]Group, len(childrenGroups))
+	for i, childGroup := range childrenGroups {
+		description, err := s.store.GetGroupDescription(childGroup)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		childGroups[i] = Group{Name: childGroup, Description: description}
+	}
 	data := struct {
 		GroupName       string
 		Description     string
 		Owners          []string
 		Members         []string
 		AvailableGroups []string
+		ParentGroups    []Group
+		ChildGroups     []Group
 	}{
 		GroupName:       groupName,
 		Description:     description,
 		Owners:          owners,
 		Members:         members,
 		AvailableGroups: availableGroups,
+		ParentGroups:    parentGroups,
+		ChildGroups:     childGroups,
 	}
 	if err := tmpl.Execute(w, data); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
