@@ -74,8 +74,8 @@ icon: string | *""
 namespace: string | *""
 
 #Auth: {
-  enabled: bool
-  groups: string // TODO(gio): []string
+  enabled: bool | *false // TODO(gio): enabled by default?
+  groups: string | *"" // TODO(gio): []string
 }
 
 #Network: {
@@ -309,12 +309,12 @@ func (a cueApp) Render(derived Derived) (Rendered, error) {
 		return Rendered{}, err
 	}
 	for i.Next() {
-		name := fmt.Sprintf("%s.yaml", cleanName(i.Selector().String()))
-		contents, err := cueyaml.Encode(i.Value())
-		if err != nil {
+		if contents, err := cueyaml.Encode(i.Value()); err != nil {
 			return Rendered{}, err
+		} else {
+			name := fmt.Sprintf("%s.yaml", cleanName(i.Selector().String()))
+			ret.Resources[name] = contents
 		}
-		ret.Resources[name] = contents
 	}
 	return ret, nil
 }

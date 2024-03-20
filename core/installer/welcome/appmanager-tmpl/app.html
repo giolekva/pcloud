@@ -7,25 +7,36 @@
       <label for="{{ $name }}">
         <span>{{ $name }}</span>
       </label>
-	  <input type="checkbox" role="swtich" name="{{ $name }}" oninput="valueChanged({{ $name }}, this.checked)" {{ if $readonly }}disabled{{ end }} {{ if index $data $name }}checked{{ end }}/>
+	  <input type="checkbox" role="swtich" name="{{ $name }}" oninput="valueChanged({{ $name }}, this.checked)" {{ if $readonly }}disabled{{ end }} {{ if index $data $name }}checked{{ end }} />
     {{ else if eq $schema.Kind 1 }}
       <label for="{{ $name }}">
         <span>{{ $name }}</span>
       </label>
-	  <input type="text" name="{{ $name }}" oninput="valueChanged({{ $name }}, this.value)" {{ if $readonly }}disabled{{ end }} value="{{ index $data $name }}"/>
+	  <input type="text" name="{{ $name }}" oninput="valueChanged({{ $name }}, this.value)" {{ if $readonly }}disabled{{ end }} value="{{ index $data $name }}" />
     {{ else if eq $schema.Kind 4 }}
       <label for="{{ $name }}">
         <span>{{ $name }}</span>
       </label>
-	  <input type="text" name="{{ $name }}" oninput="valueChanged({{ $name }}, this.value)" {{ if $readonly }}disabled{{ end }} value="{{ index $data $name }}"/>
+	  <input type="text" name="{{ $name }}" oninput="valueChanged({{ $name }}, this.value)" {{ if $readonly }}disabled{{ end }} value="{{ index $data $name }}" />
 	{{ else if eq $schema.Kind 3 }}
-	  <select oninput="valueChanged({{ $name }}, this.value)" {{ if $readonly }}disabled{{ end }} >
+      <label for="{{ $name }}">
+        <span>{{ $name }}</span>
+      </label>
+	  <select name="{{ name }}"oninput="valueChanged({{ $name }}, this.value)" {{ if $readonly }}disabled{{ end }} >
 		{{ if not $readonly }}<option disabled selected value> -- select an option -- </option>{{ end }}
 		{{ range $networks }}
 		  <option {{if eq .Name (index $data $name) }}selected{{ end }}>{{ .Name }}</option>
 		{{ end }}
 	  </select>
-	{{ end }}
+	{{ else if eq $schema.Kind 5 }}
+      <label for="authEnabled">
+        <span>Require authentication</span>
+      </label>
+	  <input type="checkbox" role="swtich" name="authEnabled" oninput="valueChanged('auth.enabled', this.checked)" {{ if $readonly }}disabled{{ end }} {{ if index $data $name }}checked{{ end }} />
+      <label for="authGroups">
+        <span>Authentication Groups</span>
+      </label>
+	  <input type="text" name="authGroups" oninput="valueChanged('auth.groups', this.value)" {{ if $readonly }}disabled{{ end }} value="{{ index $data $name }}" />
   {{ end }}
 {{ end }}
 
@@ -105,8 +116,18 @@
  let readme = "";
  let config = {{ if $instance }}JSON.parse({{ toJson $instance.Config }}){{ else }}{}{{ end }};
 
+ function setValue(name, value, config) {
+  let items = name.split(".")
+  for (let i = 0; i < items.length - 1; i++) {
+    if (!(items[i] in config)) {
+      config[items[i]] = {}
+    }
+    config = config[items[i]];
+  }
+  config[items[items.length - 1]] = value;
+}
  function valueChanged(name, value) {
-     config[name] = value;
+	 setValue(name, value, config);
      renderReadme();
  }
 

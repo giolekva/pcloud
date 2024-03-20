@@ -397,7 +397,7 @@ func deriveValues(values any, schema Schema, networks []Network) (map[string]any
 				return nil, err
 			}
 			ret[k] = n
-		case KindStruct:
+		case KindStruct, KindAuth:
 			r, err := deriveValues(v, def, networks)
 			if err != nil {
 				return nil, err
