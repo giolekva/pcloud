@@ -157,8 +157,11 @@ func renderHTML(w http.ResponseWriter, r *http.Request, tpl *template.Template, 
 }
 
 func getLoggedInUser(r *http.Request) (string, error) {
-	// TODO(dato): should make a request to get loggedin user
-	return "tabo", nil
+	if user := r.Header.Get("X-User"); user != "" {
+		return user, nil
+	} else {
+		return "", fmt.Errorf("unauthenticated")
+	}
 }
 
 type Server struct {
