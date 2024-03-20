@@ -34,14 +34,12 @@ type authError struct {
 	} `json:"error"`
 }
 
-func getAddr(r *http.Request) *url.URL {
-	return &url.URL{
-		Scheme:      r.Header["X-Forwarded-Scheme"][0],
-		Host:        r.Header["X-Forwarded-Host"][0],
-		RawPath:     r.URL.RawPath,
-		RawQuery:    r.URL.RawQuery,
-		RawFragment: r.URL.RawFragment,
-	}
+func getAddr(r *http.Request) (*url.URL, error) {
+	return url.Parse(fmt.Sprintf(
+		"%s://%s%s",
+		r.Header["X-Forwarded-Scheme"][0],
+		r.Header["X-Forwarded-Host"][0],
+		r.URL.RequestURI()))
 }
 
 func handle(w http.ResponseWriter, r *http.Request) {
@@ -55,7 +53,12 @@ func handle(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "Unauthorized", http.StatusUnauthorized)
 			return
 		}
-		addr := fmt.Sprintf("%s?return_to=%s", *loginAddr, getAddr(r).String())
+		curr, err := getAddr(r)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		addr := fmt.Sprintf("%s?return_to=%s", *loginAddr, curr.String())
 		http.Redirect(w, r, addr, http.StatusSeeOther)
 		return
 	}
