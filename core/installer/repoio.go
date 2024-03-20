@@ -388,6 +388,7 @@ func deriveValues(values any, schema Schema, networks []Network) (map[string]any
 		}
 		switch def.Kind() {
 		case KindBoolean:
+			ret[k] = v
 		case KindString:
 			ret[k] = v
 		case KindNetwork:

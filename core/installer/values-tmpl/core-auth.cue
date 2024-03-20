@@ -225,6 +225,10 @@ helm: {
 						}
 						selfservice: {
 							default_browser_return_url: "https://accounts-ui.\(global.domain)"
+							allowed_return_urls: [
+								"https://*.\(global.domain)/",
+								"https://*.\(global.privateDomain)",
+						    ]
 							methods: {
 								password: {
 									enabled: true

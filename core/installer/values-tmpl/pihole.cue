@@ -1,6 +1,7 @@
 input: {
 	network: #Network
 	subdomain: string
+	requireAuth: bool
 }
 
 _domain: "\(input.subdomain).\(input.network.domain)"
@@ -18,17 +19,15 @@ images: {
 		tag: "v5.8.1"
 		pullPolicy: "IfNotPresent"
 	}
+	authProxy: {
+		repository: "giolekva"
+		name: "auth-proxy"
+		tag: "latest"
+		pullPolicy: "Always"
+	}
 }
 
 charts: {
-	oauth2Client: {
-		chart: "charts/oauth2-client"
-		sourceRef: {
-			kind: "GitRepository"
-			name: "pcloud"
-			namespace: global.id
-		}
-	}
 	pihole: {
 		chart: "charts/pihole"
 		sourceRef: {
@@ -37,80 +36,110 @@ charts: {
 			namespace: global.id
 		}
 	}
-}
-
-_oauth2ClientSecretName: "oauth2-client"
-
-helm: {
-	"oauth2-client": {
-		chart: charts.oauth2Client
-		values: {
-			name: "oauth2-client"
-			secretName: _oauth2ClientSecretName
-			grantTypes: ["authorization_code"]
-			responseTypes: ["code"]
-			scope: "openid profile email"
-			redirectUris: ["https://\(_domain)/oauth2/callback"]
-			hydraAdmin: "http://hydra-admin.\(global.namespacePrefix)core-auth.svc.cluster.local"
+	ingress: {
+		chart: "charts/ingress"
+		sourceRef: {
+			kind: "GitRepository"
+			name: "pcloud"
+			namespace: global.id
 		}
 	}
+	authProxy: {
+		chart: "charts/auth-proxy"
+		sourceRef: {
+			kind: "GitRepository"
+			name: "pcloud"
+			namespace: global.id
+		}
+	}
+}
+
+_piholeServiceName: "pihole-web"
+_authProxyServiceName: "auth-proxy"
+_httpPortName: "http"
+_serviceWebPort: 80
+
+helm: {
 	pihole: {
 		chart: charts.pihole
 		values: {
-			domain: _domain
-			pihole: {
-				fullnameOverride: "pihole"
-				persistentVolumeClaim: { // TODO(gio): create volume separately as a dependency
+			fullnameOverride: "pihole"
+			persistentVolumeClaim: { // TODO(gio): create volume separately as a dependency
+				enabled: true
+				size: "5Gi"
+			}
+			admin: {
+				enabled: false
+			}
+			ingress: {
+				enabled: false
+			}
+			serviceDhcp: {
+				enabled: false
+			}
+			serviceDns: {
+				type: "ClusterIP"
+			}
+			serviceWeb: {
+				type: "ClusterIP"
+				http: {
 					enabled: true
-					size: "5Gi"
+					port: _serviceWebPort
 				}
-				admin: {
+				https: {
 					enabled: false
 				}
-				ingress: {
-					enabled: false
+			}
+			virtualHost: _domain
+			resources: {
+				requests: {
+					cpu: "250m"
+					memory: "100M"
 				}
-				serviceDhcp: {
-					enabled: false
+				limits: {
+					cpu: "500m"
+					memory: "250M"
 				}
-				serviceDns: {
-					type: "ClusterIP"
-				}
-				serviceWeb: {
-					type: "ClusterIP"
-					http: {
-						enabled: true
-					}
-					https: {
-						enabled: false
-					}
-				}
-				virtualHost: _domain
-				resources: {
-					requests: {
-						cpu: "250m"
-						memory: "100M"
-					}
-					limits: {
-						cpu: "500m"
-						memory: "250M"
-					}
-				}
+			}
+			image: {
+				repository: images.pihole.fullName
+				tag: images.pihole.tag
+				pullPolicy: images.pihole.pullPolicy
+			}
+		}
+	}
+	if input.requireAuth {
+		"auth-proxy": {
+			chart: charts.authProxy
+			values: {
 				image: {
-					repository: images.pihole.fullName
-					tag: images.pihole.tag
-					pullPolicy: images.pihole.pullPolicy
+					repository: images.authProxy.fullName
+					tag: images.authProxy.tag
+					pullPolicy: images.authProxy.pullPolicy
 				}
+				upstream: "\(_piholeServiceName).\(release.namespace).svc.cluster.local"
+				whoAmIAddr: "https://accounts.\(global.domain)/sessions/whoami"
+				loginAddr: "https://accounts-ui.\(global.domain)/login"
+				portName: _httpPortName
 			}
-			oauth2: {
-				cookieSecret: "1234123443214321"
-				secretName: _oauth2ClientSecretName
-				issuer: "https://hydra.\(global.domain)"
-			}
-			configName: "oauth2-proxy"
-			profileUrl: "https://accounts-ui.\(global.domain)"
+		}
+	}
+	ingress: {
+		chart: charts.ingress
+		values: {
+			domain: _domain
 			ingressClassName: input.network.ingressClass
 			certificateIssuer: input.network.certificateIssuer
+			service: {
+				if input.requireAuth {
+					name: _authProxyServiceName
+					port: name: _httpPortName
+				}
+				if !input.requireAuth {
+					name: _piholeServiceName
+					port: number: _serviceWebPort
+				}
+			}
 		}
 	}
 }

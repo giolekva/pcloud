@@ -1,0 +1,6 @@
+apiVersion: v2
+name: auth-proxy
+description: A Helm chart for pCloud auth-proxy
+type: application
+version: 0.0.1
+appVersion: "0.0.1"
