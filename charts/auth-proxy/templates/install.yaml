@@ -41,4 +41,6 @@ spec:
         - --port=8080
         - --whoami-addr={{ .Values.whoAmIAddr }}
         - --login-addr={{ .Values.loginAddr }}
+        - --membership-addr={{ .Values.membershipAddr }}
+        - --groups={{ .Values.groups }}
         - --upstream={{ .Values.upstream }}

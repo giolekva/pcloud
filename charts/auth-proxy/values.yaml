@@ -5,4 +5,6 @@ image:
 upstream: bar.svc.cluster.local
 whoAmIAddr: https://accounts.example.com/sessions/whoami
 loginAddr: https://accounts-ui.example.com/login
+membershipAddr: https://memberships.p.example.com/api/user
+groups: ""
 portName: http

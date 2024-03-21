@@ -32,11 +32,11 @@
       <label for="authEnabled">
         <span>Require authentication</span>
       </label>
-      <input type="checkbox" role="swtich" name="authEnabled" oninput="valueChanged('auth.enabled', this.checked)" {{ if $readonly }}disabled{{ end }} {{ if index $data $name }}checked{{ end }} />
+      <input type="checkbox" role="swtich" name="authEnabled" oninput="valueChanged('auth.enabled', this.checked)" {{ if $readonly }}disabled{{ end }} {{ if index $data $name "enabled" }}checked{{ end }} />
       <label for="authGroups">
         <span>Authentication Groups</span>
       </label>
-      <input type="text" name="authGroups" oninput="valueChanged('auth.groups', this.value)" {{ if $readonly }}disabled{{ end }} value="{{ index $data $name }}" />
+      <input type="text" name="authGroups" oninput="valueChanged('auth.groups', this.value)" {{ if $readonly }}disabled{{ end }} value='{{ index $data $name "groups" }}' />
     {{ end }}
   {{ end }}
 {{ end }}
