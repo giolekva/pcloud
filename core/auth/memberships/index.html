@@ -41,5 +41,18 @@
         </tr>
         {{- end -}}
     </table>
+    <h4>Transitive Groups</h4>
+    <table>
+        <tr>
+            <th>Name</th>
+            <th>Description</th>
+        </tr>
+        {{- range .TransitiveGroups -}}
+        <tr>
+            <td><a href="/group/{{ .Name }}">{{ .Name }}</a></td>
+            <td>{{ .Description }}</td>
+        </tr>
+        {{- end -}}
+    </table>
 </body>
 </html>

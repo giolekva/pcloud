@@ -495,12 +495,19 @@ func (s *Server) homePageHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
+	transitiveGroups, err := s.store.GetAllTransitiveGroupsForUser(loggedInUser)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
 	data := struct {
 		OwnerGroups      []Group
 		MembershipGroups []Group
+		TransitiveGroups []Group
 	}{
 		OwnerGroups:      ownerGroups,
 		MembershipGroups: membershipGroups,
+		TransitiveGroups: transitiveGroups,
 	}
 	w.Header().Set("Content-Type", "text/html")
 	if err := tmpl.Execute(w, data); err != nil {
