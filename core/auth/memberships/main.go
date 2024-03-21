@@ -272,6 +272,16 @@ func (s *SQLiteStore) parentChildGroupPairExists(tx *sql.Tx, parent, child strin
 }
 
 func (s *SQLiteStore) AddChildGroup(parent, child string) error {
+	parentGroup := Group{Name: parent, Description: ""}
+	parentGroups, err := s.GetAllTransitiveGroupsForGroup(parentGroup)
+	if err != nil {
+		return err
+	}
+	for _, group := range parentGroups {
+		if group.Name == child {
+			return fmt.Errorf("circular reference detected: group %s is already a parent of group %s", child, parent)
+		}
+	}
 	tx, err := s.db.Begin()
 	if err != nil {
 		return err
