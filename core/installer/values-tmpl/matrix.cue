@@ -69,9 +69,10 @@ helm: {
 		}
 	}
 	matrix: {
-		dependsOn: [
-			postgres
-	    ]
+		dependsOn: [{
+			name: "postgres"
+			namespace: release.namespace
+		}]
 		chart: charts.matrix
 		values: {
 			domain: global.domain

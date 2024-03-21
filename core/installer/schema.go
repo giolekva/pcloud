@@ -16,12 +16,20 @@ const (
 	KindString       = 1
 	KindStruct       = 2
 	KindNetwork      = 3
+	KindAuth         = 5
 	KindNumber       = 4
 )
 
 type Schema interface {
 	Kind() Kind
 	Fields() map[string]Schema
+}
+
+var AuthSchema Schema = structSchema{
+	fields: map[string]Schema{
+		"enabled": basicSchema{KindBoolean},
+		"groups":  basicSchema{KindString},
+	},
 }
 
 const networkSchema = `
@@ -45,6 +53,30 @@ func isNetwork(v cue.Value) bool {
 	network := u.LookupPath(cue.ParsePath("#Network"))
 	vv := u.LookupPath(cue.ParsePath("value"))
 	if err := network.Subsume(vv); err == nil {
+		return true
+	}
+	return false
+}
+
+const authSchema = `
+#Auth: {
+    enabled: bool | false
+    groups: string | *""
+}
+
+value: { %s }
+`
+
+func isAuth(v cue.Value) bool {
+	if v.Value().Kind() != cue.StructKind {
+		return false
+	}
+	s := fmt.Sprintf(authSchema, fmt.Sprintf("%#v", v))
+	c := cuecontext.New()
+	u := c.CompileString(s)
+	auth := u.LookupPath(cue.ParsePath("#Auth"))
+	vv := u.LookupPath(cue.ParsePath("value"))
+	if err := auth.Subsume(vv); err == nil {
 		return true
 	}
 	return false
@@ -85,6 +117,8 @@ func NewCueSchema(v cue.Value) (Schema, error) {
 	case cue.StructKind:
 		if isNetwork(v) {
 			return basicSchema{KindNetwork}, nil
+		} else if isAuth(v) {
+			return basicSchema{KindAuth}, nil
 		}
 		s := structSchema{make(map[string]Schema)}
 		f, err := v.Fields(cue.Schema())

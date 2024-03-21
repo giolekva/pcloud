@@ -47,7 +47,7 @@ helm: {
 	"oauth2-client": {
 		chart: charts.oauth2Client
 		// TODO(gio): remove once hydra maester is installed as part of dodo itself
-		dependsOnExternal: [{
+		dependsOn: [{
 			name: "auth"
 			namespace: "\(global.namespacePrefix)core-auth"
 		}]
@@ -63,7 +63,7 @@ helm: {
 	}
 	headscale: {
 		chart: charts.headscale
-		dependsOnExternal: [{
+		dependsOn: [{
 			name: "auth"
 			namespace: "\(global.namespacePrefix)core-auth"
 		}]

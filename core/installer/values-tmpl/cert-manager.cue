@@ -55,7 +55,7 @@ charts: {
 helm: {
 	"cert-manager": {
 		chart: charts.certManager
-		dependsOnExternal: [{
+		dependsOn: [{
 			name: "ingress-public"
 			namespace: _ingressPublic
 		}]
@@ -87,7 +87,10 @@ helm: {
 	}
 	"cert-manager-webhook-pcloud": {
 		chart: charts.dnsChallengeSolver
-		dependsOn: [helm["cert-manager"]]
+		dependsOn: [{
+			name: "cert-manager"
+			namespace: release.namespace
+		}]
 		values: {
 			fullnameOverride: "\(global.pcloudEnvName)-cert-manager-webhook-pcloud"
 			certManager: {
