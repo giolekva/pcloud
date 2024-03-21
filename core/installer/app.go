@@ -141,7 +141,7 @@ charts: {
 
 #Helm: {
 	name: string
-    dependsOn: [...#ResourceReference] | *[]
+	dependsOn: [...#ResourceReference] | *[]
 	...
 }
 
