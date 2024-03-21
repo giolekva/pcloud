@@ -61,13 +61,13 @@
         </tr>
         {{- end }}
     </table>
-    <h4>Parent Groups</h4>
+    <h4>Transitive Groups</h4>
     <table>
         <tr>
             <th>Group Name</th>
             <th>Description</th>
         </tr>
-        {{- range .ParentGroups }}
+        {{- range .TransitiveGroups }}
         <tr>
             <td><a href="/group/{{ .Name }}">{{ .Name }}</a></td>
             <td>{{ .Description }}</td>
