@@ -25,6 +25,13 @@ type Schema interface {
 	Fields() map[string]Schema
 }
 
+var AuthSchema Schema = structSchema{
+	fields: map[string]Schema{
+		"enabled": basicSchema{KindBoolean},
+		"groups":  basicSchema{KindString},
+	},
+}
+
 const networkSchema = `
 #Network: {
     name: string

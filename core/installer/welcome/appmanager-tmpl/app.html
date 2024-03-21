@@ -22,7 +22,7 @@
       <label for="{{ $name }}">
         <span>{{ $name }}</span>
       </label>
-	  <select name="{{ name }}"oninput="valueChanged({{ $name }}, this.value)" {{ if $readonly }}disabled{{ end }} >
+	  <select name="{{ $name }}" oninput="valueChanged({{ $name }}, this.value)" {{ if $readonly }}disabled{{ end }} >
 		{{ if not $readonly }}<option disabled selected value> -- select an option -- </option>{{ end }}
 		{{ range $networks }}
 		  <option {{if eq .Name (index $data $name) }}selected{{ end }}>{{ .Name }}</option>
@@ -32,11 +32,12 @@
       <label for="authEnabled">
         <span>Require authentication</span>
       </label>
-	  <input type="checkbox" role="swtich" name="authEnabled" oninput="valueChanged('auth.enabled', this.checked)" {{ if $readonly }}disabled{{ end }} {{ if index $data $name }}checked{{ end }} />
+      <input type="checkbox" role="swtich" name="authEnabled" oninput="valueChanged('auth.enabled', this.checked)" {{ if $readonly }}disabled{{ end }} {{ if index $data $name }}checked{{ end }} />
       <label for="authGroups">
         <span>Authentication Groups</span>
       </label>
-	  <input type="text" name="authGroups" oninput="valueChanged('auth.groups', this.value)" {{ if $readonly }}disabled{{ end }} value="{{ index $data $name }}" />
+      <input type="text" name="authGroups" oninput="valueChanged('auth.groups', this.value)" {{ if $readonly }}disabled{{ end }} value="{{ index $data $name }}" />
+    {{ end }}
   {{ end }}
 {{ end }}
 
