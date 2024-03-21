@@ -44,7 +44,7 @@ type Store interface {
 	GetAllTransitiveGroupsForUser(user string) ([]string, error)
 	GetGroupsGroupBelongsTo(group string) ([]string, error)
 	GetDirectChildrenGroups(group string) ([]string, error)
-	GetParentGroups(group string, allGroups map[string]bool) error
+	GetAllParentGroupsForGroup(group string) ([]string, error)
 }
 
 type Server struct {
@@ -322,20 +322,36 @@ func (s *SQLiteStore) GetAllTransitiveGroupsForUser(user string) ([]string, erro
 	if err != nil {
 		return nil, err
 	}
+	var allTransitiveGroups []string
 	allGroups := make(map[string]bool)
 	for _, group := range directGroups {
-		if err := s.GetParentGroups(group.Name, allGroups); err != nil {
+		parentGroups, err := s.GetAllParentGroupsForGroup(group.Name)
+		if err != nil {
 			return nil, err
 		}
+		for _, parentGroup := range parentGroups {
+			if !allGroups[parentGroup] {
+				allTransitiveGroups = append(allTransitiveGroups, parentGroup)
+				allGroups[parentGroup] = true
+			}
+		}
 	}
-	var result []string
-	for group := range allGroups {
-		result = append(result, group)
-	}
-	return result, nil
+	return allTransitiveGroups, nil
 }
 
-func (s *SQLiteStore) GetParentGroups(group string, allGroups map[string]bool) error {
+func (s *SQLiteStore) GetAllParentGroupsForGroup(group string) ([]string, error) {
+	allGroups := make(map[string]bool)
+	if err := s.getAllParentGroupsRecursive(group, allGroups); err != nil {
+		return nil, err
+	}
+	var allParentGroups []string
+	for group := range allGroups {
+		allParentGroups = append(allParentGroups, group)
+	}
+	return allParentGroups, nil
+}
+
+func (s *SQLiteStore) getAllParentGroupsRecursive(group string, allGroups map[string]bool) error {
 	if allGroups[group] {
 		return nil
 	}
@@ -345,7 +361,7 @@ func (s *SQLiteStore) GetParentGroups(group string, allGroups map[string]bool) e
 		return err
 	}
 	for _, parentGroup := range parentGroups {
-		if err := s.GetParentGroups(parentGroup, allGroups); err != nil {
+		if err := s.getAllParentGroupsRecursive(parentGroup, allGroups); err != nil {
 			return err
 		}
 	}
@@ -537,20 +553,20 @@ func (s *Server) groupHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	allParentGroups := make(map[string]bool)
-	if err := s.store.GetParentGroups(groupName, allParentGroups); err != nil {
+	parentGroupsName, err := s.store.GetAllParentGroupsForGroup(groupName)
+	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	parentGroups := make([]Group, 0, len(allParentGroups))
-	for group := range allParentGroups {
-		if group != groupName {
-			description, err := s.store.GetGroupDescription(group)
+	var parentGroups []Group
+	for _, parentGroupName := range parentGroupsName {
+		if parentGroupName != groupName {
+			description, err := s.store.GetGroupDescription(parentGroupName)
 			if err != nil {
 				http.Error(w, err.Error(), http.StatusInternalServerError)
 				return
 			}
-			parentGroup := Group{Name: group, Description: description}
+			parentGroup := Group{Name: parentGroupName, Description: description}
 			parentGroups = append(parentGroups, parentGroup)
 		}
 	}
