@@ -32,11 +32,16 @@
       <label for="authEnabled">
         <span>Require authentication</span>
       </label>
-      <input type="checkbox" role="swtich" name="authEnabled" oninput="valueChanged('auth.enabled', this.checked)" {{ if $readonly }}disabled{{ end }} {{ if index $data $name "enabled" }}checked{{ end }} />
+	  {{ $auth := index $data $name }}
+	  {{ $authEnabled := false }}
+	  {{ $authGroups := "" }}
+	  {{ if and $auth (index $auth "enabled") }}{{ $authEnabled = true }}{{ end }}
+	  {{ if and $auth (index $auth "groups") }}{{ $authGroups = index $auth "groups" }}{{ end }}
+      <input type="checkbox" role="swtich" name="authEnabled" oninput="valueChanged('{{- $name -}}.enabled', this.checked)" {{ if $readonly }}disabled{{ end }} {{ if $authEnabled  }}checked{{ end }} />
       <label for="authGroups">
         <span>Authentication Groups</span>
       </label>
-      <input type="text" name="authGroups" oninput="valueChanged('auth.groups', this.value)" {{ if $readonly }}disabled{{ end }} value='{{ index $data $name "groups" }}' />
+      <input type="text" name="authGroups" oninput="valueChanged('{{- $name -}}.groups', this.value)" {{ if $readonly }}disabled{{ end }} value="{{ $authGroups }}" />
     {{ end }}
   {{ end }}
 {{ end }}
