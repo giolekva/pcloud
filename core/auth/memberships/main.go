@@ -335,16 +335,12 @@ func (s *SQLiteStore) GetAllTransitiveGroupsForUser(user string) ([]Group, error
 	var allTransitiveGroups []Group
 	allGroups := make(map[Group]bool)
 	for _, group := range directGroups {
-		parentGroups, err := s.GetAllTransitiveGroupsForGroup(group)
-		if err != nil {
+		if err := s.getAllParentGroupsRecursive(group, allGroups); err != nil {
 			return nil, err
 		}
-		for _, parentGroup := range parentGroups {
-			if !allGroups[parentGroup] {
-				allTransitiveGroups = append(allTransitiveGroups, parentGroup)
-				allGroups[parentGroup] = true
-			}
-		}
+	}
+	for group := range allGroups {
+		allTransitiveGroups = append(allTransitiveGroups, group)
 	}
 	return allTransitiveGroups, nil
 }
@@ -354,9 +350,10 @@ func (s *SQLiteStore) GetAllTransitiveGroupsForGroup(group Group) ([]Group, erro
 	if err := s.getAllParentGroupsRecursive(group, allGroups); err != nil {
 		return nil, err
 	}
+	delete(allGroups, group)
 	var allParentGroups []Group
-	for group := range allGroups {
-		allParentGroups = append(allParentGroups, group)
+	for g := range allGroups {
+		allParentGroups = append(allParentGroups, g)
 	}
 	return allParentGroups, nil
 }
@@ -584,21 +581,10 @@ func (s *Server) groupHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	group := Group{Name: groupName, Description: description}
-	parentGroups, err := s.store.GetAllTransitiveGroupsForGroup(group)
+	transitiveGroups, err := s.store.GetAllTransitiveGroupsForGroup(group)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
-	}
-	var transitiveGroups []Group
-	for i, group := range parentGroups {
-		if group.Name == groupName {
-			if i == len(parentGroups)-1 {
-				transitiveGroups = parentGroups[:i]
-			} else if i < len(parentGroups)-1 {
-				transitiveGroups = append(parentGroups[:i], parentGroups[i+1:]...)
-			}
-			break
-		}
 	}
 	childGroups, err := s.store.GetDirectChildrenGroups(groupName)
 	if err != nil {
