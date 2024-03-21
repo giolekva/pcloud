@@ -332,43 +332,43 @@ func (s *SQLiteStore) GetAllTransitiveGroupsForUser(user string) ([]Group, error
 	if err != nil {
 		return nil, err
 	}
-	var allTransitiveGroups []Group
-	allGroups := make(map[Group]bool)
+	visitedGroups := make(map[Group]bool)
 	for _, group := range directGroups {
-		if err := s.getAllParentGroupsRecursive(group, allGroups); err != nil {
+		if err := s.getAllParentGroupsRecursive(group, visitedGroups); err != nil {
 			return nil, err
 		}
 	}
-	for group := range allGroups {
+	var allTransitiveGroups []Group
+	for group := range visitedGroups {
 		allTransitiveGroups = append(allTransitiveGroups, group)
 	}
 	return allTransitiveGroups, nil
 }
 
 func (s *SQLiteStore) GetAllTransitiveGroupsForGroup(group Group) ([]Group, error) {
-	allGroups := make(map[Group]bool)
-	if err := s.getAllParentGroupsRecursive(group, allGroups); err != nil {
+	visitedGroups := make(map[Group]bool)
+	if err := s.getAllParentGroupsRecursive(group, visitedGroups); err != nil {
 		return nil, err
 	}
-	delete(allGroups, group)
+	delete(visitedGroups, group)
 	var allParentGroups []Group
-	for g := range allGroups {
+	for g := range visitedGroups {
 		allParentGroups = append(allParentGroups, g)
 	}
 	return allParentGroups, nil
 }
 
-func (s *SQLiteStore) getAllParentGroupsRecursive(group Group, allGroups map[Group]bool) error {
-	if allGroups[group] {
+func (s *SQLiteStore) getAllParentGroupsRecursive(group Group, visitedGroups map[Group]bool) error {
+	if visitedGroups[group] {
 		return nil
 	}
-	allGroups[group] = true
+	visitedGroups[group] = true
 	parentGroups, err := s.GetGroupsGroupBelongsTo(group.Name)
 	if err != nil {
 		return err
 	}
 	for _, parentGroup := range parentGroups {
-		if err := s.getAllParentGroupsRecursive(parentGroup, allGroups); err != nil {
+		if err := s.getAllParentGroupsRecursive(parentGroup, visitedGroups); err != nil {
 			return err
 		}
 	}
