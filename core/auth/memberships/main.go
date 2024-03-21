@@ -44,7 +44,7 @@ type Store interface {
 	GetAllTransitiveGroupsForUser(user string) ([]Group, error)
 	GetGroupsGroupBelongsTo(group string) ([]Group, error)
 	GetDirectChildrenGroups(group string) ([]Group, error)
-	GetAllTransitiveGroupsForGroup(group Group) ([]Group, error)
+	GetAllTransitiveGroupsForGroup(group string) ([]Group, error)
 }
 
 type Server struct {
@@ -272,8 +272,7 @@ func (s *SQLiteStore) parentChildGroupPairExists(tx *sql.Tx, parent, child strin
 }
 
 func (s *SQLiteStore) AddChildGroup(parent, child string) error {
-	parentGroup := Group{Name: parent, Description: ""}
-	parentGroups, err := s.GetAllTransitiveGroupsForGroup(parentGroup)
+	parentGroups, err := s.GetAllTransitiveGroupsForGroup(parent)
 	if err != nil {
 		return err
 	}
@@ -345,12 +344,13 @@ func (s *SQLiteStore) GetAllTransitiveGroupsForUser(user string) ([]Group, error
 	return allTransitiveGroups, nil
 }
 
-func (s *SQLiteStore) GetAllTransitiveGroupsForGroup(group Group) ([]Group, error) {
+func (s *SQLiteStore) GetAllTransitiveGroupsForGroup(group string) ([]Group, error) {
 	visitedGroups := make(map[Group]bool)
-	if err := s.getAllParentGroupsRecursive(group, visitedGroups); err != nil {
+	initialGroup := Group{Name: group}
+	if err := s.getAllParentGroupsRecursive(initialGroup, visitedGroups); err != nil {
 		return nil, err
 	}
-	delete(visitedGroups, group)
+	delete(visitedGroups, initialGroup)
 	var allParentGroups []Group
 	for g := range visitedGroups {
 		allParentGroups = append(allParentGroups, g)
@@ -580,8 +580,7 @@ func (s *Server) groupHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	group := Group{Name: groupName, Description: description}
-	transitiveGroups, err := s.store.GetAllTransitiveGroupsForGroup(group)
+	transitiveGroups, err := s.store.GetAllTransitiveGroupsForGroup(groupName)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
