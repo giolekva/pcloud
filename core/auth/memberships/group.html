@@ -61,5 +61,31 @@
         </tr>
         {{- end }}
     </table>
+    <h4>Transitive Groups</h4>
+    <table>
+        <tr>
+            <th>Group Name</th>
+            <th>Description</th>
+        </tr>
+        {{- range .TransitiveGroups }}
+        <tr>
+            <td><a href="/group/{{ .Name }}">{{ .Name }}</a></td>
+            <td>{{ .Description }}</td>
+        </tr>
+        {{- end }}
+    </table>
+    <h3>Child Groups</h3>
+    <table>
+        <tr>
+            <th>Group Name</th>
+            <th>Description</th>
+        </tr>
+        {{- range .ChildGroups }}
+        <tr>
+            <td><a href="/group/{{ .Name }}">{{ .Name }}</a></td>
+            <td>{{ .Description }}</td>
+        </tr>
+        {{- end }}
+    </table>
 </body>
 </html>
