@@ -413,12 +413,11 @@ func (s *SQLiteStore) GetDirectChildrenGroups(group string) ([]Group, error) {
 }
 
 func getLoggedInUser(r *http.Request) (string, error) {
-	// if user := r.Header.Get("X-User"); user != "" {
-	// 	return user, nil
-	// } else {
-	// 	return "", fmt.Errorf("unauthenticated")
-	// }
-	return "lekva", nil
+	if user := r.Header.Get("X-User"); user != "" {
+		return user, nil
+	} else {
+		return "", fmt.Errorf("unauthenticated")
+	}
 }
 
 type Status int
