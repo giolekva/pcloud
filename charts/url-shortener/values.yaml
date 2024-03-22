@@ -5,3 +5,4 @@ image:
 storage:
   size: 1Gi
 portName: http
+requireAuth: false

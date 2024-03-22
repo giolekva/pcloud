@@ -79,6 +79,20 @@ namespace: string | *""
 	domain: string
 }
 
+networks: {
+	public: #Network & {
+		name: "Public"
+		ingressClass: "\(global.pcloudEnvName)-ingress-public"
+		certificateIssuer: "\(global.id)-public"
+		domain: global.domain
+	}
+	private: #Network & {
+		name: "Private"
+		ingressClass: "\(global.id)-ingress-private"
+		domain: global.privateDomain
+	}
+}
+
 #Image: {
 	registry: string | *"docker.io"
 	repository: string
@@ -121,6 +135,91 @@ _ingressPrivate: "\(global.id)-ingress-private"
 _ingressPublic: "\(global.pcloudEnvName)-ingress-public"
 _issuerPrivate: "\(global.id)-private"
 _issuerPublic: "\(global.id)-public"
+
+_IngressWithAuthProxy: {
+	inp: {
+		auth: #Auth
+		network: #Network
+		subdomain: string
+		serviceName: string
+		port: { name: string } | { number: int & > 0 }
+	}
+
+	_domain: "\(inp.subdomain).\(inp.network.domain)"
+    _authProxyHTTPPortName: "http"
+
+	out: {
+		images: {
+			authProxy: #Image & {
+				repository: "giolekva"
+				name: "auth-proxy"
+				tag: "latest"
+				pullPolicy: "Always"
+			}
+		}
+		charts: {
+			ingress: #Chart & {
+				chart: "charts/ingress"
+				sourceRef: {
+					kind: "GitRepository"
+					name: "pcloud"
+					namespace: global.id
+				}
+			}
+			authProxy: #Chart & {
+				chart: "charts/auth-proxy"
+				sourceRef: {
+					kind: "GitRepository"
+					name: "pcloud"
+					namespace: global.id
+				}
+			}
+		}
+		helm: {
+			if inp.auth.enabled {
+				"auth-proxy": {
+					chart: charts.authProxy
+					values: {
+						image: {
+							repository: images.authProxy.fullName
+							tag: images.authProxy.tag
+							pullPolicy: images.authProxy.pullPolicy
+						}
+						upstream: "\(inp.serviceName).\(release.namespace).svc.cluster.local"
+						whoAmIAddr: "https://accounts.\(global.domain)/sessions/whoami"
+						loginAddr: "https://accounts-ui.\(global.domain)/login"
+						membershipAddr: "http://memberships.\(global.id)-core-auth-memberships.svc.cluster.local/api/user"
+						groups: inp.auth.groups
+						portName: _authProxyHTTPPortName
+					}
+				}
+			}
+			ingress: {
+				chart: charts.ingress
+				values: {
+					domain: _domain
+					ingressClassName: inp.network.ingressClass
+					certificateIssuer: inp.network.certificateIssuer
+					service: {
+						if inp.auth.enabled {
+							name: "auth-proxy"
+                            port: name: _authProxyHTTPPortName
+						}
+						if !inp.auth.enabled {
+							name: inp.serviceName
+							if inp.port.name != _|_ {
+								port: name: inp.port.name
+							}
+							if inp.port.number != _|_ {
+								port: number: inp.port.number
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+}
 
 images: {
 	for key, value in images {

@@ -39,6 +39,7 @@ spec:
         - url-shortener
         - --port=8080
         - --db-path=/data/urls.db
+        - --require-auth={{ .Values.requireAuth }}
         volumeMounts:
         - name: url-shortener
           mountPath: /data
