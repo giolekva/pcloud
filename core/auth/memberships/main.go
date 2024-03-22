@@ -30,6 +30,8 @@ var groupHTML string
 var staticResources embed.FS
 
 type Store interface {
+	// Initializes store with admin user and their groups.
+	Init(owner string, groups []string) error
 	CreateGroup(owner string, group Group) error
 	AddChildGroup(parent, child string) error
 	GetGroupsOwnedBy(user string) ([]Group, error)
@@ -91,6 +93,33 @@ func NewSQLiteStore(db *sql.DB) (*SQLiteStore, error) {
 	return &SQLiteStore{db: db}, nil
 }
 
+func (s *SQLiteStore) Init(owner string, groups []string) error {
+	tx, err := s.db.Begin()
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	row := tx.QueryRow("SELECT COUNT(*) FROM groups")
+	var count int
+	if err := row.Scan(&count); err != nil {
+		return err
+	}
+	if count != 0 {
+		return fmt.Errorf("store already initialised")
+	}
+	for _, g := range groups {
+		query := `INSERT INTO groups (name, description) VALUES (?, '')`
+		if _, err := tx.Exec(query, g); err != nil {
+			return err
+		}
+		query = `INSERT INTO owners (username, group_name) VALUES (?, ?)`
+		if _, err := tx.Exec(query, owner, g); err != nil {
+			return err
+		}
+	}
+	return tx.Commit()
+}
+
 func (s *SQLiteStore) queryGroups(query string, args ...interface{}) ([]Group, error) {
 	groups := make([]Group, 0)
 	rows, err := s.db.Query(query, args...)
@@ -147,10 +176,7 @@ func (s *SQLiteStore) CreateGroup(owner string, group Group) error {
 	if _, err := tx.Exec(query, owner, group.Name); err != nil {
 		return err
 	}
-	if err := tx.Commit(); err != nil {
-		return err
-	}
-	return nil
+	return tx.Commit()
 }
 
 func (s *SQLiteStore) IsGroupOwner(user, group string) (bool, error) {
@@ -445,6 +471,7 @@ func (s *Server) Start() {
 	router.HandleFunc("/create-group", s.createGroupHandler)
 	router.HandleFunc("/add-user", s.addUserHandler)
 	router.HandleFunc("/add-child-group", s.addChildGroupHandler)
+	router.HandleFunc("/api/init", s.apiInitHandler)
 	router.HandleFunc("/api/user/{username}", s.apiMemberOfHandler)
 	router.HandleFunc("/", s.homePageHandler)
 	log.Fatal(http.ListenAndServe(fmt.Sprintf(":%d", *port), router))
@@ -659,7 +686,24 @@ func (s *Server) addChildGroupHandler(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, "/group/"+parentGroup, http.StatusSeeOther)
 }
 
-type UserInfo struct {
+type initRequest struct {
+	Owner  string   `json:"owner"`
+	Groups []string `json:"groups"`
+}
+
+func (s *Server) apiInitHandler(w http.ResponseWriter, r *http.Request) {
+	var req initRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	if err := s.store.Init(req.Owner, req.Groups); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+}
+
+type userInfo struct {
 	MemberOf []string `json:"memberOf"`
 }
 
@@ -680,7 +724,7 @@ func (s *Server) apiMemberOfHandler(w http.ResponseWriter, r *http.Request) {
 		groupNames = append(groupNames, group.Name)
 	}
 	w.Header().Set("Content-Type", "application/json")
-	if err := json.NewEncoder(w).Encode(UserInfo{MemberOf: groupNames}); err != nil {
+	if err := json.NewEncoder(w).Encode(userInfo{groupNames}); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
