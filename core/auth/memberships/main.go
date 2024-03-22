@@ -60,12 +60,8 @@ type SQLiteStore struct {
 	db *sql.DB
 }
 
-func NewSQLiteStore(path string) (*SQLiteStore, error) {
-	db, err := sql.Open("sqlite3", path)
-	if err != nil {
-		return nil, err
-	}
-	_, err = db.Exec(`
+func NewSQLiteStore(db *sql.DB) (*SQLiteStore, error) {
+	_, err := db.Exec(`
         CREATE TABLE IF NOT EXISTS groups (
             name TEXT PRIMARY KEY,
             description TEXT
@@ -701,10 +697,14 @@ func (s *Server) apiMemberOfHandler(w http.ResponseWriter, r *http.Request) {
 
 func main() {
 	flag.Parse()
-	db, err := NewSQLiteStore(*dbPath)
+	db, err := sql.Open("sqlite3", *dbPath)
 	if err != nil {
 		panic(err)
 	}
-	s := Server{store: db}
+	store, err := NewSQLiteStore(db)
+	if err != nil {
+		panic(err)
+	}
+	s := Server{store}
 	s.Start()
 }

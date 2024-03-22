@@ -1,2 +1,2 @@
-# Exclude SQLite database file
 *.db
+memberships*
