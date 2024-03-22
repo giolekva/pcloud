@@ -8,6 +8,53 @@ import (
 	_ "github.com/ncruces/go-sqlite3/embed"
 )
 
+func TestInitSuccess(t *testing.T) {
+	db, err := sql.Open("sqlite3", ":memory:")
+	if err != nil {
+		t.Fatal(err)
+	}
+	store, err := NewSQLiteStore(db)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := store.Init("admin", []string{"admin", "all"}); err != nil {
+		t.Fatal(err)
+	}
+	groups, err := store.GetGroupsOwnedBy("admin")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(groups) != 2 {
+		t.Fatalf("Expected two groups, got: %s", groups)
+	}
+}
+
+func TestInitFailure(t *testing.T) {
+	db, err := sql.Open("sqlite3", ":memory:")
+	if err != nil {
+		t.Fatal(err)
+	}
+	store, err := NewSQLiteStore(db)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = db.Exec(`
+        INSERT INTO groups (name, description)
+        VALUES
+            ('a', 'xxx'),
+            ('b', 'yyy');
+        `)
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = store.Init("admin", []string{"admin", "all"})
+	if err == nil {
+		t.Fatal("initialisation did not fail")
+	} else if err.Error() != "store already initialised" {
+		t.Fatalf("Expected initialisation error, got: %s", err.Error())
+	}
+}
+
 func TestGetAllTransitiveGroupsForGroup(t *testing.T) {
 	db, err := sql.Open("sqlite3", ":memory:")
 	if err != nil {
