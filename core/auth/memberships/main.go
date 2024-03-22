@@ -323,50 +323,43 @@ func (s *SQLiteStore) GetAvailableGroupsAsChild(group string) ([]string, error) 
 }
 
 func (s *SQLiteStore) GetAllTransitiveGroupsForUser(user string) ([]Group, error) {
-	directGroups, err := s.GetGroupsUserBelongsTo(user)
-	if err != nil {
+	if groups, err := s.GetGroupsUserBelongsTo(user); err != nil {
 		return nil, err
+	} else {
+		visited := map[string]struct{}{}
+		return s.getAllParentGroupsRecursive(groups, visited)
 	}
-	visitedGroups := make(map[string]Group)
-	for _, group := range directGroups {
-		if err := s.getAllParentGroupsRecursive(group.Name, visitedGroups); err != nil {
-			return nil, err
-		}
-	}
-	var allTransitiveGroups []Group
-	for _, group := range visitedGroups {
-		allTransitiveGroups = append(allTransitiveGroups, group)
-	}
-	return allTransitiveGroups, nil
 }
 
 func (s *SQLiteStore) GetAllTransitiveGroupsForGroup(group string) ([]Group, error) {
-	visitedGroups := make(map[string]Group)
-	if err := s.getAllParentGroupsRecursive(group, visitedGroups); err != nil {
+	if p, err := s.GetGroupsGroupBelongsTo(group); err != nil {
 		return nil, err
+	} else {
+		// Mark initial group as visited
+		visited := map[string]struct{}{
+			group: struct{}{},
+		}
+		return s.getAllParentGroupsRecursive(p, visited)
 	}
-	var allParentGroups []Group
-	for _, g := range visitedGroups {
-		allParentGroups = append(allParentGroups, g)
-	}
-	return allParentGroups, nil
 }
 
-func (s *SQLiteStore) getAllParentGroupsRecursive(group string, visitedGroups map[string]Group) error {
-	if _, exists := visitedGroups[group]; exists {
-		return nil
-	}
-	parentGroups, err := s.GetGroupsGroupBelongsTo(group)
-	if err != nil {
-		return err
-	}
-	for _, parentGroup := range parentGroups {
-		visitedGroups[parentGroup.Name] = parentGroup
-		if err := s.getAllParentGroupsRecursive(parentGroup.Name, visitedGroups); err != nil {
-			return err
+func (s *SQLiteStore) getAllParentGroupsRecursive(groups []Group, visited map[string]struct{}) ([]Group, error) {
+	var ret []Group
+	for _, g := range groups {
+		if _, ok := visited[g.Name]; ok {
+			continue
+		}
+		visited[g.Name] = struct{}{}
+		ret = append(ret, g)
+		if p, err := s.GetGroupsGroupBelongsTo(g.Name); err != nil {
+			return nil, err
+		} else if res, err := s.getAllParentGroupsRecursive(p, visited); err != nil {
+			return nil, err
+		} else {
+			ret = append(ret, res...)
 		}
 	}
-	return nil
+	return ret, nil
 }
 
 func (s *SQLiteStore) GetGroupsGroupBelongsTo(group string) ([]Group, error) {
