@@ -132,6 +132,7 @@ func (m *AppManager) Remove(instanceId string) error {
 	return m.repoIO.RemoveApp(filepath.Join(appDir, instanceId))
 }
 
+// TODO(gio): deduplicate with cue definition in app.go, this one should be removed.
 func CreateNetworks(global Config) []Network {
 	return []Network{
 		{

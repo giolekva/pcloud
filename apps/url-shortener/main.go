@@ -19,6 +19,9 @@ import (
 
 var port = flag.Int("port", 8080, "Port to listen on")
 var dbPath = flag.String("db-path", "url-shortener.db", "Path to the SQLite file")
+var requireAuth = flag.Bool("require-auth", false, "If false there won't be made any distinctions between users")
+
+const anyUser = "__any__"
 
 //go:embed index.html
 var indexHTML embed.FS
@@ -157,6 +160,9 @@ func renderHTML(w http.ResponseWriter, r *http.Request, tpl *template.Template, 
 }
 
 func getLoggedInUser(r *http.Request) (string, error) {
+	if !*requireAuth {
+		return anyUser, nil
+	}
 	if user := r.Header.Get("X-User"); user != "" {
 		return user, nil
 	} else {
