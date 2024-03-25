@@ -52,13 +52,13 @@ func NewServer(
 func (s *Server) Start() {
 	r := mux.NewRouter()
 	r.PathPrefix("/static/").Handler(http.FileServer(http.FS(staticAssets)))
-	r.Path("/").Methods("POST").HandlerFunc(s.createAdminAccount)
-	r.Path("/").Methods("GET").HandlerFunc(s.createAdminAccountForm)
+	r.Path("/").Methods("POST").HandlerFunc(s.createAccount)
+	r.Path("/").Methods("GET").HandlerFunc(s.createAccountForm)
 	http.Handle("/", r)
 	log.Fatal(http.ListenAndServe(fmt.Sprintf(":%d", s.port), nil))
 }
 
-func (s *Server) createAdminAccountForm(w http.ResponseWriter, r *http.Request) {
+func (s *Server) createAccountForm(w http.ResponseWriter, r *http.Request) {
 	renderRegistrationForm(w, formData{})
 }
 
@@ -150,7 +150,7 @@ func renderRegistrationSuccess(w http.ResponseWriter, loginAddr string) {
 	}
 }
 
-func (s *Server) createAdminAccount(w http.ResponseWriter, r *http.Request) {
+func (s *Server) createAccount(w http.ResponseWriter, r *http.Request) {
 	req, err := extractReq(r)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
