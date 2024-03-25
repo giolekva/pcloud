@@ -90,9 +90,7 @@ func TestParentAndChildGroupCases(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	parent, child := "a", "a"
-	err = store.AddChildGroup(parent, child)
-	if err != nil {
+	if err := store.AddChildGroup("a", "a"); err != nil {
 		t.Fatalf("Unexpected error: %v", err)
 	}
 }
