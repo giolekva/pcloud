@@ -4,11 +4,14 @@ import (
 	"fmt"
 	"net"
 	"net/netip"
+	"strings"
 
 	"github.com/miekg/dns"
 
 	"github.com/giolekva/pcloud/core/installer"
 )
+
+var initGroups = []string{"admin"}
 
 func SetupInfra(env Env, startIP net.IP, st *state) []Task {
 	t := newLeafTask("Create client", func() error {
@@ -29,6 +32,7 @@ func SetupInfra(env Env, startIP net.IP, st *state) []Task {
 	})
 	return []Task{
 		CommitEnvironmentConfiguration(env, st),
+		ConfigureFirstAccount(env, st),
 		&t,
 		newConcurrentParentTask(
 			"Core services",
@@ -99,6 +103,27 @@ spec:
 			r.CommitAndPush("configure charts repo")
 		}
 		return nil
+	})
+	return &t
+}
+
+type firstAccount struct {
+	Created bool     `json:"created"`
+	Groups  []string `json:"groups"`
+}
+
+func ConfigureFirstAccount(env Env, st *state) Task {
+	t := newLeafTask("Configure first account settings", func() error {
+		repo, err := st.ssClient.GetRepo("config")
+		if err != nil {
+			return err
+		}
+		r := installer.NewRepoIO(repo, st.ssClient.Signer)
+		fa := firstAccount{false, initGroups}
+		if err := r.WriteYaml("first-account.yaml", fa); err != nil {
+			return err
+		}
+		return r.CommitAndPush("first account membership configuration")
 	})
 	return &t
 }
@@ -236,7 +261,9 @@ func SetupGroupMemberships(env Env, st *state) Task {
 		if err != nil {
 			return err
 		}
-		if err := st.appManager.Install(app, st.nsGen, st.emptySuffixGen, map[string]any{}); err != nil {
+		if err := st.appManager.Install(app, st.nsGen, st.emptySuffixGen, map[string]any{
+			"authGroups": strings.Join(initGroups, ","),
+		}); err != nil {
 			return err
 		}
 		return nil

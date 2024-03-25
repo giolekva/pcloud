@@ -11,11 +11,12 @@ import (
 )
 
 var welcomeFlags struct {
-	repo              string
-	sshKey            string
-	port              int
-	createAccountAddr string
-	loginAddr         string
+	repo                string
+	sshKey              string
+	port                int
+	createAccountAddr   string
+	loginAddr           string
+	membershipsInitAddr string
 }
 
 func welcomeCmd() *cobra.Command {
@@ -53,6 +54,12 @@ func welcomeCmd() *cobra.Command {
 		"",
 		"",
 	)
+	cmd.Flags().StringVar(
+		&welcomeFlags.membershipsInitAddr,
+		"memberships-init-addr",
+		"",
+		"",
+	)
 	return cmd
 }
 
@@ -83,6 +90,7 @@ func welcomeCmdRun(cmd *cobra.Command, args []string) error {
 		nsCreator,
 		welcomeFlags.createAccountAddr,
 		welcomeFlags.loginAddr,
+		welcomeFlags.membershipsInitAddr,
 	)
 	s.Start()
 	return nil

@@ -1,4 +1,6 @@
-input: {}
+input: {
+	authGroups: string
+}
 
 _subdomain: "memberships"
 _domain: "\(_subdomain).\(global.privateDomain)"
@@ -15,7 +17,7 @@ _ingressWithAuthProxy: _IngressWithAuthProxy & {
 	inp: {
 		auth: {
 			enabled: true
-			groups: "" // TODO(gio): set admin
+			groups: input.authGroups
 		}
 		network: networks.private
 		subdomain: _subdomain

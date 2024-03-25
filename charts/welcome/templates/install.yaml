@@ -111,6 +111,7 @@ spec:
         - --port=8080
         - --create-account-addr={{ .Values.createAccountAddr }}
         - --login-addr={{ .Values.loginAddr }}
+        - --memberships-init-addr={{ .Values.membershipsInitAddr }}
         volumeMounts:
         - name: ssh-key
           readOnly: true
