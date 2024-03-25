@@ -34,7 +34,7 @@ var staticResources embed.FS
 type Store interface {
 	CreateGroup(owner string, group Group) error
 	AddChildGroup(parent, child string) error
-	DoesGroupExists(group string) (bool, error)
+	DoesGroupExist(group string) (bool, error)
 	GetGroupsOwnedBy(user string) ([]Group, error)
 	GetGroupsUserBelongsTo(user string) ([]Group, error)
 	IsGroupOwner(user, group string) (bool, error)
@@ -270,7 +270,7 @@ func (s *SQLiteStore) parentChildGroupPairExists(tx *sql.Tx, parent, child strin
 	return exists, nil
 }
 
-func (s *SQLiteStore) DoesGroupExists(group string) (bool, error) {
+func (s *SQLiteStore) DoesGroupExist(group string) (bool, error) {
 	query := `SELECT EXISTS (SELECT 1 FROM groups WHERE name = ?)`
 	var exists bool
 	if err := s.db.QueryRow(query, group).Scan(&exists); err != nil {
@@ -283,10 +283,10 @@ func (s *SQLiteStore) AddChildGroup(parent, child string) error {
 	if parent == child {
 		return fmt.Errorf("parent and child groups can not have same name")
 	}
-	if _, err := s.DoesGroupExists(parent); err != nil {
+	if _, err := s.DoesGroupExist(parent); err != nil {
 		return fmt.Errorf("parent group name %s does not exist", parent)
 	}
-	if _, err := s.DoesGroupExists(child); err != nil {
+	if _, err := s.DoesGroupExist(child); err != nil {
 		return fmt.Errorf("child group name %s does not exist", child)
 	}
 	parentGroups, err := s.GetAllTransitiveGroupsForGroup(parent)
@@ -555,7 +555,7 @@ func (s *Server) groupHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	vars := mux.Vars(r)
 	groupName := vars["group-name"]
-	exists, err := s.store.DoesGroupExists(groupName)
+	exists, err := s.store.DoesGroupExist(groupName)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -638,7 +638,7 @@ func (s *Server) addUserHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	username := r.FormValue("username")
+	username := strings.ToLower(r.FormValue("username"))
 	if username == "" {
 		http.Error(w, "Username parameter is required", http.StatusBadRequest)
 		return
@@ -709,6 +709,7 @@ func (s *Server) apiMemberOfHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Username parameter is required", http.StatusBadRequest)
 		return
 	}
+	user = strings.ToLower(user)
 	transitiveGroups, err := s.store.GetAllTransitiveGroupsForUser(user)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
