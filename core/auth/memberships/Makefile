@@ -7,7 +7,7 @@ endif
 
 
 clean:
-	rm -f memberships*
+	rm -f memberships memberships_*
 
 build: clean
 	/usr/local/go/bin/go build -o memberships *.go

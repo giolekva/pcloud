@@ -11,7 +11,22 @@ spec:
     - name: {{ .Values.portName }}
       protocol: TCP
       port: 80
-      targetPort: {{ .Values.portName }}
+      targetPort: ui
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: memberships-api
+  namespace: {{ .Release.Namespace }}
+spec:
+  type: ClusterIP
+  selector:
+    app: memberships
+  ports:
+    - name: {{ .Values.portName }}
+      protocol: TCP
+      port: 80
+      targetPort: api
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -32,12 +47,16 @@ spec:
       - name: memberships
         image: {{ .Values.image.repository }}:{{ .Values.image.tag }}
         ports:
-        - name: {{ .Values.portName }}
+        - name: ui
           containerPort: 8080
+          protocol: TCP
+        - name: api
+          containerPort: 8081
           protocol: TCP
         command:
         - memberships
         - --port=8080
+        - --api-port=8081
         - --db-path=/data/memberships.db
         volumeMounts:
         - name: memberships

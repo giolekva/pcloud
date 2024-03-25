@@ -188,7 +188,7 @@ _IngressWithAuthProxy: {
 						upstream: "\(inp.serviceName).\(release.namespace).svc.cluster.local"
 						whoAmIAddr: "https://accounts.\(global.domain)/sessions/whoami"
 						loginAddr: "https://accounts-ui.\(global.domain)/login"
-						membershipAddr: "http://memberships.\(global.id)-core-auth-memberships.svc.cluster.local/api/user"
+						membershipAddr: "http://memberships-api.\(global.id)-core-auth-memberships.svc.cluster.local/api/user"
 						groups: inp.auth.groups
 						portName: _authProxyHTTPPortName
 					}
