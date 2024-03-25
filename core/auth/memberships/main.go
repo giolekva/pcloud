@@ -19,7 +19,8 @@ import (
 	"github.com/gorilla/mux"
 )
 
-var port = flag.Int("port", 8080, "ort to listen on")
+var port = flag.Int("port", 8080, "Port to listen on")
+var apiPort = flag.Int("api-port", 8081, "Port to listen on for API requests")
 var dbPath = flag.String("db-path", "memberships.db", "Path to SQLite file")
 
 //go:embed index.html
@@ -477,17 +478,25 @@ const (
 	Member
 )
 
-func (s *Server) Start() {
-	router := mux.NewRouter()
-	router.PathPrefix("/static/").Handler(http.FileServer(http.FS(staticResources)))
-	router.HandleFunc("/group/{group-name}", s.groupHandler)
-	router.HandleFunc("/create-group", s.createGroupHandler)
-	router.HandleFunc("/add-user", s.addUserHandler)
-	router.HandleFunc("/add-child-group", s.addChildGroupHandler)
-	router.HandleFunc("/api/init", s.apiInitHandler)
-	router.HandleFunc("/api/user/{username}", s.apiMemberOfHandler)
-	router.HandleFunc("/", s.homePageHandler)
-	log.Fatal(http.ListenAndServe(fmt.Sprintf(":%d", *port), router))
+func (s *Server) Start() error {
+	e := make(chan error)
+	go func() {
+		r := mux.NewRouter()
+		r.PathPrefix("/static/").Handler(http.FileServer(http.FS(staticResources)))
+		r.HandleFunc("/group/{group-name}", s.groupHandler)
+		r.HandleFunc("/create-group", s.createGroupHandler)
+		r.HandleFunc("/add-user", s.addUserHandler)
+		r.HandleFunc("/add-child-group", s.addChildGroupHandler)
+		r.HandleFunc("/", s.homePageHandler)
+		e <- http.ListenAndServe(fmt.Sprintf(":%d", *port), r)
+	}()
+	go func() {
+		r := mux.NewRouter()
+		r.HandleFunc("/api/init", s.apiInitHandler)
+		r.HandleFunc("/api/user/{username}", s.apiMemberOfHandler)
+		e <- http.ListenAndServe(fmt.Sprintf(":%d", *apiPort), r)
+	}()
+	return <-e
 }
 
 type GroupData struct {
@@ -807,5 +816,5 @@ func main() {
 		panic(err)
 	}
 	s := Server{store}
-	s.Start()
+	log.Fatal(s.Start())
 }
