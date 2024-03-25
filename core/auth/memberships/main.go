@@ -132,9 +132,6 @@ func (s *SQLiteStore) GetGroupsUserBelongsTo(user string) ([]Group, error) {
 }
 
 func (s *SQLiteStore) CreateGroup(owner string, group Group) error {
-	if err := isValidGroupName(group.Name); err != nil {
-		return err
-	}
 	tx, err := s.db.Begin()
 	if err != nil {
 		return err
@@ -544,7 +541,6 @@ func (s *Server) createGroupHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	group.Name = strings.ToLower(group.Name)
 	group.Description = r.PostFormValue("description")
 	if err := s.store.CreateGroup(loggedInUser, group); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -643,8 +639,6 @@ func (s *Server) addUserHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	groupName = strings.ToLower(groupName)
-	username = strings.ToLower(username)
 	status, err := convertStatus(r.FormValue("status"))
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
@@ -690,8 +684,6 @@ func (s *Server) addChildGroupHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	parentGroup = strings.ToLower(parentGroup)
-	childGroup = strings.ToLower(childGroup)
 	if _, err := s.checkIsOwner(w, loggedInUser, parentGroup); err != nil {
 		return
 	}
@@ -745,11 +737,8 @@ func convertStatus(status string) (Status, error) {
 }
 
 func isValidGroupName(group string) error {
-	if group == "" {
-		return fmt.Errorf("group name can't be empty")
-	}
 	if strings.TrimSpace(group) == "" {
-		return fmt.Errorf("group name can't contain only whitespaces")
+		return fmt.Errorf("group name can't be empty or contain only whitespaces")
 	}
 	validGroupName := regexp.MustCompile(`^[a-z0-9\-_:.\/ ]+$`)
 	if !validGroupName.MatchString(group) {
@@ -759,11 +748,8 @@ func isValidGroupName(group string) error {
 }
 
 func isValidUsername(username string) error {
-	if username == "" {
-		return fmt.Errorf("usernamename can't be empty")
-	}
 	if strings.TrimSpace(username) == "" {
-		return fmt.Errorf("usernamename can't contain only whitespaces")
+		return fmt.Errorf("username can't be empty or contain only whitespaces")
 	}
 	validUsername := regexp.MustCompile(`^[a-z0-9]+$`)
 	if !validUsername.MatchString(username) {
