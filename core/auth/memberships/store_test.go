@@ -134,3 +134,17 @@ func TestGetAllTransitiveGroupsForUser(t *testing.T) {
 		t.Fatalf("Expected exactly one transitive group, got: %s", groups)
 	}
 }
+
+func TestParentAndChildGroupCases(t *testing.T) {
+	db, err := sql.Open("sqlite3", ":memory:")
+	if err != nil {
+		t.Fatal(err)
+	}
+	store, err := NewSQLiteStore(db)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := store.AddChildGroup("a", "a"); err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+}
