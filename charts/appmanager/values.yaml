@@ -10,3 +10,4 @@ ingress:
   certificateIssuer: example-private
 clusterRoleName: example-welcome
 appRepoAddr: ""
+portName: http

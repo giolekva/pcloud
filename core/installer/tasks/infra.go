@@ -348,6 +348,7 @@ func SetupAppStore(env Env, st *state) Task {
 		if err := st.appManager.Install(app, st.nsGen, st.emptySuffixGen, map[string]any{
 			"repoAddr":      st.ssClient.GetRepoAddress("config"),
 			"sshPrivateKey": string(keys.RawPrivateKey()),
+			"authGroups":    strings.Join(initGroups, ","),
 		}); err != nil {
 			return err
 		}
