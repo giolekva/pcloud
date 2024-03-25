@@ -9,6 +9,8 @@ import (
 	"html/template"
 	"log"
 	"net/http"
+	"regexp"
+	"strings"
 
 	"github.com/ncruces/go-sqlite3"
 	_ "github.com/ncruces/go-sqlite3/driver"
@@ -130,6 +132,9 @@ func (s *SQLiteStore) GetGroupsUserBelongsTo(user string) ([]Group, error) {
 }
 
 func (s *SQLiteStore) CreateGroup(owner string, group Group) error {
+	if err := isValidGroupName(group.Name); err != nil {
+		return err
+	}
 	tx, err := s.db.Begin()
 	if err != nil {
 		return err
@@ -267,7 +272,28 @@ func (s *SQLiteStore) parentChildGroupPairExists(tx *sql.Tx, parent, child strin
 	return exists, nil
 }
 
+func (s *SQLiteStore) doesGroupExists(group string) (bool, error) {
+	query := `SELECT EXISTS (SELECT 1 FROM groups WHERE name = ?)`
+	var exists bool
+	if err := s.db.QueryRow(query, group).Scan(&exists); err != nil {
+		return false, err
+	}
+	return exists, nil
+}
+
 func (s *SQLiteStore) AddChildGroup(parent, child string) error {
+	if err := isValidGroupName(child); err != nil {
+		return err
+	}
+	if _, err := s.doesGroupExists(parent); err != nil {
+		return fmt.Errorf("parent group name %s doesnt exists", parent)
+	}
+	if _, err := s.doesGroupExists(child); err != nil {
+		return fmt.Errorf("child group name %s doesnt exists", child)
+	}
+	if parent == child {
+		return fmt.Errorf("parent and child groups cant have same name ")
+	}
 	parentGroups, err := s.GetAllTransitiveGroupsForGroup(parent)
 	if err != nil {
 		return err
@@ -304,8 +330,7 @@ func (s *SQLiteStore) GetAvailableGroupsAsChild(group string) ([]string, error) 
 		SELECT name FROM groups
 		WHERE name != ? AND name NOT IN (
 			SELECT child_group FROM group_to_group WHERE parent_group = ?
-		)
-	`
+		)`
 	rows, err := s.db.Query(query, group, group)
 	if err != nil {
 		return nil, err
@@ -427,17 +452,6 @@ const (
 	Member
 )
 
-func convertStatus(status string) (Status, error) {
-	switch status {
-	case "Owner":
-		return Owner, nil
-	case "Member":
-		return Member, nil
-	default:
-		return Owner, fmt.Errorf("invalid status: %s", status)
-	}
-}
-
 func (s *Server) Start() {
 	router := mux.NewRouter()
 	router.PathPrefix("/static/").Handler(http.FileServer(http.FS(staticResources)))
@@ -526,6 +540,11 @@ func (s *Server) createGroupHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	var group Group
 	group.Name = r.PostFormValue("group-name")
+	if err := isValidGroupName(group.Name); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	group.Name = strings.ToLower(group.Name)
 	group.Description = r.PostFormValue("description")
 	if err := s.store.CreateGroup(loggedInUser, group); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -542,6 +561,10 @@ func (s *Server) groupHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	vars := mux.Vars(r)
 	groupName := vars["group-name"]
+	if err := isValidGroupName(groupName); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
 	tmpl, err := template.New("group").Parse(groupHTML)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -611,7 +634,17 @@ func (s *Server) addUserHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	groupName := r.FormValue("group")
+	if err := isValidGroupName(groupName); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
 	username := r.FormValue("username")
+	if err := isValidUsername(username); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	groupName = strings.ToLower(groupName)
+	username = strings.ToLower(username)
 	status, err := convertStatus(r.FormValue("status"))
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
@@ -648,7 +681,17 @@ func (s *Server) addChildGroupHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	parentGroup := r.FormValue("parent-group")
+	if err := isValidGroupName(parentGroup); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
 	childGroup := r.FormValue("child-group")
+	if err := isValidGroupName(childGroup); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	parentGroup = strings.ToLower(parentGroup)
+	childGroup = strings.ToLower(childGroup)
 	if _, err := s.checkIsOwner(w, loggedInUser, parentGroup); err != nil {
 		return
 	}
@@ -670,6 +713,10 @@ func (s *Server) apiMemberOfHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Username parameter is required", http.StatusBadRequest)
 		return
 	}
+	if err := isValidUsername(user); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
 	transitiveGroups, err := s.store.GetAllTransitiveGroupsForUser(user)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -684,6 +731,45 @@ func (s *Server) apiMemberOfHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
+}
+
+func convertStatus(status string) (Status, error) {
+	switch status {
+	case "Owner":
+		return Owner, nil
+	case "Member":
+		return Member, nil
+	default:
+		return Owner, fmt.Errorf("invalid status: %s", status)
+	}
+}
+
+func isValidGroupName(group string) error {
+	if group == "" {
+		return fmt.Errorf("group name can't be empty")
+	}
+	if strings.TrimSpace(group) == "" {
+		return fmt.Errorf("group name can't contain only whitespaces")
+	}
+	validGroupName := regexp.MustCompile(`^[a-z0-9\-_:.\/ ]+$`)
+	if !validGroupName.MatchString(group) {
+		return fmt.Errorf("group name should contain only lowercase letters, digits, -, _, :, ., /")
+	}
+	return nil
+}
+
+func isValidUsername(username string) error {
+	if username == "" {
+		return fmt.Errorf("usernamename can't be empty")
+	}
+	if strings.TrimSpace(username) == "" {
+		return fmt.Errorf("usernamename can't contain only whitespaces")
+	}
+	validUsername := regexp.MustCompile(`^[a-z0-9]+$`)
+	if !validUsername.MatchString(username) {
+		return fmt.Errorf("username should contain only lowercase letters and digits")
+	}
+	return nil
 }
 
 func main() {
