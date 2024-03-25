@@ -116,6 +116,10 @@ func (s *SQLiteStore) Init(owner string, groups []string) error {
 		if _, err := tx.Exec(query, owner, g); err != nil {
 			return err
 		}
+		query = `INSERT INTO user_to_group (username, group_name) VALUES (?, ?)`
+		if _, err := tx.Exec(query, owner, g); err != nil {
+			return err
+		}
 	}
 	return tx.Commit()
 }
