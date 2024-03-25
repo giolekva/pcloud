@@ -27,6 +27,13 @@ func TestInitSuccess(t *testing.T) {
 	if len(groups) != 2 {
 		t.Fatalf("Expected two groups, got: %s", groups)
 	}
+	groups, err = store.GetGroupsUserBelongsTo("admin")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(groups) != 2 {
+		t.Fatalf("Expected two groups, got: %s", groups)
+	}
 }
 
 func TestInitFailure(t *testing.T) {

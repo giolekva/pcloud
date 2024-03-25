@@ -26,11 +26,12 @@ var successHtml []byte
 var staticAssets embed.FS
 
 type Server struct {
-	port              int
-	repo              installer.RepoIO
-	nsCreator         installer.NamespaceCreator
-	createAccountAddr string
-	loginAddr         string
+	port                int
+	repo                installer.RepoIO
+	nsCreator           installer.NamespaceCreator
+	createAccountAddr   string
+	loginAddr           string
+	membershipsInitAddr string
 }
 
 func NewServer(
@@ -39,6 +40,7 @@ func NewServer(
 	nsCreator installer.NamespaceCreator,
 	createAccountAddr string,
 	loginAddr string,
+	membershipsInitAddr string,
 ) *Server {
 	return &Server{
 		port,
@@ -46,19 +48,20 @@ func NewServer(
 		nsCreator,
 		createAccountAddr,
 		loginAddr,
+		membershipsInitAddr,
 	}
 }
 
 func (s *Server) Start() {
 	r := mux.NewRouter()
 	r.PathPrefix("/static/").Handler(http.FileServer(http.FS(staticAssets)))
-	r.Path("/").Methods("POST").HandlerFunc(s.createAdminAccount)
-	r.Path("/").Methods("GET").HandlerFunc(s.createAdminAccountForm)
+	r.Path("/").Methods("POST").HandlerFunc(s.createAccount)
+	r.Path("/").Methods("GET").HandlerFunc(s.createAccountForm)
 	http.Handle("/", r)
 	log.Fatal(http.ListenAndServe(fmt.Sprintf(":%d", s.port), nil))
 }
 
-func (s *Server) createAdminAccountForm(w http.ResponseWriter, r *http.Request) {
+func (s *Server) createAccountForm(w http.ResponseWriter, r *http.Request) {
 	renderRegistrationForm(w, formData{})
 }
 
@@ -150,7 +153,7 @@ func renderRegistrationSuccess(w http.ResponseWriter, loginAddr string) {
 	}
 }
 
-func (s *Server) createAdminAccount(w http.ResponseWriter, r *http.Request) {
+func (s *Server) createAccount(w http.ResponseWriter, r *http.Request) {
 	req, err := extractReq(r)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -197,6 +200,10 @@ func (s *Server) createAdminAccount(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
+	if err := s.initMemberships(req.Username); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
 	{
 		config, err := s.repo.ReadConfig()
 		if err != nil {
@@ -233,4 +240,41 @@ func (s *Server) createAdminAccount(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	renderRegistrationSuccess(w, s.loginAddr)
+}
+
+type firstaccount struct {
+	Created bool     `json:"created"`
+	Groups  []string `json:"groups"`
+}
+
+type initRequest struct {
+	Owner  string   `json:"owner"`
+	Groups []string `json:"groups"`
+}
+
+func (s *Server) initMemberships(username string) error {
+	inp, err := s.repo.Reader("first-account.yaml")
+	if err != nil {
+		return err
+	}
+	var fa firstaccount
+	if err := installer.ReadYaml(inp, &fa); err != nil {
+		return err
+	}
+	if fa.Created {
+		return nil
+	}
+	req := initRequest{username, fa.Groups}
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(req); err != nil {
+		return err
+	}
+	if _, err = http.Post(s.membershipsInitAddr, "applications/json", &buf); err != nil {
+		return err
+	}
+	fa.Created = true
+	if err := s.repo.WriteYaml("first-account.yaml", fa); err != nil {
+		return err
+	}
+	return s.repo.CommitAndPush("initialized groups for first account")
 }
