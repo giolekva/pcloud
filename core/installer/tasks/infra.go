@@ -36,6 +36,7 @@ func SetupInfra(env Env, startIP net.IP, st *state) []Task {
 		&t,
 		newConcurrentParentTask(
 			"Core services",
+			true,
 			SetupNetwork(env, startIP, st),
 			SetupCertificateIssuers(env, st),
 			SetupAuth(env, st),
@@ -232,7 +233,7 @@ func SetupCertificateIssuers(env Env, st *state) Task {
 		}
 		return nil
 	})
-	return newSequentialParentTask("Configure TLS certificate issuers", &pub, &priv)
+	return newSequentialParentTask("Configure TLS certificate issuers", true, &pub, &priv)
 }
 
 func SetupAuth(env Env, st *state) Task {
@@ -250,6 +251,7 @@ func SetupAuth(env Env, st *state) Task {
 	})
 	return newSequentialParentTask(
 		"Authentication services",
+		true,
 		&t,
 		waitForAddr(fmt.Sprintf("https://accounts-ui.%s", env.Domain)),
 	)
@@ -270,6 +272,7 @@ func SetupGroupMemberships(env Env, st *state) Task {
 	})
 	return newSequentialParentTask(
 		"Group Membership",
+		true,
 		&t,
 		waitForAddr(fmt.Sprintf("https://memberships.p.%s", env.Domain)),
 	)
@@ -291,6 +294,7 @@ func SetupHeadscale(env Env, startIP net.IP, st *state) Task {
 	})
 	return newSequentialParentTask(
 		"Headscale service",
+		true,
 		&t,
 		waitForAddr(fmt.Sprintf("https://headscale.%s/apple", env.Domain)),
 	)
@@ -323,6 +327,7 @@ func SetupWelcome(env Env, st *state) Task {
 	})
 	return newSequentialParentTask(
 		"Welcome service",
+		true,
 		&t,
 		waitForAddr(fmt.Sprintf("https://welcome.%s", env.Domain)),
 	)

@@ -52,6 +52,7 @@ func NewCreateEnvTask(
 	}
 	t := newSequentialParentTask(
 		"Create env",
+		true,
 		append(
 			[]Task{
 				SetupConfigRepoTask(env, &st),

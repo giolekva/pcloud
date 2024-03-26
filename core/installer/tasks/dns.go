@@ -17,6 +17,7 @@ type Check func(ch Check) error
 func SetupZoneTask(env Env, ingressIP net.IP, st *state) Task {
 	return newSequentialParentTask(
 		fmt.Sprintf("Setup DNS zone records for %s", env.Domain),
+		true,
 		CreateZoneRecords(env.Domain, st.publicIPs, ingressIP, env, st),
 		WaitToPropagate(env.Domain, st.publicIPs),
 	)

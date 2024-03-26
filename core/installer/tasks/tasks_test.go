@@ -27,7 +27,7 @@ func TestSequentialSuccess(t *testing.T) {
 	two := newLeafTask("two", func() error {
 		return nil
 	})
-	l := newSequentialParentTask("parent", &one, &two)
+	l := newSequentialParentTask("parent", true, &one, &two)
 	done := make(chan error)
 	l.OnDone(func(err error) {
 		done <- err
@@ -46,7 +46,7 @@ func TestSequentialFailsFirst(t *testing.T) {
 	two := newLeafTask("two", func() error {
 		return nil
 	})
-	l := newSequentialParentTask("parent", &one, &two)
+	l := newSequentialParentTask("parent", true, &one, &two)
 	done := make(chan error)
 	l.OnDone(func(err error) {
 		done <- err
@@ -67,7 +67,7 @@ func TestSequentialFailsSecond(t *testing.T) {
 		fmt.Println("two")
 		return fmt.Errorf("two")
 	})
-	l := newSequentialParentTask("parent", &one, &two)
+	l := newSequentialParentTask("parent", true, &one, &two)
 	done := make(chan error)
 	l.OnDone(func(err error) {
 		done <- err

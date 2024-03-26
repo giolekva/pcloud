@@ -12,6 +12,7 @@ import (
 func SetupConfigRepoTask(env Env, st *state) Task {
 	return newSequentialParentTask(
 		"Configuration repository",
+		true,
 		NewCreateConfigRepoTask(env, st),
 		CreateGitClientTask(env, st),
 		NewInitConfigRepoTask(env, st),

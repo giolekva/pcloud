@@ -294,10 +294,6 @@ func (s *EnvServer) createEnv(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	if err := s.repo.CommitAndPush(fmt.Sprintf("Allocate CIDR for %s", req.Name)); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
 	// if err := s.acceptInvitation(req.SecretToken); err != nil {
 	// 	http.Error(w, err.Error(), http.StatusInternalServerError)
 	// 	return
@@ -326,6 +322,10 @@ func (s *EnvServer) createEnv(w http.ResponseWriter, r *http.Request) {
 	}
 	cidrs = append(cidrs, installer.EnvCIDR{req.Name, startIP})
 	if err := s.repo.WriteYaml("env-cidrs.yaml", cidrs); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	if err := s.repo.CommitAndPush(fmt.Sprintf("Allocate CIDR for %s", req.Name)); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}

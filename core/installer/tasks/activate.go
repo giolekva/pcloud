@@ -22,6 +22,7 @@ type activateEnvTask struct {
 func NewActivateEnvTask(env Env, st *state) Task {
 	return newSequentialParentTask(
 		fmt.Sprintf("Activate new %s instance", env.PCloudEnvName),
+		true,
 		AddNewEnvTask(env, st),
 		// TODO(gio): sync dodo-flux
 	)
