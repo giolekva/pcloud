@@ -7,6 +7,7 @@ metadata:
   annotations:
     acme.cert-manager.io/http01-edit-in-place: "true"
     cert-manager.io/cluster-issuer: {{ .Values.certificateIssuer }}
+    nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
   {{- end }}
 spec:
   ingressClassName: {{ .Values.ingressClassName }}
