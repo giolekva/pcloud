@@ -19,11 +19,11 @@ input[type="checkbox"] {
 
 main.container {
 	max-width: 850px;
-	margin-top: 6rem;
+	margin-top: 13rem;
 }
 
 .dodo {
-	font-size: 2.5rem;
+	font-size: 1.6rem;
 	font-weight: bold;
 	background-color: #3a3a3a;
 	border-left: 1px dashed #3a3a3a;
@@ -40,7 +40,7 @@ main.container {
 }
 
 #menu a {
-	font-size: 1.4rem;
+	/* font-size: 1.2rem; */
 	color: #3a3a3a;
 }
 
