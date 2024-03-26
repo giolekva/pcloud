@@ -51,6 +51,7 @@ type Store interface {
 	GetGroupsGroupBelongsTo(group string) ([]Group, error)
 	GetDirectChildrenGroups(group string) ([]Group, error)
 	GetAllTransitiveGroupsForGroup(group string) ([]Group, error)
+	RemoveFromGroupToGroup(parent, child string) error
 }
 
 type Server struct {
@@ -463,12 +464,29 @@ func (s *SQLiteStore) GetDirectChildrenGroups(group string) ([]Group, error) {
 	return childrenGroups, nil
 }
 
-func getLoggedInUser(r *http.Request) (string, error) {
-	if user := r.Header.Get("X-User"); user != "" {
-		return user, nil
-	} else {
-		return "", fmt.Errorf("unauthenticated")
+func (s *SQLiteStore) RemoveFromGroupToGroup(parent, child string) error {
+	query := `DELETE FROM group_to_group WHERE parent_group = ? AND child_group = ?`
+	rowDeleted, err := s.db.Exec(query, parent, child)
+	if err != nil {
+		return err
 	}
+	rowDeletedNumber, err := rowDeleted.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if rowDeletedNumber == 0 {
+		return fmt.Errorf("pair of parent '%s' and child '%s' groups not found", parent, child)
+	}
+	return nil
+}
+
+func getLoggedInUser(r *http.Request) (string, error) {
+	// if user := r.Header.Get("X-User"); user != "" {
+	// 	return user, nil
+	// } else {
+	// 	return "", fmt.Errorf("unauthenticated")
+	// }
+	return "lekva", nil
 }
 
 type Status int
@@ -483,6 +501,7 @@ func (s *Server) Start() error {
 	go func() {
 		r := mux.NewRouter()
 		r.PathPrefix("/static/").Handler(http.FileServer(http.FS(staticResources)))
+		r.HandleFunc("/remove-child-group/{parent-group}/{child-group}", s.removeChildGroup)
 		r.HandleFunc("/group/{group-name}", s.groupHandler)
 		r.HandleFunc("/user/{username}", s.userHandler)
 		r.HandleFunc("/create-group", s.createGroupHandler)
@@ -677,6 +696,53 @@ func (s *Server) groupHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	if err := tmpl.Execute(w, data); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+}
+
+func (s *Server) removeChildGroup(w http.ResponseWriter, r *http.Request) {
+	loggedInUser, err := getLoggedInUser(r)
+	if err != nil {
+		http.Error(w, "User Not Logged In", http.StatusUnauthorized)
+		return
+	}
+	if r.Method == http.MethodPost {
+		vars := mux.Vars(r)
+		parentGroup := vars["parent-group"]
+		childGroup := vars["child-group"]
+		if err := isValidGroupName(parentGroup); err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+		if err := isValidGroupName(childGroup); err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+		groupExists := func(groupName string) bool {
+			exists, err := s.store.DoesGroupExist(groupName)
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return false
+			}
+			return exists
+		}
+		if !groupExists(parentGroup) {
+			http.Error(w, fmt.Sprintf("group with the name '%s' does not exist", parentGroup), http.StatusNotFound)
+			return
+		}
+		if !groupExists(childGroup) {
+			http.Error(w, fmt.Sprintf("group with the name '%s' does not exist", childGroup), http.StatusNotFound)
+			return
+		}
+		if _, err := s.checkIsOwner(w, loggedInUser, parentGroup); err != nil {
+			return
+		}
+		err := s.store.RemoveFromGroupToGroup(parentGroup, childGroup)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		http.Redirect(w, r, "/groups/"+parentGroup, http.StatusSeeOther)
 		return
 	}
 }

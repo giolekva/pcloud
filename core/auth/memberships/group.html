@@ -79,11 +79,15 @@
         <tr>
             <th>Group Name</th>
             <th>Description</th>
+            <th>Action</th>
         </tr>
         {{- range .ChildGroups }}
         <tr>
             <td><a href="/group/{{ .Name }}">{{ .Name }}</a></td>
             <td>{{ .Description }}</td>
+            <td>
+                <a href="/remove-child-group/{{ .GroupName }}/{{ .Name }}" onclick="return confirm('Are you sure you want to remove this group as child?')" class="button">Remove</a>
+            </td>
         </tr>
         {{- end }}
     </table>
