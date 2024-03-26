@@ -52,6 +52,7 @@ type Store interface {
 	GetDirectChildrenGroups(group string) ([]Group, error)
 	GetAllTransitiveGroupsForGroup(group string) ([]Group, error)
 	RemoveFromGroupToGroup(parent, child string) error
+	RemoveUserFromTable(username, groupName, tableName string) error
 }
 
 type Server struct {
@@ -480,6 +481,31 @@ func (s *SQLiteStore) RemoveFromGroupToGroup(parent, child string) error {
 	return nil
 }
 
+func (s *SQLiteStore) RemoveUserFromTable(username, groupName, tableName string) error {
+	if tableName == "owners" {
+		owners, err := s.GetGroupOwners(groupName)
+		if err != nil {
+			return err
+		}
+		if len(owners) == 1 {
+			return fmt.Errorf("cannot remove the last owner of the group")
+		}
+	}
+	query := fmt.Sprintf("DELETE FROM %s WHERE username = ? AND group_name = ?", tableName)
+	rowDeleted, err := s.db.Exec(query, username, groupName)
+	if err != nil {
+		return err
+	}
+	rowDeletedNumber, err := rowDeleted.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if rowDeletedNumber == 0 {
+		return fmt.Errorf("pair of group '%s' and user '%s' not found", groupName, username)
+	}
+	return nil
+}
+
 func getLoggedInUser(r *http.Request) (string, error) {
 	if user := r.Header.Get("X-User"); user != "" {
 		return user, nil
@@ -500,7 +526,8 @@ func (s *Server) Start() error {
 	go func() {
 		r := mux.NewRouter()
 		r.PathPrefix("/static/").Handler(http.FileServer(http.FS(staticResources)))
-		r.HandleFunc("/remove-child-group/{parent-group}/{child-group}", s.removeChildGroup)
+		r.HandleFunc("/remove-child-group/{parent-group}/{child-group}", s.removeChildGroupHandler)
+		r.HandleFunc("/remove-user-group/{username}/{groupname}", s.removeUserFromGroupHandler)
 		r.HandleFunc("/group/{group-name}", s.groupHandler)
 		r.HandleFunc("/user/{username}", s.userHandler)
 		r.HandleFunc("/create-group", s.createGroupHandler)
@@ -698,7 +725,7 @@ func (s *Server) groupHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (s *Server) removeChildGroup(w http.ResponseWriter, r *http.Request) {
+func (s *Server) removeChildGroupHandler(w http.ResponseWriter, r *http.Request) {
 	loggedInUser, err := getLoggedInUser(r)
 	if err != nil {
 		http.Error(w, "User Not Logged In", http.StatusUnauthorized)
@@ -716,22 +743,6 @@ func (s *Server) removeChildGroup(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
-		groupExists := func(groupName string) bool {
-			exists, err := s.store.DoesGroupExist(groupName)
-			if err != nil {
-				http.Error(w, err.Error(), http.StatusInternalServerError)
-				return false
-			}
-			return exists
-		}
-		if !groupExists(parentGroup) {
-			http.Error(w, fmt.Sprintf("group with the name '%s' does not exist", parentGroup), http.StatusNotFound)
-			return
-		}
-		if !groupExists(childGroup) {
-			http.Error(w, fmt.Sprintf("group with the name '%s' does not exist", childGroup), http.StatusNotFound)
-			return
-		}
 		if _, err := s.checkIsOwner(w, loggedInUser, parentGroup); err != nil {
 			http.Error(w, err.Error(), http.StatusUnauthorized)
 			return
@@ -742,6 +753,34 @@ func (s *Server) removeChildGroup(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		http.Redirect(w, r, "/group/"+parentGroup, http.StatusSeeOther)
+	}
+}
+
+func (s *Server) removeUserFromGroupHandler(w http.ResponseWriter, r *http.Request) {
+	loggedInUser, err := getLoggedInUser(r)
+	if err != nil {
+		http.Error(w, "User Not Logged In", http.StatusUnauthorized)
+		return
+	}
+	if r.Method == http.MethodPost {
+		vars := mux.Vars(r)
+		username := vars["username"]
+		groupName := vars["groupname"]
+		tableName := r.FormValue("table-name")
+		if err := isValidGroupName(groupName); err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+		if _, err := s.checkIsOwner(w, loggedInUser, groupName); err != nil {
+			http.Error(w, err.Error(), http.StatusUnauthorized)
+			return
+		}
+		err := s.store.RemoveUserFromTable(username, groupName, tableName)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		http.Redirect(w, r, "/group/"+groupName, http.StatusSeeOther)
 	}
 }
 
