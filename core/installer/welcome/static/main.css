@@ -1,22 +1,25 @@
 [data-theme="light"],
 :root:not([data-theme="dark"]) {
-	--font-family: Hack, monospace;
-	--font-size: 14px;
-	--background-color: #d6d6d6;
-	--border-radius: 0;
-	--form-element-border-color: #ffffff;
-	--form-element-active-border-color: #7f9f7f;
-	--primary: #7f9f7f;
-	--primary-hover: #d4888d;
-	--grid-spacing-horizontal: 0;
+	--pico-font-family: Hack, monospace;
+	--pico-font-size: 14px;
+	--pico-background-color: #d6d6d6;
+	--pico-border-radius: 0;
+	--pico-form-element-border-color: #ffffff;
+	--pico-form-element-active-border-color: #7f9f7f;
+	--pico-primary: #7f9f7f;
+	--pico-primary-background: #7f9f7f;
+	--pico-primary-hover: #d4888d;
+	--pico-primary-hover-background: #d4888d;
+	--pico-grid-spacing-horizontal: 0;
 }
 
 input[type="checkbox"] {
-	--form-element-border-color: #3a3a3a;
+	--pico-form-element-border-color: #3a3a3a;
 }
 
 main.container {
 	max-width: 850px;
+	margin-top: 6rem;
 }
 
 .dodo {
@@ -32,17 +35,26 @@ main.container {
 
 #menu {
 	border-bottom: 1px dashed #3a3a3a;
+	padding-left: 5rem;
+	padding-right: 5rem;
 }
 
 #menu a {
 	font-size: 1.4rem;
 	color: #3a3a3a;
-	border-right: 1px dashed #3a3a3a;
 }
 
 #menu li {
 	padding-top: 0;
 	padding-bottom: 0;
+}
+
+#links {
+	--pico-nav-element-spacing-horizontal: 3rem;
+}
+
+#menu li {
+	border-right: 1px dashed #3a3a3a;
 }
 
 div.contents-header {
@@ -56,6 +68,10 @@ div.contents-header {
 	border-style: none solid solid solid;
 }
 
+main > div.grid {
+	--pico-grid-column-gap: 0;
+}
+
 div.contents-header > div {
 	padding: 1rem 3rem;
 }
@@ -65,7 +81,8 @@ div.contents-header > div {
 }
 
 #create-instance-form {
-	--spacing: 10px;
+	--pico-spacing: 10px;
+	/* TODO(gio): figure out why overriding --pico-background-color does not work */
 	background-color: #3a3a3a;
 }
 
@@ -75,6 +92,7 @@ div.contents-header > div {
 
 #create-instance-form input, textarea, button {
 	border-width: 0.5px !important;
+	background-color: #3a3a3a;
 }
 
 #create-instance-form input {
