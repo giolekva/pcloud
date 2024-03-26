@@ -481,12 +481,11 @@ func (s *SQLiteStore) RemoveFromGroupToGroup(parent, child string) error {
 }
 
 func getLoggedInUser(r *http.Request) (string, error) {
-	// if user := r.Header.Get("X-User"); user != "" {
-	// 	return user, nil
-	// } else {
-	// 	return "", fmt.Errorf("unauthenticated")
-	// }
-	return "tabo", nil
+	if user := r.Header.Get("X-User"); user != "" {
+		return user, nil
+	} else {
+		return "", fmt.Errorf("unauthenticated")
+	}
 }
 
 type Status int
