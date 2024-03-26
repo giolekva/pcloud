@@ -64,6 +64,9 @@ helm: {
 					default: false
 					controllerValue: "k8s.io/\(_ingressPrivate)"
 				}
+				config: {
+					"force-ssl-redirect": "true"
+				}
 				extraArgs: {
 					"default-ssl-certificate": "\(_ingressPrivate)/cert-wildcard.\(global.privateDomain)"
 				}

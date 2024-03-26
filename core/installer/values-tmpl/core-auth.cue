@@ -230,8 +230,6 @@ helm: {
 							allowed_return_urls: [
 								"https://*.\(global.domain)/",
 								"https://*.\(global.privateDomain)",
-								"http://*.\(global.domain)/", // TODO(gio): configure ingress nginx private to autoredirect
-								"http://*.\(global.privateDomain)",
 						    ]
 							methods: {
 								password: {
