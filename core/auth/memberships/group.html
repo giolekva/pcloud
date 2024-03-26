@@ -8,6 +8,7 @@
     <link rel="stylesheet" href="/static/main.css">
 </head>
 <body class="container">
+    {{- $parentGroupName := .GroupName }}
     <div>
         <h2 class="headline">{{ .GroupName }} Group Management</h2>
         <p class="description">{{ .Description }}</p>
@@ -86,7 +87,10 @@
             <td><a href="/group/{{ .Name }}">{{ .Name }}</a></td>
             <td>{{ .Description }}</td>
             <td>
-                <a href="/remove-child-group/{{ .GroupName }}/{{ .Name }}" onclick="return confirm('Are you sure you want to remove this group as child?')" class="button">Remove</a>
+                <form action="/remove-child-group/{{ $parentGroupName }}/{{ .Name }}" method="post" onsubmit="return confirm('Are you sure you want to remove this group as child?')">
+                    <input type="hidden" name="child-group" value="{{ .Name }}">
+                    <button type="submit" class="button">Remove</button>
+                </form>
             </td>
         </tr>
         {{- end }}

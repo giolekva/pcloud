@@ -486,7 +486,7 @@ func getLoggedInUser(r *http.Request) (string, error) {
 	// } else {
 	// 	return "", fmt.Errorf("unauthenticated")
 	// }
-	return "lekva", nil
+	return "tabo", nil
 }
 
 type Status int
@@ -531,8 +531,7 @@ func (s *Server) checkIsOwner(w http.ResponseWriter, user, group string) (bool, 
 		return false, err
 	}
 	if !isOwner {
-		http.Error(w, fmt.Sprintf("You are not the owner of the group %s", group), http.StatusUnauthorized)
-		return false, nil
+		return false, fmt.Errorf("you are not the owner of the group %s", group)
 	}
 	return true, nil
 }
@@ -735,6 +734,7 @@ func (s *Server) removeChildGroup(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		if _, err := s.checkIsOwner(w, loggedInUser, parentGroup); err != nil {
+			http.Error(w, err.Error(), http.StatusUnauthorized)
 			return
 		}
 		err := s.store.RemoveFromGroupToGroup(parentGroup, childGroup)
@@ -742,8 +742,7 @@ func (s *Server) removeChildGroup(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
-		http.Redirect(w, r, "/groups/"+parentGroup, http.StatusSeeOther)
-		return
+		http.Redirect(w, r, "/group/"+parentGroup, http.StatusSeeOther)
 	}
 }
 
@@ -773,6 +772,7 @@ func (s *Server) addUserHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if _, err := s.checkIsOwner(w, loggedInUser, groupName); err != nil {
+		http.Error(w, err.Error(), http.StatusUnauthorized)
 		return
 	}
 	switch status {
@@ -813,6 +813,7 @@ func (s *Server) addChildGroupHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if _, err := s.checkIsOwner(w, loggedInUser, parentGroup); err != nil {
+		http.Error(w, err.Error(), http.StatusUnauthorized)
 		return
 	}
 	if err := s.store.AddChildGroup(parentGroup, childGroup); err != nil {
