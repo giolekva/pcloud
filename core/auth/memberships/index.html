@@ -7,8 +7,8 @@
     <link rel="stylesheet" href="/static/pico.2.0.6.min.css">
 </head>
 <body class="container">
+    <h1>User: {{ .CurrentUser }}</h1>
     {{ if .LoggedInUserPage }}
-    <h1>Groups Managment</h1>
     <form action="/create-group" method="post">
         <label for="group-name">Group Name:</label>
         <input type="text" id="group-name" name="group-name" required>
@@ -16,8 +16,6 @@
         <input type="text" id="description" name="description">
         <button type="submit">Create Group</button>
     </form>
-    {{ else }}
-    <h1>User: {{ .CurrentUser }}</h1>
     {{ end }}
     <h4>Owner</h4>
     <table>
