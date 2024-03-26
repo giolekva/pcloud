@@ -1,0 +1,64 @@
+{{ define "main" }}
+<div class="grid contents-header">
+	<div style="border-width: 1px; border-right-style: solid;">
+		attention
+	</div>
+	<div>
+		take <span class="highlight">control</span>
+	</div>
+</div>
+<div id="contents" class="grid">
+	<div style="border-width: 1px; border-right-style: solid;">
+		As part of provisioning new dodo instance you will have to update DNS records at your domain registrar, so that it points to the nameservers running on your newly created dodo. Please first get familiar with your domain registrar documentation, and only then proceed with provisioning.
+		<label for="accept" style="padding-top: 1rem;">
+			<input type="checkbox" name="accept" id="accept" form="create-form" required tabindex="5">
+			<strong>I understand</strong>
+		</label>
+	</div>
+	<div id="create-instance-form">
+		<form action="" method="POST" id="create-form">
+			<label for="domain">
+				domain
+				<input
+					type="text"
+					id="domain"
+					name="domain"
+					required
+					autofocus
+					tabindex="1"
+				/>
+			</label>
+			<label for="contact-email">
+				contact email
+				<input
+					type="email"
+					id="contact-email"
+					name="contact-email"
+					required
+					tabindex="2"
+				/>
+			</label>
+			<label for="admin-public-key">
+				admin ssh public key
+				<input
+					type="string"
+					id="admin-public-key"
+					name="admin-public-key"
+					required
+					tabindex="3"
+				/> <!-- TODO(gio): remove-->
+			</label>
+			<label for="secret-token">
+				invitation code
+				<textarea
+					id="secret-token"
+					name="secret-token"
+					required
+					tabindex="4"
+				></textarea>
+			</label>
+			<button type="submit" tabindex="6">provision</button>
+		</form>
+	</div>
+</div>
+{{ end }}

@@ -1,11 +1,11 @@
 package welcome
 
 import (
-	_ "embed"
+	"embed"
 	"encoding/json"
 	"errors"
 	"fmt"
-	htemplate "html/template"
+	"html/template"
 	"io"
 	"io/fs"
 	"log"
@@ -21,11 +21,46 @@ import (
 	"github.com/giolekva/pcloud/core/installer/tasks"
 )
 
-//go:embed create-env.html
-var createEnvFormHtml []byte
+//go:embed env-manager-tmpl/*
+var tmpls embed.FS
 
-//go:embed env-created.html
-var envCreatedHtml string
+var tmplsParsed templates
+
+func init() {
+	if t, err := parseTemplates(tmpls); err != nil {
+		panic(err)
+	} else {
+		tmplsParsed = t
+	}
+}
+
+type templates struct {
+	form   *template.Template
+	status *template.Template
+}
+
+func parseTemplates(fs embed.FS) (templates, error) {
+	base, err := template.ParseFS(fs, "env-manager-tmpl/base.html")
+	if err != nil {
+		return templates{}, err
+	}
+	parse := func(path string) (*template.Template, error) {
+		if b, err := base.Clone(); err != nil {
+			return nil, err
+		} else {
+			return b.ParseFS(fs, path)
+		}
+	}
+	form, err := parse("env-manager-tmpl/form.html")
+	if err != nil {
+		return templates{}, err
+	}
+	status, err := parse("env-manager-tmpl/status.html")
+	if err != nil {
+		return templates{}, err
+	}
+	return templates{form, status}, nil
+}
 
 type Status string
 
@@ -108,12 +143,7 @@ func (s *EnvServer) monitorTask(w http.ResponseWriter, r *http.Request) {
 	if !ready && len(info.Records) > 0 {
 		panic("!! SHOULD NOT REACH !!")
 	}
-	tmpl, err := htemplate.New("response").Parse(envCreatedHtml)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-	if err := tmpl.Execute(w, map[string]any{
+	if err := tmplsParsed.status.Execute(w, map[string]any{
 		"Root":       t,
 		"DNSRecords": info.Records,
 	}); err != nil {
@@ -158,7 +188,7 @@ func (s *EnvServer) publishDNSRecords(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *EnvServer) createEnvForm(w http.ResponseWriter, r *http.Request) {
-	if _, err := w.Write(createEnvFormHtml); err != nil {
+	if err := tmplsParsed.form.Execute(w, nil); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
 }
