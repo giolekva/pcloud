@@ -527,7 +527,7 @@ func (s *Server) Start() error {
 		r := mux.NewRouter()
 		r.PathPrefix("/static/").Handler(http.FileServer(http.FS(staticResources)))
 		r.HandleFunc("/remove-child-group/{parent-group}/{child-group}", s.removeChildGroupHandler)
-		r.HandleFunc("/remove-user-group/{username}/{groupname}", s.removeUserFromGroupHandler)
+		r.HandleFunc("/{action}/{username}/{group-name}", s.removeUserFromGroupHandler)
 		r.HandleFunc("/group/{group-name}", s.groupHandler)
 		r.HandleFunc("/user/{username}", s.userHandler)
 		r.HandleFunc("/create-group", s.createGroupHandler)
@@ -765,8 +765,18 @@ func (s *Server) removeUserFromGroupHandler(w http.ResponseWriter, r *http.Reque
 	if r.Method == http.MethodPost {
 		vars := mux.Vars(r)
 		username := vars["username"]
-		groupName := vars["groupname"]
-		tableName := r.FormValue("table-name")
+		groupName := vars["group-name"]
+		action := vars["action"]
+		var tableName string
+		switch action {
+		case "remove-group-owner":
+			tableName = "owners"
+		case "remove-group-member":
+			tableName = "user_to_group"
+		default:
+			http.Error(w, "action not found", http.StatusBadRequest)
+			return
+		}
 		if err := isValidGroupName(groupName); err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
