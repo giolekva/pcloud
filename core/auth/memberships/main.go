@@ -484,6 +484,7 @@ func (s *Server) Start() error {
 		r := mux.NewRouter()
 		r.PathPrefix("/static/").Handler(http.FileServer(http.FS(staticResources)))
 		r.HandleFunc("/group/{group-name}", s.groupHandler)
+		r.HandleFunc("/user/{username}", s.userHandler)
 		r.HandleFunc("/create-group", s.createGroupHandler)
 		r.HandleFunc("/add-user", s.addUserHandler)
 		r.HandleFunc("/add-child-group", s.addChildGroupHandler)
@@ -523,12 +524,25 @@ func (s *Server) homePageHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "User Not Logged In", http.StatusUnauthorized)
 		return
 	}
-	ownerGroups, err := s.store.GetGroupsOwnedBy(loggedInUser)
+	http.Redirect(w, r, "/user/"+loggedInUser, http.StatusSeeOther)
+}
+
+func (s *Server) userHandler(w http.ResponseWriter, r *http.Request) {
+	loggedInUser, err := getLoggedInUser(r)
+	if err != nil {
+		http.Error(w, "User Not Logged In", http.StatusUnauthorized)
+		return
+	}
+	vars := mux.Vars(r)
+	user := strings.ToLower(vars["username"])
+	// TODO(dtabidze): should check if username exists or not.
+	loggedInUserPage := loggedInUser == user
+	ownerGroups, err := s.store.GetGroupsOwnedBy(user)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	membershipGroups, err := s.store.GetGroupsUserBelongsTo(loggedInUser)
+	membershipGroups, err := s.store.GetGroupsUserBelongsTo(user)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -538,7 +552,7 @@ func (s *Server) homePageHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	transitiveGroups, err := s.store.GetAllTransitiveGroupsForUser(loggedInUser)
+	transitiveGroups, err := s.store.GetAllTransitiveGroupsForUser(user)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -547,10 +561,14 @@ func (s *Server) homePageHandler(w http.ResponseWriter, r *http.Request) {
 		OwnerGroups      []Group
 		MembershipGroups []Group
 		TransitiveGroups []Group
+		LoggedInUserPage bool
+		CurrentUser      string
 	}{
 		OwnerGroups:      ownerGroups,
 		MembershipGroups: membershipGroups,
 		TransitiveGroups: transitiveGroups,
+		LoggedInUserPage: loggedInUserPage,
+		CurrentUser:      user,
 	}
 	w.Header().Set("Content-Type", "text/html")
 	if err := tmpl.Execute(w, data); err != nil {
