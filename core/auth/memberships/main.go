@@ -526,11 +526,11 @@ func (s *Server) Start() error {
 	go func() {
 		r := mux.NewRouter()
 		r.PathPrefix("/static/").Handler(http.FileServer(http.FS(staticResources)))
+		r.HandleFunc("/group/{group-name}/add-user/", s.addUserToGroupHandler)
+		r.HandleFunc("/group/{parent-group}/add-child-group", s.addChildGroupHandler)
 		r.HandleFunc("/group/{parent-group}/remove-child-group/{child-group}", s.removeChildGroupHandler)
 		r.HandleFunc("/group/{group-name}/remove-owner/{username}", s.removeOwnerFromGroupHandler)
 		r.HandleFunc("/group/{group-name}/remove-member/{username}", s.removeMemberFromGroupHandler)
-		r.HandleFunc("/group/{group-name}/add-user/", s.addUserToGroupHandler)
-		r.HandleFunc("/group/{parent-group}/add-child-group", s.addChildGroupHandler)
 		r.HandleFunc("/group/{group-name}", s.groupHandler)
 		r.HandleFunc("/user/{username}", s.userHandler)
 		r.HandleFunc("/create-group", s.createGroupHandler)
