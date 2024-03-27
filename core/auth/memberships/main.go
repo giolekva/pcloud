@@ -51,6 +51,8 @@ type Store interface {
 	GetGroupsGroupBelongsTo(group string) ([]Group, error)
 	GetDirectChildrenGroups(group string) ([]Group, error)
 	GetAllTransitiveGroupsForGroup(group string) ([]Group, error)
+	RemoveFromGroupToGroup(parent, child string) error
+	RemoveUserFromTable(username, groupName, tableName string) error
 }
 
 type Server struct {
@@ -463,6 +465,47 @@ func (s *SQLiteStore) GetDirectChildrenGroups(group string) ([]Group, error) {
 	return childrenGroups, nil
 }
 
+func (s *SQLiteStore) RemoveFromGroupToGroup(parent, child string) error {
+	query := `DELETE FROM group_to_group WHERE parent_group = ? AND child_group = ?`
+	rowDeleted, err := s.db.Exec(query, parent, child)
+	if err != nil {
+		return err
+	}
+	rowDeletedNumber, err := rowDeleted.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if rowDeletedNumber == 0 {
+		return fmt.Errorf("pair of parent '%s' and child '%s' groups not found", parent, child)
+	}
+	return nil
+}
+
+func (s *SQLiteStore) RemoveUserFromTable(username, groupName, tableName string) error {
+	if tableName == "owners" {
+		owners, err := s.GetGroupOwners(groupName)
+		if err != nil {
+			return err
+		}
+		if len(owners) == 1 {
+			return fmt.Errorf("cannot remove the last owner of the group")
+		}
+	}
+	query := fmt.Sprintf("DELETE FROM %s WHERE username = ? AND group_name = ?", tableName)
+	rowDeleted, err := s.db.Exec(query, username, groupName)
+	if err != nil {
+		return err
+	}
+	rowDeletedNumber, err := rowDeleted.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if rowDeletedNumber == 0 {
+		return fmt.Errorf("pair of group '%s' and user '%s' not found", groupName, username)
+	}
+	return nil
+}
+
 func getLoggedInUser(r *http.Request) (string, error) {
 	if user := r.Header.Get("X-User"); user != "" {
 		return user, nil
@@ -483,6 +526,8 @@ func (s *Server) Start() error {
 	go func() {
 		r := mux.NewRouter()
 		r.PathPrefix("/static/").Handler(http.FileServer(http.FS(staticResources)))
+		r.HandleFunc("/remove-child-group/{parent-group}/{child-group}", s.removeChildGroupHandler)
+		r.HandleFunc("/remove-{action}/{group-name}/{username}", s.removeUserFromGroupHandler)
 		r.HandleFunc("/group/{group-name}", s.groupHandler)
 		r.HandleFunc("/user/{username}", s.userHandler)
 		r.HandleFunc("/create-group", s.createGroupHandler)
@@ -512,8 +557,7 @@ func (s *Server) checkIsOwner(w http.ResponseWriter, user, group string) (bool, 
 		return false, err
 	}
 	if !isOwner {
-		http.Error(w, fmt.Sprintf("You are not the owner of the group %s", group), http.StatusUnauthorized)
-		return false, nil
+		return false, fmt.Errorf("you are not the owner of the group %s", group)
 	}
 	return true, nil
 }
@@ -681,6 +725,75 @@ func (s *Server) groupHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+func (s *Server) removeChildGroupHandler(w http.ResponseWriter, r *http.Request) {
+	loggedInUser, err := getLoggedInUser(r)
+	if err != nil {
+		http.Error(w, "User Not Logged In", http.StatusUnauthorized)
+		return
+	}
+	if r.Method == http.MethodPost {
+		vars := mux.Vars(r)
+		parentGroup := vars["parent-group"]
+		childGroup := vars["child-group"]
+		if err := isValidGroupName(parentGroup); err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+		if err := isValidGroupName(childGroup); err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+		if _, err := s.checkIsOwner(w, loggedInUser, parentGroup); err != nil {
+			http.Error(w, err.Error(), http.StatusUnauthorized)
+			return
+		}
+		err := s.store.RemoveFromGroupToGroup(parentGroup, childGroup)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		http.Redirect(w, r, "/group/"+parentGroup, http.StatusSeeOther)
+	}
+}
+
+func (s *Server) removeUserFromGroupHandler(w http.ResponseWriter, r *http.Request) {
+	loggedInUser, err := getLoggedInUser(r)
+	if err != nil {
+		http.Error(w, "User Not Logged In", http.StatusUnauthorized)
+		return
+	}
+	if r.Method == http.MethodPost {
+		vars := mux.Vars(r)
+		username := vars["username"]
+		groupName := vars["group-name"]
+		action := vars["action"]
+		var tableName string
+		switch action {
+		case "group-owner":
+			tableName = "owners"
+		case "group-member":
+			tableName = "user_to_group"
+		default:
+			http.Error(w, "action not found", http.StatusBadRequest)
+			return
+		}
+		if err := isValidGroupName(groupName); err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+		if _, err := s.checkIsOwner(w, loggedInUser, groupName); err != nil {
+			http.Error(w, err.Error(), http.StatusUnauthorized)
+			return
+		}
+		err := s.store.RemoveUserFromTable(username, groupName, tableName)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		http.Redirect(w, r, "/group/"+groupName, http.StatusSeeOther)
+	}
+}
+
 func (s *Server) addUserHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
@@ -707,6 +820,7 @@ func (s *Server) addUserHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if _, err := s.checkIsOwner(w, loggedInUser, groupName); err != nil {
+		http.Error(w, err.Error(), http.StatusUnauthorized)
 		return
 	}
 	switch status {
@@ -747,6 +861,7 @@ func (s *Server) addChildGroupHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if _, err := s.checkIsOwner(w, loggedInUser, parentGroup); err != nil {
+		http.Error(w, err.Error(), http.StatusUnauthorized)
 		return
 	}
 	if err := s.store.AddChildGroup(parentGroup, childGroup); err != nil {
