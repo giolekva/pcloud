@@ -46,7 +46,7 @@
         <tr>
             <td><a href="/user/{{ . }}">{{ . }}</a></td>
             <td>
-                <form action="/remove-group-owner/{{ . }}/{{ $parentGroupName }}" method="post" onsubmit="return confirm('Are you sure you want to revoke user {{ . }} ownership of the {{ $parentGroupName }} group?')">
+                <form action="/remove-group-owner/{{ $parentGroupName }}/{{ . }}" method="post" onsubmit="return confirm('Are you sure you want to revoke user {{ . }} ownership of the {{ $parentGroupName }} group?')">
                     <button type="submit" class="button">Remove</button>
                 </form>
             </td>
@@ -63,7 +63,7 @@
         <tr>
             <td><a href="/user/{{ . }}">{{ . }}</a></td>
             <td>
-                <form action="/remove-group-member/{{ . }}/{{ $parentGroupName }}" method="post" onsubmit="return confirm('Are you sure you want to remove user {{ . }} user from {{ $parentGroupName }} group?')">
+                <form action="/remove-group-member/{{ $parentGroupName }}/{{ . }}" method="post" onsubmit="return confirm('Are you sure you want to remove user {{ . }} user from {{ $parentGroupName }} group?')">
                     <button type="submit" class="button">Remove</button>
                 </form>
             </td>
@@ -95,7 +95,7 @@
             <td><a href="/group/{{ .Name }}">{{ .Name }}</a></td>
             <td>{{ .Description }}</td>
             <td>
-                <form action="/remove-child-group/{{ $parentGroupName }}/{{ .Name }}" method="post" onsubmit="return confirm('Are you sure you want to remove this group as child?')">
+                <form action="/remove-child-group/{{ $parentGroupName }}/{{ .Name }}" method="post" onsubmit="return confirm('Are you sure you want to remove group {{ .Name }} as a child of the group {{ $parentGroupName }}?')">
                     <button type="submit" class="button">Remove</button>
                 </form>
             </td>

@@ -527,7 +527,7 @@ func (s *Server) Start() error {
 		r := mux.NewRouter()
 		r.PathPrefix("/static/").Handler(http.FileServer(http.FS(staticResources)))
 		r.HandleFunc("/remove-child-group/{parent-group}/{child-group}", s.removeChildGroupHandler)
-		r.HandleFunc("/{action}/{username}/{group-name}", s.removeUserFromGroupHandler)
+		r.HandleFunc("/remove-{action}/{group-name}/{username}", s.removeUserFromGroupHandler)
 		r.HandleFunc("/group/{group-name}", s.groupHandler)
 		r.HandleFunc("/user/{username}", s.userHandler)
 		r.HandleFunc("/create-group", s.createGroupHandler)
@@ -769,9 +769,9 @@ func (s *Server) removeUserFromGroupHandler(w http.ResponseWriter, r *http.Reque
 		action := vars["action"]
 		var tableName string
 		switch action {
-		case "remove-group-owner":
+		case "group-owner":
 			tableName = "owners"
-		case "remove-group-member":
+		case "group-member":
 			tableName = "user_to_group"
 		default:
 			http.Error(w, "action not found", http.StatusBadRequest)
