@@ -526,13 +526,14 @@ func (s *Server) Start() error {
 	go func() {
 		r := mux.NewRouter()
 		r.PathPrefix("/static/").Handler(http.FileServer(http.FS(staticResources)))
-		r.HandleFunc("/remove-child-group/{parent-group}/{child-group}", s.removeChildGroupHandler)
-		r.HandleFunc("/remove-{action}/{group-name}/{username}", s.removeUserFromGroupHandler)
+		r.HandleFunc("/group/{parent-group}/remove-child-group/{child-group}", s.removeChildGroupHandler)
+		r.HandleFunc("/group/{group-name}/remove-owner/{username}", s.removeOwnerFromGroupHandler)
+		r.HandleFunc("/group/{group-name}/remove-member/{username}", s.removeMemberFromGroupHandler)
+		r.HandleFunc("/group/{group-name}/add-user/", s.addUserToGroupHandler)
+		r.HandleFunc("/group/{parent-group}/add-child-group", s.addChildGroupHandler)
 		r.HandleFunc("/group/{group-name}", s.groupHandler)
 		r.HandleFunc("/user/{username}", s.userHandler)
 		r.HandleFunc("/create-group", s.createGroupHandler)
-		r.HandleFunc("/add-user", s.addUserHandler)
-		r.HandleFunc("/add-child-group", s.addChildGroupHandler)
 		r.HandleFunc("/", s.homePageHandler)
 		e <- http.ListenAndServe(fmt.Sprintf(":%d", *port), r)
 	}()
@@ -756,7 +757,7 @@ func (s *Server) removeChildGroupHandler(w http.ResponseWriter, r *http.Request)
 	}
 }
 
-func (s *Server) removeUserFromGroupHandler(w http.ResponseWriter, r *http.Request) {
+func (s *Server) removeOwnerFromGroupHandler(w http.ResponseWriter, r *http.Request) {
 	loggedInUser, err := getLoggedInUser(r)
 	if err != nil {
 		http.Error(w, "User Not Logged In", http.StatusUnauthorized)
@@ -766,17 +767,7 @@ func (s *Server) removeUserFromGroupHandler(w http.ResponseWriter, r *http.Reque
 		vars := mux.Vars(r)
 		username := vars["username"]
 		groupName := vars["group-name"]
-		action := vars["action"]
-		var tableName string
-		switch action {
-		case "group-owner":
-			tableName = "owners"
-		case "group-member":
-			tableName = "user_to_group"
-		default:
-			http.Error(w, "action not found", http.StatusBadRequest)
-			return
-		}
+		tableName := "owners"
 		if err := isValidGroupName(groupName); err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
@@ -794,7 +785,35 @@ func (s *Server) removeUserFromGroupHandler(w http.ResponseWriter, r *http.Reque
 	}
 }
 
-func (s *Server) addUserHandler(w http.ResponseWriter, r *http.Request) {
+func (s *Server) removeMemberFromGroupHandler(w http.ResponseWriter, r *http.Request) {
+	loggedInUser, err := getLoggedInUser(r)
+	if err != nil {
+		http.Error(w, "User Not Logged In", http.StatusUnauthorized)
+		return
+	}
+	if r.Method == http.MethodPost {
+		vars := mux.Vars(r)
+		username := vars["username"]
+		groupName := vars["group-name"]
+		tableName := "user_to_group"
+		if err := isValidGroupName(groupName); err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+		if _, err := s.checkIsOwner(w, loggedInUser, groupName); err != nil {
+			http.Error(w, err.Error(), http.StatusUnauthorized)
+			return
+		}
+		err := s.store.RemoveUserFromTable(username, groupName, tableName)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		http.Redirect(w, r, "/group/"+groupName, http.StatusSeeOther)
+	}
+}
+
+func (s *Server) addUserToGroupHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		return
@@ -804,7 +823,8 @@ func (s *Server) addUserHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "User Not Logged In", http.StatusUnauthorized)
 		return
 	}
-	groupName := r.FormValue("group")
+	vars := mux.Vars(r)
+	groupName := vars["group-name"]
 	if err := isValidGroupName(groupName); err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
@@ -850,7 +870,8 @@ func (s *Server) addChildGroupHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "User Not Logged In", http.StatusUnauthorized)
 		return
 	}
-	parentGroup := r.FormValue("parent-group")
+	vars := mux.Vars(r)
+	parentGroup := vars["parent-group"]
 	if err := isValidGroupName(parentGroup); err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
