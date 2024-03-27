@@ -11,11 +11,23 @@ import (
 
 func SetupConfigRepoTask(env Env, st *state) Task {
 	return newSequentialParentTask(
-		"Configuration repository",
+		"Configure Git repository for new environment",
 		true,
-		NewCreateConfigRepoTask(env, st),
-		CreateGitClientTask(env, st),
+		newSequentialParentTask(
+			"Start up Git server",
+			false,
+			NewCreateConfigRepoTask(env, st),
+			CreateGitClientTask(env, st),
+		),
 		NewInitConfigRepoTask(env, st),
+		NewActivateEnvTask(env, st),
+		newSequentialParentTask(
+			"Create initial commit",
+			false,
+			CreateRepoClient(env, st),
+			CommitEnvironmentConfiguration(env, st),
+			ConfigureFirstAccount(env, st),
+		),
 	)
 }
 
@@ -86,7 +98,7 @@ func CreateGitClientTask(env Env, st *state) Task {
 }
 
 func NewInitConfigRepoTask(env Env, st *state) Task {
-	t := newLeafTask("Create Git repository for environment configuration", func() error {
+	t := newLeafTask("Configure access control lists", func() error {
 		st.fluxUserName = fmt.Sprintf("flux-%s", env.Name)
 		keys, err := installer.NewSSHKeyPair(st.fluxUserName)
 		if err != nil {
@@ -101,7 +113,23 @@ func NewInitConfigRepoTask(env Env, st *state) Task {
 			return err
 		}
 		repoIO := installer.NewRepoIO(repo, st.ssClient.Signer)
-		if err := repoIO.WriteCommitAndPush("README.md", fmt.Sprintf("# %s PCloud environment", env.Name), "readme"); err != nil {
+		if err := func() error {
+			w, err := repoIO.Writer("README.md")
+			if err != nil {
+				return err
+			}
+			defer w.Close()
+			if _, err := fmt.Fprintf(w, "# %s PCloud environment", env.Name); err != nil {
+				return err
+			}
+			return nil
+		}(); err != nil {
+			return err
+		}
+		if err := repoIO.WriteKustomization("kustomization.yaml", installer.NewKustomization()); err != nil {
+			return err
+		}
+		if err := repoIO.CommitAndPush("init"); err != nil {
 			return err
 		}
 		if err := st.ssClient.AddUser(st.fluxUserName, keys.AuthorizedKey()); err != nil {

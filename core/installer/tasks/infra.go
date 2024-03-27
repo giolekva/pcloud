@@ -13,8 +13,8 @@ import (
 
 var initGroups = []string{"admin"}
 
-func SetupInfra(env Env, startIP net.IP, st *state) []Task {
-	t := newLeafTask("Create client", func() error {
+func CreateRepoClient(env Env, st *state) Task {
+	t := newLeafTask("Create repo client", func() error {
 		repo, err := st.ssClient.GetRepo("config")
 		if err != nil {
 			return err
@@ -30,26 +30,25 @@ func SetupInfra(env Env, startIP net.IP, st *state) []Task {
 		st.emptySuffixGen = installer.NewEmptySuffixGenerator()
 		return nil
 	})
-	return []Task{
-		CommitEnvironmentConfiguration(env, st),
-		ConfigureFirstAccount(env, st),
-		&t,
-		newConcurrentParentTask(
-			"Core services",
-			true,
-			SetupNetwork(env, startIP, st),
-			SetupCertificateIssuers(env, st),
-			SetupAuth(env, st),
-			SetupGroupMemberships(env, st),
-			SetupHeadscale(env, startIP, st),
-			SetupWelcome(env, st),
-			SetupAppStore(env, st),
-		),
-	}
+	return &t
+}
+
+func SetupInfra(env Env, startIP net.IP, st *state) Task {
+	return newConcurrentParentTask(
+		"Setup core services",
+		true,
+		SetupNetwork(env, startIP, st),
+		SetupCertificateIssuers(env, st),
+		SetupAuth(env, st),
+		SetupGroupMemberships(env, st),
+		SetupHeadscale(env, startIP, st),
+		SetupWelcome(env, st),
+		SetupAppStore(env, st),
+	)
 }
 
 func CommitEnvironmentConfiguration(env Env, st *state) Task {
-	t := newLeafTask("Configure environment infrastructure", func() error {
+	t := newLeafTask("commit config", func() error {
 		repo, err := st.ssClient.GetRepo("config")
 		if err != nil {
 			return err
@@ -130,7 +129,7 @@ func ConfigureFirstAccount(env Env, st *state) Task {
 }
 
 func SetupNetwork(env Env, startIP net.IP, st *state) Task {
-	t := newLeafTask("Setup network", func() error {
+	t := newLeafTask("Setup private and public networks", func() error {
 		startAddr, err := netip.ParseAddr(startIP.String())
 		if err != nil {
 			return err
@@ -233,7 +232,7 @@ func SetupCertificateIssuers(env Env, st *state) Task {
 		}
 		return nil
 	})
-	return newSequentialParentTask("Configure TLS certificate issuers", true, &pub, &priv)
+	return newSequentialParentTask("Configure TLS certificate issuers", false, &pub, &priv)
 }
 
 func SetupAuth(env Env, st *state) Task {
@@ -251,7 +250,7 @@ func SetupAuth(env Env, st *state) Task {
 	})
 	return newSequentialParentTask(
 		"Authentication services",
-		true,
+		false,
 		&t,
 		waitForAddr(fmt.Sprintf("https://accounts-ui.%s", env.Domain)),
 	)
@@ -271,8 +270,8 @@ func SetupGroupMemberships(env Env, st *state) Task {
 		return nil
 	})
 	return newSequentialParentTask(
-		"Group Membership",
-		true,
+		"Group membership",
+		false,
 		&t,
 		waitForAddr(fmt.Sprintf("https://memberships.p.%s", env.Domain)),
 	)
@@ -293,8 +292,8 @@ func SetupHeadscale(env Env, startIP net.IP, st *state) Task {
 		return nil
 	})
 	return newSequentialParentTask(
-		"Headscale service",
-		true,
+		"Setup mesh VPN",
+		false,
 		&t,
 		waitForAddr(fmt.Sprintf("https://headscale.%s/apple", env.Domain)),
 	)
@@ -327,7 +326,7 @@ func SetupWelcome(env Env, st *state) Task {
 	})
 	return newSequentialParentTask(
 		"Welcome service",
-		true,
+		false,
 		&t,
 		waitForAddr(fmt.Sprintf("https://welcome.%s", env.Domain)),
 	)

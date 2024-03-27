@@ -53,14 +53,9 @@ func NewCreateEnvTask(
 	t := newSequentialParentTask(
 		"Create env",
 		true,
-		append(
-			[]Task{
-				SetupConfigRepoTask(env, &st),
-				NewActivateEnvTask(env, &st),
-				SetupZoneTask(env, startIP, &st),
-			},
-			SetupInfra(env, startIP, &st)...,
-		)...,
+		SetupConfigRepoTask(env, &st),
+		SetupZoneTask(env, startIP, &st),
+		SetupInfra(env, startIP, &st),
 	)
 	rctx, done := context.WithCancel(context.Background())
 	t.OnDone(func(_ error) {
