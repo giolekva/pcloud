@@ -129,3 +129,43 @@ func TestGroupMemberships(t *testing.T) {
 		t.Log(string(r))
 	}
 }
+
+func TestGerrit(t *testing.T) {
+	r := NewInMemoryAppRepository(CreateAllApps())
+	a, err := r.Find("gerrit")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if a == nil {
+		t.Fatal("returned app is nil")
+	}
+	d := Derived{
+		Release: Release{
+			Namespace: "foo",
+		},
+		Global: Values{
+			PCloudEnvName:   "dodo",
+			Id:              "id",
+			ContactEmail:    "foo@bar.ge",
+			Domain:          "bar.ge",
+			PrivateDomain:   "p.bar.ge",
+			PublicIP:        "1.2.3.4",
+			NamespacePrefix: "id-",
+		},
+		Values: map[string]any{
+			"subdomain": "gerrit",
+			"network": map[string]any{
+				"name":         "Private",
+				"ingressClass": "id-ingress-private",
+				"domain":       "p.bar.ge",
+			},
+		},
+	}
+	rendered, err := a.Render(d)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, r := range rendered.Resources {
+		t.Log(string(r))
+	}
+}

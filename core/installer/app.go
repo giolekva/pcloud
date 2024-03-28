@@ -34,6 +34,7 @@ var storeAppConfigs = []string{
 	"values-tmpl/soft-serve.cue",
 	"values-tmpl/vaultwarden.cue",
 	"values-tmpl/url-shortener.cue",
+	"values-tmpl/gerrit.cue",
 }
 
 var infraAppConfigs = []string{
