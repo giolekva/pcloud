@@ -215,7 +215,7 @@ func (s *Server) createAccount(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		nsGen := installer.NewPrefixGenerator(config.Values.NamespacePrefix)
-		suffixGen := installer.NewEmptySuffixGenerator()
+		suffixGen := installer.NewFixedLengthRandomSuffixGenerator(3)
 		appManager, err := installer.NewAppManager(s.repo, s.nsCreator)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
