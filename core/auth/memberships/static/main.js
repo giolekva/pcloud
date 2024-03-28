@@ -19,6 +19,7 @@ function showConfirmationDialog(form) {
     };
     return p;
 }
+
 function hideConfirmationDialog() {
     confirmationDialog.close();
 }
@@ -34,8 +35,8 @@ document.addEventListener("DOMContentLoaded", function () {
         form.addEventListener("submit", async function (event) {
             event.preventDefault();
             try {
-                ff = await handleRemoveOwnerSubmit(form);
-                if (ff) {
+                isConfirmed = await handleRemoveOwnerSubmit(form);
+                if (isConfirmed) {
                     form.submit();
                 }
             } catch (error) {
