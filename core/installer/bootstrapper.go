@@ -50,7 +50,7 @@ func (b Bootstrapper) Run(env EnvConfig) error {
 	if err := b.installSoftServe(bootstrapJobKeys.AuthorizedKey(), env.Name, env.ServiceIPs.ConfigRepo); err != nil {
 		return err
 	}
-	time.Sleep(2 * time.Minute)
+	time.Sleep(30 * time.Second)
 	ss, err := soft.WaitForClient(
 		netip.AddrPortFrom(env.ServiceIPs.ConfigRepo, 22).String(),
 		bootstrapJobKeys.RawPrivateKey(),
@@ -383,6 +383,7 @@ func (b Bootstrapper) installFluxBootstrap(repoAddr, repoHost string, repoHostPu
 func (b Bootstrapper) installInfrastructureServices(repo RepoIO, nsGen NamespaceGenerator, nsCreator NamespaceCreator, env EnvConfig) error {
 	appRepo := NewInMemoryAppRepository(CreateAllApps())
 	install := func(name string) error {
+		fmt.Printf("Installing infrastructure service %s\n", name)
 		app, err := appRepo.Find(name)
 		if err != nil {
 			return err

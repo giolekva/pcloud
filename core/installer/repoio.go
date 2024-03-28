@@ -24,7 +24,7 @@ import (
 
 type RepoIO interface {
 	Addr() string
-	Fetch() error
+	Pull() error
 	ReadConfig() (Config, error)
 	ReadAppConfig(path string) (AppConfig, error)
 	ReadKustomization(path string) (*Kustomization, error)
@@ -61,16 +61,27 @@ func (r *repoIO) Addr() string {
 	return r.repo.Addr.Addr
 }
 
-func (r *repoIO) Fetch() error {
-	err := r.repo.Fetch(&git.FetchOptions{
-		RemoteName: "origin",
-		Auth:       auth(r.signer),
-		Force:      true,
-	})
-	if err == nil || err == git.NoErrAlreadyUpToDate {
+func (r *repoIO) Pull() error {
+	r.l.Lock()
+	defer r.l.Unlock()
+	return r.pullWithoutLock()
+}
+
+func (r *repoIO) pullWithoutLock() error {
+	wt, err := r.repo.Worktree()
+	if err != nil {
+		fmt.Printf("EEEER wt: %s\b", err)
 		return nil
 	}
-	return err
+	err = wt.Pull(&git.PullOptions{
+		Auth:  auth(r.signer),
+		Force: true,
+	})
+	// TODO(gio): propagate error
+	if err != nil {
+		fmt.Printf("EEEER: %s\b", err)
+	}
+	return nil
 }
 
 func (r *repoIO) ReadConfig() (Config, error) {
@@ -238,6 +249,9 @@ type AppConfig struct {
 func (r *repoIO) InstallApp(app App, appRootDir string, values map[string]any, derived Derived) error {
 	r.l.Lock()
 	defer r.l.Unlock()
+	if err := r.pullWithoutLock(); err != nil {
+		return err
+	}
 	if !filepath.IsAbs(appRootDir) {
 		return fmt.Errorf("Expected absolute path: %s", appRootDir)
 	}

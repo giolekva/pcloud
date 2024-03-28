@@ -13,15 +13,10 @@ import (
 //go:embed env-tmpl
 var filesTmpls embed.FS
 
-type activateEnvTask struct {
-	basicTask
-	env Env
-	st  *state
-}
-
 func NewActivateEnvTask(env Env, st *state) Task {
 	return newSequentialParentTask(
-		fmt.Sprintf("Activate new %s instance", env.PCloudEnvName),
+		"Activate GitOps",
+		false,
 		AddNewEnvTask(env, st),
 		// TODO(gio): sync dodo-flux
 	)

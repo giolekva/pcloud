@@ -86,25 +86,31 @@ func (b *leafTask) Start() {
 
 type parentTask struct {
 	leafTask
-	subtasks []Task
+	subtasks     []Task
+	showChildren bool
 }
 
-func newParentTask(title string, start func() error, subtasks ...Task) parentTask {
+func newParentTask(title string, showChildren bool, start func() error, subtasks ...Task) parentTask {
 	return parentTask{
-		leafTask: newLeafTask(title, start),
-		subtasks: subtasks,
+		leafTask:     newLeafTask(title, start),
+		subtasks:     subtasks,
+		showChildren: showChildren,
 	}
 }
 
 func (t *parentTask) Subtasks() []Task {
-	return t.subtasks
+	if t.showChildren {
+		return t.subtasks
+	} else {
+		return make([]Task, 0)
+	}
 }
 
 type sequentialParentTask struct {
 	parentTask
 }
 
-func newSequentialParentTask(title string, subtasks ...Task) *sequentialParentTask {
+func newSequentialParentTask(title string, showChildren bool, subtasks ...Task) *sequentialParentTask {
 	start := func() error {
 		errCh := make(chan error)
 		for i := range subtasks[:len(subtasks)-1] {
@@ -124,7 +130,7 @@ func newSequentialParentTask(title string, subtasks ...Task) *sequentialParentTa
 		return <-errCh
 	}
 	return &sequentialParentTask{
-		parentTask: newParentTask(title, start, subtasks...),
+		parentTask: newParentTask(title, showChildren, start, subtasks...),
 	}
 }
 
@@ -132,7 +138,7 @@ type concurrentParentTask struct {
 	parentTask
 }
 
-func newConcurrentParentTask(title string, subtasks ...Task) *concurrentParentTask {
+func newConcurrentParentTask(title string, showChildren bool, subtasks ...Task) *concurrentParentTask {
 	start := func() error {
 		errCh := make(chan error)
 		for i := range subtasks {
@@ -151,6 +157,6 @@ func newConcurrentParentTask(title string, subtasks ...Task) *concurrentParentTa
 		return nil
 	}
 	return &concurrentParentTask{
-		parentTask: newParentTask(title, start, subtasks...),
+		parentTask: newParentTask(title, showChildren, start, subtasks...),
 	}
 }

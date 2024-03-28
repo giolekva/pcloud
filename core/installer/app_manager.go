@@ -52,9 +52,9 @@ func (m *AppManager) AppConfig(name string) (AppConfig, error) {
 }
 
 func (m *AppManager) Install(app App, ns NamespaceGenerator, suffixGen SuffixGenerator, config map[string]any) error {
-	// if err := m.repoIO.Fetch(); err != nil {
-	// 	return err
-	// }
+	if err := m.repoIO.Pull(); err != nil {
+		return err
+	}
 	suffix, err := suffixGen.Generate()
 	if err != nil {
 		return err
@@ -100,9 +100,9 @@ func (m *AppManager) Install(app App, ns NamespaceGenerator, suffixGen SuffixGen
 }
 
 func (m *AppManager) Update(app App, instanceId string, config map[string]any) error {
-	// if err := m.repoIO.Fetch(); err != nil {
-	// 	return err
-	// }
+	if err := m.repoIO.Pull(); err != nil {
+		return err
+	}
 	globalConfig, err := m.repoIO.ReadConfig()
 	if err != nil {
 		return err
@@ -126,9 +126,9 @@ func (m *AppManager) Update(app App, instanceId string, config map[string]any) e
 }
 
 func (m *AppManager) Remove(instanceId string) error {
-	// if err := m.repoIO.Fetch(); err != nil {
-	// 	return err
-	// }
+	if err := m.repoIO.Pull(); err != nil {
+		return err
+	}
 	return m.repoIO.RemoveApp(filepath.Join(appDir, instanceId))
 }
 

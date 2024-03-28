@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+	<head>
+		<link rel="stylesheet" href="/static/pico.2.0.6.min.css">
+		<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/hack-font@3/build/web/hack.css">
+		<link rel="stylesheet" href="/static/main.css">
+		<meta charset="utf-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1" />
+		<title>dodo:</title>
+	</head>
+	<body>
+		<nav id="menu" class="container-fluid">
+			<ul>
+				<li class="dodo"><span style="color: #ffffff;">do</span><span class="highlight">do:</span></li>
+			</ul>
+			<ul id="links">
+				<li><a href="#">register</a></li>
+				<li><a href="#">apps</a></li>
+				<li><a href="#" style="border-right: none;">about</a></li>
+			</ul>
+		</nav>
+		<main class="container">
+  		    {{ block "main" . }}{{ end }}
+		</main>
+	</body>
+</html>

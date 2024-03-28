@@ -16,7 +16,8 @@ type Check func(ch Check) error
 
 func SetupZoneTask(env Env, ingressIP net.IP, st *state) Task {
 	return newSequentialParentTask(
-		fmt.Sprintf("Setup DNS zone records for %s", env.Domain),
+		"Configure DNS",
+		true,
 		CreateZoneRecords(env.Domain, st.publicIPs, ingressIP, env, st),
 		WaitToPropagate(env.Domain, st.publicIPs),
 	)
@@ -29,7 +30,7 @@ func CreateZoneRecords(
 	env Env,
 	st *state,
 ) Task {
-	t := newLeafTask("Configure DNS", func() error {
+	t := newLeafTask("Generate and publish DNS records", func() error {
 		repo, err := st.ssClient.GetRepo("config")
 		if err != nil {
 			return err
@@ -90,12 +91,17 @@ data:
 			}); err != nil {
 				return err
 			}
-			rootKust := installer.NewKustomization()
-			rootKust.AddResources("dns-zone.yaml")
-			if err := r.WriteKustomization("kustomization.yaml", rootKust); err != nil {
+			rootKust, err := r.ReadKustomization("kustomization.yaml")
+			if err != nil {
 				return err
 			}
-			r.CommitAndPush("configure dns zone")
+			rootKust.AddResources("dns-zone.yaml")
+			if err := r.WriteKustomization("kustomization.yaml", *rootKust); err != nil {
+				return err
+			}
+			if err := r.CommitAndPush("configure dns zone"); err != nil {
+				return err
+			}
 		}
 		return nil
 	})
@@ -106,7 +112,7 @@ func WaitToPropagate(
 	name string,
 	expected []net.IP,
 ) Task {
-	t := newLeafTask("Propagate DNS records", func() error {
+	t := newLeafTask("Wait to propagate", func() error {
 		ctx := context.TODO()
 		gotExpectedIPs := func(actual []net.IP) bool {
 			for _, a := range actual {
