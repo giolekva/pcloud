@@ -2,11 +2,8 @@ const confirmationDialog = document.getElementById("confirmation");
 const cancelButton = document.getElementById("cancel-button");
 const confirmButton = document.getElementById("confirm-button");
 
-let formToRemove;
-
 function showConfirmationDialog(form) {
-    formToRemove = form;
-    const message = formToRemove.dataset.confirmationMessage;
+    const message = form.dataset.confirmationMessage;
     document.getElementById("confirmation-message").innerHTML = message;
     confirmationDialog.showModal();
     let confirmed;
