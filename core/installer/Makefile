@@ -21,6 +21,10 @@ test: export CGO_ENABLED=0
 test:
 	/usr/local/go/bin/go test ./...
 
+test: export CGO_ENABLED=0
+testv:
+	/usr/local/go/bin/go test -v ./...
+
 bootstrap:
 	./pcloud --kubeconfig=../../priv/kubeconfig-hetzner bootstrap --env-name=dodo --charts-dir=../../charts --admin-pub-key=/Users/lekva/.ssh/id_rsa.pub --from-ip=192.168.100.210 --to-ip=192.168.100.240 --storage-dir=/pcloud-storage/longhorn
 
@@ -31,7 +35,7 @@ rpuppy:
 	./pcloud --kubeconfig=../../priv/kubeconfig install --ssh-key=/Users/lekva/.ssh/id_rsa --app=rpuppy --repo-addr=ssh://localhost:2222/lekva
 
 appmanager:
-	./pcloud --kubeconfig=../../priv/kubeconfig appmanager --ssh-key=/Users/lekva/.ssh/id_ed25519 --repo-addr=ssh://localhost:2222/config --port=9090 --app-repo-addr=http://localhost:8080
+	./pcloud --kubeconfig=../../priv/kubeconfig-hetzner appmanager --ssh-key=/Users/lekva/.ssh/id_ed25519 --repo-addr=ssh://localhost:2222/config --port=9090 # --app-repo-addr=http://localhost:8080
 
 welc:
 	./pcloud --kubeconfig=../../priv/kubeconfig welcome --ssh-key=/Users/lekva/.ssh/id_rsa --repo-addr=ssh://192.168.0.210/config --port=9090
