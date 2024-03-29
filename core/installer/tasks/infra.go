@@ -30,6 +30,9 @@ func CreateRepoClient(env Env, st *state) Task {
 		st.emptySuffixGen = installer.NewEmptySuffixGenerator()
 		return nil
 	})
+	t.beforeStart = func() {
+		st.infoListener("Setting up core infrastructure services.")
+	}
 	return &t
 }
 

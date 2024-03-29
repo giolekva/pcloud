@@ -12,6 +12,7 @@ import (
 )
 
 type state struct {
+	infoListener   EnvInfoListener
 	publicIPs      []net.IP
 	nsCreator      installer.NamespaceCreator
 	repo           installer.RepoIO
@@ -33,6 +34,8 @@ type Env struct {
 	AdminPublicKey string
 }
 
+type EnvInfoListener func(string)
+
 type DNSZoneRef struct {
 	Name      string
 	Namespace string
@@ -44,11 +47,13 @@ func NewCreateEnvTask(
 	startIP net.IP,
 	nsCreator installer.NamespaceCreator,
 	repo installer.RepoIO,
+	infoListener EnvInfoListener,
 ) (Task, DNSZoneRef) {
 	st := state{
-		publicIPs: publicIPs,
-		nsCreator: nsCreator,
-		repo:      repo,
+		infoListener: infoListener,
+		publicIPs:    publicIPs,
+		nsCreator:    nsCreator,
+		repo:         repo,
 	}
 	t := newSequentialParentTask(
 		"Create env",
@@ -57,6 +62,9 @@ func NewCreateEnvTask(
 		SetupZoneTask(env, startIP, &st),
 		SetupInfra(env, startIP, &st),
 	)
+	t.afterDone = func() {
+		infoListener(fmt.Sprintf("dodo environment for %s has been provisioned successfully. Visit [https://welcome.%s](https://welcome.%s) to create administrative account and log into the system.", env.Domain, env.Domain, env.Domain))
+	}
 	rctx, done := context.WithCancel(context.Background())
 	t.OnDone(func(_ error) {
 		done()

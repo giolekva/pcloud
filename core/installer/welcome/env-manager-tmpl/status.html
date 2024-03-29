@@ -1,6 +1,6 @@
 {{ define "task" }}
 {{ range . }}
-<li aria-busy="{{ eq .Status 0 }}">
+<li aria-busy="{{ eq .Status 1 }}">
 	{{ .Title }}{{ if .Err }} - {{ .Err.Error }} {{ end }}
 	{{ if .Subtasks }}
 	<ul>
@@ -12,33 +12,58 @@
 {{ end }}
 
 {{ define "main" }}
-<article>
-  <ul>
-	  {{ template "task" .Root.Subtasks }}
-  </ul>
-</article>
-{{ if .DNSRecords }}
-<div>
-	<form action="" method="POST">
-		You will have to publish following DNS records via your domain registrar.
-		<textarea rows="7">{{ .DNSRecords }}</textarea>
-		<label for="domain-registrar">Domain Registrar</label>
-		<select id="domain-registrar" required tabindex="1">
-			<option value="" selected>Select registrar</option>
-			<option value="gandi">Gandi</option>
-			<option value="namecheap">Namecheap</option>
-		</select>
-		<label for="api-token">API Token</label>
-		<input
-			type="text"
-			id="api-token"
-			name="api-token"
-			required
-			autofocus
-			tabindex="2"
-		/>
-		<button type="submit" tabindex="3">Update</button>
-	</form>
+<div class="grid contents-header">
+	<div style="border-width: 1px; border-right-style: solid;">
+		setup
+	</div>
+	<div>
+		information
+	</div>
 </div>
-{{ end }}
+<div id="contents" class="grid env-status">
+	<div>
+	<ul class="progress">
+		{{ template "task" .Root.Subtasks }}
+	</ul>
+	</div>
+	<div id="create-instance-form">
+		{{ if .DNSRecords }}
+		<form action="" method="POST">
+			<p>You will have to publish following DNS records via your domain registrar.</p>
+			<textarea rows="7" disabled>{{ .DNSRecords }}</textarea>
+			<label for="domain-registrar">Domain Registrar</label>
+			<select id="domain-registrar" required tabindex="1">
+				<option value="" selected>Select registrar</option>
+				<option value="gandi">Gandi</option>
+				<option value="namecheap">Namecheap</option>
+			</select>
+			<label for="api-token">API Token</label>
+			<input
+				type="text"
+				id="api-token"
+				name="api-token"
+				required
+				autofocus
+				tabindex="2"
+			/>
+			<button type="submit" tabindex="3">Update</button>
+		</form>
+		{{ else if .EnvInfo }}
+		<p>{{ .EnvInfo }}</p>
+		{{ end }}
+	</div>
+</div>
+<script type="text/javascript">
+ async function refresh() {
+	 const resp = await fetch(window.location.href);
+	 if (resp.ok) {
+		 var tmp = document.createElement("html");
+		 tmp.innerHTML = await resp.text();
+		 document.getElementById("contents").innerHTML = tmp.getElementsByClassName("env-status")[0].innerHTML;
+	 }
+	 setTimeout(refresh, 5000);
+ }
+
+ setTimeout(refresh, 5000);
+</script>
 {{ end }}

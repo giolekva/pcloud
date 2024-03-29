@@ -9,10 +9,10 @@ require (
 	github.com/Masterminds/sprig/v3 v3.2.3
 	github.com/cenkalti/backoff/v4 v4.2.1
 	github.com/charmbracelet/keygen v0.5.0
-	github.com/fluxcd/source-controller/api v1.2.3
 	github.com/giolekva/pcloud/core/ns-controller v0.0.0-20231212095918-378ea88919ca
 	github.com/go-git/go-billy/v5 v5.5.0
 	github.com/go-git/go-git/v5 v5.10.1
+	github.com/gomarkdown/markdown v0.0.0-20240328165702-4d01890c35c0
 	github.com/gorilla/mux v1.8.1
 	github.com/labstack/echo/v4 v4.11.3
 	github.com/libdns/gandi v1.0.2
@@ -61,8 +61,6 @@ require (
 	github.com/evanphx/json-patch v5.6.0+incompatible // indirect
 	github.com/exponent-io/jsonpath v0.0.0-20151013193312-d6023ce2651d // indirect
 	github.com/fatih/color v1.15.0 // indirect
-	github.com/fluxcd/pkg/apis/acl v0.1.0 // indirect
-	github.com/fluxcd/pkg/apis/meta v1.2.0 // indirect
 	github.com/frankban/quicktest v1.14.5 // indirect
 	github.com/go-errors/errors v1.4.2 // indirect
 	github.com/go-git/gcfg v1.5.1-0.20230307220236-3a3c6141e376 // indirect

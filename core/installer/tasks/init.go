@@ -10,8 +10,8 @@ import (
 )
 
 func SetupConfigRepoTask(env Env, st *state) Task {
-	return newSequentialParentTask(
-		"Configure Git repository for new environment",
+	ret := newSequentialParentTask(
+		"Configure Git repository",
 		true,
 		newSequentialParentTask(
 			"Start up Git server",
@@ -29,6 +29,10 @@ func SetupConfigRepoTask(env Env, st *state) Task {
 			ConfigureFirstAccount(env, st),
 		),
 	)
+	ret.beforeStart = func() {
+		st.infoListener("dodo is driven by GitOps, changes are committed to the repository before updating an environment. This unlocks functionalities such as: rolling back to old working state, migrating dodo to new infrastructure (for example from Cloud to on-prem).")
+	}
+	return ret
 }
 
 func NewCreateConfigRepoTask(env Env, st *state) Task {

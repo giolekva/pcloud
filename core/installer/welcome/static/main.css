@@ -90,9 +90,13 @@ div.contents-header > div {
 	color: #ffffff;
 }
 
-#create-instance-form input, textarea, button {
+#create-instance-form input, textarea, button, select {
 	border-width: 0.5px !important;
 	background-color: #3a3a3a;
+}
+
+#create-instance-form p {
+	color: #ffffff;
 }
 
 #create-instance-form input {
@@ -108,4 +112,20 @@ div.contents-header > div {
 	width: fit-content;
 	font-weight: bold;
 	color: #3a3a3a;
+}
+
+/* .progress { */
+/* 	padding-top: 10px; */
+/* } */
+
+.progress {
+	padding-left: 0;
+}
+
+.progress ul {
+	padding-left: 15px;
+}
+
+.progress li {
+	list-style-type: none;
 }

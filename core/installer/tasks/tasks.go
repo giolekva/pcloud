@@ -21,10 +21,12 @@ type Task interface {
 }
 
 type basicTask struct {
-	title     string
-	status    Status
-	err       error
-	listeners []TaskDoneListener
+	title       string
+	status      Status
+	err         error
+	listeners   []TaskDoneListener
+	beforeStart func()
+	afterDone   func()
 }
 
 func newBasicTask(title string) basicTask {
@@ -81,7 +83,15 @@ func (b *leafTask) Subtasks() []Task {
 }
 
 func (b *leafTask) Start() {
-	b.callDoneListeners(b.start())
+	b.status = StatusRunning
+	if b.beforeStart != nil {
+		b.beforeStart()
+	}
+	err := b.start()
+	defer b.callDoneListeners(err)
+	if b.afterDone != nil {
+		b.afterDone()
+	}
 }
 
 type parentTask struct {

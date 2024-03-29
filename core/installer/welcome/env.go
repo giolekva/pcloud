@@ -14,6 +14,7 @@ import (
 	"net/netip"
 	"strings"
 
+	"github.com/gomarkdown/markdown"
 	"github.com/gorilla/mux"
 
 	"github.com/giolekva/pcloud/core/installer"
@@ -83,7 +84,9 @@ type EnvServer struct {
 	dnsFetcher    installer.ZoneStatusFetcher
 	nameGenerator installer.NameGenerator
 	tasks         map[string]tasks.Task
+	envInfo       map[string]template.HTML
 	dns           map[string]tasks.DNSZoneRef
+	dnsPublished  map[string]struct{}
 }
 
 func NewEnvServer(
@@ -102,7 +105,9 @@ func NewEnvServer(
 		dnsFetcher,
 		nameGenerator,
 		make(map[string]tasks.Task),
+		make(map[string]template.HTML),
 		make(map[string]tasks.DNSZoneRef),
+		make(map[string]struct{}),
 	}
 }
 
@@ -130,23 +135,29 @@ func (s *EnvServer) monitorTask(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Task not found", http.StatusBadRequest)
 		return
 	}
-	dnsRef, ok := s.dns[key]
-	if !ok {
-		http.Error(w, "Task dns configuration not found", http.StatusInternalServerError)
-		return
+	dnsRecords := ""
+	if _, ok := s.dnsPublished[key]; !ok {
+		dnsRef, ok := s.dns[key]
+		if !ok {
+			http.Error(w, "Task dns configuration not found", http.StatusInternalServerError)
+			return
+		}
+		err, ready, info := s.dnsFetcher.Fetch(dnsRef.Namespace, dnsRef.Name)
+		// TODO(gio): check error type
+		if err != nil && (ready || len(info.Records) > 0) {
+			panic("!! SHOULD NOT REACH !!")
+		}
+		if !ready && len(info.Records) > 0 {
+			panic("!! SHOULD NOT REACH !!")
+		}
+		dnsRecords = info.Records
 	}
-	err, ready, info := s.dnsFetcher.Fetch(dnsRef.Namespace, dnsRef.Name)
-	// TODO(gio): check error type
-	if err != nil && (ready || len(info.Records) > 0) {
-		panic("!! SHOULD NOT REACH !!")
-	}
-	if !ready && len(info.Records) > 0 {
-		panic("!! SHOULD NOT REACH !!")
-	}
-	if err := tmplsParsed.status.Execute(w, map[string]any{
+	data := map[string]any{
 		"Root":       t,
-		"DNSRecords": info.Records,
-	}); err != nil {
+		"EnvInfo":    s.envInfo[key],
+		"DNSRecords": dnsRecords,
+	}
+	if err := tmplsParsed.status.Execute(w, data); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -184,6 +195,8 @@ func (s *EnvServer) publishDNSRecords(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
+	s.envInfo[key] = "Successfully published DNS records, waiting to propagate."
+	s.dnsPublished[key] = struct{}{}
 	http.Redirect(w, r, fmt.Sprintf("/env/%s", key), http.StatusSeeOther)
 }
 
@@ -359,6 +372,17 @@ func (s *EnvServer) createEnv(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
+	key := func() string {
+		for {
+			key, err := s.nameGenerator.Generate()
+			if err == nil {
+				return key
+			}
+		}
+	}()
+	infoUpdater := func(info string) {
+		s.envInfo[key] = template.HTML(markdown.ToHTML([]byte(info), nil, nil))
+	}
 	t, dns := tasks.NewCreateEnvTask(
 		tasks.Env{
 			PCloudEnvName:  env.Name,
@@ -374,15 +398,8 @@ func (s *EnvServer) createEnv(w http.ResponseWriter, r *http.Request) {
 		startIP,
 		s.nsCreator,
 		s.repo,
+		infoUpdater,
 	)
-	key := func() string {
-		for {
-			key, err := s.nameGenerator.Generate()
-			if err == nil {
-				return key
-			}
-		}
-	}()
 	s.tasks[key] = t
 	s.dns[key] = dns
 	go t.Start()

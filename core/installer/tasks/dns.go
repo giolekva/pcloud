@@ -15,12 +15,19 @@ import (
 type Check func(ch Check) error
 
 func SetupZoneTask(env Env, ingressIP net.IP, st *state) Task {
-	return newSequentialParentTask(
+	ret := newSequentialParentTask(
 		"Configure DNS",
 		true,
 		CreateZoneRecords(env.Domain, st.publicIPs, ingressIP, env, st),
 		WaitToPropagate(env.Domain, st.publicIPs),
 	)
+	ret.beforeStart = func() {
+		st.infoListener(fmt.Sprintf("Generating DNS zone records for %s", env.Domain))
+	}
+	ret.afterDone = func() {
+		st.infoListener("DNS zone records have been propagated.")
+	}
+	return ret
 }
 
 func CreateZoneRecords(
