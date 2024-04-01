@@ -24,11 +24,8 @@ var port = flag.Int("port", 8080, "Port to listen on")
 var apiPort = flag.Int("api-port", 8081, "Port to listen on for API requests")
 var dbPath = flag.String("db-path", "memberships.db", "Path to SQLite file")
 
-//go:embed index.html
-var indexHTML string
-
-//go:embed group.html
-var groupHTML string
+//go:embed memberships-tmpl/*
+var tmpls embed.FS
 
 //go:embed static
 var staticResources embed.FS
@@ -508,12 +505,11 @@ func (s *SQLiteStore) RemoveUserFromTable(username, groupName, tableName string)
 }
 
 func getLoggedInUser(r *http.Request) (string, error) {
-	// if user := r.Header.Get("X-User"); user != "" {
-	// 	return user, nil
-	// } else {
-	// 	return "", fmt.Errorf("unauthenticated")
-	// }
-	return "lekva", nil
+	if user := r.Header.Get("X-User"); user != "" {
+		return user, nil
+	} else {
+		return "", fmt.Errorf("unauthenticated")
+	}
 }
 
 type Status int
@@ -553,10 +549,6 @@ type GroupData struct {
 	Membership string
 }
 
-type ErrorResponse struct {
-	Message string `json:"message"`
-}
-
 func (s *Server) checkIsOwner(w http.ResponseWriter, user, group string) (bool, error) {
 	isOwner, err := s.store.IsGroupOwner(user, group)
 	if err != nil {
@@ -567,6 +559,34 @@ func (s *Server) checkIsOwner(w http.ResponseWriter, user, group string) (bool, 
 		return false, fmt.Errorf("you are not the owner of the group %s", group)
 	}
 	return true, nil
+}
+
+type templates struct {
+	group *template.Template
+	index *template.Template
+}
+
+func parseTemplates(fs embed.FS) (templates, error) {
+	base, err := template.ParseFS(fs, "memberships-tmpl/base.html")
+	if err != nil {
+		return templates{}, err
+	}
+	parse := func(path string) (*template.Template, error) {
+		if b, err := base.Clone(); err != nil {
+			return nil, err
+		} else {
+			return b.ParseFS(fs, path)
+		}
+	}
+	index, err := parse("memberships-tmpl/index.html")
+	if err != nil {
+		return templates{}, err
+	}
+	group, err := parse("memberships-tmpl/group.html")
+	if err != nil {
+		return templates{}, err
+	}
+	return templates{group, index}, nil
 }
 
 func (s *Server) homePageHandler(w http.ResponseWriter, r *http.Request) {
@@ -599,11 +619,6 @@ func (s *Server) userHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	tmpl, err := template.New("index").Parse(indexHTML)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
 	transitiveGroups, err := s.store.GetAllTransitiveGroupsForUser(user)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -624,8 +639,12 @@ func (s *Server) userHandler(w http.ResponseWriter, r *http.Request) {
 		CurrentUser:      user,
 		ErrorMessage:     errorMsg,
 	}
-	w.Header().Set("Content-Type", "text/html")
-	if err := tmpl.Execute(w, data); err != nil {
+	templates, err := parseTemplates(tmpls)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	if err := templates.index.Execute(w, data); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -682,7 +701,7 @@ func (s *Server) groupHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, errorMsg, http.StatusNotFound)
 		return
 	}
-	tmpl, err := template.New("group").Parse(groupHTML)
+	// tmpl, err := template.New("group").Parse(groupHTML)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -736,7 +755,12 @@ func (s *Server) groupHandler(w http.ResponseWriter, r *http.Request) {
 		ChildGroups:      childGroups,
 		ErrorMessage:     errorMsg,
 	}
-	if err := tmpl.Execute(w, data); err != nil {
+	templates, err := parseTemplates(tmpls)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	if err := templates.group.Execute(w, data); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
