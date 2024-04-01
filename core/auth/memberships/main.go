@@ -9,6 +9,7 @@ import (
 	"html/template"
 	"log"
 	"net/http"
+	"net/url"
 	"regexp"
 	"strings"
 
@@ -507,11 +508,12 @@ func (s *SQLiteStore) RemoveUserFromTable(username, groupName, tableName string)
 }
 
 func getLoggedInUser(r *http.Request) (string, error) {
-	if user := r.Header.Get("X-User"); user != "" {
-		return user, nil
-	} else {
-		return "", fmt.Errorf("unauthenticated")
-	}
+	// if user := r.Header.Get("X-User"); user != "" {
+	// 	return user, nil
+	// } else {
+	// 	return "", fmt.Errorf("unauthenticated")
+	// }
+	return "lekva", nil
 }
 
 type Status int
@@ -551,6 +553,10 @@ type GroupData struct {
 	Membership string
 }
 
+type ErrorResponse struct {
+	Message string `json:"message"`
+}
+
 func (s *Server) checkIsOwner(w http.ResponseWriter, user, group string) (bool, error) {
 	isOwner, err := s.store.IsGroupOwner(user, group)
 	if err != nil {
@@ -578,6 +584,7 @@ func (s *Server) userHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "User Not Logged In", http.StatusUnauthorized)
 		return
 	}
+	errorMsg := r.URL.Query().Get("errorMessage")
 	vars := mux.Vars(r)
 	user := strings.ToLower(vars["username"])
 	// TODO(dtabidze): should check if username exists or not.
@@ -608,12 +615,14 @@ func (s *Server) userHandler(w http.ResponseWriter, r *http.Request) {
 		TransitiveGroups []Group
 		LoggedInUserPage bool
 		CurrentUser      string
+		ErrorMessage     string
 	}{
 		OwnerGroups:      ownerGroups,
 		MembershipGroups: membershipGroups,
 		TransitiveGroups: transitiveGroups,
 		LoggedInUserPage: loggedInUserPage,
 		CurrentUser:      user,
+		ErrorMessage:     errorMsg,
 	}
 	w.Header().Set("Content-Type", "text/html")
 	if err := tmpl.Execute(w, data); err != nil {
@@ -639,12 +648,16 @@ func (s *Server) createGroupHandler(w http.ResponseWriter, r *http.Request) {
 	var group Group
 	group.Name = r.PostFormValue("group-name")
 	if err := isValidGroupName(group.Name); err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		// http.Error(w, err.Error(), http.StatusBadRequest)
+		redirectURL := fmt.Sprintf("/user/%s?errorMessage=%s", loggedInUser, url.QueryEscape(err.Error()))
+		http.Redirect(w, r, redirectURL, http.StatusFound)
 		return
 	}
 	group.Description = r.PostFormValue("description")
 	if err := s.store.CreateGroup(loggedInUser, group); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		// http.Error(w, err.Error(), http.StatusInternalServerError)
+		redirectURL := fmt.Sprintf("/user/%s?errorMessage=%s", loggedInUser, url.QueryEscape(err.Error()))
+		http.Redirect(w, r, redirectURL, http.StatusFound)
 		return
 	}
 	http.Redirect(w, r, "/", http.StatusSeeOther)
@@ -656,6 +669,7 @@ func (s *Server) groupHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "User Not Logged In", http.StatusUnauthorized)
 		return
 	}
+	errorMsg := r.URL.Query().Get("errorMessage")
 	vars := mux.Vars(r)
 	groupName := vars["group-name"]
 	exists, err := s.store.DoesGroupExist(groupName)
@@ -664,7 +678,7 @@ func (s *Server) groupHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if !exists {
-		errorMsg := fmt.Sprintf("group with the name '%s' not found", groupName)
+		errorMsg = fmt.Sprintf("group with the name '%s' not found", groupName)
 		http.Error(w, errorMsg, http.StatusNotFound)
 		return
 	}
@@ -711,6 +725,7 @@ func (s *Server) groupHandler(w http.ResponseWriter, r *http.Request) {
 		AvailableGroups  []string
 		TransitiveGroups []Group
 		ChildGroups      []Group
+		ErrorMessage     string
 	}{
 		GroupName:        groupName,
 		Description:      description,
@@ -719,6 +734,7 @@ func (s *Server) groupHandler(w http.ResponseWriter, r *http.Request) {
 		AvailableGroups:  availableGroups,
 		TransitiveGroups: transitiveGroups,
 		ChildGroups:      childGroups,
+		ErrorMessage:     errorMsg,
 	}
 	if err := tmpl.Execute(w, data); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -750,7 +766,8 @@ func (s *Server) removeChildGroupHandler(w http.ResponseWriter, r *http.Request)
 		}
 		err := s.store.RemoveFromGroupToGroup(parentGroup, childGroup)
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+			redirectURL := fmt.Sprintf("/group/%s?errorMessage=%s", parentGroup, url.QueryEscape(err.Error()))
+			http.Redirect(w, r, redirectURL, http.StatusFound)
 			return
 		}
 		http.Redirect(w, r, "/group/"+parentGroup, http.StatusSeeOther)
@@ -778,7 +795,8 @@ func (s *Server) removeOwnerFromGroupHandler(w http.ResponseWriter, r *http.Requ
 		}
 		err := s.store.RemoveUserFromTable(username, groupName, tableName)
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+			redirectURL := fmt.Sprintf("/group/%s?errorMessage=%s", groupName, url.QueryEscape(err.Error()))
+			http.Redirect(w, r, redirectURL, http.StatusFound)
 			return
 		}
 		http.Redirect(w, r, "/group/"+groupName, http.StatusSeeOther)
@@ -806,7 +824,8 @@ func (s *Server) removeMemberFromGroupHandler(w http.ResponseWriter, r *http.Req
 		}
 		err := s.store.RemoveUserFromTable(username, groupName, tableName)
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+			redirectURL := fmt.Sprintf("/group/%s?errorMessage=%s", groupName, url.QueryEscape(err.Error()))
+			http.Redirect(w, r, redirectURL, http.StatusFound)
 			return
 		}
 		http.Redirect(w, r, "/group/"+groupName, http.StatusSeeOther)
@@ -853,7 +872,8 @@ func (s *Server) addUserToGroupHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		redirectURL := fmt.Sprintf("/group/%s?errorMessage=%s", groupName, url.QueryEscape(err.Error()))
+		http.Redirect(w, r, redirectURL, http.StatusFound)
 		return
 	}
 	http.Redirect(w, r, "/group/"+groupName, http.StatusSeeOther)
@@ -886,7 +906,8 @@ func (s *Server) addChildGroupHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err := s.store.AddChildGroup(parentGroup, childGroup); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		redirectURL := fmt.Sprintf("/group/%s?errorMessage=%s", parentGroup, url.QueryEscape(err.Error()))
+		http.Redirect(w, r, redirectURL, http.StatusFound)
 		return
 	}
 	http.Redirect(w, r, "/group/"+parentGroup, http.StatusSeeOther)

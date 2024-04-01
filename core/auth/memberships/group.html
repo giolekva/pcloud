@@ -110,6 +110,17 @@
             </footer>
         </article>
     </dialog>
+    {{ if ne .ErrorMessage "" }}
+    <dialog id="error-message" open>
+        <article>
+            <h2>Error:</h2>
+            <p id="error-message-content">{{ .ErrorMessage }}</p>
+            <footer>
+                <button id="error-cancel-button" class="secondary error-cancel-button">Cancel</button>
+            </footer>
+        </article>
+    </dialog>
+    {{ end }}
     <script src="/static/main.js"></script>
 </body>
 </html>
