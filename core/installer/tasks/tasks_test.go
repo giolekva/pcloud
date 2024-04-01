@@ -2,7 +2,9 @@ package tasks
 
 import (
 	"fmt"
+	"sync"
 	"testing"
+	"time"
 )
 
 func TestLeaf(t *testing.T) {
@@ -76,5 +78,36 @@ func TestSequentialFailsSecond(t *testing.T) {
 	err := <-done
 	if err == nil || err.Error() != "two" {
 		t.Fatalf("Expected two, got %s", err)
+	}
+}
+
+func TestConcurrentTaskSucceeds_WaitsForAllChildren(t *testing.T) {
+	cnt := 0
+	var m sync.Mutex
+	one := newLeafTask("one", func() error {
+		m.Lock()
+		defer m.Unlock()
+		cnt++
+		return nil
+	})
+	two := newLeafTask("two", func() error {
+		time.Sleep(1 * time.Second)
+		m.Lock()
+		defer m.Unlock()
+		cnt++
+		return nil
+	})
+	l := newConcurrentParentTask("parent", true, &one, &two)
+	done := make(chan error)
+	l.OnDone(func(err error) {
+		done <- err
+	})
+	go l.Start()
+	err := <-done
+	if err != nil {
+		t.Fatalf("Expected nil, got %s", err.Error())
+	}
+	if cnt != 2 {
+		t.Fatalf("Expected 2, got %d", cnt)
 	}
 }

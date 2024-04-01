@@ -157,11 +157,15 @@ func newConcurrentParentTask(title string, showChildren bool, subtasks ...Task) 
 			})
 			go subtasks[i].Start()
 		}
-		return <-errCh
+		cnt := 0
 		for _ = range subtasks {
 			err := <-errCh
 			if err != nil {
 				return err
+			}
+			cnt++
+			if cnt == len(subtasks) {
+				break
 			}
 		}
 		return nil
