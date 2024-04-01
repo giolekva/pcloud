@@ -1,0 +1,55 @@
+{{- define "content" -}}
+<head>
+    <title>Home Page</title>
+</head>
+    <h1>User: {{ .CurrentUser }}</h1>
+    {{ if .LoggedInUserPage }}
+    <form action="/create-group" method="post">
+        <label for="group-name">Group Name:</label>
+        <input type="text" id="group-name" name="group-name" required>
+        <label for="description">Group Description:</label>
+        <input type="text" id="description" name="description">
+        <button type="submit">Create Group</button>
+    </form>
+    {{ end }}
+    <h4>Owner</h4>
+    <table>
+        <tr>
+            <th>Name</th>
+            <th>Description</th>
+        </tr>
+        {{- range .OwnerGroups -}}
+        <tr>
+            <td><a href="/group/{{ .Name }}">{{ .Name }}</a></td>
+            <td>{{ .Description }}</td>
+        </tr>
+        {{- end -}}
+    </table>
+    <h4>Member</h4>
+    <table>
+        <tr>
+            <th>Name</th>
+            <th>Description</th>
+        </tr>
+        {{- range .MembershipGroups -}}
+        <tr>
+            <td><a href="/group/{{ .Name }}">{{ .Name }}</a></td>
+            <td>{{ .Description }}</td>
+        </tr>
+        {{- end -}}
+    </table>
+    <h4>Transitive Groups</h4>
+    <table>
+        <tr>
+            <th>Name</th>
+            <th>Description</th>
+        </tr>
+        {{- range .TransitiveGroups -}}
+        <tr>
+            <td><a href="/group/{{ .Name }}">{{ .Name }}</a></td>
+            <td>{{ .Description }}</td>
+        </tr>
+        {{- end -}}
+    </table>
+{{- end }}
+{{- template "base.html" . -}}

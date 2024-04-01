@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="/static/pico.2.0.6.min.css">
+</head>
+<body class="container">
+    {{- block "content" . }}
+    {{- end }}
+    {{ if ne .ErrorMessage "" }}
+    <dialog id="error-message" open>
+        <article>
+            <h2>Error:</h2>
+            <p id="error-message-content">{{ .ErrorMessage }}</p>
+            <footer>
+                <button id="error-cancel-button" class="secondary error-cancel-button">Cancel</button>
+            </footer>
+        </article>
+    </dialog>
+    {{ end }}
+    <script src="/static/main.js"></script>
+</body>
+</html>

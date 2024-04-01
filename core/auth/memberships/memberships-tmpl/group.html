@@ -1,0 +1,109 @@
+{{ define "content" }}
+{{- $parentGroupName := .GroupName }}
+<head>
+    <title>Group Management</title>
+</head>
+    <div>
+        <h2 class="headline">{{ .GroupName }} Group Management</h2>
+        <p class="description">{{ .Description }}</p>
+    </div>
+    <hr class="divider">
+    <form action="/group/{{ .GroupName }}/add-user/" method="post">
+        <label>Username:</label>
+        <input type="text" id="username" name="username" required>
+        <label for="status">Status:</label>
+        <select id="status" name="status" required>
+            <option value="Member" selected>Member</option>
+            <option value="Owner">Owner</option>
+        </select>
+        <button type="submit">Add Member</button>
+    </form>
+    <hr class="divider">
+    <form action="/group/{{ .GroupName }}/add-child-group" method="post">
+        <label for="child-group">Select Child Group:</label>
+        <select id="child-group" aria-label="Select" name="child-group" required>
+            {{- range .AvailableGroups }}
+            <option value="{{ . }}">{{ . }}</option>
+            {{- end }}
+        </select>
+        <button type="submit">Create Child Group</button>
+    </form>
+    <h4>Owners</h4>
+    <table>
+        <tr>
+            <th>Username</th>
+            <th>Action</th>
+        </tr>
+        {{- range .Owners }}
+        <tr>
+            <td><a href="/user/{{ . }}">{{ . }}</a></td>
+            <td>
+                <form action="/group/{{ $parentGroupName }}/remove-owner/{{ . }}" method="post" class="remove-form" data-confirmation-message="Are you sure you want to revoke user <strong>{{ . }}</strong>'s ownership of the  <strong>{{ $parentGroupName }}</strong> group?">
+                    <button type="submit">Remove</button>
+                </form>
+            </td>
+        </tr>
+        {{- end }}
+    </table>
+    <h4>Members</h4>
+    <table>
+        <tr>
+            <th>Username</th>
+            <th>Action</th>
+        </tr>
+        {{- range .Members }}
+        <tr>
+            <td><a href="/user/{{ . }}">{{ . }}</a></td>
+            <td>
+                <form action="/group/{{ $parentGroupName }}/remove-member/{{ . }}" method="post" class="remove-form" data-confirmation-message="Are you sure you want to remove user  <strong>{{ . }}</strong> user from  <strong>{{ $parentGroupName }}</strong> group?">
+                    <button type="submit" class="button">Remove</button>
+                </form>
+            </td>
+        </tr>
+        {{- end }}
+    </table>
+    <h4>Transitive Groups</h4>
+    <table>
+        <tr>
+            <th>Group Name</th>
+            <th>Description</th>
+        </tr>
+        {{- range .TransitiveGroups }}
+        <tr>
+            <td><a href="/group/{{ .Name }}">{{ .Name }}</a></td>
+            <td>{{ .Description }}</td>
+        </tr>
+        {{- end }}
+    </table>
+    <h3>Child Groups</h3>
+    <table>
+        <tr>
+            <th>Group Name</th>
+            <th>Description</th>
+            <th>Action</th>
+        </tr>
+        {{- range .ChildGroups }}
+        <tr>
+            <td><a href="/group/{{ .Name }}">{{ .Name }}</a></td>
+            <td>{{ .Description }}</td>
+            <td>
+                <form action="/group/{{ $parentGroupName }}/remove-child-group/{{ .Name }}" method="post" class="remove-form" data-confirmation-message="Are you sure you want to remove group  <strong>{{ .Name }}</strong> as a child of the group  <strong>{{ $parentGroupName }}</strong>?">
+                    <button type="submit" class="button">Remove</button>
+                </form>
+            </td>
+        </tr>
+        {{- end }}
+    </table>
+    <dialog id="confirmation" close>
+        <article>
+            <h2>Confirm Your Action</h2>
+            <p id="confirmation-message">Are you sure?</p>
+            <footer>
+                <button id="cancel-button" class="secondary cancel-button">Cancel</button>
+                <button id="confirm-button">Confirm</button>
+            </footer>
+        </article>
+    </dialog>
+    <link rel="stylesheet" href="/static/main.css">
+{{ end }}
+{{- template "base.html" . -}}
