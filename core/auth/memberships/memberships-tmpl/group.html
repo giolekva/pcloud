@@ -1,8 +1,5 @@
 {{ define "content" }}
 {{- $parentGroupName := .GroupName }}
-<head>
-    <title>Group Management</title>
-</head>
     <div>
         <h2 class="headline">{{ .GroupName }} Group Management</h2>
         <p class="description">{{ .Description }}</p>
@@ -104,6 +101,4 @@
             </footer>
         </article>
     </dialog>
-    <link rel="stylesheet" href="/static/main.css">
 {{ end }}
-{{- template "base.html" . -}}

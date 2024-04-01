@@ -3,7 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ .Title }}</title>
     <link rel="stylesheet" href="/static/pico.2.0.6.min.css">
+    {{if .AdditionalCSS }}
+        <link rel="stylesheet" href="/static/main.css">
+    {{end}}
 </head>
 <body class="container">
     {{- block "content" . }}

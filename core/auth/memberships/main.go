@@ -563,7 +563,7 @@ func (s *Server) checkIsOwner(w http.ResponseWriter, user, group string) (bool, 
 
 type templates struct {
 	group *template.Template
-	index *template.Template
+	user  *template.Template
 }
 
 func parseTemplates(fs embed.FS) (templates, error) {
@@ -578,7 +578,7 @@ func parseTemplates(fs embed.FS) (templates, error) {
 			return b.ParseFS(fs, path)
 		}
 	}
-	index, err := parse("memberships-tmpl/index.html")
+	user, err := parse("memberships-tmpl/user.html")
 	if err != nil {
 		return templates{}, err
 	}
@@ -586,7 +586,7 @@ func parseTemplates(fs embed.FS) (templates, error) {
 	if err != nil {
 		return templates{}, err
 	}
-	return templates{group, index}, nil
+	return templates{group, user}, nil
 }
 
 func (s *Server) homePageHandler(w http.ResponseWriter, r *http.Request) {
@@ -625,26 +625,30 @@ func (s *Server) userHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	data := struct {
+		Title            string
 		OwnerGroups      []Group
 		MembershipGroups []Group
 		TransitiveGroups []Group
 		LoggedInUserPage bool
 		CurrentUser      string
 		ErrorMessage     string
+		AdditionalCSS    bool
 	}{
+		Title:            "User Managment",
 		OwnerGroups:      ownerGroups,
 		MembershipGroups: membershipGroups,
 		TransitiveGroups: transitiveGroups,
 		LoggedInUserPage: loggedInUserPage,
 		CurrentUser:      user,
 		ErrorMessage:     errorMsg,
+		AdditionalCSS:    false,
 	}
 	templates, err := parseTemplates(tmpls)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	if err := templates.index.Execute(w, data); err != nil {
+	if err := templates.user.Execute(w, data); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -737,6 +741,7 @@ func (s *Server) groupHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	data := struct {
+		Title            string
 		GroupName        string
 		Description      string
 		Owners           []string
@@ -745,7 +750,9 @@ func (s *Server) groupHandler(w http.ResponseWriter, r *http.Request) {
 		TransitiveGroups []Group
 		ChildGroups      []Group
 		ErrorMessage     string
+		AdditionalCSS    bool
 	}{
+		Title:            "Group Managment",
 		GroupName:        groupName,
 		Description:      description,
 		Owners:           owners,
@@ -754,6 +761,7 @@ func (s *Server) groupHandler(w http.ResponseWriter, r *http.Request) {
 		TransitiveGroups: transitiveGroups,
 		ChildGroups:      childGroups,
 		ErrorMessage:     errorMsg,
+		AdditionalCSS:    true,
 	}
 	templates, err := parseTemplates(tmpls)
 	if err != nil {

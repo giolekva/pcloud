@@ -1,7 +1,4 @@
 {{- define "content" -}}
-<head>
-    <title>Home Page</title>
-</head>
     <h1>User: {{ .CurrentUser }}</h1>
     {{ if .LoggedInUserPage }}
     <form action="/create-group" method="post">
@@ -52,4 +49,3 @@
         {{- end -}}
     </table>
 {{- end }}
-{{- template "base.html" . -}}
