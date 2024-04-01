@@ -1,14 +1,8 @@
-<!DOCTYPE html>
-<html lang="en" data-theme="light">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Group Membership Managment</title>
-    <link rel="stylesheet" href="/static/pico.2.0.6.min.css">
-    <link rel="stylesheet" href="/static/main.css">
-</head>
-<body class="container">
-    {{- $parentGroupName := .GroupName }}
+{{ define "title" }}
+    Group - {{ .GroupName }}
+{{ end }}
+{{ define "content" }}
+{{- $parentGroupName := .GroupName }}
     <div>
         <h2 class="headline">{{ .GroupName }} Group Management</h2>
         <p class="description">{{ .Description }}</p>
@@ -110,6 +104,4 @@
             </footer>
         </article>
     </dialog>
-    <script src="/static/main.js"></script>
-</body>
-</html>
+{{ end }}

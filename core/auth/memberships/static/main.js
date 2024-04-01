@@ -45,3 +45,11 @@ document.addEventListener("DOMContentLoaded", function () {
         });
     });
 });
+
+document.addEventListener("DOMContentLoaded", function () {
+    var errorCancelButton = document.getElementById("error-cancel-button");
+    var errorMessageDialog = document.getElementById("error-message");
+    errorCancelButton.addEventListener("click", function () {
+        errorMessageDialog.close();
+    });
+});

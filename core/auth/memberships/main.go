@@ -9,6 +9,7 @@ import (
 	"html/template"
 	"log"
 	"net/http"
+	"net/url"
 	"regexp"
 	"strings"
 
@@ -23,11 +24,8 @@ var port = flag.Int("port", 8080, "Port to listen on")
 var apiPort = flag.Int("api-port", 8081, "Port to listen on for API requests")
 var dbPath = flag.String("db-path", "memberships.db", "Path to SQLite file")
 
-//go:embed index.html
-var indexHTML string
-
-//go:embed group.html
-var groupHTML string
+//go:embed memberships-tmpl/*
+var tmpls embed.FS
 
 //go:embed static
 var staticResources embed.FS
@@ -563,6 +561,34 @@ func (s *Server) checkIsOwner(w http.ResponseWriter, user, group string) (bool, 
 	return true, nil
 }
 
+type templates struct {
+	group *template.Template
+	user  *template.Template
+}
+
+func parseTemplates(fs embed.FS) (templates, error) {
+	base, err := template.ParseFS(fs, "memberships-tmpl/base.html")
+	if err != nil {
+		return templates{}, err
+	}
+	parse := func(path string) (*template.Template, error) {
+		if b, err := base.Clone(); err != nil {
+			return nil, err
+		} else {
+			return b.ParseFS(fs, path)
+		}
+	}
+	user, err := parse("memberships-tmpl/user.html")
+	if err != nil {
+		return templates{}, err
+	}
+	group, err := parse("memberships-tmpl/group.html")
+	if err != nil {
+		return templates{}, err
+	}
+	return templates{group, user}, nil
+}
+
 func (s *Server) homePageHandler(w http.ResponseWriter, r *http.Request) {
 	loggedInUser, err := getLoggedInUser(r)
 	if err != nil {
@@ -578,6 +604,7 @@ func (s *Server) userHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "User Not Logged In", http.StatusUnauthorized)
 		return
 	}
+	errorMsg := r.URL.Query().Get("errorMessage")
 	vars := mux.Vars(r)
 	user := strings.ToLower(vars["username"])
 	// TODO(dtabidze): should check if username exists or not.
@@ -588,11 +615,6 @@ func (s *Server) userHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	membershipGroups, err := s.store.GetGroupsUserBelongsTo(user)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-	tmpl, err := template.New("index").Parse(indexHTML)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -608,15 +630,23 @@ func (s *Server) userHandler(w http.ResponseWriter, r *http.Request) {
 		TransitiveGroups []Group
 		LoggedInUserPage bool
 		CurrentUser      string
+		ErrorMessage     string
+		AdditionalCSS    bool
 	}{
 		OwnerGroups:      ownerGroups,
 		MembershipGroups: membershipGroups,
 		TransitiveGroups: transitiveGroups,
 		LoggedInUserPage: loggedInUserPage,
 		CurrentUser:      user,
+		ErrorMessage:     errorMsg,
+		AdditionalCSS:    false,
 	}
-	w.Header().Set("Content-Type", "text/html")
-	if err := tmpl.Execute(w, data); err != nil {
+	templates, err := parseTemplates(tmpls)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	if err := templates.user.Execute(w, data); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -639,12 +669,16 @@ func (s *Server) createGroupHandler(w http.ResponseWriter, r *http.Request) {
 	var group Group
 	group.Name = r.PostFormValue("group-name")
 	if err := isValidGroupName(group.Name); err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		// http.Error(w, err.Error(), http.StatusBadRequest)
+		redirectURL := fmt.Sprintf("/user/%s?errorMessage=%s", loggedInUser, url.QueryEscape(err.Error()))
+		http.Redirect(w, r, redirectURL, http.StatusFound)
 		return
 	}
 	group.Description = r.PostFormValue("description")
 	if err := s.store.CreateGroup(loggedInUser, group); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		// http.Error(w, err.Error(), http.StatusInternalServerError)
+		redirectURL := fmt.Sprintf("/user/%s?errorMessage=%s", loggedInUser, url.QueryEscape(err.Error()))
+		http.Redirect(w, r, redirectURL, http.StatusFound)
 		return
 	}
 	http.Redirect(w, r, "/", http.StatusSeeOther)
@@ -656,6 +690,7 @@ func (s *Server) groupHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "User Not Logged In", http.StatusUnauthorized)
 		return
 	}
+	errorMsg := r.URL.Query().Get("errorMessage")
 	vars := mux.Vars(r)
 	groupName := vars["group-name"]
 	exists, err := s.store.DoesGroupExist(groupName)
@@ -664,11 +699,11 @@ func (s *Server) groupHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if !exists {
-		errorMsg := fmt.Sprintf("group with the name '%s' not found", groupName)
+		errorMsg = fmt.Sprintf("group with the name '%s' not found", groupName)
 		http.Error(w, errorMsg, http.StatusNotFound)
 		return
 	}
-	tmpl, err := template.New("group").Parse(groupHTML)
+	// tmpl, err := template.New("group").Parse(groupHTML)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -711,6 +746,7 @@ func (s *Server) groupHandler(w http.ResponseWriter, r *http.Request) {
 		AvailableGroups  []string
 		TransitiveGroups []Group
 		ChildGroups      []Group
+		ErrorMessage     string
 	}{
 		GroupName:        groupName,
 		Description:      description,
@@ -719,8 +755,14 @@ func (s *Server) groupHandler(w http.ResponseWriter, r *http.Request) {
 		AvailableGroups:  availableGroups,
 		TransitiveGroups: transitiveGroups,
 		ChildGroups:      childGroups,
+		ErrorMessage:     errorMsg,
 	}
-	if err := tmpl.Execute(w, data); err != nil {
+	templates, err := parseTemplates(tmpls)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	if err := templates.group.Execute(w, data); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -750,7 +792,8 @@ func (s *Server) removeChildGroupHandler(w http.ResponseWriter, r *http.Request)
 		}
 		err := s.store.RemoveFromGroupToGroup(parentGroup, childGroup)
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+			redirectURL := fmt.Sprintf("/group/%s?errorMessage=%s", parentGroup, url.QueryEscape(err.Error()))
+			http.Redirect(w, r, redirectURL, http.StatusFound)
 			return
 		}
 		http.Redirect(w, r, "/group/"+parentGroup, http.StatusSeeOther)
@@ -778,7 +821,8 @@ func (s *Server) removeOwnerFromGroupHandler(w http.ResponseWriter, r *http.Requ
 		}
 		err := s.store.RemoveUserFromTable(username, groupName, tableName)
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+			redirectURL := fmt.Sprintf("/group/%s?errorMessage=%s", groupName, url.QueryEscape(err.Error()))
+			http.Redirect(w, r, redirectURL, http.StatusFound)
 			return
 		}
 		http.Redirect(w, r, "/group/"+groupName, http.StatusSeeOther)
@@ -806,7 +850,8 @@ func (s *Server) removeMemberFromGroupHandler(w http.ResponseWriter, r *http.Req
 		}
 		err := s.store.RemoveUserFromTable(username, groupName, tableName)
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+			redirectURL := fmt.Sprintf("/group/%s?errorMessage=%s", groupName, url.QueryEscape(err.Error()))
+			http.Redirect(w, r, redirectURL, http.StatusFound)
 			return
 		}
 		http.Redirect(w, r, "/group/"+groupName, http.StatusSeeOther)
@@ -853,7 +898,8 @@ func (s *Server) addUserToGroupHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		redirectURL := fmt.Sprintf("/group/%s?errorMessage=%s", groupName, url.QueryEscape(err.Error()))
+		http.Redirect(w, r, redirectURL, http.StatusFound)
 		return
 	}
 	http.Redirect(w, r, "/group/"+groupName, http.StatusSeeOther)
@@ -886,7 +932,8 @@ func (s *Server) addChildGroupHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err := s.store.AddChildGroup(parentGroup, childGroup); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		redirectURL := fmt.Sprintf("/group/%s?errorMessage=%s", parentGroup, url.QueryEscape(err.Error()))
+		http.Redirect(w, r, redirectURL, http.StatusFound)
 		return
 	}
 	http.Redirect(w, r, "/group/"+parentGroup, http.StatusSeeOther)

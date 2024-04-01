@@ -1,2 +1,3 @@
 *.db
 memberships*
+!memberships-tmpl/
