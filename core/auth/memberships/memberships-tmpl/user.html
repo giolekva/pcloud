@@ -1,3 +1,6 @@
+{{ define "title" }}
+    User Management - {{ .CurrentUser }}
+{{ end }}
 {{- define "content" -}}
     <h1>User: {{ .CurrentUser }}</h1>
     {{ if .LoggedInUserPage }}

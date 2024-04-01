@@ -625,7 +625,6 @@ func (s *Server) userHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	data := struct {
-		Title            string
 		OwnerGroups      []Group
 		MembershipGroups []Group
 		TransitiveGroups []Group
@@ -634,7 +633,6 @@ func (s *Server) userHandler(w http.ResponseWriter, r *http.Request) {
 		ErrorMessage     string
 		AdditionalCSS    bool
 	}{
-		Title:            "User Managment",
 		OwnerGroups:      ownerGroups,
 		MembershipGroups: membershipGroups,
 		TransitiveGroups: transitiveGroups,
@@ -741,7 +739,6 @@ func (s *Server) groupHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	data := struct {
-		Title            string
 		GroupName        string
 		Description      string
 		Owners           []string
@@ -750,9 +747,7 @@ func (s *Server) groupHandler(w http.ResponseWriter, r *http.Request) {
 		TransitiveGroups []Group
 		ChildGroups      []Group
 		ErrorMessage     string
-		AdditionalCSS    bool
 	}{
-		Title:            "Group Managment",
 		GroupName:        groupName,
 		Description:      description,
 		Owners:           owners,
@@ -761,7 +756,6 @@ func (s *Server) groupHandler(w http.ResponseWriter, r *http.Request) {
 		TransitiveGroups: transitiveGroups,
 		ChildGroups:      childGroups,
 		ErrorMessage:     errorMsg,
-		AdditionalCSS:    true,
 	}
 	templates, err := parseTemplates(tmpls)
 	if err != nil {
