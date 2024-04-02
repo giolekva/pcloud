@@ -1,6 +1,7 @@
 input: {
 	network: #Network
 	subdomain: string
+	key: #SSHKey
 }
 
 _domain: "\(input.subdomain).\(input.network.domain)"
@@ -175,26 +176,16 @@ helm: _ingressWithAuthProxy.out.helm & {
 				etc: {
 					secret: {
 						// TODO(gio): auto generate
-						ssh_host_ecdsa_key: ###"""
-						-----BEGIN OPENSSH PRIVATE KEY-----
-						b3BlbnNzaC1rZXktdjEAAAAABG5vbmUAAAAEbm9uZQAAAAAAAAABAAAAaAAAABNlY2RzYS
-						1zaGEyLW5pc3RwMjU2AAAACG5pc3RwMjU2AAAAQQTLpTYrZ3zFkfRda+q0O3nr119UeN1M
-						H4Ds59cN8NxLpSLZpWn7vLxigN2VCP373Lq5ulUbDojW5qvF2gGppA+4AAAAsHSkAHN0pA
-						BzAAAAE2VjZHNhLXNoYTItbmlzdHAyNTYAAAAIbmlzdHAyNTYAAABBBMulNitnfMWR9F1r
-						6rQ7eevXX1R43UwfgOzn1w3w3EulItmlafu8vGKA3ZUI/fvcurm6VRsOiNbmq8XaAamkD7
-						gAAAAhAOzrB8wjiWKzKsrzepkgFbs/CoIT8TBdaPv2aLWPcZr4AAAAFmdlcnJpdEBwLnYw
-						LmRvZG8uY2xvdWQB
-						-----END OPENSSH PRIVATE KEY-----
-						"""###
-						"ssh_host_ecdsa_key.pub": "ecdsa-sha2-nistp256 AAAAE2VjZHNhLXNoYTItbmlzdHAyNTYAAAAIbmlzdHAyNTYAAABBBMulNitnfMWR9F1r6rQ7eevXX1R43UwfgOzn1w3w3EulItmlafu8vGKA3ZUI/fvcurm6VRsOiNbmq8XaAamkD7g="
+						ssh_host_ecdsa_key: input.key.private
+						"ssh_host_ecdsa_key.pub": input.key.public
 					}
 					config: {
-						"replication.config": ###"""
+						"replication.config": """
 [gerrit]
   autoReload = false
   replicateOnStartup = true
-  defaultForceUpdate = true"""###
-						"gerrit.config": ###"""
+  defaultForceUpdate = true"""
+						"gerrit.config": """
 [gerrit]
   basePath = git # FIXED
   serverId = gerrit-1
@@ -203,17 +194,15 @@ helm: _ingressWithAuthProxy.out.helm & {
   # LoadBalancer's external IP. This can only be done manually after installing
   # the chart, when you know the external IP the LoadBalancer got from the
   # cluster.
-  canonicalWebUrl = https://gerrit.p.v0.dodo.cloud
+  canonicalWebUrl = https://\(_domain)
   disableReverseDnsLookup = true
 [index]
   type = LUCENE
 [auth]
   type = HTTP
   httpHeader = X-User
-  emailFormat = '{0}@v0.dodo.cloud'
-  # loginUrl = https://accounts-ui.v0.dodo.cloud/
-  # loginText = Sign In with dodo
-  logoutUrl = https://accounts-ui.v0.dodo.cloud/logout
+  emailFormat = '{0}@\(global.domain)'
+  logoutUrl = https://accounts-ui.\(global.domain)/logout
   gitBasicAuthPolicy = HTTP
   userNameToLowerCase = true
   userNameCaseInsensitive = true
@@ -228,7 +217,7 @@ helm: _ingressWithAuthProxy.out.helm & {
   timeout = 120 s
 [user]
   name = Gerrit Code Review
-  email = gerrit@p.v0.dodo.cloud
+  email = gerrit@\(global.domain)
   anonymousCoward = Unnamed User
 [cache]
   directory = cache
@@ -239,7 +228,7 @@ helm: _ingressWithAuthProxy.out.helm & {
   javaOptions = -Xms200m
   # Has to be lower than 'gerrit.resources.limits.memory'. Also
   # consider memories used by other applications in the container.
-  javaOptions = -Xmx4g"""###
+  javaOptions = -Xmx4g"""
 					}
 				}
 			}

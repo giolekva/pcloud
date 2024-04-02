@@ -17,6 +17,7 @@ const (
 	KindStruct       = 2
 	KindNetwork      = 3
 	KindAuth         = 5
+	KindSSHKey       = 6
 	KindNumber       = 4
 )
 
@@ -29,6 +30,13 @@ var AuthSchema Schema = structSchema{
 	fields: map[string]Schema{
 		"enabled": basicSchema{KindBoolean},
 		"groups":  basicSchema{KindString},
+	},
+}
+
+var SSHKeySchema Schema = structSchema{
+	fields: map[string]Schema{
+		"public":  basicSchema{KindString},
+		"private": basicSchema{KindString},
 	},
 }
 
@@ -82,6 +90,30 @@ func isAuth(v cue.Value) bool {
 	return false
 }
 
+const sshKeySchema = `
+#SSHKey: {
+    public: string
+    private: string
+}
+
+value: { %s }
+`
+
+func isSSHKey(v cue.Value) bool {
+	if v.Value().Kind() != cue.StructKind {
+		return false
+	}
+	s := fmt.Sprintf(sshKeySchema, fmt.Sprintf("%#v", v))
+	c := cuecontext.New()
+	u := c.CompileString(s)
+	sshKey := u.LookupPath(cue.ParsePath("#SSHKey"))
+	vv := u.LookupPath(cue.ParsePath("value"))
+	if err := sshKey.Subsume(vv); err == nil {
+		return true
+	}
+	return false
+}
+
 type basicSchema struct {
 	kind Kind
 }
@@ -119,6 +151,8 @@ func NewCueSchema(v cue.Value) (Schema, error) {
 			return basicSchema{KindNetwork}, nil
 		} else if isAuth(v) {
 			return basicSchema{KindAuth}, nil
+		} else if isSSHKey(v) {
+			return basicSchema{KindSSHKey}, nil
 		}
 		s := structSchema{make(map[string]Schema)}
 		f, err := v.Fields(cue.Schema())

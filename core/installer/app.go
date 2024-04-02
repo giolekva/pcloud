@@ -285,6 +285,11 @@ output: {
 		}
 	}
 }
+
+#SSHKey: {
+	public: string
+	private: string
+}
 `
 
 type appConfig struct {

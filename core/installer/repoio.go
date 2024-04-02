@@ -395,10 +395,22 @@ func ReadYaml[T any](r io.Reader, o *T) error {
 
 func deriveValues(values any, schema Schema, networks []Network) (map[string]any, error) {
 	ret := make(map[string]any)
-	for k, v := range values.(map[string]any) { // TODO(giolekva): validate
-		def, ok := schema.Fields()[k]
+	for k, def := range schema.Fields() {
+		// TODO(gio): validate that it is map
+		v, ok := values.(map[string]any)[k]
+		// TODO(gio): if missing use default value
 		if !ok {
-			return nil, fmt.Errorf("Field not found: %s", k)
+			if def.Kind() == KindSSHKey {
+				key, err := NewECDSASSHKeyPair("tmp")
+				if err != nil {
+					return nil, err
+				}
+				ret[k] = map[string]string{
+					"public":  string(key.RawAuthorizedKey()),
+					"private": string(key.RawPrivateKey()),
+				}
+			}
+			continue
 		}
 		switch def.Kind() {
 		case KindBoolean:
@@ -413,6 +425,12 @@ func deriveValues(values any, schema Schema, networks []Network) (map[string]any
 			ret[k] = n
 		case KindAuth:
 			r, err := deriveValues(v, AuthSchema, networks)
+			if err != nil {
+				return nil, err
+			}
+			ret[k] = r
+		case KindSSHKey:
+			r, err := deriveValues(v, SSHKeySchema, networks)
 			if err != nil {
 				return nil, err
 			}

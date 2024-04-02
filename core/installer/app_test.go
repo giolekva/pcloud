@@ -159,6 +159,10 @@ func TestGerrit(t *testing.T) {
 				"ingressClass": "id-ingress-private",
 				"domain":       "p.bar.ge",
 			},
+			"key": map[string]any{
+				"public":  "foo",
+				"private": "bar",
+			},
 		},
 	}
 	rendered, err := a.Render(d)

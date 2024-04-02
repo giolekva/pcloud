@@ -42,6 +42,20 @@
         <span>Authentication Groups</span>
       </label>
       <input type="text" name="authGroups" oninput="valueChanged('{{- $name -}}.groups', this.value)" {{ if $readonly }}disabled{{ end }} value="{{ $authGroups }}" />
+	{{ else if eq $schema.Kind 6 }}
+ 	  {{ $sshKey := index $data $name }}
+	  {{ $public := "" }}
+	  {{ $private := "" }}
+	  {{ if $sshKey }}{{ $public = index $sshKey "public" }}{{ end }}
+	  {{ if $sshKey }}{{ $private = index $sshKey "private" }}{{ end }}
+      <label for="{{ $name }}-public">
+        <span>Public Key</span>
+      </label>
+	  <textarea name="{{ $name }}-public" disabled>{{ $public }}</textarea>
+      <label for="{{ $name }}-private">
+        <span>Private Key</span>
+      </label>
+	  <textarea name="{{ $name }}-private" disabled>{{ $private }}</textarea>
     {{ end }}
   {{ end }}
 {{ end }}
