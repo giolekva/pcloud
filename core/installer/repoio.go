@@ -29,7 +29,7 @@ type RepoIO interface {
 	ReadAppConfig(path string) (AppConfig, error)
 	ReadKustomization(path string) (*Kustomization, error)
 	WriteKustomization(path string, kust Kustomization) error
-	ReadYaml(path string) (any, error)
+	ReadYaml(path string) (map[string]any, error)
 	WriteYaml(path string, data any) error
 	CommitAndPush(message string) error
 	WriteCommitAndPush(path, contents, message string) error
@@ -163,7 +163,7 @@ func (r *repoIO) WriteYaml(path string, data any) error {
 	return nil
 }
 
-func (r *repoIO) ReadYaml(path string) (any, error) {
+func (r *repoIO) ReadYaml(path string) (map[string]any, error) {
 	inp, err := r.Reader(path)
 	if err != nil {
 		return nil, err
@@ -231,6 +231,8 @@ func (r *repoIO) RemoveDir(path string) error {
 
 type Release struct {
 	Namespace string `json:"namespace"`
+	RepoAddr  string `json:"repoAddr"`
+	AppDir    string `json:"appDir"`
 }
 
 type Derived struct {
@@ -291,6 +293,9 @@ func (r *repoIO) InstallApp(app App, appRootDir string, values map[string]any, d
 		}
 	}
 	{
+		derived.Release.RepoAddr = r.repo.Addr.FullAddress()
+		// TODO(gio): maybe client should populate this?
+		derived.Release.AppDir = appRootDir
 		appKust := NewKustomization()
 		rendered, err := app.Render(derived)
 		if err != nil {

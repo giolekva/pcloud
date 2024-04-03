@@ -1,0 +1,7 @@
+image:
+  repository: giolekva/port-allocator
+  tag: latest
+  pullPolicy: Always
+repoAddr: 192.168.0.11
+sshPrivateKey: key
+ingressNginxPath: /path/to/ingress.yaml
