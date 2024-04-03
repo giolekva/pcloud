@@ -2,6 +2,8 @@ package main
 
 import (
 	"database/sql"
+	"net/http"
+	"net/http/httptest"
 	"testing"
 
 	_ "github.com/ncruces/go-sqlite3/driver"
@@ -146,5 +148,23 @@ func TestParentAndChildGroupCases(t *testing.T) {
 	}
 	if err := store.AddChildGroup("a", "a"); err != nil {
 		t.Fatalf("Unexpected error: %v", err)
+	}
+}
+
+func TestRemoveChildGroupHandler(t *testing.T) {
+	server := &Server{}
+	req, err := http.NewRequest("POST", "/group/c/remove-child-group/a", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	rr := httptest.NewRecorder()
+	server.removeChildGroupHandler(rr, req)
+	if status := rr.Code; status != http.StatusOK {
+		t.Errorf("handler returned wrong status code: got %v want %v", status, http.StatusOK)
+	}
+	body := rr.Body.String()
+	if body != "expected body" {
+		t.Errorf("handler returned unexpected body: got %v want %v",
+			body, "expected body")
 	}
 }

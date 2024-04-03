@@ -22,11 +22,21 @@
     <form action="/group/{{ .GroupName }}/add-child-group" method="post">
         <label for="child-group">Select Child Group:</label>
         <select id="child-group" aria-label="Select" name="child-group" required>
-            {{- range .AvailableGroups }}
-            <option value="{{ . }}">{{ . }}</option>
+            {{- range .AllGroups }}
+            <option value="{{ .Name }}">{{ .Name }}</option>
             {{- end }}
         </select>
         <button type="submit">Create Child Group</button>
+    </form>
+    <hr class="divider">
+    <form action="/group/{{ .GroupName }}/add-owner-group" method="post">
+        <label for="owner-group">Select Owner Group:</label>
+        <select id="owner-group" aria-label="Select" name="owner-group" required>
+            {{- range .AllGroups }}
+            <option value="{{ .Name }}">{{ .Name }}</option>
+            {{- end }}
+        </select>
+        <button type="submit">Add Owner Group</button>
     </form>
     <h4>Owners</h4>
     <table>
@@ -75,7 +85,7 @@
         </tr>
         {{- end }}
     </table>
-    <h3>Child Groups</h3>
+    <h4>Child Groups</h4>
     <table>
         <tr>
             <th>Group Name</th>
@@ -91,6 +101,19 @@
                     <button type="submit" class="button">Remove</button>
                 </form>
             </td>
+        </tr>
+        {{- end }}
+    </table>
+    <h4>Owner Groups</h4>
+    <table>
+        <tr>
+            <th>Group Name</th>
+            <th>Description</th>
+        </tr>
+        {{- range .OwnerGroups }}
+        <tr>
+            <td><a href="/group/{{ .Name }}">{{ .Name }}</a></td>
+            <td>{{ .Description }}</td>
         </tr>
         {{- end }}
     </table>

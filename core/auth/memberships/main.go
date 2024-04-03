@@ -35,22 +35,25 @@ type Store interface {
 	Init(owner string, groups []string) error
 	CreateGroup(owner string, group Group) error
 	AddChildGroup(parent, child string) error
+	AddOwnerGroup(owned_group, owner_group string) error
 	DoesGroupExist(group string) (bool, error)
 	GetGroupsOwnedBy(user string) ([]Group, error)
 	GetGroupsUserBelongsTo(user string) ([]Group, error)
 	IsGroupOwner(user, group string) (bool, error)
+	IsMemberOfOwnerGroup(user, group string) (bool, error)
 	AddGroupMember(user, group string) error
 	AddGroupOwner(user, group string) error
 	GetGroupOwners(group string) ([]string, error)
+	GetGroupOwnerGroups(group string) ([]Group, error)
 	GetGroupMembers(group string) ([]string, error)
 	GetGroupDescription(group string) (string, error)
-	GetAvailableGroupsAsChild(group string) ([]string, error)
 	GetAllTransitiveGroupsForUser(user string) ([]Group, error)
 	GetGroupsGroupBelongsTo(group string) ([]Group, error)
 	GetDirectChildrenGroups(group string) ([]Group, error)
 	GetAllTransitiveGroupsForGroup(group string) ([]Group, error)
 	RemoveFromGroupToGroup(parent, child string) error
 	RemoveUserFromTable(username, groupName, tableName string) error
+	GetAllGroups() ([]Group, error)
 }
 
 type Server struct {
@@ -66,31 +69,43 @@ type SQLiteStore struct {
 	db *sql.DB
 }
 
+const (
+	ErrorUniqueConstraintViolation     = 2067
+	ErrorConstraintPrimaryKeyViolation = 1555
+)
+
 func NewSQLiteStore(db *sql.DB) (*SQLiteStore, error) {
 	_, err := db.Exec(`
-        CREATE TABLE IF NOT EXISTS groups (
-            name TEXT PRIMARY KEY,
-            description TEXT
-        );
-
-        CREATE TABLE IF NOT EXISTS owners (
-            username TEXT,
-            group_name TEXT,
-            FOREIGN KEY(group_name) REFERENCES groups(name)
-        );
-
-        CREATE TABLE IF NOT EXISTS group_to_group (
-            parent_group TEXT,
-            child_group TEXT,
-            FOREIGN KEY(parent_group) REFERENCES groups(name),
-            FOREIGN KEY(child_group) REFERENCES groups(name)
-        );
-
-        CREATE TABLE IF NOT EXISTS user_to_group (
-            username TEXT,
-            group_name TEXT,
-            FOREIGN KEY(group_name) REFERENCES groups(name)
-        );`)
+		CREATE TABLE IF NOT EXISTS groups (
+			name TEXT PRIMARY KEY,
+			description TEXT
+		);
+		CREATE TABLE IF NOT EXISTS owners (
+			username TEXT,
+			group_name TEXT,
+			FOREIGN KEY(group_name) REFERENCES groups(name),
+			UNIQUE (username, group_name)
+		);
+		CREATE TABLE IF NOT EXISTS owner_groups (
+			owner_group TEXT,
+			owned_group TEXT,
+			FOREIGN KEY(owner_group) REFERENCES groups(name),
+			FOREIGN KEY(owned_group) REFERENCES groups(name),
+			UNIQUE (owner_group, owned_group)
+		);
+		CREATE TABLE IF NOT EXISTS group_to_group (
+			parent_group TEXT,
+			child_group TEXT,
+			FOREIGN KEY(parent_group) REFERENCES groups(name),
+			FOREIGN KEY(child_group) REFERENCES groups(name),
+			UNIQUE (parent_group, child_group)
+		);
+		CREATE TABLE IF NOT EXISTS user_to_group (
+			username TEXT,
+			group_name TEXT,
+			FOREIGN KEY(group_name) REFERENCES groups(name),
+			UNIQUE (username, group_name)
+		);`)
 	if err != nil {
 		return nil, err
 	}
@@ -175,7 +190,7 @@ func (s *SQLiteStore) CreateGroup(owner string, group Group) error {
 	query := `INSERT INTO groups (name, description) VALUES (?, ?)`
 	if _, err := tx.Exec(query, group.Name, group.Description); err != nil {
 		sqliteErr, ok := err.(*sqlite3.Error)
-		if ok && sqliteErr.ExtendedCode() == 1555 {
+		if ok && sqliteErr.ExtendedCode() == ErrorConstraintPrimaryKeyViolation {
 			return fmt.Errorf("Group with the name %s already exists", group.Name)
 		}
 		return err
@@ -201,54 +216,25 @@ func (s *SQLiteStore) IsGroupOwner(user, group string) (bool, error) {
 	return exists, nil
 }
 
-func (s *SQLiteStore) userGroupPairExists(tx *sql.Tx, table, user, group string) (bool, error) {
-	query := fmt.Sprintf("SELECT EXISTS (SELECT 1 FROM %s WHERE username = ? AND group_name = ?)", table)
-	var exists bool
-	if err := tx.QueryRow(query, user, group).Scan(&exists); err != nil {
-		return false, err
-	}
-	return exists, nil
-}
-
 func (s *SQLiteStore) AddGroupMember(user, group string) error {
-	tx, err := s.db.Begin()
+	_, err := s.db.Exec(`INSERT INTO user_to_group (username, group_name) VALUES (?, ?)`, user, group)
 	if err != nil {
-		return err
-	}
-	defer tx.Rollback()
-	existsInUserToGroup, err := s.userGroupPairExists(tx, "user_to_group", user, group)
-	if err != nil {
-		return err
-	}
-	if existsInUserToGroup {
-		return fmt.Errorf("%s is already a member of group %s", user, group)
-	}
-	if _, err := tx.Exec(`INSERT INTO user_to_group (username, group_name) VALUES (?, ?)`, user, group); err != nil {
-		return err
-	}
-	if err := tx.Commit(); err != nil {
+		sqliteErr, ok := err.(*sqlite3.Error)
+		if ok && sqliteErr.ExtendedCode() == ErrorUniqueConstraintViolation {
+			return fmt.Errorf("%s is already a member of group %s", user, group)
+		}
 		return err
 	}
 	return nil
 }
 
 func (s *SQLiteStore) AddGroupOwner(user, group string) error {
-	tx, err := s.db.Begin()
+	_, err := s.db.Exec(`INSERT INTO owners (username, group_name) VALUES (?, ?)`, user, group)
 	if err != nil {
-		return err
-	}
-	defer tx.Rollback()
-	existsInOwners, err := s.userGroupPairExists(tx, "owners", user, group)
-	if err != nil {
-		return err
-	}
-	if existsInOwners {
-		return fmt.Errorf("%s is already an owner of group %s", user, group)
-	}
-	if _, err = tx.Exec(`INSERT INTO owners (username, group_name) VALUES (?, ?)`, user, group); err != nil {
-		return err
-	}
-	if err := tx.Commit(); err != nil {
+		sqliteErr, ok := err.(*sqlite3.Error)
+		if ok && sqliteErr.ExtendedCode() == ErrorUniqueConstraintViolation {
+			return fmt.Errorf("%s is already an owner of group %s", user, group)
+		}
 		return err
 	}
 	return nil
@@ -292,15 +278,6 @@ func (s *SQLiteStore) GetGroupDescription(group string) (string, error) {
 	return description, nil
 }
 
-func (s *SQLiteStore) parentChildGroupPairExists(tx *sql.Tx, parent, child string) (bool, error) {
-	query := `SELECT EXISTS (SELECT 1 FROM group_to_group WHERE parent_group = ? AND child_group = ?)`
-	var exists bool
-	if err := tx.QueryRow(query, parent, child).Scan(&exists); err != nil {
-		return false, err
-	}
-	return exists, nil
-}
-
 func (s *SQLiteStore) DoesGroupExist(group string) (bool, error) {
 	query := `SELECT EXISTS (SELECT 1 FROM groups WHERE name = ?)`
 	var exists bool
@@ -314,11 +291,19 @@ func (s *SQLiteStore) AddChildGroup(parent, child string) error {
 	if parent == child {
 		return fmt.Errorf("parent and child groups can not have same name")
 	}
-	if _, err := s.DoesGroupExist(parent); err != nil {
-		return fmt.Errorf("parent group name %s does not exist", parent)
+	exists, err := s.DoesGroupExist(parent)
+	if err != nil {
+		return fmt.Errorf("error checking parent group existence: %v", err)
 	}
-	if _, err := s.DoesGroupExist(child); err != nil {
-		return fmt.Errorf("child group name %s does not exist", child)
+	if !exists {
+		return fmt.Errorf("parent group with name %s does not exist", parent)
+	}
+	exists, err = s.DoesGroupExist(child)
+	if err != nil {
+		return fmt.Errorf("error checking child group existence: %v", err)
+	}
+	if !exists {
+		return fmt.Errorf("child group with name %s does not exist", child)
 	}
 	parentGroups, err := s.GetAllTransitiveGroupsForGroup(parent)
 	if err != nil {
@@ -329,48 +314,15 @@ func (s *SQLiteStore) AddChildGroup(parent, child string) error {
 			return fmt.Errorf("circular reference detected: group %s is already a parent of group %s", child, parent)
 		}
 	}
-	tx, err := s.db.Begin()
+	_, err = s.db.Exec(`INSERT INTO group_to_group (parent_group, child_group) VALUES (?, ?)`, parent, child)
 	if err != nil {
-		return err
-	}
-	defer tx.Rollback()
-	existsInGroupToGroup, err := s.parentChildGroupPairExists(tx, parent, child)
-	if err != nil {
-		return err
-	}
-	if existsInGroupToGroup {
-		return fmt.Errorf("child group name %s already exists in group %s", child, parent)
-	}
-	if _, err := tx.Exec(`INSERT INTO group_to_group (parent_group, child_group) VALUES (?, ?)`, parent, child); err != nil {
-		return err
-	}
-	if err := tx.Commit(); err != nil {
+		sqliteErr, ok := err.(*sqlite3.Error)
+		if ok && sqliteErr.ExtendedCode() == ErrorUniqueConstraintViolation {
+			return fmt.Errorf("child group name %s already exists in group %s", child, parent)
+		}
 		return err
 	}
 	return nil
-}
-
-func (s *SQLiteStore) GetAvailableGroupsAsChild(group string) ([]string, error) {
-	// TODO(dtabidze): Might have to add further logic to filter available groups as children.
-	query := `
-		SELECT name FROM groups
-		WHERE name != ? AND name NOT IN (
-			SELECT child_group FROM group_to_group WHERE parent_group = ?
-		)`
-	rows, err := s.db.Query(query, group, group)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var availableGroups []string
-	for rows.Next() {
-		var groupName string
-		if err := rows.Scan(&groupName); err != nil {
-			return nil, err
-		}
-		availableGroups = append(availableGroups, groupName)
-	}
-	return availableGroups, nil
 }
 
 func (s *SQLiteStore) GetAllTransitiveGroupsForUser(user string) ([]Group, error) {
@@ -504,6 +456,63 @@ func (s *SQLiteStore) RemoveUserFromTable(username, groupName, tableName string)
 	return nil
 }
 
+func (s *SQLiteStore) AddOwnerGroup(owner_group, owned_group string) error {
+	if owned_group == owner_group {
+		return fmt.Errorf("group can not own itself")
+	}
+	exists, err := s.DoesGroupExist(owned_group)
+	if err != nil {
+		return fmt.Errorf("error checking owned group existence: %v", err)
+	}
+	if !exists {
+		return fmt.Errorf("owned group with name %s does not exist", owned_group)
+	}
+	exists, err = s.DoesGroupExist(owner_group)
+	if err != nil {
+		return fmt.Errorf("error checking owner group existence: %v", err)
+	}
+	if !exists {
+		return fmt.Errorf("owner group with name %s does not exist", owner_group)
+	}
+	_, err = s.db.Exec(`INSERT INTO owner_groups (owner_group, owned_group) VALUES (?, ?)`, owner_group, owned_group)
+	if err != nil {
+		sqliteErr, ok := err.(*sqlite3.Error)
+		if ok && sqliteErr.ExtendedCode() == ErrorUniqueConstraintViolation {
+			return fmt.Errorf("group named %s is already owner of a group %s", owner_group, owned_group)
+		}
+		return err
+	}
+	return nil
+}
+
+func (s *SQLiteStore) GetGroupOwnerGroups(group string) ([]Group, error) {
+	query := `
+        SELECT groups.name, groups.description
+        FROM groups
+        JOIN owner_groups ON groups.name = owner_groups.owner_group
+        WHERE owner_groups.owned_group = ?`
+	return s.queryGroups(query, group)
+}
+
+func (s *SQLiteStore) IsMemberOfOwnerGroup(user, group string) (bool, error) {
+	query := `
+		SELECT EXISTS (
+			SELECT 1 FROM owner_groups
+			INNER JOIN user_to_group ON owner_groups.owner_group = user_to_group.group_name
+			WHERE owner_groups.owned_group = ? AND user_to_group.username = ?)`
+	var exists bool
+	err := s.db.QueryRow(query, group, user).Scan(&exists)
+	if err != nil {
+		return false, err
+	}
+	return exists, nil
+}
+
+func (s *SQLiteStore) GetAllGroups() ([]Group, error) {
+	query := `SELECT name, description FROM groups`
+	return s.queryGroups(query)
+}
+
 func getLoggedInUser(r *http.Request) (string, error) {
 	if user := r.Header.Get("X-User"); user != "" {
 		return user, nil
@@ -526,6 +535,7 @@ func (s *Server) Start() error {
 		r.PathPrefix("/static/").Handler(http.FileServer(http.FS(staticResources)))
 		r.HandleFunc("/group/{group-name}/add-user/", s.addUserToGroupHandler)
 		r.HandleFunc("/group/{parent-group}/add-child-group", s.addChildGroupHandler)
+		r.HandleFunc("/group/{owned-group}/add-owner-group", s.addOwnerGroupHandler)
 		r.HandleFunc("/group/{parent-group}/remove-child-group/{child-group}", s.removeChildGroupHandler)
 		r.HandleFunc("/group/{group-name}/remove-owner/{username}", s.removeOwnerFromGroupHandler)
 		r.HandleFunc("/group/{group-name}/remove-member/{username}", s.removeMemberFromGroupHandler)
@@ -549,16 +559,23 @@ type GroupData struct {
 	Membership string
 }
 
-func (s *Server) checkIsOwner(w http.ResponseWriter, user, group string) (bool, error) {
+func (s *Server) checkIsOwner(w http.ResponseWriter, user, group string) error {
 	isOwner, err := s.store.IsGroupOwner(user, group)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return false, err
+		return err
 	}
-	if !isOwner {
-		return false, fmt.Errorf("you are not the owner of the group %s", group)
+	if isOwner {
+		return nil
 	}
-	return true, nil
+	// TODO(dtabidze): right now this only checks if user is member of just one lvl upper group. should add transitive group check.
+	isMemberOfOwnerGroup, err := s.store.IsMemberOfOwnerGroup(user, group)
+	if err != nil {
+		return err
+	}
+	if !isMemberOfOwnerGroup {
+		return fmt.Errorf("you are not the owner or a member of any owner group of the group %s", group)
+	}
+	return nil
 }
 
 type templates struct {
@@ -631,7 +648,6 @@ func (s *Server) userHandler(w http.ResponseWriter, r *http.Request) {
 		LoggedInUserPage bool
 		CurrentUser      string
 		ErrorMessage     string
-		AdditionalCSS    bool
 	}{
 		OwnerGroups:      ownerGroups,
 		MembershipGroups: membershipGroups,
@@ -639,7 +655,6 @@ func (s *Server) userHandler(w http.ResponseWriter, r *http.Request) {
 		LoggedInUserPage: loggedInUserPage,
 		CurrentUser:      user,
 		ErrorMessage:     errorMsg,
-		AdditionalCSS:    false,
 	}
 	templates, err := parseTemplates(tmpls)
 	if err != nil {
@@ -703,7 +718,6 @@ func (s *Server) groupHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, errorMsg, http.StatusNotFound)
 		return
 	}
-	// tmpl, err := template.New("group").Parse(groupHTML)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -723,7 +737,7 @@ func (s *Server) groupHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	availableGroups, err := s.store.GetAvailableGroupsAsChild(groupName)
+	allGroups, err := s.store.GetAllGroups()
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -738,23 +752,30 @@ func (s *Server) groupHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
+	ownerGroups, err := s.store.GetGroupOwnerGroups(groupName)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
 	data := struct {
 		GroupName        string
 		Description      string
 		Owners           []string
 		Members          []string
-		AvailableGroups  []string
+		AllGroups        []Group
 		TransitiveGroups []Group
 		ChildGroups      []Group
+		OwnerGroups      []Group
 		ErrorMessage     string
 	}{
 		GroupName:        groupName,
 		Description:      description,
 		Owners:           owners,
 		Members:          members,
-		AvailableGroups:  availableGroups,
+		AllGroups:        allGroups,
 		TransitiveGroups: transitiveGroups,
 		ChildGroups:      childGroups,
+		OwnerGroups:      ownerGroups,
 		ErrorMessage:     errorMsg,
 	}
 	templates, err := parseTemplates(tmpls)
@@ -786,8 +807,9 @@ func (s *Server) removeChildGroupHandler(w http.ResponseWriter, r *http.Request)
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
-		if _, err := s.checkIsOwner(w, loggedInUser, parentGroup); err != nil {
-			http.Error(w, err.Error(), http.StatusUnauthorized)
+		if err := s.checkIsOwner(w, loggedInUser, parentGroup); err != nil {
+			redirectURL := fmt.Sprintf("/group/%s?errorMessage=%s", parentGroup, url.QueryEscape(err.Error()))
+			http.Redirect(w, r, redirectURL, http.StatusSeeOther)
 			return
 		}
 		err := s.store.RemoveFromGroupToGroup(parentGroup, childGroup)
@@ -815,8 +837,9 @@ func (s *Server) removeOwnerFromGroupHandler(w http.ResponseWriter, r *http.Requ
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
-		if _, err := s.checkIsOwner(w, loggedInUser, groupName); err != nil {
-			http.Error(w, err.Error(), http.StatusUnauthorized)
+		if err := s.checkIsOwner(w, loggedInUser, groupName); err != nil {
+			redirectURL := fmt.Sprintf("/group/%s?errorMessage=%s", groupName, url.QueryEscape(err.Error()))
+			http.Redirect(w, r, redirectURL, http.StatusSeeOther)
 			return
 		}
 		err := s.store.RemoveUserFromTable(username, groupName, tableName)
@@ -844,8 +867,9 @@ func (s *Server) removeMemberFromGroupHandler(w http.ResponseWriter, r *http.Req
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
-		if _, err := s.checkIsOwner(w, loggedInUser, groupName); err != nil {
-			http.Error(w, err.Error(), http.StatusUnauthorized)
+		if err := s.checkIsOwner(w, loggedInUser, groupName); err != nil {
+			redirectURL := fmt.Sprintf("/group/%s?errorMessage=%s", groupName, url.QueryEscape(err.Error()))
+			http.Redirect(w, r, redirectURL, http.StatusSeeOther)
 			return
 		}
 		err := s.store.RemoveUserFromTable(username, groupName, tableName)
@@ -884,8 +908,9 @@ func (s *Server) addUserToGroupHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	if _, err := s.checkIsOwner(w, loggedInUser, groupName); err != nil {
-		http.Error(w, err.Error(), http.StatusUnauthorized)
+	if err := s.checkIsOwner(w, loggedInUser, groupName); err != nil {
+		redirectURL := fmt.Sprintf("/group/%s?errorMessage=%s", groupName, url.QueryEscape(err.Error()))
+		http.Redirect(w, r, redirectURL, http.StatusSeeOther)
 		return
 	}
 	switch status {
@@ -927,8 +952,9 @@ func (s *Server) addChildGroupHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	if _, err := s.checkIsOwner(w, loggedInUser, parentGroup); err != nil {
-		http.Error(w, err.Error(), http.StatusUnauthorized)
+	if err := s.checkIsOwner(w, loggedInUser, parentGroup); err != nil {
+		redirectURL := fmt.Sprintf("/group/%s?errorMessage=%s", parentGroup, url.QueryEscape(err.Error()))
+		http.Redirect(w, r, redirectURL, http.StatusSeeOther)
 		return
 	}
 	if err := s.store.AddChildGroup(parentGroup, childGroup); err != nil {
@@ -937,6 +963,40 @@ func (s *Server) addChildGroupHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	http.Redirect(w, r, "/group/"+parentGroup, http.StatusSeeOther)
+}
+
+func (s *Server) addOwnerGroupHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	loggedInUser, err := getLoggedInUser(r)
+	if err != nil {
+		http.Error(w, "User Not Logged In", http.StatusUnauthorized)
+		return
+	}
+	vars := mux.Vars(r)
+	ownedGroup := vars["owned-group"]
+	if err := isValidGroupName(ownedGroup); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	ownerGroup := r.FormValue("owner-group")
+	if err := isValidGroupName(ownerGroup); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	if err := s.checkIsOwner(w, loggedInUser, ownedGroup); err != nil {
+		redirectURL := fmt.Sprintf("/group/%s?errorMessage=%s", ownedGroup, url.QueryEscape(err.Error()))
+		http.Redirect(w, r, redirectURL, http.StatusSeeOther)
+		return
+	}
+	if err := s.store.AddOwnerGroup(ownerGroup, ownedGroup); err != nil {
+		redirectURL := fmt.Sprintf("/group/%s?errorMessage=%s", ownedGroup, url.QueryEscape(err.Error()))
+		http.Redirect(w, r, redirectURL, http.StatusFound)
+		return
+	}
+	http.Redirect(w, r, "/group/"+ownedGroup, http.StatusSeeOther)
 }
 
 type initRequest struct {
