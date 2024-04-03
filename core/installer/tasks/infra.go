@@ -90,7 +90,7 @@ spec:
   interval: 1m0s
   url: https://github.com/giolekva/pcloud
   ref:
-    branch: main
+    branch: ingress-port-allocator
 `, env.Name)
 			if err != nil {
 				return err
@@ -190,6 +190,17 @@ func SetupNetwork(env Env, startIP net.IP, st *state) Task {
 			}
 		}
 		{
+			keys, err := installer.NewSSHKeyPair("port-allocator")
+			if err != nil {
+				return err
+			}
+			user := fmt.Sprintf("%s-port-allocator", env.Name)
+			if err := st.ssClient.AddUser(user, keys.AuthorizedKey()); err != nil {
+				return err
+			}
+			if err := st.ssClient.AddReadWriteCollaborator("config", user); err != nil {
+				return err
+			}
 			app, err := st.appsRepo.Find("private-network")
 			if err != nil {
 				return err
@@ -200,6 +211,7 @@ func SetupNetwork(env Env, startIP net.IP, st *state) Task {
 					"username": "private-network-proxy",
 					"ipSubnet": fmt.Sprintf("%s/24", startIP.String()),
 				},
+				"sshPrivateKey": string(keys.RawPrivateKey()),
 			}); err != nil {
 				return err
 			}

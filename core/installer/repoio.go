@@ -1,12 +1,16 @@
 package installer
 
 import (
+	"bytes"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
 	"io/fs"
 	"io/ioutil"
 	"net"
+	"net/http"
+	"os"
 	"path"
 	"path/filepath"
 	"sync"
@@ -29,7 +33,7 @@ type RepoIO interface {
 	ReadAppConfig(path string) (AppConfig, error)
 	ReadKustomization(path string) (*Kustomization, error)
 	WriteKustomization(path string, kust Kustomization) error
-	ReadYaml(path string) (any, error)
+	ReadYaml(path string) (map[string]any, error)
 	WriteYaml(path string, data any) error
 	CommitAndPush(message string) error
 	WriteCommitAndPush(path, contents, message string) error
@@ -163,7 +167,7 @@ func (r *repoIO) WriteYaml(path string, data any) error {
 	return nil
 }
 
-func (r *repoIO) ReadYaml(path string) (any, error) {
+func (r *repoIO) ReadYaml(path string) (map[string]any, error) {
 	inp, err := r.Reader(path)
 	if err != nil {
 		return nil, err
@@ -231,6 +235,8 @@ func (r *repoIO) RemoveDir(path string) error {
 
 type Release struct {
 	Namespace string `json:"namespace"`
+	RepoAddr  string `json:"repoAddr"`
+	AppDir    string `json:"appDir"`
 }
 
 type Derived struct {
@@ -246,6 +252,14 @@ type AppConfig struct {
 	Derived Derived        `json:"derived"`
 }
 
+type allocatePortReq struct {
+	Protocol      string `json:"protocol"`
+	SourcePort    int    `json:"sourcePort"`
+	TargetService string `json:"targetService"`
+	TargetPort    int    `json:"targetPort"`
+}
+
+// TODO(gio): most of this logic should move to AppManager
 func (r *repoIO) InstallApp(app App, appRootDir string, values map[string]any, derived Derived) error {
 	r.l.Lock()
 	defer r.l.Unlock()
@@ -254,6 +268,37 @@ func (r *repoIO) InstallApp(app App, appRootDir string, values map[string]any, d
 	}
 	if !filepath.IsAbs(appRootDir) {
 		return fmt.Errorf("Expected absolute path: %s", appRootDir)
+	}
+	derived.Release.RepoAddr = r.repo.Addr.FullAddress()
+	// TODO(gio): maybe client should populate this?
+	derived.Release.AppDir = appRootDir
+	rendered, err := app.Render(derived)
+	if err != nil {
+		return err
+	}
+	for _, p := range rendered.Ports {
+		var buf bytes.Buffer
+		req := allocatePortReq{
+			Protocol:      p.Protocol,
+			SourcePort:    p.SourcePort,
+			TargetService: p.TargetService,
+			TargetPort:    p.TargetPort,
+		}
+		fmt.Printf("%+v\n", req)
+		if err := json.NewEncoder(&buf).Encode(req); err != nil {
+			return err
+		}
+		resp, err := http.Post(p.Allocator, "application/json", &buf)
+		if err != nil {
+			return err
+		}
+		if resp.StatusCode != http.StatusOK {
+			io.Copy(os.Stdout, resp.Body)
+			return fmt.Errorf("Could not allocate port %d, status code: %d", p.SourcePort, resp.StatusCode)
+		}
+	}
+	if err := r.pullWithoutLock(); err != nil {
+		return err
 	}
 	appRootDir = filepath.Clean(appRootDir)
 	for p := appRootDir; p != "/"; {
@@ -292,10 +337,6 @@ func (r *repoIO) InstallApp(app App, appRootDir string, values map[string]any, d
 	}
 	{
 		appKust := NewKustomization()
-		rendered, err := app.Render(derived)
-		if err != nil {
-			return err
-		}
 		for name, contents := range rendered.Resources {
 			appKust.AddResources(name)
 			out, err := r.Writer(path.Join(appRootDir, name))
@@ -417,6 +458,8 @@ func deriveValues(values any, schema Schema, networks []Network) (map[string]any
 			ret[k] = v
 		case KindString:
 			ret[k] = v
+		case KindInt:
+			ret[k] = v
 		case KindNetwork:
 			n, err := findNetwork(networks, v.(string)) // TODO(giolekva): validate
 			if err != nil {
@@ -462,4 +505,5 @@ type Network struct {
 	IngressClass      string `json:"ingressClass,omitempty"`
 	CertificateIssuer string `json:"certificateIssuer,omitempty"`
 	Domain            string `json:"domain,omitempty"`
+	AllocatePortAddr  string `json:"allocatePortAddr,omitempty"`
 }

@@ -2,6 +2,7 @@ input: {
 	network: #Network
 	subdomain: string
 	key: #SSHKey
+	sshPort: int
 }
 
 _domain: "\(input.subdomain).\(input.network.domain)"
@@ -94,6 +95,15 @@ _longhorn: "longhorn"
 
 _httpPort: 80
 _sshPort: 22
+
+portForward: [#PortForward & {
+	allocator: input.network.allocatePortAddr
+	sourcePort: input.sshPort
+	// TODO(gio): namespace part must be populated by app manager. Otherwise
+	// third-party app developer might point to a service from different namespace.
+	targetService: "\(release.namespace)/gerrit-gerrit-service"
+	targetPort: _sshPort
+}]
 
 helm: _ingressWithAuthProxy.out.helm & {
 	gerrit: {
@@ -222,6 +232,7 @@ helm: _ingressWithAuthProxy.out.helm & {
   gracefulStopTimeout = 1m
 [sshd]
   listenAddress = 0.0.0.0:29418
+  advertisedAddress = \(_domain):\(input.sshPort)
 [transfer]
   timeout = 120 s
 [user]

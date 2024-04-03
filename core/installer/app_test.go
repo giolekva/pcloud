@@ -155,14 +155,16 @@ func TestGerrit(t *testing.T) {
 		Values: map[string]any{
 			"subdomain": "gerrit",
 			"network": map[string]any{
-				"name":         "Private",
-				"ingressClass": "id-ingress-private",
-				"domain":       "p.bar.ge",
+				"name":             "Private",
+				"ingressClass":     "id-ingress-private",
+				"domain":           "p.bar.ge",
+				"allocatePortAddr": "http://foo.bar/api/allocate",
 			},
 			"key": map[string]any{
 				"public":  "foo",
 				"private": "bar",
 			},
+			"sshPort": 22,
 		},
 	}
 	rendered, err := a.Render(d)

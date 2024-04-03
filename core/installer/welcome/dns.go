@@ -52,7 +52,7 @@ type gandiUpdater struct {
 
 func NewGandiUpdater(apiToken string) *gandiUpdater {
 	return &gandiUpdater{
-		provider: &gandi.Provider{APIToken: apiToken},
+		provider: &gandi.Provider{BearerToken: apiToken},
 	}
 }
 

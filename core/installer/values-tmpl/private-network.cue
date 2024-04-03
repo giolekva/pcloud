@@ -1,9 +1,14 @@
+import (
+	"encoding/base64"
+)
+
 input: {
 	privateNetwork: {
 		hostname: string
 		username: string
 		ipSubnet: string // TODO(gio): use cidr type
 	}
+	sshPrivateKey: string
 }
 
 name: "private-network"
@@ -23,6 +28,12 @@ images: {
 		tag: "v1.42.0"
 		pullPolicy: "IfNotPresent"
 	}
+	portAllocator: {
+		repository: "giolekva"
+		name: "port-allocator"
+		tag: "latest"
+		pullPolicy: "Always"
+	}
 }
 
 charts: {
@@ -40,6 +51,14 @@ charts: {
 			kind: "GitRepository"
 			name: "pcloud"
 			namespace: global.pcloudEnvName
+		}
+	}
+	portAllocator: {
+		chart: "charts/port-allocator"
+		sourceRef: {
+			kind: "GitRepository"
+			name: "pcloud"
+			namespace: global.id
 		}
 	}
 }
@@ -95,6 +114,19 @@ helm: {
 				repository: images["tailscale-proxy"].fullName
 				tag: images["tailscale-proxy"].tag
 				pullPolicy: images["tailscale-proxy"].pullPolicy
+			}
+		}
+	}
+	"port-allocator": {
+		chart: charts.portAllocator
+		values: {
+			repoAddr: release.repoAddr
+			sshPrivateKey: base64.Encode(null, input.sshPrivateKey)
+			ingressNginxPath: "\(release.appDir)/ingress-nginx.yaml"
+			image: {
+				repository: images.portAllocator.fullName
+				tag: images.portAllocator.tag
+				pullPolicy: images.portAllocator.pullPolicy
 			}
 		}
 	}

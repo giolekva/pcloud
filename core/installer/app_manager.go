@@ -140,11 +140,13 @@ func CreateNetworks(global Config) []Network {
 			IngressClass:      fmt.Sprintf("%s-ingress-public", global.Values.PCloudEnvName),
 			CertificateIssuer: fmt.Sprintf("%s-public", global.Values.Id),
 			Domain:            global.Values.Domain,
+			AllocatePortAddr:  fmt.Sprintf("http://port-allocator.%s-ingress-public/api/allocate", global.Values.PCloudEnvName),
 		},
 		{
-			Name:         "Private",
-			IngressClass: fmt.Sprintf("%s-ingress-private", global.Values.Id),
-			Domain:       global.Values.PrivateDomain,
+			Name:             "Private",
+			IngressClass:     fmt.Sprintf("%s-ingress-private", global.Values.Id),
+			Domain:           global.Values.PrivateDomain,
+			AllocatePortAddr: fmt.Sprintf("http://port-allocator.%s-ingress-private/api/allocate", global.Values.Id),
 		},
 	}
 }

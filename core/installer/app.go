@@ -78,6 +78,7 @@ namespace: string | *""
 	ingressClass: string
 	certificateIssuer: string | *""
 	domain: string
+	allocatePortAddr: string
 }
 
 networks: {
@@ -86,11 +87,13 @@ networks: {
 		ingressClass: "\(global.pcloudEnvName)-ingress-public"
 		certificateIssuer: "\(global.id)-public"
 		domain: global.domain
+		allocatePortAddr: "http://port-allocator.\(global.pcloudEnvName)-ingress-public.svc.cluster.local/api/allocate"
 	}
 	private: #Network & {
 		name: "Private"
 		ingressClass: "\(global.id)-ingress-private"
 		domain: global.privateDomain
+		allocatePortAddr: "http://port-allocator.\(global.id)-ingress-private.svc.cluster.local/api/allocate"
 	}
 }
 
@@ -127,7 +130,19 @@ networks: {
 
 #Release: {
 	namespace: string
+	repoAddr: string
+	appDir: string
 }
+
+#PortForward: {
+	allocator: string
+	protocol: "TCP" | "UDP" | *"TCP"
+	sourcePort: int
+	targetService: string
+	targetPort: int
+}
+
+portForward: [...#PortForward] | *[]
 
 global: #Global
 release: #Release
@@ -303,6 +318,7 @@ type appConfig struct {
 type Rendered struct {
 	Readme    string
 	Resources map[string][]byte
+	Ports     []PortForward
 }
 
 type App interface {
@@ -372,9 +388,18 @@ func (a cueApp) Namespaces() []string {
 	return []string{a.namespace}
 }
 
+type PortForward struct {
+	Allocator     string `json:"allocator"`
+	Protocol      string `json:"protocol"`
+	SourcePort    int    `json:"sourcePort"`
+	TargetService string `json:"targetService"`
+	TargetPort    int    `json:"targetPort"`
+}
+
 func (a cueApp) Render(derived Derived) (Rendered, error) {
 	ret := Rendered{
 		Resources: make(map[string][]byte),
+		Ports:     make([]PortForward, 0),
 	}
 	var buf bytes.Buffer
 	if err := json.NewEncoder(&buf).Encode(derived); err != nil {
@@ -394,6 +419,9 @@ func (a cueApp) Render(derived Derived) (Rendered, error) {
 		return Rendered{}, err
 	}
 	ret.Readme = readme
+	if err := res.LookupPath(cue.ParsePath("portForward")).Decode(&ret.Ports); err != nil {
+		return Rendered{}, err
+	}
 	output := res.LookupPath(cue.ParsePath("output"))
 	i, err := output.Fields()
 	if err != nil {

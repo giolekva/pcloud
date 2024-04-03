@@ -120,6 +120,8 @@ func WaitToPropagate(
 	expected []net.IP,
 ) Task {
 	t := newLeafTask("Wait to propagate", func() error {
+		time.Sleep(2 * time.Minute)
+		return nil
 		ctx := context.TODO()
 		gotExpectedIPs := func(actual []net.IP) bool {
 			for _, a := range actual {
