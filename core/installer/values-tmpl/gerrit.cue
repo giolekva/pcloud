@@ -169,6 +169,8 @@ helm: _ingressWithAuthProxy.out.helm & {
 				pluginManagement: {
 					plugins: [{
 						name: "gitiles"
+					}, {
+						name: "download-commands"
 					}]
 					libs: []
 					cache: enabled: false
@@ -206,6 +208,13 @@ helm: _ingressWithAuthProxy.out.helm & {
   gitBasicAuthPolicy = HTTP
   userNameToLowerCase = true
   userNameCaseInsensitive = true
+[download]
+  command = pull
+  command = cherry_pick
+  command = checkout
+  command = format_patch
+  scheme = ssh
+  scheme = http
 [httpd]
   # If using an ingress use proxy-http or proxy-https
   listenUrl = proxy-http://*:8080/
