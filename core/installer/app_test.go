@@ -164,6 +164,48 @@ func TestGerrit(t *testing.T) {
 				"public":  "foo",
 				"private": "bar",
 			},
+			"sshPort": 22,
+		},
+	}
+	rendered, err := a.Render(d)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, r := range rendered.Resources {
+		t.Log(string(r))
+	}
+}
+
+func TestJenkins(t *testing.T) {
+	r := NewInMemoryAppRepository(CreateAllApps())
+	a, err := r.Find("jenkins")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if a == nil {
+		t.Fatal("returned app is nil")
+	}
+	d := Derived{
+		Release: Release{
+			Namespace: "foo",
+		},
+		Global: Values{
+			PCloudEnvName:   "dodo",
+			Id:              "id",
+			ContactEmail:    "foo@bar.ge",
+			Domain:          "bar.ge",
+			PrivateDomain:   "p.bar.ge",
+			PublicIP:        "1.2.3.4",
+			NamespacePrefix: "id-",
+		},
+		Values: map[string]any{
+			"subdomain": "jenkins",
+			"network": map[string]any{
+				"name":             "Private",
+				"ingressClass":     "id-ingress-private",
+				"domain":           "p.bar.ge",
+				"allocatePortAddr": "http://foo.bar/api/allocate",
+			},
 		},
 	}
 	rendered, err := a.Render(d)

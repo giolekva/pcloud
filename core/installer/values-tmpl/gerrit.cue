@@ -2,6 +2,7 @@ input: {
 	network: #Network
 	subdomain: string
 	key: #SSHKey
+	sshPort: int
 }
 
 _domain: "\(input.subdomain).\(input.network.domain)"
@@ -109,6 +110,16 @@ _latest: "latest"
 _longhorn: "longhorn"
 
 _httpPort: 80
+_sshPort: 22
+
+portForward: [#PortForward & {
+	allocator: input.network.allocatePortAddr
+	sourcePort: input.sshPort
+	// TODO(gio): namespace part must be populated by app manager. Otherwise
+	// third-party app developer might point to a service from different namespace.
+	targetService: "\(release.namespace)/gerrit-gerrit-service"
+	targetPort: _sshPort
+}]
 
 _oauth2ClientCredentials: "gerrit-oauth2-credentials"
 _gerritConfigMapName: "gerrit-config"
@@ -180,7 +191,8 @@ data:
       requestLog = true
       gracefulStopTimeout = 1m
     [sshd]
-      listenAddress = off
+      listenAddress = 0.0.0.0:29418
+      advertisedAddress = \(_domain):\(input.sshPort)
     [transfer]
       timeout = 120 s
     [user]
@@ -266,7 +278,8 @@ data:
 					}
 					http: port: _httpPort
 					ssh: {
-						enabled: false
+						enabled: true
+						port: _sshPort
 					}
 				}
 				pluginManagement: {
@@ -278,6 +291,8 @@ data:
 						name: "oauth"
 						url: "https://drive.google.com/uc?export=download&id=1rSUpZCAVvHZTmRgUl4enrsAM73gndjeP"
 						sha1: "cbdc5228a18b051a6e048a8e783e556394cc5db1"
+					}, {
+						name: "webhooks"
 					}]
 					libs: []
 					cache: enabled: false
