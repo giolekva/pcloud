@@ -87,6 +87,7 @@ func handle(w http.ResponseWriter, r *http.Request) {
 	}
 	rc := r.Clone(context.Background())
 	rc.Header.Add("X-User", user.Identity.Traits.Username)
+	rc.Header.Add("X-Forwarded-User", user.Identity.Traits.Username)
 	ru, err := url.Parse(fmt.Sprintf("http://%s%s", *upstream, r.URL.RequestURI()))
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)

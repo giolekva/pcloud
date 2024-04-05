@@ -1,0 +1,18 @@
+apiVersion: hydra.ory.sh/v1alpha1
+kind: OAuth2Client
+metadata:
+  name: jenkins-oauth2-client
+  namespace: szdt
+spec:
+  grantTypes:
+  - authorization_code
+  hydraAdmin:
+    endpoint: /admin/clients
+    forwardedProto: https
+    port: 80
+    url: http://hydra-admin.szdt-core-auth.svc.cluster.local
+  redirectUris:
+  - https://jenkins.p.v0.dodo.cloud/securityRealm/finishLogin
+  scope: openid profile email offline offline_access
+  secretName: jenkins-oauth2-credentials
+  tokenEndpointAuthMethod: client_secret_post
