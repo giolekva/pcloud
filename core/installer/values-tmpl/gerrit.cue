@@ -16,7 +16,7 @@ icon: "<svg xmlns='http://www.w3.org/2000/svg' width='50' height='50' viewBox='0
 _ingressWithAuthProxy: _IngressWithAuthProxy & {
 	inp: {
 		auth: {
-			enabled: true
+			enabled: false
 		}
 		network: input.network
 		subdomain: input.subdomain
@@ -73,6 +73,22 @@ charts: _ingressWithAuthProxy.out.charts & {
 			namespace: global.id
 		}
 	}
+	oauth2Client: {
+		chart: "charts/oauth2-client"
+		sourceRef: {
+			kind: "GitRepository"
+			name: "pcloud"
+			namespace: global.id
+		}
+	}
+	resourceRenderer: {
+		chart: "charts/resource-renderer"
+		sourceRef: {
+			kind: "GitRepository"
+			name: "pcloud"
+			namespace: global.id
+		}
+	}
 }
 
 volumes: {
@@ -105,7 +121,95 @@ portForward: [#PortForward & {
 	targetPort: _sshPort
 }]
 
+_oauth2ClientCredentials: "gerrit-oauth2-credentials"
+_gerritConfigMapName: "gerrit-config"
+
 helm: _ingressWithAuthProxy.out.helm & {
+	"oauth2-client": {
+		chart: charts.oauth2Client
+		values: {
+			name: "gerrit-oauth2-client"
+			secretName: _oauth2ClientCredentials
+			grantTypes: ["authorization_code"]
+			scope: "openid profile email"
+			hydraAdmin: "http://hydra-admin.\(global.id)-core-auth.svc.cluster.local"
+			redirectUris: ["https://\(_domain)/oauth"]
+		}
+	}
+	"config-renderer": {
+		chart: charts.resourceRenderer
+		values: {
+			name: "config-renderer"
+			secretName: _oauth2ClientCredentials
+			resourceTemplate: """
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: \(_gerritConfigMapName)
+  namespace: \(release.namespace)
+data:
+  replication.config: |
+	[gerrit]
+	  autoReload = false
+	  replicateOnStartup = true
+	  defaultForceUpdate = true
+gerrit.config: |
+  [gerrit]
+	basePath = git # FIXED
+	serverId = gerrit-1
+	# The canonical web URL has to be set to the Ingress host, if an Ingress
+	# is used. If a LoadBalancer-service is used, this should be set to the
+	# LoadBalancer's external IP. This can only be done manually after installing
+	# the chart, when you know the external IP the LoadBalancer got from the
+	# cluster.
+	canonicalWebUrl = https://\(_domain)
+	disableReverseDnsLookup = true
+  [index]
+	type = LUCENE
+  [auth]
+	type = OAUTH
+	gitBasicAuthPolicy = HTTP
+	userNameToLowerCase = true
+	userNameCaseInsensitive = true
+  [plugin "gerrit-oauth-provider-pcloud-oauth"]
+	root-url = https://hydra.\(global.domain)
+	client-id = "{{ .client_id }}"
+	client-secret = "{{ .client_secret }}"
+	link-to-existing-openid-accounts = true
+  [download]
+	command = pull
+	command = cherry_pick
+	command = checkout
+	command = format_patch
+	scheme = ssh
+	scheme = http
+  [httpd]
+	# If using an ingress use proxy-http or proxy-https
+	listenUrl = proxy-http://*:8080/
+	requestLog = true
+	gracefulStopTimeout = 1m
+  [sshd]
+	listenAddress = 0.0.0.0:29418
+	advertisedAddress = \(_domain):\(input.sshPort)
+  [transfer]
+	timeout = 120 s
+  [user]
+	name = Gerrit Code Review
+	email = gerrit@\(global.domain)
+	anonymousCoward = Unnamed User
+  [cache]
+	directory = cache
+  [container]
+	user = gerrit # FIXED
+	javaHome = /usr/lib/jvm/java-11-openjdk # FIXED
+	javaOptions = -Djavax.net.ssl.trustStore=/var/gerrit/etc/keystore # FIXED
+	javaOptions = -Xms200m
+	# Has to be lower than 'gerrit.resources.limits.memory'. Also
+	# consider memories used by other applications in the container.
+	javaOptions = -Xmx4g
+"""
+		}
+	}
 	gerrit: {
 		chart: charts.gerrit
 		values: {
@@ -181,75 +285,20 @@ helm: _ingressWithAuthProxy.out.helm & {
 						name: "gitiles"
 					}, {
 						name: "download-commands"
+					}, {
+						name: "oauth"
+						url: "https://drive.google.com/uc?export=download&id=1H0chId6GQPRhsJIyhEVVlcEnbVeLrNsE"
+						sha1: "01ffcd51508795c2ac3ec36948f5221852330e09"
 					}]
 					libs: []
 					cache: enabled: false
 				}
 				etc: {
 					secret: {
-						// TODO(gio): auto generate
 						ssh_host_ecdsa_key: input.key.private
 						"ssh_host_ecdsa_key.pub": input.key.public
 					}
-					config: {
-						"replication.config": """
-[gerrit]
-  autoReload = false
-  replicateOnStartup = true
-  defaultForceUpdate = true"""
-						"gerrit.config": """
-[gerrit]
-  basePath = git # FIXED
-  serverId = gerrit-1
-  # The canonical web URL has to be set to the Ingress host, if an Ingress
-  # is used. If a LoadBalancer-service is used, this should be set to the
-  # LoadBalancer's external IP. This can only be done manually after installing
-  # the chart, when you know the external IP the LoadBalancer got from the
-  # cluster.
-  canonicalWebUrl = https://\(_domain)
-  disableReverseDnsLookup = true
-[index]
-  type = LUCENE
-[auth]
-  type = HTTP
-  httpHeader = X-User
-  emailFormat = '{0}@\(global.domain)'
-  logoutUrl = https://accounts-ui.\(global.domain)/logout
-  gitBasicAuthPolicy = HTTP
-  userNameToLowerCase = true
-  userNameCaseInsensitive = true
-[download]
-  command = pull
-  command = cherry_pick
-  command = checkout
-  command = format_patch
-  scheme = ssh
-  scheme = http
-[httpd]
-  # If using an ingress use proxy-http or proxy-https
-  listenUrl = proxy-http://*:8080/
-  requestLog = true
-  gracefulStopTimeout = 1m
-[sshd]
-  listenAddress = 0.0.0.0:29418
-  advertisedAddress = \(_domain):\(input.sshPort)
-[transfer]
-  timeout = 120 s
-[user]
-  name = Gerrit Code Review
-  email = gerrit@\(global.domain)
-  anonymousCoward = Unnamed User
-[cache]
-  directory = cache
-[container]
-  user = gerrit # FIXED
-  javaHome = /usr/lib/jvm/java-11-openjdk # FIXED
-  javaOptions = -Djavax.net.ssl.trustStore=/var/gerrit/etc/keystore # FIXED
-  javaOptions = -Xms200m
-  # Has to be lower than 'gerrit.resources.limits.memory'. Also
-  # consider memories used by other applications in the container.
-  javaOptions = -Xmx4g"""
-					}
+					existingConfigMapName: _gerritConfigMapName
 				}
 			}
 		}

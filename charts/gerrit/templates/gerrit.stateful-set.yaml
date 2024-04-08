@@ -257,7 +257,7 @@ spec:
       {{- end }}
       - name: gerrit-config
         configMap:
-          name: {{ .Release.Name }}-gerrit-configmap
+          name: {{ if .Values.gerrit.etc.existingConfigMapName }}{{ .Values.gerrit.etc.existingConfigMapName }}{{ else }} {{ .Release.Name }}-gerrit-configmap{{ end }}
       - name: gerrit-secure-config
         secret:
           secretName: {{ .Release.Name }}-gerrit-secure-config

@@ -256,6 +256,8 @@ gerrit:
   priorityClassName:
 
   etc:
+    # If provided config section below will be ignored.
+    existingConfigMapName: ""
     # Some values are expected to have a specific value for the deployment installed
     # by this chart to work. These are marked with `# FIXED`.
     # Do not change them!

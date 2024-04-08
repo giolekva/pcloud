@@ -1,0 +1,8 @@
+name: gerrit-oauth2-client
+secretName: gerrit-oauth2-credentials
+grantTypes:
+  - authorization_code
+scope: "openid profile email"
+hydraAdmin: "http://hydra-admin.szdt-core-auth.svc.cluster.local"
+redirectUris:
+  - https://ee.p.v0.dodo.cloud/oauth
