@@ -1,5 +1,6 @@
 {{- $root := . -}}
 
+{{- if not .Values.gerrit.etc.existingConfigMapName }}
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -28,6 +29,7 @@ data:
       enabled = false
   {{- end }}
 ---
+{{- end }}
 apiVersion: v1
 kind: ConfigMap
 metadata:
