@@ -225,19 +225,26 @@ func (s *Server) loginInitiate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if challenge, ok := r.Form["login_challenge"]; ok {
+		username, err := getWhoAmIFromKratos(r.Cookies())
+		if err != nil && err != ErrNotLoggedIn {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		if err == nil {
+			redirectTo, err := s.hydra.LoginAcceptChallenge(challenge[0], username)
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
+			http.Redirect(w, r, redirectTo, http.StatusSeeOther)
+			return
+		}
 		// TODO(giolekva): encrypt
 		http.SetCookie(w, &http.Cookie{
 			Name:     "login_challenge",
 			Value:    challenge[0],
 			HttpOnly: true,
 		})
-	} else {
-		// http.SetCookie(w, &http.Cookie{
-		// 	Name:     "login_challenge",
-		// 	Value:    "",
-		// 	Expires:  time.Unix(0, 0),
-		// 	HttpOnly: true,
-		// })
 	}
 	returnTo := r.Form.Get("return_to")
 	flow, ok := r.Form["flow"]
