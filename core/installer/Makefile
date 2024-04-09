@@ -46,6 +46,9 @@ env:
 rewrite:
 	./pcloud rewrite --ssh-key=/Users/lekva/.ssh/id_ed25519 --repo-addr=ssh://localhost:2222/config
 
+launcher:
+	./pcloud launcher --port=9090 --logout-url=http://localhost:8080
+
 ## installer image
 build_arm64: export CGO_ENABLED=0
 build_arm64: export GO111MODULE=on

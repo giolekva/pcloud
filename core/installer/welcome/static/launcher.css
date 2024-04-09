@@ -1,0 +1,290 @@
+:root:not([data-theme]) {
+    --pico-background-color: unset;
+    --pico-color: unset;
+}
+
+body {
+    margin: 0;
+    padding: 0;
+    font-family: Arial, sans-serif;
+    display: flex;
+    height: 100vh;
+    padding-left: 10px !important;
+    padding-right: 10px !important;
+    background-color: black;
+}
+
+#left-panel {
+    width: 80px;
+    background-color: #f0f0f0;
+    border-radius: 10px;
+    border-width: 1px;
+    border-color: black;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    margin-top: 5px;
+    margin-bottom: 5px;
+}
+
+.app-list {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+#right-panel {
+    flex: 1;
+    background-color: #f0f0f0;
+    margin: 5px;
+    padding: 2px;
+    border-radius: 10px;
+    border-color: black;
+}
+
+#appFrame {
+    border-radius: 10px;
+}
+
+.app-icon-tooltip {
+    position: relative;
+    display: inline-block;
+    align-items: flex-start;
+    justify-content: center;
+    cursor: initial;
+    width: 80px !important;
+    height: 50px !important;
+    margin-bottom: 10px !important;
+    cursor: pointer !important;
+    --pico-background-color: unset !important;
+    --pico-color: unset !important;
+}
+
+.tooltip {
+    position: absolute;
+    width: 200px;
+    border-radius: 0 10px 10px 0;
+    top: 70%;
+    left: 98%;
+    transform: translateY(-50%);
+    background-color: black;
+    color: white;
+    box-shadow: 0 0 5px rgba(0, 0, 0, 0.2);
+    padding: 5px;
+    z-index: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    visibility: hidden;
+    opacity: 0;
+    cursor: auto;
+    font-size: 16px;
+}
+
+.help-button {
+    margin-top: 5px !important;
+    padding: 0 !important;
+    border: 0 !important;
+    margin-bottom: 5px !important;
+    width: 100% !important;
+    color: white !important;
+    cursor: pointer !important;
+    font-size: 16px !important;
+}
+
+.icon {
+    display: flex;
+    justify-content: center;
+    align-items: center !important;
+}
+
+.tooltip p {
+    color: white;
+    margin: 0;
+    cursor: auto;
+}
+
+.app-icon-tooltip:hover {
+    transform: scale(1.15);
+}
+
+.app-icon-tooltip .background-glow {
+    position: absolute;
+    top: 0;
+    left: 4px;
+    right: 4px;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0);
+    pointer-events: none;
+    border-radius: 5px;
+    box-shadow: 0px 0px 7px 7px black;
+}
+
+.modal-left {
+    width: 30%;
+    overflow-y: auto;
+    float: left;
+    margin-left: 0px;
+    background-color: #fbfcfc;
+    border-radius: 2px;
+}
+
+.modal-right {
+    /* flex: 1; */
+    width: 70%;
+    overflow-y: auto;
+    float: right;
+    margin-left: 2px;
+}
+
+.app-help-modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.app-help-modal-article {
+    display: flex;
+    flex-direction: row;
+    width: 100%;
+    max-width: 100%;
+    min-height: 97%;
+    max-height: 97%;
+    overflow: hidden;
+}
+
+.app-info-modal-article header {
+    flex: 0 0 auto;
+}
+
+header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    position: relative;
+    margin-bottom: 2px !important;
+}
+
+.close-button {
+    padding: 0;
+    border: none;
+    background: none;
+    cursor: pointer;
+    outline: none;
+    width: 1.5em;
+    height: 1.5em;
+    position: absolute;
+    top: 11px;
+    right: 5px;
+}
+
+.modal-article {
+    min-width: 80% !important;
+    max-width: 80% !important;
+    min-height: 90% !important;
+    max-height: 90% !important;
+    overflow: hidden;
+}
+
+.help-content {
+    display: none;
+}
+
+.circle {
+    width: 50px;
+    height: 50px;
+    border-radius: 50%;
+    background-color: #ccc;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.circle p {
+    font-size: 24px;
+    text-align: center;
+    line-height: 50px;
+    margin: 0;
+    position: relative;
+    display: inline-block;
+}
+
+.user-circle {
+    min-width: 80px !important;
+    max-width: 80px !important;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.separator {
+    margin-top: 2px !important;
+    margin-bottom: 4px !important;
+    border-width: 2px !important;
+    border-color: black !important;
+    width: 100% !important;
+}
+
+ul {
+    padding-inline-start: 0px !important;
+    margin-bottom: 0px;
+    list-style: none;
+    font-size: 14px;
+}
+
+ul ul {
+    padding-inline-start: 19px;
+}
+
+ul li {
+    list-style: none !important;
+    padding-inline-start: 19px !important;
+    margin-bottom: 0px;
+    font-size: 16px !important;
+}
+
+.tooltip-user {
+    position: absolute;
+    top: 54px;
+    left: 90px;
+    transform: translateY(-50%);
+    width: 234px;
+    background-color: black;
+    box-shadow: 0 0 5px rgba(0, 0, 0, 0.2);
+    padding: 5px;
+    z-index: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    visibility: hidden;
+    opacity: 0;
+    border-radius: 0 0 10px 0;
+    cursor: auto;
+}
+
+.tooltip-user button {
+    margin-top: 5px !important;
+    padding: 0 !important;
+    border: 0 !important;
+    margin-bottom: 5px !important;
+    width: 100% !important;
+    color: white !important;
+    cursor: pointer !important;
+    font-size: 19px !important;
+}
+
+.tooltip-user p {
+    color: white;
+    margin: 0;
+    cursor: auto;
+    font-size: 19px;
+    /* align-self: flex-start; */
+}

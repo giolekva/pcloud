@@ -14,3 +14,4 @@ target
 main
 *_arm64
 *_amd64
+.vscode/

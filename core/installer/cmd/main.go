@@ -27,6 +27,7 @@ func init() {
 	rootCmd.AddCommand(envManagerCmd())
 	rootCmd.AddCommand(welcomeCmd())
 	rootCmd.AddCommand(rewriteCmd())
+	rootCmd.AddCommand(launcherCmd())
 }
 
 func main() {

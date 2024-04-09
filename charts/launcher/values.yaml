@@ -1,0 +1,6 @@
+image:
+  repository: giolekva/launcher
+  tag: latest
+  pullPolicy: Always
+portName: http
+logoutUrl: logout.example.com
