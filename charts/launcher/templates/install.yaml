@@ -13,6 +13,14 @@ spec:
       port: 80
       targetPort: http
 ---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: ssh-key
+type: Opaque
+data:
+  private: {{ .Values.sshPrivateKey }}
+---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -28,6 +36,10 @@ spec:
       labels:
         app: launcher
     spec:
+      volumes:
+      - name: ssh-key
+        secret:
+          secretName: ssh-key
       containers:
       - name: launcher
         image: {{ .Values.image.repository }}:{{ .Values.image.tag }}
@@ -36,6 +48,13 @@ spec:
           containerPort: 8080
           protocol: TCP
         command:
+        - pcloud-installer
         - launcher
         - --port=8080
-        - --logoutUrl={{ .Values.logoutUrl }}
+        - --logout-url={{ .Values.logoutUrl }}
+        - --ssh-key=/pcloud/ssh-key/private
+        - --repo-addr={{ .Values.repoAddr }}
+        volumeMounts:
+        - name: ssh-key
+          readOnly: true
+          mountPath: /pcloud/ssh-key

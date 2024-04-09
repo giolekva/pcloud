@@ -22,6 +22,15 @@ description: string | *""
 readme: string | *""
 icon: string | *""
 namespace: string | *""
+help: [...#HelpDocument] | *[]
+
+#HelpDocument: {
+	title: string
+	contents: string
+	children: [...#HelpDocument] | *[]
+}
+
+url: string | *""
 
 #AppType: "infra" | "env"
 appType: #AppType | *"env"
@@ -302,6 +311,15 @@ type Rendered struct {
 	Ports     []PortForward
 	Config    AppInstanceConfig
 	Data      CueAppData
+	Help      []HelpDocument
+	Url       string
+	Icon      string
+}
+
+type HelpDocument struct {
+	Title    string
+	Contents string
+	Children []HelpDocument
 }
 
 type PortForward struct {
@@ -499,6 +517,22 @@ func (a cueApp) render(values map[string]any) (Rendered, error) {
 			ret.Resources[name] = contents
 		}
 	}
+	helpValue := res.LookupPath(cue.ParsePath("help"))
+	if helpValue.Exists() {
+		if err := helpValue.Decode(&ret.Help); err != nil {
+			return Rendered{}, err
+		}
+	}
+	url, err := res.LookupPath(cue.ParsePath("url")).String()
+	if err != nil {
+		return Rendered{}, err
+	}
+	ret.Url = url
+	icon, err := res.LookupPath(cue.ParsePath("icon")).String()
+	if err != nil {
+		return Rendered{}, err
+	}
+	ret.Icon = icon
 	return ret, nil
 }
 
@@ -538,6 +572,8 @@ func (a cueEnvApp) Render(release Release, env AppEnvConfig, values map[string]a
 		Release: release,
 		Values:  values,
 		Input:   derived,
+		Help:    ret.Help,
+		Url:     ret.Url,
 	}
 	return ret, nil
 }

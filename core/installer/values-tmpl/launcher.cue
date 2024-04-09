@@ -1,9 +1,14 @@
+import (
+	"encoding/base64"
+)
+
 input: {
-	authGroups: string
+    repoAddr: string
+	sshPrivateKey: string
 }
 
 _subdomain: "launcher"
-_domain: "\(_subdomain).\(global.privateDomain)"
+_domain: "\(_subdomain).\(networks.public.domain)"
 
 name: "launcher"
 namespace: "core-installer-welcome-launcher"
@@ -15,11 +20,8 @@ _httpPortName: "http"
 
 ingress: {
 	launcher: {
-		auth: {
-			enabled: true
-			groups: input.authGroups
-		}
-		network: networks.private
+		auth: enabled: true
+		network: networks.public
 		subdomain: _subdomain
 		service: {
 			name: "launcher"
@@ -58,6 +60,8 @@ helm: {
                 pullPolicy: images.launcher.pullPolicy
             }
             portName: _httpPortName
+            repoAddr: input.repoAddr
+            sshPrivateKey: base64.Encode(null, input.sshPrivateKey)
             logoutUrl: "https://accounts-ui.\(global.domain)/logout"
         }
     }

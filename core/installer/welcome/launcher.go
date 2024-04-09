@@ -7,6 +7,8 @@ import (
 	"log"
 	"net/http"
 	"strings"
+
+	"github.com/giolekva/pcloud/core/installer"
 )
 
 //go:embed launcher-tmpl/launcher.html
@@ -16,21 +18,18 @@ var indexHTML embed.FS
 var files embed.FS
 
 type AppLauncherInfo struct {
-	Name        string
-	Description string
-	Icon        template.HTML
-	Help        []HelpDocument
-	Url         string
-}
-
-type HelpDocument struct {
-	Title    string
-	Contents string
-	Children []HelpDocument
+	Name string
+	Icon template.HTML
+	Help []installer.HelpDocument
+	Url  string
 }
 
 type AppDirectory interface {
 	GetAllApps() ([]AppLauncherInfo, error)
+}
+
+type AppManagerDirectory struct {
+	AppManager *installer.AppManager
 }
 
 type LauncherServer struct {
@@ -78,6 +77,33 @@ func cleanAppName(name string) string {
 	return cleanName
 }
 
+func (d *AppManagerDirectory) GetAllApps() ([]AppLauncherInfo, error) {
+	allAppInstances, err := d.AppManager.FindAllInstances()
+	if err != nil {
+		return nil, err
+	}
+	var ret []AppLauncherInfo
+	for _, appInstance := range allAppInstances {
+		appLauncherInfo := AppLauncherInfo{
+			Name: appInstance.AppId,
+			Icon: template.HTML(appInstance.Icon),
+			Help: appInstance.Help,
+			Url:  appInstance.Url,
+		}
+		ret = append(ret, appLauncherInfo)
+	}
+	return ret, nil
+}
+
+func getLoggedInUser(r *http.Request) (string, error) {
+	if user := r.Header.Get("X-User"); user != "" {
+		return user, nil
+	} else {
+		return "", fmt.Errorf("unauthenticated")
+	}
+	// return "Username", nil
+}
+
 func (s *LauncherServer) Start() {
 	http.Handle("/static/", http.FileServer(http.FS(files)))
 	http.HandleFunc("/", s.homeHandler)
@@ -90,11 +116,14 @@ type homeHandlerData struct {
 }
 
 func (s *LauncherServer) homeHandler(w http.ResponseWriter, r *http.Request) {
-	loggedInUsername := "longusername"
+	loggedInUsername, err := getLoggedInUser(r)
+	if err != nil {
+		http.Error(w, "User Not Logged In", http.StatusUnauthorized)
+		return
+	}
 	allAppsInfo, err := s.appDirectory.GetAllApps()
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
 	data := homeHandlerData{
 		LoggedInUsername: loggedInUsername,

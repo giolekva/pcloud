@@ -43,6 +43,7 @@ var storeAppConfigs = []string{
 	"values-tmpl/welcome.cue",
 	"values-tmpl/memberships.cue",
 	"values-tmpl/headscale.cue",
+	"values-tmpl/launcher.cue",
 }
 
 var infraAppConfigs = []string{

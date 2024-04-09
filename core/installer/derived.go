@@ -26,6 +26,9 @@ type AppInstanceConfig struct {
 	Release Release        `json:"release"`
 	Values  map[string]any `json:"values"`
 	Input   map[string]any `json:"input"`
+	Icon    string         `json:"icon"`
+	Help    []HelpDocument `json:"help"`
+	Url     string         `json:"url"`
 }
 
 func (a AppInstanceConfig) InputToValues(schema Schema) map[string]any {

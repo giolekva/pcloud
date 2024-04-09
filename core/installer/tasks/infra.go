@@ -48,6 +48,7 @@ func SetupInfra(env Env, startIP net.IP, st *state) Task {
 		SetupHeadscale(env, startIP, st),
 		SetupWelcome(env, st),
 		SetupAppStore(env, st),
+		SetupLauncher(env, st),
 	)
 }
 
@@ -414,6 +415,37 @@ func SetupAppStore(env Env, st *state) Task {
 			"repoAddr":      st.ssClient.GetRepoAddress("config"),
 			"sshPrivateKey": string(keys.RawPrivateKey()),
 			"authGroups":    strings.Join(initGroups, ","),
+		}); err != nil {
+			return err
+		}
+		return nil
+	})
+	return &t
+}
+
+func SetupLauncher(env Env, st *state) Task {
+	t := newLeafTask("Application Launcher", func() error {
+		user := fmt.Sprintf("%s-launcher", env.Name)
+		keys, err := installer.NewSSHKeyPair(user)
+		if err != nil {
+			return err
+		}
+		if err := st.ssClient.AddUser(user, keys.AuthorizedKey()); err != nil {
+			return err
+		}
+		if err := st.ssClient.AddReadWriteCollaborator("config", user); err != nil { //TODO(gio): add read only
+			return err
+		}
+		app, err := installer.FindEnvApp(st.appsRepo, "launcher") // TODO(giolekva): configure
+		if err != nil {
+			return err
+		}
+		instanceId := app.Name()
+		appDir := fmt.Sprintf("/apps/%s", instanceId)
+		namespace := fmt.Sprintf("%s%s", env.NamespacePrefix, app.Namespace())
+		if err := st.appManager.Install(app, instanceId, appDir, namespace, map[string]any{
+			"repoAddr":      st.ssClient.GetRepoAddress("config"),
+			"sshPrivateKey": string(keys.RawPrivateKey()),
 		}); err != nil {
 			return err
 		}

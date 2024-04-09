@@ -3,4 +3,7 @@ image:
   tag: latest
   pullPolicy: Always
 portName: http
+appRepoAddr: ""
 logoutUrl: logout.example.com
+sshPrivateKey: key
+repoAddr: ""
