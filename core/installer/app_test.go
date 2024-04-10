@@ -164,7 +164,6 @@ func TestGerrit(t *testing.T) {
 				"public":  "foo",
 				"private": "bar",
 			},
-			"sshPort": 22,
 		},
 	}
 	rendered, err := a.Render(d)

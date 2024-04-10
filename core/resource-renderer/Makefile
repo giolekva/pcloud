@@ -1,6 +1,6 @@
 
 # Image URL to use all building/pushing image targets
-IMG ?= giolekva/resource-renderer-controller:latest
+IMG ?= giolekva/resource-renderer-controller
 # ENVTEST_K8S_VERSION refers to the version of kubebuilder assets to be downloaded by envtest binary.
 ENVTEST_K8S_VERSION = 1.24.2
 
@@ -88,16 +88,16 @@ build_amd64:
 
 .PHONY: docker-build
 docker-build: test clean build_arm64 build_amd64 ## Build docker image with the manager.
-	podman build --platform linux/arm64 --tag ${IMG}-arm64 .
-	podman build --platform linux/amd64 --tag ${IMG}-amd64 .
+	docker build --platform linux/arm64 --tag ${IMG}:arm64 .
+	docker build --platform linux/amd64 --tag ${IMG}:amd64 .
 
 .PHONY: docker-push
 docker-push: ## Push docker image with the manager.
-	podman push ${IMG}-arm64
-	podman push ${IMG}-amd64
-	podman manifest create ${IMG} ${IMG}-arm64 ${IMG}-amd64
-	podman manifest push ${IMG} docker://docker.io/${IMG}
-	podman manifest rm ${IMG}
+	docker push ${IMG}:arm64
+	docker push ${IMG}:amd64
+	docker manifest create ${IMG}:latest ${IMG}:arm64 ${IMG}:amd64
+	docker manifest push ${IMG}:latest
+	docker manifest rm ${IMG}:latest
 
 ##@ Deployment
 
