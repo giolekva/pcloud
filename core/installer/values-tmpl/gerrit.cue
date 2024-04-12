@@ -288,6 +288,12 @@ data:
 					}, {
 						name: "download-commands"
 					}, {
+						name: "singleusergroup"
+					}, {
+						name: "codemirror-editor"
+					}, {
+						name: "reviewnotes"
+					}, {
 						name: "oauth"
 						url: "https://drive.google.com/uc?export=download&id=1rSUpZCAVvHZTmRgUl4enrsAM73gndjeP"
 						sha1: "cbdc5228a18b051a6e048a8e783e556394cc5db1"
