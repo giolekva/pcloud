@@ -510,11 +510,27 @@ func (s *Server) consent(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	w.Header().Set("Content-Type", "text/html")
-	if err := s.tmpls.Consent.Execute(w, consent.RequestedScopes); err != nil {
+	username, err := getWhoAmIFromKratos(r.Cookies())
+	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
+	acceptedScopes := consent.RequestedScopes
+	idToken := map[string]string{
+		"username": username,
+		"email":    username + "@" + *emailDomain,
+	}
+	// TODO(gio): is auto consent safe? should such behaviour be configurable?
+	if redirectTo, err := s.hydra.ConsentAccept(r.FormValue("consent_challenge"), acceptedScopes, idToken); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	} else {
+		http.Redirect(w, r, redirectTo, http.StatusSeeOther)
+	}
+	// w.Header().Set("Content-Type", "text/html")
+	// if err := s.tmpls.Consent.Execute(w, consent.RequestedScopes); err != nil {
+	// 	http.Error(w, err.Error(), http.StatusInternalServerError)
+	// 	return
+	// }
 }
 
 func (s *Server) processConsent(w http.ResponseWriter, r *http.Request) {
