@@ -140,7 +140,7 @@ func extractPorts(rel map[string]any) (map[string]any, map[string]any, error) {
 
 func addPort(pm map[string]any, req allocateReq) error {
 	sourcePortStr := strconv.Itoa(req.SourcePort)
-	if _, ok := pm[sourcePortStr]; ok || req.SourcePort == 80 || req.SourcePort == 443 {
+	if _, ok := pm[sourcePortStr]; ok || req.SourcePort == 80 || req.SourcePort == 443 || req.SourcePort == 22 {
 		return fmt.Errorf("port %d is already taken", req.SourcePort)
 	}
 	pm[sourcePortStr] = fmt.Sprintf("%s:%d", req.TargetService, req.TargetPort)
