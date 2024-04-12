@@ -12,7 +12,7 @@
       <label for="{{ $name }}">
         <span>{{ $name }}</span>
       </label>
-	  <input type="text" name="{{ $name }}" oninput="valueChanged({{ $name }}, parseInt(this.value))" {{ if $readonly }}disabled{{ end }} {{ if index $data $name }}checked{{ end }} />
+	  <input type="text" name="{{ $name }}" oninput="valueChanged({{ $name }}, parseInt(this.value))" {{ if $readonly }}disabled{{ end }} value="{{ index $data $name }}" />
     {{ else if eq $schema.Kind 1 }}
       <label for="{{ $name }}">
         <span>{{ $name }}</span>
@@ -28,7 +28,7 @@
         <span>{{ $name }}</span>
       </label>
 	  <select name="{{ $name }}" oninput="valueChanged({{ $name }}, this.value)" {{ if $readonly }}disabled{{ end }} >
-		{{ if not $readonly }}<option disabled selected value> -- select an option -- </option>{{ end }}
+		{{ if not $readonly }}<option disabled selected value>Available networks</option>{{ end }}
 		{{ range $networks }}
 		  <option {{if eq .Name (index $data $name) }}selected{{ end }}>{{ .Name }}</option>
 		{{ end }}
@@ -75,7 +75,7 @@
 
 <form id="config-form">
     {{ if $instance }}
-      {{ template "schema-form" (dict "Schema" $schema "AvailableNetworks" $networks "ReadOnly" false "Data" $instance.Config) }}
+      {{ template "schema-form" (dict "Schema" $schema "AvailableNetworks" $networks "ReadOnly" false "Data" ($instance.Input $schema)) }}
     {{ else }}
       {{ template "schema-form" (dict "Schema" $schema "AvailableNetworks" $networks "ReadOnly" false "Data" (dict)) }}
     {{ end }}
@@ -93,7 +93,7 @@
   {{ if or (not $instance) (ne $instance.Id .Id)}}
     <details>
       <summary>{{ .Id }}</summary>
-      {{ template "schema-form" (dict "Schema" $schema "AvailableNetworks" $networks "ReadOnly" true "Data" .Config ) }}
+      {{ template "schema-form" (dict "Schema" $schema "AvailableNetworks" $networks "ReadOnly" true "Data" (.Input $schema) ) }}
       <a href="/instance/{{ .Id }}" role="button" class="secondary">View</a>
     </details>
   {{ end }}
@@ -139,7 +139,7 @@
 
 <script>
  let readme = "";
- let config = {{ if $instance }}JSON.parse({{ toJson $instance.Config }}){{ else }}{}{{ end }};
+ let config = {{ if $instance }}JSON.parse({{ toJson ($instance.Input $schema) }}){{ else }}{}{{ end }};
 
  function setValue(name, value, config) {
   let items = name.split(".")

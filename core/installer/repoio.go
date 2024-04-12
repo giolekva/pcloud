@@ -252,6 +252,14 @@ type AppConfig struct {
 	Derived Derived        `json:"derived"`
 }
 
+func (a AppConfig) Input(schema Schema) map[string]any {
+	ret, err := derivedToConfig(a.Derived.Values, schema)
+	if err != nil {
+		panic(err) // TODO(gio): handle
+	}
+	return ret
+}
+
 type allocatePortReq struct {
 	Protocol      string `json:"protocol"`
 	SourcePort    int    `json:"sourcePort"`
@@ -480,6 +488,68 @@ func deriveValues(values any, schema Schema, networks []Network) (map[string]any
 			ret[k] = r
 		case KindStruct:
 			r, err := deriveValues(v, def, networks)
+			if err != nil {
+				return nil, err
+			}
+			ret[k] = r
+		default:
+			return nil, fmt.Errorf("Should not reach!")
+		}
+	}
+	return ret, nil
+}
+
+func derivedToConfig(derived map[string]any, schema Schema) (map[string]any, error) {
+	ret := make(map[string]any)
+	for k, def := range schema.Fields() {
+		v, ok := derived[k]
+		// TODO(gio): if missing use default value
+		if !ok {
+			continue
+		}
+		switch def.Kind() {
+		case KindBoolean:
+			ret[k] = v
+		case KindString:
+			ret[k] = v
+		case KindInt:
+			ret[k] = v
+		case KindNetwork:
+			vm, ok := v.(map[string]any)
+			if !ok {
+				return nil, fmt.Errorf("expected map")
+			}
+			name, ok := vm["name"]
+			if !ok {
+				return nil, fmt.Errorf("expected network name")
+			}
+			ret[k] = name
+		case KindAuth:
+			vm, ok := v.(map[string]any)
+			if !ok {
+				return nil, fmt.Errorf("expected map")
+			}
+			r, err := derivedToConfig(vm, AuthSchema)
+			if err != nil {
+				return nil, err
+			}
+			ret[k] = r
+		case KindSSHKey:
+			vm, ok := v.(map[string]any)
+			if !ok {
+				return nil, fmt.Errorf("expected map")
+			}
+			r, err := derivedToConfig(vm, SSHKeySchema)
+			if err != nil {
+				return nil, err
+			}
+			ret[k] = r
+		case KindStruct:
+			vm, ok := v.(map[string]any)
+			if !ok {
+				return nil, fmt.Errorf("expected map")
+			}
+			r, err := derivedToConfig(vm, def)
 			if err != nil {
 				return nil, err
 			}
