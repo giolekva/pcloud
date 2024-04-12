@@ -1,9 +1,7 @@
 package installer
 
 import (
-	"encoding/json"
 	"fmt"
-	"strings"
 
 	"cuelang.org/go/cue"
 	"cuelang.org/go/cue/cuecontext"
@@ -174,37 +172,4 @@ func NewCueSchema(v cue.Value) (Schema, error) {
 	default:
 		return nil, fmt.Errorf("SHOULD NOT REACH!")
 	}
-}
-
-func newSchema(schema map[string]any) (Schema, error) {
-	switch schema["type"] {
-	case "string":
-		if r, ok := schema["role"]; ok && r == "network" {
-			return basicSchema{KindNetwork}, nil
-		} else {
-			return basicSchema{KindString}, nil
-		}
-	case "object":
-		s := structSchema{make(map[string]Schema)}
-		props := schema["properties"].(map[string]any)
-		for name, schema := range props {
-			sm, _ := schema.(map[string]any)
-			scm, err := newSchema(sm)
-			if err != nil {
-				return nil, err
-			}
-			s.fields[name] = scm
-		}
-		return s, nil
-	default:
-		return nil, fmt.Errorf("SHOULD NOT REACH!")
-	}
-}
-
-func NewJSONSchema(schema string) (Schema, error) {
-	ret := make(map[string]any)
-	if err := json.NewDecoder(strings.NewReader(schema)).Decode(&ret); err != nil {
-		return nil, err
-	}
-	return newSchema(ret)
 }

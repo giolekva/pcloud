@@ -388,17 +388,12 @@ func (b Bootstrapper) installInfrastructureServices(repo RepoIO, nsGen Namespace
 		if err != nil {
 			return err
 		}
-		namespaces := make([]string, len(app.Namespaces()))
-		for i, n := range app.Namespaces() {
-			namespaces[i], err = nsGen.Generate(n)
-			if err != nil {
-				return err
-			}
+		nms, err := nsGen.Generate(app.Namespace())
+		if err != nil {
+			return err
 		}
-		for _, n := range namespaces {
-			if err := nsCreator.Create(n); err != nil {
-				return err
-			}
+		if err := nsCreator.Create(nms); err != nil {
+			return err
 		}
 		derived := Derived{
 			Global: Values{
@@ -407,9 +402,7 @@ func (b Bootstrapper) installInfrastructureServices(repo RepoIO, nsGen Namespace
 			Release: Release{},
 			Values:  make(map[string]any),
 		}
-		if len(namespaces) > 0 {
-			derived.Release.Namespace = namespaces[0]
-		}
+		derived.Release.Namespace = nms
 		values := map[string]any{}
 		return repo.InstallApp(app, filepath.Join("/infrastructure", app.Name()), values, derived)
 	}
@@ -497,17 +490,12 @@ func (b Bootstrapper) installEnvManager(ss *soft.Client, repo RepoIO, nsGen Name
 	if err != nil {
 		return err
 	}
-	namespaces := make([]string, len(app.Namespaces()))
-	for i, n := range app.Namespaces() {
-		namespaces[i], err = nsGen.Generate(n)
-		if err != nil {
-			return err
-		}
+	nms, err := nsGen.Generate(app.Namespace())
+	if err != nil {
+		return err
 	}
-	for _, n := range namespaces {
-		if err := nsCreator.Create(n); err != nil {
-			return err
-		}
+	if err := nsCreator.Create(nms); err != nil {
+		return err
 	}
 	derived := Derived{
 		Global: Values{
@@ -520,9 +508,7 @@ func (b Bootstrapper) installEnvManager(ss *soft.Client, repo RepoIO, nsGen Name
 			"sshPrivateKey": string(keys.RawPrivateKey()),
 		},
 	}
-	if len(namespaces) > 0 {
-		derived.Release.Namespace = namespaces[0]
-	}
+	derived.Release.Namespace = nms
 	return repo.InstallApp(app, filepath.Join("/infrastructure", app.Name()), derived.Values, derived)
 }
 
@@ -532,17 +518,12 @@ func (b Bootstrapper) installOryHydraMaester(ss *soft.Client, repo RepoIO, nsGen
 	if err != nil {
 		return err
 	}
-	namespaces := make([]string, len(app.Namespaces()))
-	for i, n := range app.Namespaces() {
-		namespaces[i], err = nsGen.Generate(n)
-		if err != nil {
-			return err
-		}
+	nms, err := nsGen.Generate(app.Namespace())
+	if err != nil {
+		return err
 	}
-	for _, n := range namespaces {
-		if err := nsCreator.Create(n); err != nil {
-			return err
-		}
+	if err := nsCreator.Create(nms); err != nil {
+		return err
 	}
 	derived := Derived{
 		Global: Values{
@@ -550,9 +531,7 @@ func (b Bootstrapper) installOryHydraMaester(ss *soft.Client, repo RepoIO, nsGen
 		},
 		Values: map[string]any{},
 	}
-	if len(namespaces) > 0 {
-		derived.Release.Namespace = namespaces[0]
-	}
+	derived.Release.Namespace = nms
 	return repo.InstallApp(app, filepath.Join("/infrastructure", app.Name()), derived.Values, derived)
 }
 
@@ -603,7 +582,7 @@ func (b Bootstrapper) installFluxcdReconciler(ss *soft.Client, repo RepoIO, nsGe
 	if err != nil {
 		return err
 	}
-	ns, err := nsGen.Generate(app.Namespaces()[0])
+	ns, err := nsGen.Generate(app.Namespace())
 	if err != nil {
 		return err
 	}

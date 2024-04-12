@@ -59,18 +59,13 @@ func (m *AppManager) Install(app App, ns NamespaceGenerator, suffixGen SuffixGen
 	if err != nil {
 		return err
 	}
-	namespaces := make([]string, len(app.Namespaces()))
-	for i, n := range app.Namespaces() {
-		ns, err := ns.Generate(n)
-		if err != nil {
-			return err
-		}
-		namespaces[i] = ns + suffix
+	nms, err := ns.Generate(app.Namespace())
+	if err != nil {
+		return err
 	}
-	for _, n := range namespaces {
-		if err := m.nsCreator.Create(n); err != nil {
-			return err
-		}
+	nms = nms + suffix
+	if err := m.nsCreator.Create(nms); err != nil {
+		return err
 	}
 	globalConfig, err := m.repoIO.ReadConfig()
 	if err != nil {
@@ -85,9 +80,7 @@ func (m *AppManager) Install(app App, ns NamespaceGenerator, suffixGen SuffixGen
 		Global: globalConfig.Values,
 		Values: derivedValues,
 	}
-	if len(namespaces) > 0 {
-		derived.Release.Namespace = namespaces[0]
-	}
+	derived.Release.Namespace = nms
 	fmt.Printf("%+v\n", derived)
 	err = m.repoIO.InstallApp(
 		app,

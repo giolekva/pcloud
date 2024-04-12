@@ -328,7 +328,7 @@ type App interface {
 	Description() string
 	Icon() template.HTML
 	Schema() Schema
-	Namespaces() []string
+	Namespace() string
 	Render(derived Derived) (Rendered, error)
 }
 
@@ -386,8 +386,8 @@ func (a cueApp) Schema() Schema {
 	return a.schema
 }
 
-func (a cueApp) Namespaces() []string {
-	return []string{a.namespace}
+func (a cueApp) Namespace() string {
+	return a.namespace
 }
 
 type PortForward struct {
