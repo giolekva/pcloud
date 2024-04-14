@@ -36,6 +36,7 @@ var storeAppConfigs = []string{
 	"values-tmpl/url-shortener.cue",
 	"values-tmpl/gerrit.cue",
 	"values-tmpl/jenkins.cue",
+	"values-tmpl/zot.cue",
 }
 
 var infraAppConfigs = []string{

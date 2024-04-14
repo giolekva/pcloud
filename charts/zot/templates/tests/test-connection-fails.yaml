@@ -1,0 +1,28 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: "{{ include "zot.fullname" . }}-test-connection-fails"
+  labels:
+    {{- include "zot.labels" . | nindent 4 }}
+  annotations:
+    "helm.sh/hook": test
+    "helm.sh/hook-delete-policy": before-hook-creation,hook-succeeded,hook-failed
+spec:
+  containers:
+    - name: wget
+      image: alpine:3.18
+      command:
+      - sh
+      - -c
+      - |
+        scheme="http"
+        {{- if eq $.Values.httpGet.scheme "HTTPS"}}
+          scheme="https"
+        {{- end }}
+        echo "$scheme"
+        {{- if .Values.authHeader }}
+          wget --no-check-certificate -o output $scheme://{{ include "zot.fullname" . }}:{{ .Values.service.port }}/v2/_catalog  || (grep Unauthorized output)
+        {{- else }}
+          wget --no-check-certificate $scheme://{{ include "zot.fullname" . }}:{{ .Values.service.port }}/v2/_catalog
+        {{- end }}
+  restartPolicy: Never

@@ -1,0 +1,23 @@
+suite: configmap checksum in deployment
+# Can't use global templates in this test suite as it will break the checksum calculation
+# causing false negative test outcome.
+# templates:
+#   - deployment.yaml
+tests:
+  - it: has no checksum/config if no config
+    template: deployment.yaml
+    asserts:
+      - isNull:
+          path: spec.template.metadata.annotations.checksum/config
+  - it: generate checksum/config if config is present
+    template: deployment.yaml
+    set:
+      mountConfig: true
+      configFiles:
+        config.json: "{}"
+    asserts:
+      - isNotNull:
+          path: spec.template.metadata.annotations.checksum/config
+      - matchRegex:
+          path: spec.template.metadata.annotations.checksum/config
+          pattern: "^[a-f0-9]{64}$" # SHA256 hex output
