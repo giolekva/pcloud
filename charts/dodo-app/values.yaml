@@ -1,0 +1,9 @@
+image:
+  repository: giolekva/pcloud-installer
+  tag: latest
+  pullPolicy: Always
+repoAddr: 192.168.0.11
+sshPrivateKey: key
+self: ""
+namespace: ""
+envConfig: ""

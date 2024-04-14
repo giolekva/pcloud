@@ -2,6 +2,7 @@ package installer
 
 import (
 	"bytes"
+	_ "embed"
 	"encoding/json"
 	"fmt"
 	template "html/template"
@@ -16,8 +17,15 @@ import (
 	cueyaml "cuelang.org/go/encoding/yaml"
 )
 
+//go:embed pcloud_app.cue
+var DodoAppCue []byte
+
 // TODO(gio): import
 const cueEnvAppGlobal = `
+import (
+    "net"
+)
+
 #Global: {
 	id: string | *""
 	pcloudEnvName: string | *""
@@ -31,20 +39,13 @@ const cueEnvAppGlobal = `
 	network: #EnvNetwork
 }
 
-networks: {
-	public: #Network & {
-		name: "Public"
-		ingressClass: "\(global.pcloudEnvName)-ingress-public"
-		certificateIssuer: "\(global.id)-public"
-		domain: global.domain
-		allocatePortAddr: "http://port-allocator.\(global.pcloudEnvName)-ingress-public.svc.cluster.local/api/allocate"
-	}
-	private: #Network & {
-		name: "Private"
-		ingressClass: "\(global.id)-ingress-private"
-		domain: global.privateDomain
-		allocatePortAddr: "http://port-allocator.\(global.id)-ingress-private.svc.cluster.local/api/allocate"
-	}
+#EnvNetwork: {
+	dns: net.IPv4
+	dnsInClusterIP: net.IPv4
+	ingress: net.IPv4
+	headscale: net.IPv4
+	servicesFrom: net.IPv4
+	servicesTo: net.IPv4
 }
 
 // TODO(gio): remove
@@ -164,10 +165,6 @@ _ingressValidate: {}
 `
 
 const cueBaseConfig = `
-import (
-  "net"
-)
-
 name: string | *""
 description: string | *""
 readme: string | *""
@@ -187,9 +184,11 @@ url: string | *""
 #AppType: "infra" | "env"
 appType: #AppType | *"env"
 
-#Auth: {
-  enabled: bool | *false // TODO(gio): enabled by default?
-  groups: string | *"" // TODO(gio): []string
+#Release: {
+	appInstanceId: string
+	namespace: string
+	repoAddr: string
+	appDir: string
 }
 
 #Network: {
@@ -198,6 +197,11 @@ appType: #AppType | *"env"
 	certificateIssuer: string | *""
 	domain: string
 	allocatePortAddr: string
+}
+
+#Auth: {
+  enabled: bool | *false // TODO(gio): enabled by default?
+  groups: string | *"" // TODO(gio): []string
 }
 
 #Image: {
@@ -220,22 +224,6 @@ appType: #AppType | *"env"
 	kind: "GitRepository" | "HelmRepository"
 	name: string
 	namespace: string // TODO(gio): default global.id
-}
-
-#EnvNetwork: {
-	dns: net.IPv4
-	dnsInClusterIP: net.IPv4
-	ingress: net.IPv4
-	headscale: net.IPv4
-	servicesFrom: net.IPv4
-	servicesTo: net.IPv4
-}
-
-#Release: {
-	appInstanceId: string
-	namespace: string
-	repoAddr: string
-	appDir: string
 }
 
 #PortForward: {
@@ -302,6 +290,8 @@ _helmValidate: {
 	}
 }
 
+resources: {}
+
 #HelmRelease: {
 	_name: string
 	_chart: #Chart
@@ -349,6 +339,8 @@ output: {
 help: [...#HelpDocument] | *[]
 
 url: string | *""
+
+networks: {}
 `
 
 type rendered struct {
@@ -620,17 +612,34 @@ func (a cueApp) render(values map[string]any) (rendered, error) {
 	if err := res.LookupPath(cue.ParsePath("portForward")).Decode(&ret.Ports); err != nil {
 		return rendered{}, err
 	}
-	output := res.LookupPath(cue.ParsePath("output"))
-	i, err := output.Fields()
-	if err != nil {
-		return rendered{}, err
-	}
-	for i.Next() {
-		if contents, err := cueyaml.Encode(i.Value()); err != nil {
+	{
+		output := res.LookupPath(cue.ParsePath("output"))
+		i, err := output.Fields()
+		if err != nil {
 			return rendered{}, err
-		} else {
-			name := fmt.Sprintf("%s.yaml", cleanName(i.Selector().String()))
-			ret.Resources[name] = contents
+		}
+		for i.Next() {
+			if contents, err := cueyaml.Encode(i.Value()); err != nil {
+				return rendered{}, err
+			} else {
+				name := fmt.Sprintf("%s.yaml", cleanName(i.Selector().String()))
+				ret.Resources[name] = contents
+			}
+		}
+	}
+	{
+		resources := res.LookupPath(cue.ParsePath("resources"))
+		i, err := resources.Fields()
+		if err != nil {
+			return rendered{}, err
+		}
+		for i.Next() {
+			if contents, err := cueyaml.Encode(i.Value()); err != nil {
+				return rendered{}, err
+			} else {
+				name := fmt.Sprintf("%s.yaml", cleanName(i.Selector().String()))
+				ret.Resources[name] = contents
+			}
 		}
 	}
 	helpValue := res.LookupPath(cue.ParsePath("help"))
@@ -664,6 +673,15 @@ func NewCueEnvApp(data CueAppData) (EnvApp, error) {
 	return cueEnvApp{app}, nil
 }
 
+func NewDodoApp(appCfg []byte) (EnvApp, error) {
+	return NewCueEnvApp(CueAppData{
+		"app.cue":        appCfg,
+		"base.cue":       []byte(cueBaseConfig),
+		"pcloud_app.cue": DodoAppCue,
+		"env_app.cue":    []byte(cueEnvAppGlobal),
+	})
+}
+
 func (a cueEnvApp) Type() AppType {
 	return AppTypeEnv
 }
@@ -675,9 +693,10 @@ func (a cueEnvApp) Render(release Release, env EnvConfig, values map[string]any)
 		return EnvAppRendered{}, nil
 	}
 	ret, err := a.cueApp.render(map[string]any{
-		"global":  env,
-		"release": release,
-		"input":   derived,
+		"global":   env,
+		"release":  release,
+		"input":    derived,
+		"networks": networkMap(networks),
 	})
 	if err != nil {
 		return EnvAppRendered{}, err
@@ -746,4 +765,12 @@ func join[T fmt.Stringer](items []T, sep string) string {
 		tmp = append(tmp, i.String())
 	}
 	return strings.Join(tmp, ",")
+}
+
+func networkMap(networks []Network) map[string]Network {
+	ret := make(map[string]Network)
+	for _, n := range networks {
+		ret[strings.ToLower(n.Name)] = n
+	}
+	return ret
 }

@@ -5,7 +5,7 @@ input: {
 	adminKey: string @name(Admin SSH Public Key)
 }
 
-_domain: "\(input.subdomain).\(global.privateDomain)"
+_domain: "\(input.subdomain).\(input.network.domain)"
 
 name: "Soft-Serve"
 namespace: "app-soft-serve"
@@ -35,7 +35,7 @@ charts: {
 }
 
 ingress: {
-	gerrit: {
+	gerrit: { // TODO(gio): rename to soft-serve
 		auth: enabled: false
 		network: input.network
 		subdomain: input.subdomain

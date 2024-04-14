@@ -1,6 +1,7 @@
 package installer
 
 import (
+	_ "embed"
 	"net"
 	"testing"
 )
@@ -296,5 +297,21 @@ func TestDNSGateway(t *testing.T) {
 	}
 	for _, r := range rendered.Data {
 		t.Log(string(r))
+	}
+}
+
+//go:embed testapp.cue
+var testAppCue []byte
+
+type appInput struct {
+	RepoAddr string  `json:"repoAddr"`
+	SSHKey   string  `json:"sshKey"`
+	Network  Network `json:"network"`
+}
+
+func TestPCloudApp(t *testing.T) {
+	_, err := NewDodoApp(testAppCue)
+	if err != nil {
+		t.Fatal(err)
 	}
 }

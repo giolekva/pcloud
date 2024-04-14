@@ -19,6 +19,8 @@ import (
 	"github.com/go-git/go-git/v5/storage/memory"
 )
 
+var ErrorAlreadyExists = errors.New("already exists")
+
 type Client interface {
 	Address() string
 	Signer() ssh.Signer
@@ -32,6 +34,7 @@ type Client interface {
 	MakeUserAdmin(name string) error
 	AddReadWriteCollaborator(repo, user string) error
 	AddReadOnlyCollaborator(repo, user string) error
+	AddWebhook(repo, url string, opts ...string) error
 }
 
 type realClient struct {
@@ -131,6 +134,9 @@ func (ss *realClient) RunCommand(args ...string) error {
 
 func (ss *realClient) AddRepository(name string) error {
 	log.Printf("Adding repository %s", name)
+	if err := ss.RunCommand("repo", "info", name); err == nil {
+		return ErrorAlreadyExists
+	}
 	return ss.RunCommand("repo", "create", name)
 }
 
@@ -142,6 +148,14 @@ func (ss *realClient) AddReadWriteCollaborator(repo, user string) error {
 func (ss *realClient) AddReadOnlyCollaborator(repo, user string) error {
 	log.Printf("Adding read-only collaborator %s %s", repo, user)
 	return ss.RunCommand("repo", "collab", "add", repo, user, "read-only")
+}
+
+func (ss *realClient) AddWebhook(repo, url string, opts ...string) error {
+	log.Printf("Adding webhook %s %s", repo, url)
+	return ss.RunCommand(append(
+		[]string{"repo", "webhook", "create", repo, url},
+		opts...,
+	)...)
 }
 
 type Repository struct {

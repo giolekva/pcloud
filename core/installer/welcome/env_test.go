@@ -59,7 +59,7 @@ func (r mockRepoIO) Pull() error {
 	return nil
 }
 
-func (r mockRepoIO) CommitAndPush(message string) error {
+func (r mockRepoIO) CommitAndPush(message string, opts ...soft.PushOption) error {
 	r.t.Logf("Commit and push: %s", message)
 	return nil
 }
@@ -125,6 +125,10 @@ func (f fakeSoftServeClient) AddReadWriteCollaborator(repo, user string) error {
 }
 
 func (f fakeSoftServeClient) AddReadOnlyCollaborator(repo, user string) error {
+	return nil
+}
+
+func (f fakeSoftServeClient) AddWebhook(repo, url string, opts ...string) error {
 	return nil
 }
 

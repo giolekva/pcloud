@@ -18,6 +18,7 @@ import (
 var valuesTmpls embed.FS
 
 var storeEnvAppConfigs = []string{
+	"values-tmpl/dodo-app.cue",
 	"values-tmpl/url-shortener.cue",
 	"values-tmpl/matrix.cue",
 	"values-tmpl/vaultwarden.cue",

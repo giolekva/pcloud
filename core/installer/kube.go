@@ -31,6 +31,16 @@ type ZoneStatusFetcher interface {
 	Fetch(addr string) (string, error)
 }
 
+type noOpNamespaceCreator struct{}
+
+func (n *noOpNamespaceCreator) Create(name string) error {
+	return nil
+}
+
+func NewNoOpNamespaceCreator() NamespaceCreator {
+	return &noOpNamespaceCreator{}
+}
+
 type realNamespaceCreator struct {
 	clientset *kubernetes.Clientset
 }

@@ -3,10 +3,12 @@ package soft
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"io/fs"
 	"io/ioutil"
 	"net"
+	"os"
 	"path/filepath"
 	"sync"
 	"time"
@@ -16,6 +18,7 @@ import (
 	"github.com/go-git/go-billy/v5"
 	"github.com/go-git/go-billy/v5/util"
 	"github.com/go-git/go-git/v5"
+	"github.com/go-git/go-git/v5/config"
 	"github.com/go-git/go-git/v5/plumbing/object"
 	gitssh "github.com/go-git/go-git/v5/plumbing/transport/ssh"
 	"golang.org/x/crypto/ssh"
@@ -33,6 +36,8 @@ type DoFn func(r RepoFS) (string, error)
 
 type doOptions struct {
 	NoCommit bool
+	Force    bool
+	ToBranch string
 }
 
 type DoOption func(*doOptions)
@@ -43,11 +48,42 @@ func WithNoCommit() DoOption {
 	}
 }
 
+func WithForce() DoOption {
+	return func(o *doOptions) {
+		o.Force = true
+	}
+}
+
+func WithCommitToBranch(branch string) DoOption {
+	return func(o *doOptions) {
+		o.ToBranch = branch
+	}
+}
+
+type pushOptions struct {
+	ToBranch string
+	Force    bool
+}
+
+type PushOption func(*pushOptions)
+
+func WithToBranch(branch string) PushOption {
+	return func(o *pushOptions) {
+		o.ToBranch = branch
+	}
+}
+
+func PushWithForce() PushOption {
+	return func(o *pushOptions) {
+		o.Force = true
+	}
+}
+
 type RepoIO interface {
 	RepoFS
 	FullAddress() string
 	Pull() error
-	CommitAndPush(message string) error
+	CommitAndPush(message string, opts ...PushOption) error
 	Do(op DoFn, opts ...DoOption) error
 }
 
@@ -120,8 +156,9 @@ func (r *repoIO) pullWithoutLock() error {
 		return nil
 	}
 	err = wt.Pull(&git.PullOptions{
-		Auth:  auth(r.signer),
-		Force: true,
+		Auth:     auth(r.signer),
+		Force:    true,
+		Progress: os.Stdout,
 	})
 	if err == nil {
 		return nil
@@ -130,10 +167,15 @@ func (r *repoIO) pullWithoutLock() error {
 		return nil
 	}
 	// TODO(gio): check `remote repository is empty`
+	fmt.Println(err)
 	return nil
 }
 
-func (r *repoIO) CommitAndPush(message string) error {
+func (r *repoIO) CommitAndPush(message string, opts ...PushOption) error {
+	var o pushOptions
+	for _, i := range opts {
+		i(&o)
+	}
 	wt, err := r.repo.Worktree()
 	if err != nil {
 		return err
@@ -149,10 +191,17 @@ func (r *repoIO) CommitAndPush(message string) error {
 	}); err != nil {
 		return err
 	}
-	return r.repo.Push(&git.PushOptions{
+	gopts := &git.PushOptions{
 		RemoteName: "origin",
 		Auth:       auth(r.signer),
-	})
+	}
+	if o.ToBranch != "" {
+		gopts.RefSpecs = []config.RefSpec{config.RefSpec(fmt.Sprintf("refs/heads/master:refs/heads/%s", o.ToBranch))}
+	}
+	if o.Force {
+		gopts.Force = true
+	}
+	return r.repo.Push(gopts)
 }
 
 func (r *repoIO) Do(op DoFn, opts ...DoOption) error {
@@ -169,7 +218,14 @@ func (r *repoIO) Do(op DoFn, opts ...DoOption) error {
 		return err
 	} else {
 		if !o.NoCommit {
-			return r.CommitAndPush(msg)
+			popts := []PushOption{}
+			if o.Force {
+				popts = append(popts, PushWithForce())
+			}
+			if o.ToBranch != "" {
+				popts = append(popts, WithToBranch(o.ToBranch))
+			}
+			return r.CommitAndPush(msg, popts...)
 		}
 	}
 	return nil
@@ -247,4 +303,13 @@ func ReadKustomization(repo RepoFS, path string) (*pio.Kustomization, error) {
 		return nil, err
 	}
 	return ret, nil
+}
+
+func ReadFile(repo RepoFS, path string) ([]byte, error) {
+	r, err := repo.Reader(path)
+	if err != nil {
+		return nil, err
+	}
+	defer r.Close()
+	return io.ReadAll(r)
 }

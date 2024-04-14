@@ -28,6 +28,7 @@ func init() {
 	rootCmd.AddCommand(welcomeCmd())
 	rootCmd.AddCommand(rewriteCmd())
 	rootCmd.AddCommand(launcherCmd())
+	rootCmd.AddCommand(dodoAppCmd())
 }
 
 func main() {

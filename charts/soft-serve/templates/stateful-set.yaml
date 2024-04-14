@@ -33,7 +33,8 @@ spec:
         - name: SOFT_SERVE_SSH_PUBLIC_URL
           value: "ssh://{{ .Values.ingress.domain }}:{{ .Values.sshPublicPort }}"
         - name: SOFT_SERVE_INITIAL_ADMIN_KEYS
-          value: "{{ .Values.adminKey }}"
+          value: |-
+{{ indent 12 .Values.adminKey }}
         {{ if and .Values.privateKey .Values.publicKey }}
         - name: SOFT_SERVE_SSH_KEY_PATH
           value: /.ssh/key

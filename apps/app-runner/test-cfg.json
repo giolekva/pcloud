@@ -1,0 +1,9 @@
+[
+  {
+  "bin": "/usr/local/go/bin/go",
+  "args": ["mod", "tidy"]
+}, {
+  "bin": "/usr/local/go/bin/go",
+  "args": ["run", "main.go", "--port=8081"]
+}
+]

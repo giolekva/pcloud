@@ -1,0 +1,101 @@
+{{ $runCfg := .Values.runCfg | b64dec }}
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: app-ssh-key
+type: Opaque
+data:
+  private: {{ .Values.sshPrivateKey }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: app-run-cfg
+data:
+  run: |
+{{ indent 4 $runCfg }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: app-app
+  namespace: {{ .Release.Namespace }}
+spec:
+  type: ClusterIP
+  selector:
+    app: app-app
+  ports:
+  - name: app
+    port: 80
+    targetPort: app
+    protocol: TCP
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: app-api
+  namespace: {{ .Release.Namespace }}
+spec:
+  type: ClusterIP
+  selector:
+    app: app-app
+  ports:
+  - name: api
+    port: 3000
+    targetPort: api
+    protocol: TCP
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: app-app
+  namespace: {{ .Release.Namespace }}
+spec:
+  selector:
+    matchLabels:
+      app: app-app
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: app-app
+    spec:
+      volumes:
+      - name: ssh-key
+        secret:
+          secretName: app-ssh-key
+      - name: run-cfg
+        configMap:
+          name: app-run-cfg
+      containers:
+      - name: app
+        image: {{ .Values.image.repository }}:{{ .Values.image.tag }}
+        imagePullPolicy: {{ .Values.image.pullPolicy }}
+        ports:
+        - name: api
+          containerPort: 3000
+          protocol: TCP
+        - name: app
+          containerPort: {{ .Values.appPort }}
+          protocol: TCP
+        env:
+        - name: SELF_IP
+          valueFrom:
+            fieldRef:
+              fieldPath: status.podIP
+        command:
+        - app-runner
+        - --port=3000
+        - --app-dir=/dodo-app
+        - --repo-addr={{ .Values.repoAddr }}
+        - --ssh-key=/pcloud/ssh-key/private
+        - --run-cfg=/pcloud/config/run
+        - --manager={{ .Values.manager }}
+        volumeMounts:
+        - name: ssh-key
+          readOnly: true
+          mountPath: /pcloud/ssh-key
+        - name: run-cfg
+          readOnly: true
+          mountPath: /pcloud/config

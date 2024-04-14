@@ -178,7 +178,7 @@ type ReleaseResources struct {
 }
 
 // TODO(gio): rename to CommitApp
-func InstallApp(
+func installApp(
 	repo soft.RepoIO,
 	appDir string,
 	name string,
@@ -242,7 +242,11 @@ func InstallApp(
 }
 
 // TODO(gio): commit instanceId -> appDir mapping as well
-func (m *AppManager) Install(app EnvApp, instanceId string, appDir string, namespace string, values map[string]any) (ReleaseResources, error) {
+func (m *AppManager) Install(app EnvApp, instanceId string, appDir string, namespace string, values map[string]any, opts ...InstallOption) (ReleaseResources, error) {
+	o := &installOptions{}
+	for _, i := range opts {
+		i(o)
+	}
 	appDir = filepath.Clean(appDir)
 	if err := m.repoIO.Pull(); err != nil {
 		return ReleaseResources{}, err
@@ -250,9 +254,15 @@ func (m *AppManager) Install(app EnvApp, instanceId string, appDir string, names
 	if err := m.nsCreator.Create(namespace); err != nil {
 		return ReleaseResources{}, err
 	}
-	env, err := m.Config()
-	if err != nil {
-		return ReleaseResources{}, err
+	var env EnvConfig
+	if o.Env != nil {
+		env = *o.Env
+	} else {
+		var err error
+		env, err = m.Config()
+		if err != nil {
+			return ReleaseResources{}, err
+		}
 	}
 	release := Release{
 		AppInstanceId: instanceId,
@@ -264,7 +274,12 @@ func (m *AppManager) Install(app EnvApp, instanceId string, appDir string, names
 	if err != nil {
 		return ReleaseResources{}, err
 	}
-	if _, err := InstallApp(m.repoIO, appDir, rendered.Name, rendered.Config, rendered.Ports, rendered.Resources, rendered.Data); err != nil {
+	dopts := []soft.DoOption{}
+	if o.Branch != "" {
+		dopts = append(dopts, soft.WithForce())
+		dopts = append(dopts, soft.WithCommitToBranch(o.Branch))
+	}
+	if _, err := installApp(m.repoIO, appDir, rendered.Name, rendered.Config, rendered.Ports, rendered.Resources, rendered.Data, dopts...); err != nil {
 		return ReleaseResources{}, err
 	}
 	// TODO(gio): add ingress-nginx to release resources
@@ -278,6 +293,7 @@ func (m *AppManager) Install(app EnvApp, instanceId string, appDir string, names
 
 type helmRelease struct {
 	Metadata Resource `json:"metadata"`
+	Kind     string   `json:"kind"`
 	Status   struct {
 		Conditions []struct {
 			Type   string `json:"type"`
@@ -293,7 +309,9 @@ func extractHelm(resources CueAppData) []Resource {
 		if err := yaml.Unmarshal(contents, &h); err != nil {
 			panic(err) // TODO(gio): handle
 		}
-		ret = append(ret, h.Metadata)
+		if h.Kind == "HelmRelease" {
+			ret = append(ret, h.Metadata)
+		}
 	}
 	return ret
 }
@@ -322,7 +340,7 @@ func (m *AppManager) Update(app EnvApp, instanceId string, values map[string]any
 	if err != nil {
 		return ReleaseResources{}, err
 	}
-	return InstallApp(m.repoIO, instanceDir, rendered.Name, rendered.Config, rendered.Ports, rendered.Resources, rendered.Data, opts...)
+	return installApp(m.repoIO, instanceDir, rendered.Name, rendered.Config, rendered.Ports, rendered.Resources, rendered.Data, opts...)
 }
 
 func (m *AppManager) Remove(instanceId string) error {
@@ -366,6 +384,25 @@ func CreateNetworks(env EnvConfig) []Network {
 type InfraAppManager struct {
 	repoIO    soft.RepoIO
 	nsCreator NamespaceCreator
+}
+
+type installOptions struct {
+	Env    *EnvConfig
+	Branch string
+}
+
+type InstallOption func(*installOptions)
+
+func WithConfig(env *EnvConfig) InstallOption {
+	return func(o *installOptions) {
+		o.Env = env
+	}
+}
+
+func WithBranch(branch string) InstallOption {
+	return func(o *installOptions) {
+		o.Branch = branch
+	}
 }
 
 func NewInfraAppManager(repoIO soft.RepoIO, nsCreator NamespaceCreator) (*InfraAppManager, error) {
@@ -432,7 +469,7 @@ func (m *InfraAppManager) Install(app InfraApp, appDir string, namespace string,
 	if err != nil {
 		return ReleaseResources{}, err
 	}
-	return InstallApp(m.repoIO, appDir, rendered.Name, rendered.Config, rendered.Ports, rendered.Resources, rendered.Data)
+	return installApp(m.repoIO, appDir, rendered.Name, rendered.Config, rendered.Ports, rendered.Resources, rendered.Data)
 }
 
 func (m *InfraAppManager) Update(app InfraApp, instanceId string, values map[string]any, opts ...soft.DoOption) (ReleaseResources, error) {
@@ -459,5 +496,5 @@ func (m *InfraAppManager) Update(app InfraApp, instanceId string, values map[str
 	if err != nil {
 		return ReleaseResources{}, err
 	}
-	return InstallApp(m.repoIO, instanceDir, rendered.Name, rendered.Config, rendered.Ports, rendered.Resources, rendered.Data, opts...)
+	return installApp(m.repoIO, instanceDir, rendered.Name, rendered.Config, rendered.Ports, rendered.Resources, rendered.Data, opts...)
 }

@@ -1,0 +1,10 @@
+image:
+  repository: giolekva/app-runner
+  tag: latest
+  pullPolicy: Always
+repoAddr: 192.168.0.11
+sshPrivateKey: key
+runCfg: ""
+appDir: /dodo-app
+appPort: 8080
+manager: ""
