@@ -38,22 +38,26 @@ func CreateZoneRecords(
 	st *state,
 ) Task {
 	t := newLeafTask("Generate and publish DNS records", func() error {
+		key, err := newDNSSecKey(env.Domain)
+		if err != nil {
+			return err
+		}
 		repo, err := st.ssClient.GetRepo("config")
 		if err != nil {
 			return err
 		}
-		r := installer.NewRepoIO(repo, st.ssClient.Signer)
-		{
-			key, err := newDNSSecKey(env.Domain)
-			if err != nil {
-				return err
-			}
-			out, err := r.Writer("dns-zone.yaml")
-			if err != nil {
-				return err
-			}
-			defer out.Close()
-			dnsZoneTmpl, err := template.New("config").Funcs(sprig.TxtFuncMap()).Parse(`
+		r, err := installer.NewRepoIO(repo, st.ssClient.Signer)
+		if err != nil {
+			return err
+		}
+		return r.Atomic(func(r installer.RepoFS) (string, error) {
+			{
+				out, err := r.Writer("dns-zone.yaml")
+				if err != nil {
+					return "", err
+				}
+				defer out.Close()
+				dnsZoneTmpl, err := template.New("config").Funcs(sprig.TxtFuncMap()).Parse(`
 apiVersion: dodo.cloud.dodo.cloud/v1
 kind: DNSZone
 metadata:
@@ -86,31 +90,29 @@ data:
   private: {{ .dnssec.Private | toString | b64enc }}
   ds: {{ .dnssec.DS | toString | b64enc }}
 `)
-			if err != nil {
-				return err
+				if err != nil {
+					return "", err
+				}
+				if err := dnsZoneTmpl.Execute(out, map[string]any{
+					"namespace": env.Name,
+					"zone":      env.Domain,
+					"dnssec":    key,
+					"publicIPs": st.publicIPs,
+					"ingressIP": ingressIP.String(),
+				}); err != nil {
+					return "", err
+				}
+				rootKust, err := installer.ReadKustomization(r, "kustomization.yaml")
+				if err != nil {
+					return "", err
+				}
+				rootKust.AddResources("dns-zone.yaml")
+				if err := installer.WriteYaml(r, "kustomization.yaml", rootKust); err != nil {
+					return "", err
+				}
+				return "configure dns zone", nil
 			}
-			if err := dnsZoneTmpl.Execute(out, map[string]any{
-				"namespace": env.Name,
-				"zone":      env.Domain,
-				"dnssec":    key,
-				"publicIPs": st.publicIPs,
-				"ingressIP": ingressIP.String(),
-			}); err != nil {
-				return err
-			}
-			rootKust, err := r.ReadKustomization("kustomization.yaml")
-			if err != nil {
-				return err
-			}
-			rootKust.AddResources("dns-zone.yaml")
-			if err := r.WriteKustomization("kustomization.yaml", *rootKust); err != nil {
-				return err
-			}
-			if err := r.CommitAndPush("configure dns zone"); err != nil {
-				return err
-			}
-		}
-		return nil
+		})
 	})
 	return &t
 }

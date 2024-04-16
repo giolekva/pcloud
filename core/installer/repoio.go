@@ -1,21 +1,17 @@
 package installer
 
 import (
-	"bytes"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
 	"io/fs"
 	"io/ioutil"
 	"net"
-	"net/http"
-	"os"
-	"path"
 	"path/filepath"
 	"sync"
 	"time"
 
+	"github.com/go-git/go-billy/v5"
 	"github.com/go-git/go-billy/v5/util"
 	"github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/plumbing/object"
@@ -26,43 +22,74 @@ import (
 	"github.com/giolekva/pcloud/core/installer/soft"
 )
 
-type RepoIO interface {
-	Addr() string
-	Pull() error
-	ReadConfig() (Config, error)
-	ReadAppConfig(path string) (AppConfig, error)
-	ReadKustomization(path string) (*Kustomization, error)
-	WriteKustomization(path string, kust Kustomization) error
-	ReadYaml(path string) (map[string]any, error)
-	WriteYaml(path string, data any) error
-	CommitAndPush(message string) error
-	WriteCommitAndPush(path, contents, message string) error
+type RepoFS interface {
 	Reader(path string) (io.ReadCloser, error)
 	Writer(path string) (io.WriteCloser, error)
 	CreateDir(path string) error
 	RemoveDir(path string) error
-	InstallApp(app App, path string, values map[string]any, derived Derived) error
-	RemoveApp(path string) error
-	FindAllInstances(root string, appId string) ([]AppConfig, error)
-	FindInstance(root string, id string) (AppConfig, error)
+}
+
+type AtomicOp func(r RepoFS) (string, error)
+
+type RepoIO interface {
+	RepoFS
+	FullAddress() string
+	Pull() error
+	CommitAndPush(message string) error
+	Atomic(op AtomicOp) error
+}
+
+type repoFS struct {
+	fs billy.Filesystem
+}
+
+func (r *repoFS) Reader(path string) (io.ReadCloser, error) {
+	return r.fs.Open(path)
+}
+
+func (r *repoFS) Writer(path string) (io.WriteCloser, error) {
+	if err := r.fs.MkdirAll(filepath.Dir(path), fs.ModePerm); err != nil {
+		return nil, err
+	}
+	return r.fs.Create(path)
+}
+
+func (r *repoFS) CreateDir(path string) error {
+	return r.fs.MkdirAll(path, fs.ModePerm)
+}
+
+func (r *repoFS) RemoveDir(path string) error {
+	if err := util.RemoveAll(r.fs, path); err != nil {
+		if errors.Is(err, fs.ErrNotExist) {
+			return nil
+		}
+		return err
+	}
+	return nil
 }
 
 type repoIO struct {
+	*repoFS
 	repo   *soft.Repository
 	signer ssh.Signer
 	l      sync.Locker
 }
 
-func NewRepoIO(repo *soft.Repository, signer ssh.Signer) RepoIO {
+func NewRepoIO(repo *soft.Repository, signer ssh.Signer) (RepoIO, error) {
+	wt, err := repo.Worktree()
+	if err != nil {
+		return nil, err
+	}
 	return &repoIO{
+		&repoFS{wt.Filesystem},
 		repo,
 		signer,
 		&sync.Mutex{},
-	}
+	}, nil
 }
 
-func (r *repoIO) Addr() string {
-	return r.repo.Addr.Addr
+func (r *repoIO) FullAddress() string {
+	return r.repo.Addr.FullAddress()
 }
 
 func (r *repoIO) Pull() error {
@@ -74,121 +101,12 @@ func (r *repoIO) Pull() error {
 func (r *repoIO) pullWithoutLock() error {
 	wt, err := r.repo.Worktree()
 	if err != nil {
-		fmt.Printf("EEEER wt: %s\b", err)
 		return nil
 	}
-	err = wt.Pull(&git.PullOptions{
+	return wt.Pull(&git.PullOptions{
 		Auth:  auth(r.signer),
 		Force: true,
 	})
-	// TODO(gio): propagate error
-	if err != nil {
-		fmt.Printf("EEEER: %s\b", err)
-	}
-	return nil
-}
-
-func (r *repoIO) ReadConfig() (Config, error) {
-	configF, err := r.Reader(configFileName)
-	if err != nil {
-		return Config{}, err
-	}
-	defer configF.Close()
-	var cfg Config
-	if err := ReadYaml(configF, &cfg); err != nil {
-		return Config{}, err
-	} else {
-		return cfg, nil
-	}
-}
-
-func (r *repoIO) ReadAppConfig(path string) (AppConfig, error) {
-	configF, err := r.Reader(path)
-	if err != nil {
-		return AppConfig{}, err
-	}
-	defer configF.Close()
-	var cfg AppConfig
-	if err := ReadYaml(configF, &cfg); err != nil {
-		return AppConfig{}, err
-	} else {
-		return cfg, nil
-	}
-}
-
-func (r *repoIO) ReadKustomization(path string) (*Kustomization, error) {
-	inp, err := r.Reader(path)
-	if err != nil {
-		return nil, err
-	}
-	defer inp.Close()
-	return ReadKustomization(inp)
-}
-
-func (r *repoIO) Reader(path string) (io.ReadCloser, error) {
-	wt, err := r.repo.Worktree()
-	if err != nil {
-		return nil, err
-	}
-	return wt.Filesystem.Open(path)
-}
-
-func (r *repoIO) Writer(path string) (io.WriteCloser, error) {
-	wt, err := r.repo.Worktree()
-	if err != nil {
-		return nil, err
-	}
-	if err := wt.Filesystem.MkdirAll(filepath.Dir(path), fs.ModePerm); err != nil {
-		return nil, err
-	}
-	return wt.Filesystem.Create(path)
-}
-
-func (r *repoIO) WriteKustomization(path string, kust Kustomization) error {
-	out, err := r.Writer(path)
-	if err != nil {
-		return err
-	}
-	return kust.Write(out)
-}
-
-func (r *repoIO) WriteYaml(path string, data any) error {
-	out, err := r.Writer(path)
-	if err != nil {
-		return err
-	}
-	serialized, err := yaml.Marshal(data)
-	if err != nil {
-		return err
-	}
-	if _, err := out.Write(serialized); err != nil {
-		return err
-	}
-	return nil
-}
-
-func (r *repoIO) ReadYaml(path string) (map[string]any, error) {
-	inp, err := r.Reader(path)
-	if err != nil {
-		return nil, err
-	}
-	data := make(map[string]any)
-	if err := ReadYaml(inp, &data); err != nil {
-		return nil, err
-	}
-	return data, err
-}
-
-func (r *repoIO) WriteCommitAndPush(path, contents, message string) error {
-	w, err := r.Writer(path)
-	if err != nil {
-		return err
-	}
-	defer w.Close()
-	if _, err := io.WriteString(w, contents); err != nil {
-		return err
-	}
-	return r.CommitAndPush(message)
 }
 
 func (r *repoIO) CommitAndPush(message string) error {
@@ -213,212 +131,17 @@ func (r *repoIO) CommitAndPush(message string) error {
 	})
 }
 
-func (r *repoIO) CreateDir(path string) error {
-	wt, err := r.repo.Worktree()
-	if err != nil {
-		return err
-	}
-	return wt.Filesystem.MkdirAll(path, fs.ModePerm)
-}
-
-func (r *repoIO) RemoveDir(path string) error {
-	wt, err := r.repo.Worktree()
-	if err != nil {
-		return err
-	}
-	err = util.RemoveAll(wt.Filesystem, path)
-	if err == nil || errors.Is(err, fs.ErrNotExist) {
-		return nil
-	}
-	return err
-}
-
-type Release struct {
-	Namespace string `json:"namespace"`
-	RepoAddr  string `json:"repoAddr"`
-	AppDir    string `json:"appDir"`
-}
-
-type Derived struct {
-	Release Release        `json:"release"`
-	Global  Values         `json:"global"`
-	Values  map[string]any `json:"input"` // TODO(gio): rename to input
-}
-
-type AppConfig struct {
-	Id      string         `json:"id"`
-	AppId   string         `json:"appId"`
-	Config  map[string]any `json:"config"`
-	Derived Derived        `json:"derived"`
-}
-
-func (a AppConfig) Input(schema Schema) map[string]any {
-	ret, err := derivedToConfig(a.Derived.Values, schema)
-	if err != nil {
-		panic(err) // TODO(gio): handle
-	}
-	return ret
-}
-
-type allocatePortReq struct {
-	Protocol      string `json:"protocol"`
-	SourcePort    int    `json:"sourcePort"`
-	TargetService string `json:"targetService"`
-	TargetPort    int    `json:"targetPort"`
-}
-
-// TODO(gio): most of this logic should move to AppManager
-func (r *repoIO) InstallApp(app App, appRootDir string, values map[string]any, derived Derived) error {
+func (r *repoIO) Atomic(op AtomicOp) error {
 	r.l.Lock()
 	defer r.l.Unlock()
 	if err := r.pullWithoutLock(); err != nil {
 		return err
 	}
-	if !filepath.IsAbs(appRootDir) {
-		return fmt.Errorf("Expected absolute path: %s", appRootDir)
-	}
-	derived.Release.RepoAddr = r.repo.Addr.FullAddress()
-	// TODO(gio): maybe client should populate this?
-	derived.Release.AppDir = appRootDir
-	rendered, err := app.Render(derived)
-	if err != nil {
+	if msg, err := op(r); err != nil {
 		return err
+	} else {
+		return r.CommitAndPush(msg)
 	}
-	for _, p := range rendered.Ports {
-		var buf bytes.Buffer
-		req := allocatePortReq{
-			Protocol:      p.Protocol,
-			SourcePort:    p.SourcePort,
-			TargetService: p.TargetService,
-			TargetPort:    p.TargetPort,
-		}
-		fmt.Printf("%+v\n", req)
-		if err := json.NewEncoder(&buf).Encode(req); err != nil {
-			return err
-		}
-		resp, err := http.Post(p.Allocator, "application/json", &buf)
-		if err != nil {
-			return err
-		}
-		if resp.StatusCode != http.StatusOK {
-			io.Copy(os.Stdout, resp.Body)
-			return fmt.Errorf("Could not allocate port %d, status code: %d", p.SourcePort, resp.StatusCode)
-		}
-	}
-	if err := r.pullWithoutLock(); err != nil {
-		return err
-	}
-	appRootDir = filepath.Clean(appRootDir)
-	for p := appRootDir; p != "/"; {
-		parent, child := filepath.Split(p)
-		kustPath := filepath.Join(parent, "kustomization.yaml")
-		kust, err := r.ReadKustomization(kustPath)
-		if err != nil {
-			if errors.Is(err, fs.ErrNotExist) {
-				k := NewKustomization()
-				kust = &k
-			} else {
-				return err
-			}
-		}
-		kust.AddResources(child)
-		if err := r.WriteKustomization(kustPath, *kust); err != nil {
-			return err
-		}
-		p = filepath.Clean(parent)
-	}
-	{
-		if err := r.RemoveDir(appRootDir); err != nil {
-			return err
-		}
-		if err := r.CreateDir(appRootDir); err != nil {
-			return err
-		}
-		cfg := AppConfig{
-			AppId:   app.Name(),
-			Config:  values,
-			Derived: derived,
-		}
-		if err := r.WriteYaml(path.Join(appRootDir, configFileName), cfg); err != nil {
-			return err
-		}
-	}
-	{
-		appKust := NewKustomization()
-		for name, contents := range rendered.Resources {
-			appKust.AddResources(name)
-			out, err := r.Writer(path.Join(appRootDir, name))
-			if err != nil {
-				return err
-			}
-			defer out.Close()
-			if _, err := out.Write(contents); err != nil {
-				return err
-			}
-		}
-		if err := r.WriteKustomization(path.Join(appRootDir, "kustomization.yaml"), appKust); err != nil {
-			return err
-		}
-	}
-	return r.CommitAndPush(fmt.Sprintf("install: %s", app.Name()))
-}
-
-func (r *repoIO) RemoveApp(appRootDir string) error {
-	r.l.Lock()
-	defer r.l.Unlock()
-	r.RemoveDir(appRootDir)
-	parent, child := filepath.Split(appRootDir)
-	kustPath := filepath.Join(parent, "kustomization.yaml")
-	kust, err := r.ReadKustomization(kustPath)
-	if err != nil {
-		return err
-	}
-	kust.RemoveResources(child)
-	r.WriteKustomization(kustPath, *kust)
-	return r.CommitAndPush(fmt.Sprintf("uninstall: %s", child))
-}
-
-func (r *repoIO) FindAllInstances(root string, name string) ([]AppConfig, error) {
-	if !filepath.IsAbs(root) {
-		return nil, fmt.Errorf("Expected absolute path: %s", root)
-	}
-	kust, err := r.ReadKustomization(filepath.Join(root, "kustomization.yaml"))
-	if err != nil {
-		return nil, err
-	}
-	ret := make([]AppConfig, 0)
-	for _, app := range kust.Resources {
-		cfg, err := r.ReadAppConfig(filepath.Join(root, app, "config.yaml"))
-		if err != nil {
-			return nil, err
-		}
-		cfg.Id = app
-		if cfg.AppId == name {
-			ret = append(ret, cfg)
-		}
-	}
-	return ret, nil
-}
-
-func (r *repoIO) FindInstance(root string, id string) (AppConfig, error) {
-	if !filepath.IsAbs(root) {
-		return AppConfig{}, fmt.Errorf("Expected absolute path: %s", root)
-	}
-	kust, err := r.ReadKustomization(filepath.Join(root, "kustomization.yaml"))
-	if err != nil {
-		return AppConfig{}, err
-	}
-	for _, app := range kust.Resources {
-		if app == id {
-			cfg, err := r.ReadAppConfig(filepath.Join(root, app, "config.yaml"))
-			if err != nil {
-				return AppConfig{}, err
-			}
-			cfg.Id = id
-			return cfg, nil
-		}
-	}
-	return AppConfig{}, nil
 }
 
 func auth(signer ssh.Signer) *gitssh.PublicKeys {
@@ -434,7 +157,12 @@ func auth(signer ssh.Signer) *gitssh.PublicKeys {
 	}
 }
 
-func ReadYaml[T any](r io.Reader, o *T) error {
+func ReadYaml[T any](repo RepoFS, path string, o *T) error {
+	r, err := repo.Reader(path)
+	if err != nil {
+		return err
+	}
+	defer r.Close()
 	if contents, err := ioutil.ReadAll(r); err != nil {
 		return err
 	} else {
@@ -442,138 +170,28 @@ func ReadYaml[T any](r io.Reader, o *T) error {
 	}
 }
 
-func deriveValues(values any, schema Schema, networks []Network) (map[string]any, error) {
-	ret := make(map[string]any)
-	for k, def := range schema.Fields() {
-		// TODO(gio): validate that it is map
-		v, ok := values.(map[string]any)[k]
-		// TODO(gio): if missing use default value
-		if !ok {
-			if def.Kind() == KindSSHKey {
-				key, err := NewECDSASSHKeyPair("tmp")
-				if err != nil {
-					return nil, err
-				}
-				ret[k] = map[string]string{
-					"public":  string(key.RawAuthorizedKey()),
-					"private": string(key.RawPrivateKey()),
-				}
-			}
-			continue
-		}
-		switch def.Kind() {
-		case KindBoolean:
-			ret[k] = v
-		case KindString:
-			ret[k] = v
-		case KindInt:
-			ret[k] = v
-		case KindNetwork:
-			n, err := findNetwork(networks, v.(string)) // TODO(giolekva): validate
-			if err != nil {
-				return nil, err
-			}
-			ret[k] = n
-		case KindAuth:
-			r, err := deriveValues(v, AuthSchema, networks)
-			if err != nil {
-				return nil, err
-			}
-			ret[k] = r
-		case KindSSHKey:
-			r, err := deriveValues(v, SSHKeySchema, networks)
-			if err != nil {
-				return nil, err
-			}
-			ret[k] = r
-		case KindStruct:
-			r, err := deriveValues(v, def, networks)
-			if err != nil {
-				return nil, err
-			}
-			ret[k] = r
-		default:
-			return nil, fmt.Errorf("Should not reach!")
-		}
+func WriteYaml(repo RepoFS, path string, data any) error {
+	if d, ok := data.(*Kustomization); ok {
+		data = d
+	}
+	out, err := repo.Writer(path)
+	if err != nil {
+		return err
+	}
+	serialized, err := yaml.Marshal(data)
+	if err != nil {
+		return err
+	}
+	if _, err := out.Write(serialized); err != nil {
+		return err
+	}
+	return nil
+}
+
+func ReadKustomization(repo RepoFS, path string) (*Kustomization, error) {
+	ret := &Kustomization{}
+	if err := ReadYaml(repo, path, &ret); err != nil {
+		return nil, err
 	}
 	return ret, nil
-}
-
-func derivedToConfig(derived map[string]any, schema Schema) (map[string]any, error) {
-	ret := make(map[string]any)
-	for k, def := range schema.Fields() {
-		v, ok := derived[k]
-		// TODO(gio): if missing use default value
-		if !ok {
-			continue
-		}
-		switch def.Kind() {
-		case KindBoolean:
-			ret[k] = v
-		case KindString:
-			ret[k] = v
-		case KindInt:
-			ret[k] = v
-		case KindNetwork:
-			vm, ok := v.(map[string]any)
-			if !ok {
-				return nil, fmt.Errorf("expected map")
-			}
-			name, ok := vm["name"]
-			if !ok {
-				return nil, fmt.Errorf("expected network name")
-			}
-			ret[k] = name
-		case KindAuth:
-			vm, ok := v.(map[string]any)
-			if !ok {
-				return nil, fmt.Errorf("expected map")
-			}
-			r, err := derivedToConfig(vm, AuthSchema)
-			if err != nil {
-				return nil, err
-			}
-			ret[k] = r
-		case KindSSHKey:
-			vm, ok := v.(map[string]any)
-			if !ok {
-				return nil, fmt.Errorf("expected map")
-			}
-			r, err := derivedToConfig(vm, SSHKeySchema)
-			if err != nil {
-				return nil, err
-			}
-			ret[k] = r
-		case KindStruct:
-			vm, ok := v.(map[string]any)
-			if !ok {
-				return nil, fmt.Errorf("expected map")
-			}
-			r, err := derivedToConfig(vm, def)
-			if err != nil {
-				return nil, err
-			}
-			ret[k] = r
-		default:
-			return nil, fmt.Errorf("Should not reach!")
-		}
-	}
-	return ret, nil
-}
-
-func findNetwork(networks []Network, name string) (Network, error) {
-	for _, n := range networks {
-		if n.Name == name {
-			return n, nil
-		}
-	}
-	return Network{}, fmt.Errorf("Network not found: %s", name)
-}
-
-type Network struct {
-	Name              string `json:"name,omitempty"`
-	IngressClass      string `json:"ingressClass,omitempty"`
-	CertificateIssuer string `json:"certificateIssuer,omitempty"`
-	Domain            string `json:"domain,omitempty"`
-	AllocatePortAddr  string `json:"allocatePortAddr,omitempty"`
 }

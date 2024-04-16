@@ -327,13 +327,7 @@ func (s *EnvServer) createEnv(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var env installer.EnvConfig
-	cr, err := s.repo.Reader("config.yaml")
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-	defer cr.Close()
-	if err := installer.ReadYaml(cr, &env); err != nil {
+	if err := installer.ReadYaml(s.repo, "config.yaml", &env); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -348,13 +342,7 @@ func (s *EnvServer) createEnv(w http.ResponseWriter, r *http.Request) {
 		req.Name = name
 	}
 	var cidrs installer.EnvCIDRs
-	cidrsR, err := s.repo.Reader("env-cidrs.yaml")
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-	defer cidrsR.Close()
-	if err := installer.ReadYaml(cidrsR, &cidrs); err != nil {
+	if err := installer.ReadYaml(s.repo, "env-cidrs.yaml", &cidrs); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -364,7 +352,7 @@ func (s *EnvServer) createEnv(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	cidrs = append(cidrs, installer.EnvCIDR{req.Name, startIP})
-	if err := s.repo.WriteYaml("env-cidrs.yaml", cidrs); err != nil {
+	if err := installer.WriteYaml(s.repo, "env-cidrs.yaml", cidrs); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -385,11 +373,12 @@ func (s *EnvServer) createEnv(w http.ResponseWriter, r *http.Request) {
 	}
 	t, dns := tasks.NewCreateEnvTask(
 		tasks.Env{
-			PCloudEnvName:  env.Name,
-			Name:           req.Name,
-			ContactEmail:   req.ContactEmail,
-			Domain:         req.Domain,
-			AdminPublicKey: req.AdminPublicKey,
+			PCloudEnvName:   env.Name,
+			Name:            req.Name,
+			ContactEmail:    req.ContactEmail,
+			Domain:          req.Domain,
+			AdminPublicKey:  req.AdminPublicKey,
+			NamespacePrefix: fmt.Sprintf("%s-", req.Name),
 		},
 		[]net.IP{
 			net.ParseIP("135.181.48.180"),

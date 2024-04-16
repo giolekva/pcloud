@@ -1,8 +1,10 @@
 module github.com/giolekva/pcloud/core/installer
 
+replace github.com/giolekva/pcloud/installer => /Users/lekva/dev/src/pcloud/core/installer
+
 go 1.21
 
-toolchain go1.21.5
+// toolchain go1.21.5
 
 require (
 	cuelang.org/go v0.8.1

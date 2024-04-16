@@ -19,15 +19,16 @@ func CreateRepoClient(env Env, st *state) Task {
 		if err != nil {
 			return err
 		}
-		r := installer.NewRepoIO(repo, st.ssClient.Signer)
+		r, err := installer.NewRepoIO(repo, st.ssClient.Signer)
+		if err != nil {
+			return err
+		}
 		appManager, err := installer.NewAppManager(r, st.nsCreator)
 		if err != nil {
 			return err
 		}
 		st.appManager = appManager
 		st.appsRepo = installer.NewInMemoryAppRepository(installer.CreateAllApps())
-		st.nsGen = installer.NewPrefixGenerator(env.Name + "-")
-		st.emptySuffixGen = installer.NewEmptySuffixGenerator()
 		return nil
 	})
 	t.beforeStart = func() {
@@ -56,28 +57,31 @@ func CommitEnvironmentConfiguration(env Env, st *state) Task {
 		if err != nil {
 			return err
 		}
-		r := installer.NewRepoIO(repo, st.ssClient.Signer)
-		{
-			// TODO(giolekva): private domain can be configurable as well
-			config := installer.Config{
-				Values: installer.Values{
-					PCloudEnvName:   env.PCloudEnvName,
-					Id:              env.Name,
-					ContactEmail:    env.ContactEmail,
-					Domain:          env.Domain,
-					PrivateDomain:   fmt.Sprintf("p.%s", env.Domain),
-					PublicIP:        st.publicIPs[0].String(),
-					NamespacePrefix: fmt.Sprintf("%s-", env.Name),
-				},
-			}
-			if err := r.WriteYaml("config.yaml", config); err != nil {
-				return err
-			}
+		r, err := installer.NewRepoIO(repo, st.ssClient.Signer)
+		if err != nil {
+			return err
 		}
-		{
+		r.Atomic(func(r installer.RepoFS) (string, error) {
+			{
+				// TODO(giolekva): private domain can be configurable as well
+				config := installer.Config{
+					Values: installer.Values{
+						PCloudEnvName:   env.PCloudEnvName,
+						Id:              env.Name,
+						ContactEmail:    env.ContactEmail,
+						Domain:          env.Domain,
+						PrivateDomain:   fmt.Sprintf("p.%s", env.Domain),
+						PublicIP:        st.publicIPs[0].String(),
+						NamespacePrefix: fmt.Sprintf("%s-", env.Name),
+					},
+				}
+				if err := installer.WriteYaml(r, "config.yaml", config); err != nil {
+					return "", err
+				}
+			}
 			out, err := r.Writer("pcloud-charts.yaml")
 			if err != nil {
-				return err
+				return "", err
 			}
 			defer out.Close()
 			_, err = fmt.Fprintf(out, `
@@ -93,18 +97,18 @@ spec:
     branch: ingress-port-allocator
 `, env.Name)
 			if err != nil {
-				return err
+				return "", err
 			}
-			rootKust, err := r.ReadKustomization("kustomization.yaml")
+			rootKust, err := installer.ReadKustomization(r, "kustomization.yaml")
 			if err != nil {
-				return err
+				return "", err
 			}
 			rootKust.AddResources("pcloud-charts.yaml")
-			if err := r.WriteKustomization("kustomization.yaml", *rootKust); err != nil {
-				return err
+			if err := installer.WriteYaml(r, "kustomization.yaml", rootKust); err != nil {
+				return "", err
 			}
-			r.CommitAndPush("configure charts repo")
-		}
+			return "configure charts repo", nil
+		})
 		return nil
 	})
 	return &t
@@ -121,12 +125,17 @@ func ConfigureFirstAccount(env Env, st *state) Task {
 		if err != nil {
 			return err
 		}
-		r := installer.NewRepoIO(repo, st.ssClient.Signer)
-		fa := firstAccount{false, initGroups}
-		if err := r.WriteYaml("first-account.yaml", fa); err != nil {
+		r, err := installer.NewRepoIO(repo, st.ssClient.Signer)
+		if err != nil {
 			return err
 		}
-		return r.CommitAndPush("first account membership configuration")
+		return r.Atomic(func(r installer.RepoFS) (string, error) {
+			fa := firstAccount{false, initGroups}
+			if err := installer.WriteYaml(r, "first-account.yaml", fa); err != nil {
+				return "", err
+			}
+			return "first account membership configuration", nil
+		})
 	})
 	return &t
 }
@@ -161,32 +170,44 @@ func SetupNetwork(env Env, startIP net.IP, st *state) Task {
 			if err != nil {
 				return err
 			}
-			if err := st.appManager.Install(app, st.nsGen, installer.NewSuffixGenerator("-ingress-private"), map[string]any{
-				"name":       fmt.Sprintf("%s-ingress-private", env.Name),
-				"from":       ingressPrivateIP.String(),
-				"to":         ingressPrivateIP.String(),
-				"autoAssign": false,
-				"namespace":  "metallb-system",
-			}); err != nil {
-				return err
+			{
+				appDir := fmt.Sprintf("/apps/%s-ingress-private", app.Name())
+				namespace := fmt.Sprintf("%s%s-ingress-private", env.NamespacePrefix, app.Namespace())
+				if err := st.appManager.Install(app, appDir, namespace, map[string]any{
+					"name":       fmt.Sprintf("%s-ingress-private", env.Name),
+					"from":       ingressPrivateIP.String(),
+					"to":         ingressPrivateIP.String(),
+					"autoAssign": false,
+					"namespace":  "metallb-system",
+				}); err != nil {
+					return err
+				}
 			}
-			if err := st.appManager.Install(app, st.nsGen, installer.NewSuffixGenerator("-headscale"), map[string]any{
-				"name":       fmt.Sprintf("%s-headscale", env.Name),
-				"from":       headscaleIP.String(),
-				"to":         headscaleIP.String(),
-				"autoAssign": false,
-				"namespace":  "metallb-system",
-			}); err != nil {
-				return err
+			{
+				appDir := fmt.Sprintf("/apps/%s-headscale", app.Name())
+				namespace := fmt.Sprintf("%s%s-ingress-private", env.NamespacePrefix, app.Namespace())
+				if err := st.appManager.Install(app, appDir, namespace, map[string]any{
+					"name":       fmt.Sprintf("%s-headscale", env.Name),
+					"from":       headscaleIP.String(),
+					"to":         headscaleIP.String(),
+					"autoAssign": false,
+					"namespace":  "metallb-system",
+				}); err != nil {
+					return err
+				}
 			}
-			if err := st.appManager.Install(app, st.nsGen, st.emptySuffixGen, map[string]any{
-				"name":       env.Name,
-				"from":       fromIP.String(),
-				"to":         toIP.String(),
-				"autoAssign": false,
-				"namespace":  "metallb-system",
-			}); err != nil {
-				return err
+			{
+				appDir := fmt.Sprintf("/apps/%s", app.Name())
+				namespace := fmt.Sprintf("%s%s", env.NamespacePrefix, app.Namespace())
+				if err := st.appManager.Install(app, appDir, namespace, map[string]any{
+					"name":       env.Name,
+					"from":       fromIP.String(),
+					"to":         toIP.String(),
+					"autoAssign": false,
+					"namespace":  "metallb-system",
+				}); err != nil {
+					return err
+				}
 			}
 		}
 		{
@@ -205,7 +226,9 @@ func SetupNetwork(env Env, startIP net.IP, st *state) Task {
 			if err != nil {
 				return err
 			}
-			if err := st.appManager.Install(app, st.nsGen, st.emptySuffixGen, map[string]any{
+			appDir := fmt.Sprintf("/apps/%s", app.Name())
+			namespace := fmt.Sprintf("%s%s", env.NamespacePrefix, app.Namespace())
+			if err := st.appManager.Install(app, appDir, namespace, map[string]any{
 				"privateNetwork": map[string]any{
 					"hostname": "private-network-proxy",
 					"username": "private-network-proxy",
@@ -227,7 +250,9 @@ func SetupCertificateIssuers(env Env, st *state) Task {
 		if err != nil {
 			return err
 		}
-		if err := st.appManager.Install(app, st.nsGen, st.emptySuffixGen, map[string]any{}); err != nil {
+		appDir := fmt.Sprintf("/apps/%s", app.Name())
+		namespace := fmt.Sprintf("%s%s", env.NamespacePrefix, app.Namespace())
+		if err := st.appManager.Install(app, appDir, namespace, map[string]any{}); err != nil {
 			return err
 		}
 		return nil
@@ -237,7 +262,9 @@ func SetupCertificateIssuers(env Env, st *state) Task {
 		if err != nil {
 			return err
 		}
-		if err := st.appManager.Install(app, st.nsGen, st.emptySuffixGen, map[string]any{
+		appDir := fmt.Sprintf("/apps/%s", app.Name())
+		namespace := fmt.Sprintf("%s%s", env.NamespacePrefix, app.Namespace())
+		if err := st.appManager.Install(app, appDir, namespace, map[string]any{
 			"apiConfigMap": map[string]any{
 				"name":      "api-config", // TODO(gio): take from global pcloud config
 				"namespace": fmt.Sprintf("%s-dns-zone-manager", env.PCloudEnvName),
@@ -256,7 +283,9 @@ func SetupAuth(env Env, st *state) Task {
 		if err != nil {
 			return err
 		}
-		if err := st.appManager.Install(app, st.nsGen, st.emptySuffixGen, map[string]any{
+		appDir := fmt.Sprintf("/apps/%s", app.Name())
+		namespace := fmt.Sprintf("%s%s", env.NamespacePrefix, app.Namespace())
+		if err := st.appManager.Install(app, appDir, namespace, map[string]any{
 			"subdomain": "test", // TODO(giolekva): make core-auth chart actually use this
 		}); err != nil {
 			return err
@@ -277,7 +306,9 @@ func SetupGroupMemberships(env Env, st *state) Task {
 		if err != nil {
 			return err
 		}
-		if err := st.appManager.Install(app, st.nsGen, st.emptySuffixGen, map[string]any{
+		appDir := fmt.Sprintf("/apps/%s", app.Name())
+		namespace := fmt.Sprintf("%s%s", env.NamespacePrefix, app.Namespace())
+		if err := st.appManager.Install(app, appDir, namespace, map[string]any{
 			"authGroups": strings.Join(initGroups, ","),
 		}); err != nil {
 			return err
@@ -298,7 +329,9 @@ func SetupHeadscale(env Env, startIP net.IP, st *state) Task {
 		if err != nil {
 			return err
 		}
-		if err := st.appManager.Install(app, st.nsGen, st.emptySuffixGen, map[string]any{
+		appDir := fmt.Sprintf("/apps/%s", app.Name())
+		namespace := fmt.Sprintf("%s%s", env.NamespacePrefix, app.Namespace())
+		if err := st.appManager.Install(app, appDir, namespace, map[string]any{
 			"subdomain": "headscale",
 			"ipSubnet":  fmt.Sprintf("%s/24", startIP),
 		}); err != nil {
@@ -331,7 +364,9 @@ func SetupWelcome(env Env, st *state) Task {
 		if err != nil {
 			return err
 		}
-		if err := st.appManager.Install(app, st.nsGen, st.emptySuffixGen, map[string]any{
+		appDir := fmt.Sprintf("/apps/%s", app.Name())
+		namespace := fmt.Sprintf("%s%s", env.NamespacePrefix, app.Namespace())
+		if err := st.appManager.Install(app, appDir, namespace, map[string]any{
 			"repoAddr":      st.ssClient.GetRepoAddress("config"),
 			"sshPrivateKey": string(keys.RawPrivateKey()),
 		}); err != nil {
@@ -364,7 +399,9 @@ func SetupAppStore(env Env, st *state) Task {
 		if err != nil {
 			return err
 		}
-		if err := st.appManager.Install(app, st.nsGen, st.emptySuffixGen, map[string]any{
+		appDir := fmt.Sprintf("/apps/%s", app.Name())
+		namespace := fmt.Sprintf("%s%s", env.NamespacePrefix, app.Namespace())
+		if err := st.appManager.Install(app, appDir, namespace, map[string]any{
 			"repoAddr":      st.ssClient.GetRepoAddress("config"),
 			"sshPrivateKey": string(keys.RawPrivateKey()),
 			"authGroups":    strings.Join(initGroups, ","),

@@ -12,26 +12,25 @@ import (
 )
 
 type state struct {
-	infoListener   EnvInfoListener
-	publicIPs      []net.IP
-	nsCreator      installer.NamespaceCreator
-	repo           installer.RepoIO
-	ssAdminKeys    *keygen.KeyPair
-	ssClient       *soft.Client
-	fluxUserName   string
-	keys           *keygen.KeyPair
-	appManager     *installer.AppManager
-	appsRepo       installer.AppRepository
-	nsGen          installer.NamespaceGenerator
-	emptySuffixGen installer.SuffixGenerator
+	infoListener EnvInfoListener
+	publicIPs    []net.IP
+	nsCreator    installer.NamespaceCreator
+	repo         installer.RepoIO
+	ssAdminKeys  *keygen.KeyPair
+	ssClient     *soft.Client
+	fluxUserName string
+	keys         *keygen.KeyPair
+	appManager   *installer.AppManager
+	appsRepo     installer.AppRepository
 }
 
 type Env struct {
-	PCloudEnvName  string
-	Name           string
-	ContactEmail   string
-	Domain         string
-	AdminPublicKey string
+	PCloudEnvName   string
+	Name            string
+	ContactEmail    string
+	Domain          string
+	AdminPublicKey  string
+	NamespacePrefix string
 }
 
 type EnvInfoListener func(string)

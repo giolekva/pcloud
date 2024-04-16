@@ -72,12 +72,10 @@ func appManagerCmdRun(cmd *cobra.Command, args []string) error {
 		return err
 	}
 	log.Println("Cloned repository")
-	repoIO := installer.NewRepoIO(repo, signer)
-	config, err := repoIO.ReadConfig()
+	repoIO, err := installer.NewRepoIO(repo, signer)
 	if err != nil {
 		return err
 	}
-	log.Println("Read config")
 	kube, err := newNSCreator()
 	if err != nil {
 		return err
@@ -86,6 +84,11 @@ func appManagerCmdRun(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
+	config, err := m.Config()
+	if err != nil {
+		return err
+	}
+	log.Println("Read config")
 	log.Println("Creating repository")
 	var r installer.AppRepository
 	if appManagerFlags.appRepoAddr != "" {

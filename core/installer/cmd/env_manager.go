@@ -64,7 +64,10 @@ func envManagerCmdRun(cmd *cobra.Command, args []string) error {
 		return err
 	}
 	log.Printf("Cloned repo: %s\n", envManagerFlags.repoName)
-	repoIO := installer.NewRepoIO(repo, sshKey.Signer())
+	repoIO, err := installer.NewRepoIO(repo, sshKey.Signer())
+	if err != nil {
+		return err
+	}
 	nsCreator, err := newNSCreator()
 	if err != nil {
 		return err
