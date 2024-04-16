@@ -222,9 +222,14 @@ func (s *AppManagerServer) handleAppInstall(c echo.Context) error {
 		return err
 	}
 	log.Printf("Configuration: %+v\n", config)
-	nsGen := installer.NewPrefixGenerator(config.Values.NamespacePrefix)
 	suffixGen := installer.NewFixedLengthRandomSuffixGenerator(3)
-	if err := s.m.Install(a, nsGen, suffixGen, values); err != nil {
+	suffix, err := suffixGen.Generate()
+	if err != nil {
+		return err
+	}
+	appDir := fmt.Sprintf("/apps/%s%s", a.Name(), suffix)
+	namespace := fmt.Sprintf("%s%s%s", config.Values.NamespacePrefix, a.Namespace(), suffix)
+	if err := s.m.Install(a, appDir, namespace, values); err != nil {
 		log.Printf("%s\n", err.Error())
 		return err
 	}

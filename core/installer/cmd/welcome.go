@@ -80,13 +80,17 @@ func welcomeCmdRun(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
+	repoIO, err := installer.NewRepoIO(repo, signer)
+	if err != nil {
+		return err
+	}
 	nsCreator, err := newNSCreator()
 	if err != nil {
 		return err
 	}
 	s := welcome.NewServer(
 		welcomeFlags.port,
-		installer.NewRepoIO(repo, signer),
+		repoIO,
 		nsCreator,
 		welcomeFlags.createAccountAddr,
 		welcomeFlags.loginAddr,

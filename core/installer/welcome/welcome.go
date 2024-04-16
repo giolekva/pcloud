@@ -205,18 +205,12 @@ func (s *Server) createAccount(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	{
-		config, err := s.repo.ReadConfig()
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
-		nsGen := installer.NewPrefixGenerator(config.Values.NamespacePrefix)
-		suffixGen := installer.NewFixedLengthRandomSuffixGenerator(3)
 		appManager, err := installer.NewAppManager(s.repo, s.nsCreator)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		config, err := appManager.Config()
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
@@ -228,7 +222,9 @@ func (s *Server) createAccount(w http.ResponseWriter, r *http.Request) {
 				http.Error(w, err.Error(), http.StatusInternalServerError)
 				return
 			}
-			if err := appManager.Install(app, nsGen, suffixGen, map[string]any{
+			appDir := fmt.Sprintf("/apps/%s-%s", app.Name(), req.Username)
+			namespace := fmt.Sprintf("%s%s", config.Values.NamespacePrefix, app.Namespace())
+			if err := appManager.Install(app, appDir, namespace, map[string]any{
 				"username": req.Username,
 				"preAuthKey": map[string]any{
 					"enabled": false,
@@ -253,28 +249,26 @@ type initRequest struct {
 }
 
 func (s *Server) initMemberships(username string) error {
-	inp, err := s.repo.Reader("first-account.yaml")
-	if err != nil {
-		return err
-	}
-	var fa firstaccount
-	if err := installer.ReadYaml(inp, &fa); err != nil {
-		return err
-	}
-	if fa.Created {
-		return nil
-	}
-	req := initRequest{username, fa.Groups}
-	var buf bytes.Buffer
-	if err := json.NewEncoder(&buf).Encode(req); err != nil {
-		return err
-	}
-	if _, err = http.Post(s.membershipsInitAddr, "applications/json", &buf); err != nil {
-		return err
-	}
-	fa.Created = true
-	if err := s.repo.WriteYaml("first-account.yaml", fa); err != nil {
-		return err
-	}
-	return s.repo.CommitAndPush("initialized groups for first account")
+	return s.repo.Atomic(func(r installer.RepoFS) (string, error) {
+		var fa firstaccount
+		if err := installer.ReadYaml(r, "first-account.yaml", &fa); err != nil {
+			return "", err
+		}
+		if fa.Created {
+			return "", nil
+		}
+		req := initRequest{username, fa.Groups}
+		var buf bytes.Buffer
+		if err := json.NewEncoder(&buf).Encode(req); err != nil {
+			return "", err
+		}
+		if _, err := http.Post(s.membershipsInitAddr, "applications/json", &buf); err != nil {
+			return "", err
+		}
+		fa.Created = true
+		if err := installer.WriteYaml(r, "first-account.yaml", fa); err != nil {
+			return "", err
+		}
+		return "initialized groups for first account", nil
+	})
 }

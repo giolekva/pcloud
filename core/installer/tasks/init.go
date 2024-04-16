@@ -51,28 +51,18 @@ func NewCreateConfigRepoTask(env Env, st *state) Task {
 		if err != nil {
 			return err
 		}
-		ssValues := map[string]any{
-			"privateKey": string(ssKeys.RawPrivateKey()),
-			"publicKey":  string(ssKeys.RawAuthorizedKey()),
-			"adminKey":   string(ssAdminKeys.RawAuthorizedKey()),
-		}
 		derived := installer.Derived{
 			Global: installer.Values{
 				Id:            env.Name,
 				PCloudEnvName: env.PCloudEnvName,
 			},
-			Release: installer.Release{
-				Namespace: env.Name,
+			Values: map[string]any{
+				"privateKey": string(ssKeys.RawPrivateKey()),
+				"publicKey":  string(ssKeys.RawAuthorizedKey()),
+				"adminKey":   string(ssAdminKeys.RawAuthorizedKey()),
 			},
-			Values: ssValues,
 		}
-		if err := st.nsCreator.Create(env.Name); err != nil {
-			return err
-		}
-		if err := st.repo.InstallApp(ssApp, filepath.Join("/environments", env.Name, "config-repo"), ssValues, derived); err != nil {
-			return err
-		}
-		return nil
+		return installer.InstallApp(st.repo, st.nsCreator, ssApp, filepath.Join("/environments", env.Name, "config-repo"), env.Name, derived.Values, derived)
 	})
 	return &t
 }
@@ -116,24 +106,24 @@ func NewInitConfigRepoTask(env Env, st *state) Task {
 		if err != nil {
 			return err
 		}
-		repoIO := installer.NewRepoIO(repo, st.ssClient.Signer)
-		if err := func() error {
-			w, err := repoIO.Writer("README.md")
+		repoIO, err := installer.NewRepoIO(repo, st.ssClient.Signer)
+		if err != nil {
+			return err
+		}
+		if err := repoIO.Atomic(func(r installer.RepoFS) (string, error) {
+			w, err := r.Writer("README.md")
 			if err != nil {
-				return err
+				return "", err
 			}
 			defer w.Close()
 			if _, err := fmt.Fprintf(w, "# %s PCloud environment", env.Name); err != nil {
-				return err
+				return "", err
 			}
-			return nil
-		}(); err != nil {
-			return err
-		}
-		if err := repoIO.WriteKustomization("kustomization.yaml", installer.NewKustomization()); err != nil {
-			return err
-		}
-		if err := repoIO.CommitAndPush("init"); err != nil {
+			if err := installer.WriteYaml(r, "kustomization.yaml", installer.NewKustomization()); err != nil {
+				return "", err
+			}
+			return "init", nil
+		}); err != nil {
 			return err
 		}
 		if err := st.ssClient.AddUser(st.fluxUserName, keys.AuthorizedKey()); err != nil {

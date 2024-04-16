@@ -22,7 +22,7 @@ charts: {
 }
 
 helm: {
-	"headscale-user": {
+	"headscale-user-\(input.username)": {
 		chart: charts.headscaleUser
 		values: {
 			username: input.username

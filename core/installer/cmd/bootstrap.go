@@ -106,6 +106,7 @@ func bootstrapCmdRun(cmd *cobra.Command, args []string) error {
 		installer.NewFSChartLoader(bootstrapFlags.chartsDir),
 		nsCreator,
 		installer.NewActionConfigFactory(rootFlags.kubeConfig),
+		installer.NewInMemoryAppRepository(installer.CreateAllApps()),
 	)
 	return b.Run(envConfig)
 }

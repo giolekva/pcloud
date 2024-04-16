@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"golang.org/x/exp/slices"
 	"io"
-	"io/ioutil"
 
 	"sigs.k8s.io/yaml"
 )
@@ -21,18 +20,6 @@ func NewKustomization() Kustomization {
 		Kind:       "Kustomization",
 		Resources:  []string{},
 	}
-}
-
-func ReadKustomization(r io.Reader) (*Kustomization, error) {
-	contents, err := ioutil.ReadAll(r)
-	if err != nil {
-		return nil, err
-	}
-	var ret Kustomization
-	if err = yaml.UnmarshalStrict(contents, &ret); err != nil {
-		return nil, err
-	}
-	return &ret, nil
 }
 
 func (k Kustomization) Write(w io.Writer) error {
