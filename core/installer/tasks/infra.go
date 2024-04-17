@@ -64,16 +64,14 @@ func CommitEnvironmentConfiguration(env Env, st *state) Task {
 		r.Atomic(func(r installer.RepoFS) (string, error) {
 			{
 				// TODO(giolekva): private domain can be configurable as well
-				config := installer.Config{
-					Values: installer.Values{
-						PCloudEnvName:   env.PCloudEnvName,
-						Id:              env.Name,
-						ContactEmail:    env.ContactEmail,
-						Domain:          env.Domain,
-						PrivateDomain:   fmt.Sprintf("p.%s", env.Domain),
-						PublicIP:        st.publicIPs[0].String(),
-						NamespacePrefix: fmt.Sprintf("%s-", env.Name),
-					},
+				config := installer.AppEnvConfig{
+					Id:              env.Name,
+					InfraName:       env.PCloudEnvName,
+					Domain:          env.Domain,
+					PrivateDomain:   fmt.Sprintf("p.%s", env.Domain),
+					ContactEmail:    env.ContactEmail,
+					PublicIP:        st.publicIPs,
+					NamespacePrefix: fmt.Sprintf("%s-", env.Name),
 				}
 				if err := installer.WriteYaml(r, "config.yaml", config); err != nil {
 					return "", err
@@ -94,7 +92,7 @@ spec:
   interval: 1m0s
   url: https://github.com/giolekva/pcloud
   ref:
-    branch: ingress-port-allocator
+    branch: app-config-test
 `, env.Name)
 			if err != nil {
 				return "", err
@@ -166,14 +164,15 @@ func SetupNetwork(env Env, startIP net.IP, st *state) Task {
 		{
 			ingressPrivateIP := startAddr
 			headscaleIP := ingressPrivateIP.Next()
-			app, err := st.appsRepo.Find("metallb-ipaddresspool")
+			app, err := installer.FindEnvApp(st.appsRepo, "metallb-ipaddresspool")
 			if err != nil {
 				return err
 			}
 			{
-				appDir := fmt.Sprintf("/apps/%s-ingress-private", app.Name())
+				instanceId := fmt.Sprintf("%s-ingress-private", app.Name())
+				appDir := fmt.Sprintf("/apps/%s", instanceId)
 				namespace := fmt.Sprintf("%s%s-ingress-private", env.NamespacePrefix, app.Namespace())
-				if err := st.appManager.Install(app, appDir, namespace, map[string]any{
+				if err := st.appManager.Install(app, instanceId, appDir, namespace, map[string]any{
 					"name":       fmt.Sprintf("%s-ingress-private", env.Name),
 					"from":       ingressPrivateIP.String(),
 					"to":         ingressPrivateIP.String(),
@@ -184,9 +183,10 @@ func SetupNetwork(env Env, startIP net.IP, st *state) Task {
 				}
 			}
 			{
-				appDir := fmt.Sprintf("/apps/%s-headscale", app.Name())
+				instanceId := fmt.Sprintf("%s-headscale", app.Name())
+				appDir := fmt.Sprintf("/apps/%s", instanceId)
 				namespace := fmt.Sprintf("%s%s-ingress-private", env.NamespacePrefix, app.Namespace())
-				if err := st.appManager.Install(app, appDir, namespace, map[string]any{
+				if err := st.appManager.Install(app, instanceId, appDir, namespace, map[string]any{
 					"name":       fmt.Sprintf("%s-headscale", env.Name),
 					"from":       headscaleIP.String(),
 					"to":         headscaleIP.String(),
@@ -197,9 +197,10 @@ func SetupNetwork(env Env, startIP net.IP, st *state) Task {
 				}
 			}
 			{
-				appDir := fmt.Sprintf("/apps/%s", app.Name())
+				instanceId := app.Name()
+				appDir := fmt.Sprintf("/apps/%s", instanceId)
 				namespace := fmt.Sprintf("%s%s", env.NamespacePrefix, app.Namespace())
-				if err := st.appManager.Install(app, appDir, namespace, map[string]any{
+				if err := st.appManager.Install(app, instanceId, appDir, namespace, map[string]any{
 					"name":       env.Name,
 					"from":       fromIP.String(),
 					"to":         toIP.String(),
@@ -222,13 +223,14 @@ func SetupNetwork(env Env, startIP net.IP, st *state) Task {
 			if err := st.ssClient.AddReadWriteCollaborator("config", user); err != nil {
 				return err
 			}
-			app, err := st.appsRepo.Find("private-network")
+			app, err := installer.FindEnvApp(st.appsRepo, "private-network")
 			if err != nil {
 				return err
 			}
-			appDir := fmt.Sprintf("/apps/%s", app.Name())
+			instanceId := app.Name()
+			appDir := fmt.Sprintf("/apps/%s", instanceId)
 			namespace := fmt.Sprintf("%s%s", env.NamespacePrefix, app.Namespace())
-			if err := st.appManager.Install(app, appDir, namespace, map[string]any{
+			if err := st.appManager.Install(app, instanceId, appDir, namespace, map[string]any{
 				"privateNetwork": map[string]any{
 					"hostname": "private-network-proxy",
 					"username": "private-network-proxy",
@@ -246,25 +248,27 @@ func SetupNetwork(env Env, startIP net.IP, st *state) Task {
 
 func SetupCertificateIssuers(env Env, st *state) Task {
 	pub := newLeafTask(fmt.Sprintf("Public %s", env.Domain), func() error {
-		app, err := st.appsRepo.Find("certificate-issuer-public")
+		app, err := installer.FindEnvApp(st.appsRepo, "certificate-issuer-public")
 		if err != nil {
 			return err
 		}
-		appDir := fmt.Sprintf("/apps/%s", app.Name())
+		instanceId := app.Name()
+		appDir := fmt.Sprintf("/apps/%s", instanceId)
 		namespace := fmt.Sprintf("%s%s", env.NamespacePrefix, app.Namespace())
-		if err := st.appManager.Install(app, appDir, namespace, map[string]any{}); err != nil {
+		if err := st.appManager.Install(app, instanceId, appDir, namespace, map[string]any{}); err != nil {
 			return err
 		}
 		return nil
 	})
 	priv := newLeafTask(fmt.Sprintf("Private p.%s", env.Domain), func() error {
-		app, err := st.appsRepo.Find("certificate-issuer-private")
+		app, err := installer.FindEnvApp(st.appsRepo, "certificate-issuer-private")
 		if err != nil {
 			return err
 		}
-		appDir := fmt.Sprintf("/apps/%s", app.Name())
+		instanceId := app.Name()
+		appDir := fmt.Sprintf("/apps/%s", instanceId)
 		namespace := fmt.Sprintf("%s%s", env.NamespacePrefix, app.Namespace())
-		if err := st.appManager.Install(app, appDir, namespace, map[string]any{
+		if err := st.appManager.Install(app, instanceId, appDir, namespace, map[string]any{
 			"apiConfigMap": map[string]any{
 				"name":      "api-config", // TODO(gio): take from global pcloud config
 				"namespace": fmt.Sprintf("%s-dns-zone-manager", env.PCloudEnvName),
@@ -279,13 +283,14 @@ func SetupCertificateIssuers(env Env, st *state) Task {
 
 func SetupAuth(env Env, st *state) Task {
 	t := newLeafTask("Setup", func() error {
-		app, err := st.appsRepo.Find("core-auth")
+		app, err := installer.FindEnvApp(st.appsRepo, "core-auth")
 		if err != nil {
 			return err
 		}
-		appDir := fmt.Sprintf("/apps/%s", app.Name())
+		instanceId := app.Name()
+		appDir := fmt.Sprintf("/apps/%s", instanceId)
 		namespace := fmt.Sprintf("%s%s", env.NamespacePrefix, app.Namespace())
-		if err := st.appManager.Install(app, appDir, namespace, map[string]any{
+		if err := st.appManager.Install(app, instanceId, appDir, namespace, map[string]any{
 			"subdomain": "test", // TODO(giolekva): make core-auth chart actually use this
 		}); err != nil {
 			return err
@@ -302,13 +307,14 @@ func SetupAuth(env Env, st *state) Task {
 
 func SetupGroupMemberships(env Env, st *state) Task {
 	t := newLeafTask("Setup", func() error {
-		app, err := st.appsRepo.Find("memberships")
+		app, err := installer.FindEnvApp(st.appsRepo, "memberships")
 		if err != nil {
 			return err
 		}
-		appDir := fmt.Sprintf("/apps/%s", app.Name())
+		instanceId := app.Name()
+		appDir := fmt.Sprintf("/apps/%s", instanceId)
 		namespace := fmt.Sprintf("%s%s", env.NamespacePrefix, app.Namespace())
-		if err := st.appManager.Install(app, appDir, namespace, map[string]any{
+		if err := st.appManager.Install(app, instanceId, appDir, namespace, map[string]any{
 			"authGroups": strings.Join(initGroups, ","),
 		}); err != nil {
 			return err
@@ -325,13 +331,14 @@ func SetupGroupMemberships(env Env, st *state) Task {
 
 func SetupHeadscale(env Env, startIP net.IP, st *state) Task {
 	t := newLeafTask("Setup", func() error {
-		app, err := st.appsRepo.Find("headscale")
+		app, err := installer.FindEnvApp(st.appsRepo, "headscale")
 		if err != nil {
 			return err
 		}
-		appDir := fmt.Sprintf("/apps/%s", app.Name())
+		instanceId := app.Name()
+		appDir := fmt.Sprintf("/apps/%s", instanceId)
 		namespace := fmt.Sprintf("%s%s", env.NamespacePrefix, app.Namespace())
-		if err := st.appManager.Install(app, appDir, namespace, map[string]any{
+		if err := st.appManager.Install(app, instanceId, appDir, namespace, map[string]any{
 			"subdomain": "headscale",
 			"ipSubnet":  fmt.Sprintf("%s/24", startIP),
 		}); err != nil {
@@ -360,13 +367,14 @@ func SetupWelcome(env Env, st *state) Task {
 		if err := st.ssClient.AddReadWriteCollaborator("config", user); err != nil {
 			return err
 		}
-		app, err := st.appsRepo.Find("welcome")
+		app, err := installer.FindEnvApp(st.appsRepo, "welcome")
 		if err != nil {
 			return err
 		}
-		appDir := fmt.Sprintf("/apps/%s", app.Name())
+		instanceId := app.Name()
+		appDir := fmt.Sprintf("/apps/%s", instanceId)
 		namespace := fmt.Sprintf("%s%s", env.NamespacePrefix, app.Namespace())
-		if err := st.appManager.Install(app, appDir, namespace, map[string]any{
+		if err := st.appManager.Install(app, instanceId, appDir, namespace, map[string]any{
 			"repoAddr":      st.ssClient.GetRepoAddress("config"),
 			"sshPrivateKey": string(keys.RawPrivateKey()),
 		}); err != nil {
@@ -395,13 +403,14 @@ func SetupAppStore(env Env, st *state) Task {
 		if err := st.ssClient.AddReadWriteCollaborator("config", user); err != nil {
 			return err
 		}
-		app, err := st.appsRepo.Find("app-manager") // TODO(giolekva): configure
+		app, err := installer.FindEnvApp(st.appsRepo, "app-manager") // TODO(giolekva): configure
 		if err != nil {
 			return err
 		}
-		appDir := fmt.Sprintf("/apps/%s", app.Name())
+		instanceId := app.Name()
+		appDir := fmt.Sprintf("/apps/%s", instanceId)
 		namespace := fmt.Sprintf("%s%s", env.NamespacePrefix, app.Namespace())
-		if err := st.appManager.Install(app, appDir, namespace, map[string]any{
+		if err := st.appManager.Install(app, instanceId, appDir, namespace, map[string]any{
 			"repoAddr":      st.ssClient.GetRepoAddress("config"),
 			"sshPrivateKey": string(keys.RawPrivateKey()),
 			"authGroups":    strings.Join(initGroups, ","),

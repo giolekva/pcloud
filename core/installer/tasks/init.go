@@ -38,31 +38,25 @@ func SetupConfigRepoTask(env Env, st *state) Task {
 func NewCreateConfigRepoTask(env Env, st *state) Task {
 	t := newLeafTask("Install Git server", func() error {
 		appsRepo := installer.NewInMemoryAppRepository(installer.CreateAllApps())
-		ssApp, err := appsRepo.Find("config-repo")
+		app, err := installer.FindInfraApp(appsRepo, "config-repo")
 		if err != nil {
 			return err
 		}
-		ssAdminKeys, err := installer.NewSSHKeyPair(fmt.Sprintf("%s-config-repo-admin-keys", env.Name))
+		adminKeys, err := installer.NewSSHKeyPair(fmt.Sprintf("%s-config-repo-admin-keys", env.Name))
 		if err != nil {
 			return err
 		}
-		st.ssAdminKeys = ssAdminKeys
-		ssKeys, err := installer.NewSSHKeyPair(fmt.Sprintf("%s-config-repo-keys", env.Name))
+		st.ssAdminKeys = adminKeys
+		keys, err := installer.NewSSHKeyPair(fmt.Sprintf("%s-config-repo-keys", env.Name))
 		if err != nil {
 			return err
 		}
-		derived := installer.Derived{
-			Global: installer.Values{
-				Id:            env.Name,
-				PCloudEnvName: env.PCloudEnvName,
-			},
-			Values: map[string]any{
-				"privateKey": string(ssKeys.RawPrivateKey()),
-				"publicKey":  string(ssKeys.RawAuthorizedKey()),
-				"adminKey":   string(ssAdminKeys.RawAuthorizedKey()),
-			},
-		}
-		return installer.InstallApp(st.repo, st.nsCreator, ssApp, filepath.Join("/environments", env.Name, "config-repo"), env.Name, derived.Values, derived)
+		appDir := filepath.Join("/environments", env.Name, "config-repo")
+		return st.infraAppManager.Install(app, appDir, env.Name, map[string]any{
+			"privateKey": string(keys.RawPrivateKey()),
+			"publicKey":  string(keys.RawAuthorizedKey()),
+			"adminKey":   string(adminKeys.RawAuthorizedKey()),
+		})
 	})
 	return &t
 }

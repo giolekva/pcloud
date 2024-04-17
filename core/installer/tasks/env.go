@@ -12,16 +12,17 @@ import (
 )
 
 type state struct {
-	infoListener EnvInfoListener
-	publicIPs    []net.IP
-	nsCreator    installer.NamespaceCreator
-	repo         installer.RepoIO
-	ssAdminKeys  *keygen.KeyPair
-	ssClient     *soft.Client
-	fluxUserName string
-	keys         *keygen.KeyPair
-	appManager   *installer.AppManager
-	appsRepo     installer.AppRepository
+	infoListener    EnvInfoListener
+	publicIPs       []net.IP
+	nsCreator       installer.NamespaceCreator
+	repo            installer.RepoIO
+	ssAdminKeys     *keygen.KeyPair
+	ssClient        *soft.Client
+	fluxUserName    string
+	keys            *keygen.KeyPair
+	appManager      *installer.AppManager
+	appsRepo        installer.AppRepository
+	infraAppManager *installer.InfraAppManager
 }
 
 type Env struct {
@@ -46,13 +47,15 @@ func NewCreateEnvTask(
 	startIP net.IP,
 	nsCreator installer.NamespaceCreator,
 	repo installer.RepoIO,
+	mgr *installer.InfraAppManager,
 	infoListener EnvInfoListener,
 ) (Task, DNSZoneRef) {
 	st := state{
-		infoListener: infoListener,
-		publicIPs:    publicIPs,
-		nsCreator:    nsCreator,
-		repo:         repo,
+		infoListener:    infoListener,
+		publicIPs:       publicIPs,
+		nsCreator:       nsCreator,
+		repo:            repo,
+		infraAppManager: mgr,
 	}
 	t := newSequentialParentTask(
 		"Create env",

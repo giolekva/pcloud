@@ -66,11 +66,11 @@ func (s *AppManagerServer) Start() error {
 }
 
 type app struct {
-	Name             string                `json:"name"`
-	Icon             template.HTML         `json:"icon"`
-	ShortDescription string                `json:"shortDescription"`
-	Slug             string                `json:"slug"`
-	Instances        []installer.AppConfig `json:"instances,omitempty"`
+	Name             string                        `json:"name"`
+	Icon             template.HTML                 `json:"icon"`
+	ShortDescription string                        `json:"shortDescription"`
+	Slug             string                        `json:"slug"`
+	Instances        []installer.AppInstanceConfig `json:"instances,omitempty"`
 }
 
 func (s *AppManagerServer) handleAppRepo(c echo.Context) error {
@@ -95,25 +95,6 @@ func (s *AppManagerServer) handleApp(c echo.Context) error {
 	if err != nil {
 		return err
 	}
-	for _, instance := range instances {
-		values, ok := instance.Config["Values"].(map[string]any)
-		if !ok {
-			return fmt.Errorf("Expected map")
-		}
-		for k, v := range values {
-			if k == "Network" {
-				n, ok := v.(map[string]any)
-				if !ok {
-					return fmt.Errorf("Expected map")
-				}
-				values["Network"], ok = n["Name"]
-				if !ok {
-					return fmt.Errorf("Missing Name")
-				}
-				break
-			}
-		}
-	}
 	return c.JSON(http.StatusOK, app{a.Name(), a.Icon(), a.Description(), a.Name(), instances})
 }
 
@@ -123,28 +104,11 @@ func (s *AppManagerServer) handleInstance(c echo.Context) error {
 	if err != nil {
 		return err
 	}
-	values, ok := instance.Config["Values"].(map[string]any)
-	if !ok {
-		return fmt.Errorf("Expected map")
-	}
-	for k, v := range values {
-		if k == "Network" {
-			n, ok := v.(map[string]any)
-			if !ok {
-				return fmt.Errorf("Expected map")
-			}
-			values["Network"], ok = n["Name"]
-			if !ok {
-				return fmt.Errorf("Missing Name")
-			}
-			break
-		}
-	}
 	a, err := s.r.Find(instance.AppId)
 	if err != nil {
 		return err
 	}
-	return c.JSON(http.StatusOK, app{a.Name(), a.Icon(), a.Description(), a.Name(), []installer.AppConfig{instance}})
+	return c.JSON(http.StatusOK, app{a.Name(), a.Icon(), a.Description(), a.Name(), []installer.AppInstanceConfig{instance}})
 }
 
 type file struct {
@@ -162,7 +126,7 @@ func (s *AppManagerServer) handleAppRender(c echo.Context) error {
 	if err != nil {
 		return err
 	}
-	global, err := s.m.Config()
+	env, err := s.m.Config()
 	if err != nil {
 		return err
 	}
@@ -170,22 +134,11 @@ func (s *AppManagerServer) handleAppRender(c echo.Context) error {
 	if err := json.Unmarshal(contents, &values); err != nil {
 		return err
 	}
-	if network, ok := values["network"]; ok {
-		for _, n := range installer.CreateNetworks(global) {
-			if n.Name == network { // TODO(giolekva): handle not found
-				values["network"] = n
-			}
-		}
-	}
-	all := installer.Derived{
-		Global: global.Values,
-		Values: values,
-	}
-	a, err := s.r.Find(slug)
+	a, err := installer.FindEnvApp(s.r, slug)
 	if err != nil {
 		return err
 	}
-	r, err := a.Render(all)
+	r, err := a.Render(installer.Release{}, env, values)
 	if err != nil {
 		return err
 	}
@@ -212,24 +165,25 @@ func (s *AppManagerServer) handleAppInstall(c echo.Context) error {
 		return err
 	}
 	log.Printf("Values: %+v\n", values)
-	a, err := s.r.Find(slug)
+	a, err := installer.FindEnvApp(s.r, slug)
 	if err != nil {
 		return err
 	}
 	log.Printf("Found application: %s\n", slug)
-	config, err := s.m.Config()
+	env, err := s.m.Config()
 	if err != nil {
 		return err
 	}
-	log.Printf("Configuration: %+v\n", config)
+	log.Printf("Configuration: %+v\n", env)
 	suffixGen := installer.NewFixedLengthRandomSuffixGenerator(3)
 	suffix, err := suffixGen.Generate()
 	if err != nil {
 		return err
 	}
-	appDir := fmt.Sprintf("/apps/%s%s", a.Name(), suffix)
-	namespace := fmt.Sprintf("%s%s%s", config.Values.NamespacePrefix, a.Namespace(), suffix)
-	if err := s.m.Install(a, appDir, namespace, values); err != nil {
+	instanceId := a.Name() + suffix
+	appDir := fmt.Sprintf("/apps/%s", instanceId)
+	namespace := fmt.Sprintf("%s%s%s", env.NamespacePrefix, a.Namespace(), suffix)
+	if err := s.m.Install(a, instanceId, appDir, namespace, values); err != nil {
 		log.Printf("%s\n", err.Error())
 		return err
 	}
@@ -252,7 +206,7 @@ func (s *AppManagerServer) handleAppUpdate(c echo.Context) error {
 	if err := json.Unmarshal(contents, &values); err != nil {
 		return err
 	}
-	a, err := s.r.Find(appConfig.AppId)
+	a, err := installer.FindEnvApp(s.r, appConfig.AppId)
 	if err != nil {
 		return err
 	}
@@ -291,9 +245,9 @@ func (s *AppManagerServer) handleIndex(c echo.Context) error {
 }
 
 type appContext struct {
-	App               installer.App
-	Instance          *installer.AppConfig
-	Instances         []installer.AppConfig
+	App               installer.EnvApp
+	Instance          *installer.AppInstanceConfig
+	Instances         []installer.AppInstanceConfig
 	AvailableNetworks []installer.Network
 }
 
@@ -311,7 +265,7 @@ func (s *AppManagerServer) handleAppUI(c echo.Context) error {
 		return err
 	}
 	slug := c.Param("slug")
-	a, err := s.r.Find(slug)
+	a, err := installer.FindEnvApp(s.r, slug)
 	if err != nil {
 		return err
 	}
@@ -346,7 +300,7 @@ func (s *AppManagerServer) handleInstanceUI(c echo.Context) error {
 	if err != nil {
 		return err
 	}
-	a, err := s.r.Find(instance.AppId)
+	a, err := installer.FindEnvApp(s.r, instance.AppId)
 	if err != nil {
 		return err
 	}

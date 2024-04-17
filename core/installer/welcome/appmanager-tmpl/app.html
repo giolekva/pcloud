@@ -75,7 +75,7 @@
 
 <form id="config-form">
     {{ if $instance }}
-      {{ template "schema-form" (dict "Schema" $schema "AvailableNetworks" $networks "ReadOnly" false "Data" ($instance.Input $schema)) }}
+      {{ template "schema-form" (dict "Schema" $schema "AvailableNetworks" $networks "ReadOnly" false "Data" ($instance.InputToValues $schema)) }}
     {{ else }}
       {{ template "schema-form" (dict "Schema" $schema "AvailableNetworks" $networks "ReadOnly" false "Data" (dict)) }}
     {{ end }}
@@ -93,7 +93,7 @@
   {{ if or (not $instance) (ne $instance.Id .Id)}}
     <details>
       <summary>{{ .Id }}</summary>
-      {{ template "schema-form" (dict "Schema" $schema "AvailableNetworks" $networks "ReadOnly" true "Data" (.Input $schema) ) }}
+      {{ template "schema-form" (dict "Schema" $schema "AvailableNetworks" $networks "ReadOnly" true "Data" ($instance.InputToValues $schema)) }}
       <a href="/instance/{{ .Id }}" role="button" class="secondary">View</a>
     </details>
   {{ end }}
@@ -139,7 +139,7 @@
 
 <script>
  let readme = "";
- let config = {{ if $instance }}JSON.parse({{ toJson ($instance.Input $schema) }}){{ else }}{}{{ end }};
+ let config = {{ if $instance }}JSON.parse({{ toJson ($instance.InputToValues $schema) }}){{ else }}{}{{ end }};
 
  function setValue(name, value, config) {
   let items = name.split(".")
