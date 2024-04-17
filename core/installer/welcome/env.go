@@ -326,8 +326,13 @@ func (s *EnvServer) createEnv(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	var env installer.EnvConfig
-	if err := installer.ReadYaml(s.repo, "config.yaml", &env); err != nil {
+	mgr, err := installer.NewInfraAppManager(s.repo, s.nsCreator)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	var infra installer.InfraConfig
+	if err := installer.ReadYaml(s.repo, "config.yaml", &infra); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -373,20 +378,18 @@ func (s *EnvServer) createEnv(w http.ResponseWriter, r *http.Request) {
 	}
 	t, dns := tasks.NewCreateEnvTask(
 		tasks.Env{
-			PCloudEnvName:   env.Name,
+			PCloudEnvName:   infra.Name,
 			Name:            req.Name,
 			ContactEmail:    req.ContactEmail,
 			Domain:          req.Domain,
 			AdminPublicKey:  req.AdminPublicKey,
 			NamespacePrefix: fmt.Sprintf("%s-", req.Name),
 		},
-		[]net.IP{
-			net.ParseIP("135.181.48.180"),
-			net.ParseIP("65.108.39.172"),
-		},
+		infra.PublicIP,
 		startIP,
 		s.nsCreator,
 		s.repo,
+		mgr,
 		infoUpdater,
 	)
 	s.tasks[key] = t

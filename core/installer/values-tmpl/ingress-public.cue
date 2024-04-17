@@ -1,4 +1,10 @@
-input: {}
+import (
+	"encoding/base64"
+)
+
+input: {
+	sshPrivateKey: string
+}
 
 name: "ingress-public"
 namespace: "ingress-public"
@@ -11,11 +17,25 @@ images: {
 		tag: "v1.8.0"
 		pullPolicy: "IfNotPresent"
 	}
+	portAllocator: {
+		repository: "giolekva"
+		name: "port-allocator"
+		tag: "latest"
+		pullPolicy: "Always"
+	}
 }
 
 charts: {
 	ingressNginx: {
 		chart: "charts/ingress-nginx"
+		sourceRef: {
+			kind: "GitRepository"
+			name: "pcloud"
+			namespace: global.pcloudEnvName
+		}
+	}
+	portAllocator: {
+		chart: "charts/port-allocator"
 		sourceRef: {
 			kind: "GitRepository"
 			name: "pcloud"
@@ -54,6 +74,19 @@ helm: {
 			}
 			udp: {
 				"53": "\(global.pcloudEnvName)-dns-zone-manager/coredns:53"
+			}
+		}
+	}
+	"port-allocator": {
+		chart: charts.portAllocator
+		values: {
+			repoAddr: release.repoAddr
+			sshPrivateKey: base64.Encode(null, input.sshPrivateKey)
+			ingressNginxPath: "\(release.appDir)/ingress-public.yaml"
+			image: {
+				repository: images.portAllocator.fullName
+				tag: images.portAllocator.tag
+				pullPolicy: images.portAllocator.pullPolicy
 			}
 		}
 	}

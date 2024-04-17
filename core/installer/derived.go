@@ -5,15 +5,10 @@ import (
 )
 
 type Release struct {
-	Namespace string `json:"namespace"`
-	RepoAddr  string `json:"repoAddr"`
-	AppDir    string `json:"appDir"`
-}
-
-type Derived struct {
-	Release Release        `json:"release"`
-	Global  Values         `json:"global"`
-	Values  map[string]any `json:"input"` // TODO(gio): rename to input
+	AppInstanceId string `json:"appInstanceId"`
+	Namespace     string `json:"namespace"`
+	RepoAddr      string `json:"repoAddr"`
+	AppDir        string `json:"appDir"`
 }
 
 type Network struct {
@@ -24,17 +19,19 @@ type Network struct {
 	AllocatePortAddr  string `json:"allocatePortAddr,omitempty"`
 }
 
-type AppConfig struct {
+type AppInstanceConfig struct {
 	Id      string         `json:"id"`
 	AppId   string         `json:"appId"`
-	Config  map[string]any `json:"config"`
-	Derived Derived        `json:"derived"`
+	Env     AppEnvConfig   `json:"env"`
+	Release Release        `json:"release"`
+	Values  map[string]any `json:"values"`
+	Input   map[string]any `json:"input"`
 }
 
-func (a AppConfig) Input(schema Schema) map[string]any {
-	ret, err := derivedToConfig(a.Derived.Values, schema)
+func (a AppInstanceConfig) InputToValues(schema Schema) map[string]any {
+	ret, err := derivedToConfig(a.Input, schema)
 	if err != nil {
-		panic(err) // TODO(gio): handle
+		panic(err)
 	}
 	return ret
 }

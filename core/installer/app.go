@@ -1,66 +1,16 @@
 package installer
 
 import (
-	"archive/tar"
 	"bytes"
-	"compress/gzip"
-	"embed"
 	"encoding/json"
 	"fmt"
 	template "html/template"
-	"io"
-	"log"
-	"net/http"
+	"net"
 	"strings"
 
 	"cuelang.org/go/cue"
-	"cuelang.org/go/cue/cuecontext"
 	cueyaml "cuelang.org/go/encoding/yaml"
-	"github.com/go-git/go-billy/v5"
-	"sigs.k8s.io/yaml"
 )
-
-//go:embed values-tmpl
-var valuesTmpls embed.FS
-
-var storeAppConfigs = []string{
-	"values-tmpl/jellyfin.cue",
-	// "values-tmpl/maddy.cue",
-	"values-tmpl/matrix.cue",
-	"values-tmpl/penpot.cue",
-	"values-tmpl/pihole.cue",
-	"values-tmpl/qbittorrent.cue",
-	"values-tmpl/rpuppy.cue",
-	"values-tmpl/soft-serve.cue",
-	"values-tmpl/vaultwarden.cue",
-	"values-tmpl/url-shortener.cue",
-	"values-tmpl/gerrit.cue",
-	"values-tmpl/jenkins.cue",
-	"values-tmpl/zot.cue",
-}
-
-var infraAppConfigs = []string{
-	"values-tmpl/appmanager.cue",
-	"values-tmpl/cert-manager.cue",
-	"values-tmpl/certificate-issuer-private.cue",
-	"values-tmpl/certificate-issuer-public.cue",
-	"values-tmpl/config-repo.cue",
-	"values-tmpl/core-auth.cue",
-	"values-tmpl/csi-driver-smb.cue",
-	"values-tmpl/dns-zone-manager.cue",
-	"values-tmpl/env-manager.cue",
-	"values-tmpl/fluxcd-reconciler.cue",
-	"values-tmpl/headscale-controller.cue",
-	"values-tmpl/headscale-user.cue",
-	"values-tmpl/headscale.cue",
-	"values-tmpl/ingress-public.cue",
-	"values-tmpl/metallb-ipaddresspool.cue",
-	"values-tmpl/private-network.cue",
-	"values-tmpl/resource-renderer-controller.cue",
-	"values-tmpl/welcome.cue",
-	"values-tmpl/memberships.cue",
-	"values-tmpl/hydra-maester.cue",
-}
 
 // TODO(gio): import
 const cueBaseConfig = `
@@ -131,6 +81,7 @@ networks: {
 }
 
 #Release: {
+	appInstanceId: string
 	namespace: string
 	repoAddr: string
 	appDir: string
@@ -309,27 +260,64 @@ output: {
 }
 `
 
-type appConfig struct {
-	Name        string        `json:"name"`
-	Version     string        `json:"version"`
-	Description string        `json:"description"`
-	Namespaces  []string      `json:"namespaces"`
-	Icon        template.HTML `json:"icon"`
-}
-
 type Rendered struct {
+	Name      string
 	Readme    string
 	Resources map[string][]byte
 	Ports     []PortForward
+	Config    AppInstanceConfig
 }
 
+type PortForward struct {
+	Allocator     string `json:"allocator"`
+	Protocol      string `json:"protocol"`
+	SourcePort    int    `json:"sourcePort"`
+	TargetService string `json:"targetService"`
+	TargetPort    int    `json:"targetPort"`
+}
+
+type AppType int
+
+const (
+	AppTypeInfra AppType = iota
+	AppTypeEnv
+)
+
 type App interface {
+	Type() AppType
 	Name() string
 	Description() string
 	Icon() template.HTML
 	Schema() Schema
 	Namespace() string
-	Render(derived Derived) (Rendered, error)
+}
+
+type InfraConfig struct {
+	Name                 string   `json:"pcloudEnvName"` // #TODO(gio): change to name
+	PublicIP             []net.IP `json:"publicIP"`
+	InfraNamespacePrefix string   `json:"namespacePrefix"`
+	InfraAdminPublicKey  []byte   `json:"infraAdminPublicKey"`
+}
+
+type InfraApp interface {
+	App
+	Render(release Release, infra InfraConfig, values map[string]any) (Rendered, error)
+}
+
+// TODO(gio): rename to EnvConfig
+type AppEnvConfig struct {
+	Id              string   `json:"id"`
+	InfraName       string   `json:"pcloudEnvName"`
+	Domain          string   `json:"domain"`
+	PrivateDomain   string   `json:"privateDomain"`
+	ContactEmail    string   `json:"contactEmail"`
+	PublicIP        []net.IP `json:"publicIP"`
+	NamespacePrefix string   `json:"namespacePrefix"`
+}
+
+type EnvApp interface {
+	App
+	Render(release Release, env AppEnvConfig, values map[string]any) (Rendered, error)
 }
 
 type cueApp struct {
@@ -341,18 +329,16 @@ type cueApp struct {
 	cfg         *cue.Value
 }
 
-type cueAppConfig struct {
-	Name        string `json:"name"`
-	Namespace   string `json:"namespace"`
-	Description string `json:"description"`
-	Icon        string `json:"icon"`
-}
-
 func newCueApp(config *cue.Value) (cueApp, error) {
 	if config == nil {
 		return cueApp{}, fmt.Errorf("config not provided")
 	}
-	var cfg cueAppConfig
+	cfg := struct {
+		Name        string `json:"name"`
+		Namespace   string `json:"namespace"`
+		Description string `json:"description"`
+		Icon        string `json:"icon"`
+	}{}
 	if err := config.Decode(&cfg); err != nil {
 		return cueApp{}, err
 	}
@@ -390,21 +376,14 @@ func (a cueApp) Namespace() string {
 	return a.namespace
 }
 
-type PortForward struct {
-	Allocator     string `json:"allocator"`
-	Protocol      string `json:"protocol"`
-	SourcePort    int    `json:"sourcePort"`
-	TargetService string `json:"targetService"`
-	TargetPort    int    `json:"targetPort"`
-}
-
-func (a cueApp) Render(derived Derived) (Rendered, error) {
+func (a cueApp) render(values map[string]any) (Rendered, error) {
 	ret := Rendered{
+		Name:      a.Name(),
 		Resources: make(map[string][]byte),
 		Ports:     make([]PortForward, 0),
 	}
 	var buf bytes.Buffer
-	if err := json.NewEncoder(&buf).Encode(derived); err != nil {
+	if err := json.NewEncoder(&buf).Encode(values); err != nil {
 		return Rendered{}, err
 	}
 	ctx := a.cfg.Context()
@@ -440,254 +419,70 @@ func (a cueApp) Render(derived Derived) (Rendered, error) {
 	return ret, nil
 }
 
-type AppRepository interface {
-	GetAll() ([]App, error)
-	Find(name string) (App, error)
+type cueEnvApp struct {
+	cueApp
 }
 
-type InMemoryAppRepository struct {
-	apps []App
-}
-
-func NewInMemoryAppRepository(apps []App) InMemoryAppRepository {
-	return InMemoryAppRepository{apps}
-}
-
-func (r InMemoryAppRepository) Find(name string) (App, error) {
-	for _, a := range r.apps {
-		if a.Name() == name {
-			return a, nil
-		}
-	}
-	return nil, fmt.Errorf("Application not found: %s", name)
-}
-
-func (r InMemoryAppRepository) GetAll() ([]App, error) {
-	return r.apps, nil
-}
-
-func CreateAllApps() []App {
-	return append(
-		createApps(infraAppConfigs),
-		CreateStoreApps()...,
-	)
-}
-
-func CreateStoreApps() []App {
-	return createApps(storeAppConfigs)
-}
-
-func createApps(configs []string) []App {
-	ret := make([]App, 0)
-	for _, cfgFile := range configs {
-		cfg, err := readCueConfigFromFile(valuesTmpls, cfgFile)
-		if err != nil {
-			panic(err)
-		}
-		if app, err := newCueApp(cfg); err != nil {
-			panic(err)
-		} else {
-			ret = append(ret, app)
-		}
-	}
-	return ret
-}
-
-// func CreateAppMaddy(fs embed.FS, tmpls *template.Template) App {
-// 	schema, err := readJSONSchemaFromFile(fs, "values-tmpl/maddy.jsonschema")
-// 	if err != nil {
-// 		panic(err)
-// 	}
-// 	return StoreApp{
-// 		App{
-// 			"maddy",
-// 			[]string{"app-maddy"},
-// 			[]*template.Template{
-// 				tmpls.Lookup("maddy.yaml"),
-// 			},
-// 			schema,
-// 			nil,
-// 			nil,
-// 		},
-// 		`<svg xmlns="http://www.w3.org/2000/svg" width="50" height="50" viewBox="0 0 48 48"><path fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" d="M9.5 13c13.687 13.574 14.825 13.09 29 0"/><rect width="37" height="31" x="5.5" y="8.5" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" rx="2"/></svg>`,
-// 		"SMPT/IMAP server to communicate via email.",
-// 	}
-// }
-
-type httpAppRepository struct {
-	apps []App
-}
-
-type appVersion struct {
-	Version string   `json:"version"`
-	Urls    []string `json:"urls"`
-}
-
-type allAppsResp struct {
-	ApiVersion string                  `json:"apiVersion"`
-	Entries    map[string][]appVersion `json:"entries"`
-}
-
-func FetchAppsFromHTTPRepository(addr string, fs billy.Filesystem) error {
-	resp, err := http.Get(addr)
-	if err != nil {
-		return err
-	}
-	b, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return err
-	}
-	var apps allAppsResp
-	if err := yaml.Unmarshal(b, &apps); err != nil {
-		return err
-	}
-	for name, conf := range apps.Entries {
-		for _, version := range conf {
-			resp, err := http.Get(version.Urls[0])
-			if err != nil {
-				return err
-			}
-			nameVersion := fmt.Sprintf("%s-%s", name, version.Version)
-			if err := fs.MkdirAll(nameVersion, 0700); err != nil {
-				return err
-			}
-			sub, err := fs.Chroot(nameVersion)
-			if err != nil {
-				return err
-			}
-			if err := extractApp(resp.Body, sub); err != nil {
-				return err
-			}
-		}
-	}
-	return nil
-}
-
-func extractApp(archive io.Reader, fs billy.Filesystem) error {
-	uncompressed, err := gzip.NewReader(archive)
-	if err != nil {
-		return err
-	}
-	tarReader := tar.NewReader(uncompressed)
-	for true {
-		header, err := tarReader.Next()
-		if err == io.EOF {
-			break
-		}
-		if err != nil {
-			return err
-		}
-		switch header.Typeflag {
-		case tar.TypeDir:
-			if err := fs.MkdirAll(header.Name, 0755); err != nil {
-				return err
-			}
-		case tar.TypeReg:
-			out, err := fs.Create(header.Name)
-			if err != nil {
-				return err
-			}
-			defer out.Close()
-			if _, err := io.Copy(out, tarReader); err != nil {
-				return err
-			}
-		default:
-			return fmt.Errorf("Uknown type: %s", header.Name)
-		}
-	}
-	return nil
-}
-
-type fsAppRepository struct {
-	InMemoryAppRepository
-	fs billy.Filesystem
-}
-
-func NewFSAppRepository(fs billy.Filesystem) (AppRepository, error) {
-	all, err := fs.ReadDir(".")
+func NewCueEnvApp(config *cue.Value) (EnvApp, error) {
+	app, err := newCueApp(config)
 	if err != nil {
 		return nil, err
 	}
-	apps := make([]App, 0)
-	for _, e := range all {
-		if !e.IsDir() {
-			continue
-		}
-		appFS, err := fs.Chroot(e.Name())
-		if err != nil {
-			return nil, err
-		}
-		app, err := loadApp(appFS)
-		if err != nil {
-			log.Printf("Ignoring directory %s: %s", e.Name(), err)
-			continue
-		}
-		apps = append(apps, app)
-	}
-	return &fsAppRepository{
-		NewInMemoryAppRepository(apps),
-		fs,
-	}, nil
+	return cueEnvApp{app}, nil
 }
 
-func loadApp(fs billy.Filesystem) (App, error) {
-	items, err := fs.ReadDir(".")
+func (a cueEnvApp) Type() AppType {
+	return AppTypeEnv
+}
+
+func (a cueEnvApp) Render(release Release, env AppEnvConfig, values map[string]any) (Rendered, error) {
+	networks := CreateNetworks(env)
+	derived, err := deriveValues(values, a.Schema(), networks)
+	if err != nil {
+		return Rendered{}, nil
+	}
+	ret, err := a.cueApp.render(map[string]any{
+		"global":  env,
+		"release": release,
+		"input":   derived,
+	})
+	if err != nil {
+		return Rendered{}, err
+	}
+	ret.Config = AppInstanceConfig{
+		AppId:   a.Name(),
+		Env:     env,
+		Release: release,
+		Values:  values,
+		Input:   derived,
+	}
+	return ret, nil
+}
+
+type cueInfraApp struct {
+	cueApp
+}
+
+func NewCueInfraApp(config *cue.Value) (InfraApp, error) {
+	app, err := newCueApp(config)
 	if err != nil {
 		return nil, err
 	}
-	var contents bytes.Buffer
-	for _, i := range items {
-		if i.IsDir() {
-			continue
-		}
-		f, err := fs.Open(i.Name())
-		if err != nil {
-			return nil, err
-		}
-		defer f.Close()
-		if _, err := io.Copy(&contents, f); err != nil {
-			return nil, err
-		}
-	}
-	cfg, err := processCueConfig(contents.String())
-	if err != nil {
-		return nil, err
-	}
-	return newCueApp(cfg)
+	return cueInfraApp{app}, nil
+}
+
+func (a cueInfraApp) Type() AppType {
+	return AppTypeInfra
+}
+
+func (a cueInfraApp) Render(release Release, infra InfraConfig, values map[string]any) (Rendered, error) {
+	return a.cueApp.render(map[string]any{
+		"global":  infra,
+		"release": release,
+		"input":   values,
+	})
 }
 
 func cleanName(s string) string {
 	return strings.ReplaceAll(strings.ReplaceAll(s, "\"", ""), "'", "")
-}
-
-func processCueConfig(contents string) (*cue.Value, error) {
-	ctx := cuecontext.New()
-	cfg := ctx.CompileString(contents + cueBaseConfig)
-	if err := cfg.Err(); err != nil {
-		return nil, err
-	}
-	if err := cfg.Validate(); err != nil {
-		return nil, err
-	}
-	return &cfg, nil
-}
-
-func readCueConfigFromFile(fs embed.FS, f string) (*cue.Value, error) {
-	contents, err := fs.ReadFile(f)
-	if err != nil {
-		return nil, err
-	}
-	return processCueConfig(string(contents))
-}
-
-func createApp(fs embed.FS, configFile string) App {
-	cfg, err := readCueConfigFromFile(fs, configFile)
-	if err != nil {
-		panic(err)
-	}
-	if app, err := newCueApp(cfg); err != nil {
-		panic(err)
-	} else {
-		return app
-	}
 }

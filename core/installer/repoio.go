@@ -102,10 +102,18 @@ func (r *repoIO) pullWithoutLock() error {
 	if err != nil {
 		return nil
 	}
-	return wt.Pull(&git.PullOptions{
+	err = wt.Pull(&git.PullOptions{
 		Auth:  auth(r.signer),
 		Force: true,
 	})
+	if err == nil {
+		return nil
+	}
+	if errors.Is(err, git.NoErrAlreadyUpToDate) {
+		return nil
+	}
+	// TODO(gio): check `remote repository is empty`
+	return nil
 }
 
 func (r *repoIO) CommitAndPush(message string) error {

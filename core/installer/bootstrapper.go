@@ -34,21 +34,33 @@ func NewBootstrapper(cl ChartLoader, ns NamespaceCreator, ha HelmActionConfigFac
 	return Bootstrapper{cl, ns, ha, appRepo}
 }
 
-func (b Bootstrapper) Run(env EnvConfig) error {
-	if err := b.ns.Create(env.Name); err != nil {
+func (b Bootstrapper) findApp(name string) (InfraApp, error) {
+	app, err := b.appRepo.Find(name)
+	if err != nil {
+		return nil, err
+	}
+	if a, ok := app.(InfraApp); ok {
+		return a, nil
+	} else {
+		return nil, fmt.Errorf("not found")
+	}
+}
+
+func (b Bootstrapper) Run(env BootstrapConfig) error {
+	if err := b.ns.Create(env.InfraName); err != nil {
 		return err
 	}
 	if err := b.installMetallb(env); err != nil {
 		return err
 	}
-	if err := b.installLonghorn(env.Name, env.StorageDir, env.VolumeDefaultReplicaCount); err != nil {
+	if err := b.installLonghorn(env.InfraName, env.StorageDir, env.VolumeDefaultReplicaCount); err != nil {
 		return err
 	}
 	bootstrapJobKeys, err := NewSSHKeyPair("bootstrapper")
 	if err != nil {
 		return err
 	}
-	if err := b.installSoftServe(bootstrapJobKeys.AuthorizedKey(), env.Name, env.ServiceIPs.ConfigRepo); err != nil {
+	if err := b.installSoftServe(bootstrapJobKeys.AuthorizedKey(), env.InfraName, env.ServiceIPs.ConfigRepo); err != nil {
 		return err
 	}
 	time.Sleep(30 * time.Second)
@@ -67,7 +79,7 @@ func (b Bootstrapper) Run(env EnvConfig) error {
 	if ss.AddPublicKey("admin", string(env.AdminPublicKey)); err != nil {
 		return err
 	}
-	if err := b.installFluxcd(ss, env.Name); err != nil {
+	if err := b.installFluxcd(ss, env.InfraName); err != nil {
 		return err
 	}
 	fmt.Println("Fluxcd installed")
@@ -80,35 +92,43 @@ func (b Bootstrapper) Run(env EnvConfig) error {
 	if err != nil {
 		return err
 	}
+	mgr, err := NewInfraAppManager(repoIO, b.ns)
+	if err != nil {
+		return err
+	}
 	fmt.Println("Configuring main repo")
 	if err := configureMainRepo(repoIO, env); err != nil {
 		return err
 	}
 	fmt.Println("Installing infrastructure services")
-	if err := b.installInfrastructureServices(repoIO, env); err != nil {
+	if err := b.installInfrastructureServices(mgr, env); err != nil {
+		return err
+	}
+	fmt.Println("Installing public ingress")
+	if err := b.installIngressPublic(mgr, ss, env); err != nil {
 		return err
 	}
 	fmt.Println("Installing DNS Zone Manager")
-	if err := b.installDNSZoneManager(repoIO, env); err != nil {
+	if err := b.installDNSZoneManager(mgr, env); err != nil {
 		return err
 	}
 	fmt.Println("Installing Fluxcd Reconciler")
-	if err := b.installFluxcdReconciler(repoIO, ss, env); err != nil {
+	if err := b.installFluxcdReconciler(mgr, ss, env); err != nil {
 		return err
 	}
 	fmt.Println("Installing env manager")
-	if err := b.installEnvManager(repoIO, ss, env); err != nil {
+	if err := b.installEnvManager(mgr, ss, env); err != nil {
 		return err
 	}
 	fmt.Println("Installing Ory Hydra Maester")
-	if err := b.installOryHydraMaester(repoIO, env); err != nil {
+	if err := b.installOryHydraMaester(mgr, env); err != nil {
 		return err
 	}
 	fmt.Println("Environment ready to use")
 	return nil
 }
 
-func (b Bootstrapper) installMetallb(env EnvConfig) error {
+func (b Bootstrapper) installMetallb(env BootstrapConfig) error {
 	if err := b.installMetallbNamespace(env); err != nil {
 		return err
 	}
@@ -127,9 +147,9 @@ func (b Bootstrapper) installMetallb(env EnvConfig) error {
 	return nil
 }
 
-func (b Bootstrapper) installMetallbNamespace(env EnvConfig) error {
+func (b Bootstrapper) installMetallbNamespace(env BootstrapConfig) error {
 	fmt.Println("Installing metallb namespace")
-	config, err := b.ha.New(env.Name)
+	config, err := b.ha.New(env.InfraName)
 	if err != nil {
 		return err
 	}
@@ -146,7 +166,7 @@ func (b Bootstrapper) installMetallbNamespace(env EnvConfig) error {
 		},
 	}
 	installer := action.NewInstall(config)
-	installer.Namespace = env.Name
+	installer.Namespace = env.InfraName
 	installer.ReleaseName = "metallb-ns"
 	installer.Wait = true
 	installer.WaitForJobs = true
@@ -395,26 +415,21 @@ func (b Bootstrapper) installFluxBootstrap(repoAddr, repoHost string, repoHostPu
 	return nil
 }
 
-func (b Bootstrapper) installInfrastructureServices(repo RepoIO, env EnvConfig) error {
+func (b Bootstrapper) installInfrastructureServices(mgr *InfraAppManager, env BootstrapConfig) error {
 	install := func(name string) error {
 		fmt.Printf("Installing infrastructure service %s\n", name)
-		app, err := b.appRepo.Find(name)
+		app, err := b.findApp(name)
 		if err != nil {
 			return err
 		}
-		namespace := fmt.Sprintf("%s-%s", env.Name, app.Namespace())
-		derived := Derived{
-			Global: Values{
-				PCloudEnvName: env.Name,
-			},
-		}
-		return InstallApp(repo, b.ns, app, filepath.Join("/infrastructure", app.Name()), namespace, nil, derived)
+		namespace := fmt.Sprintf("%s-%s", env.InfraName, app.Namespace())
+		appDir := filepath.Join("/infrastructure", app.Name())
+		return mgr.Install(app, appDir, namespace, map[string]any{})
 	}
 	appsToInstall := []string{
 		"resource-renderer-controller",
 		"headscale-controller",
 		"csi-driver-smb",
-		"ingress-public",
 		"cert-manager",
 	}
 	for _, name := range appsToInstall {
@@ -425,9 +440,18 @@ func (b Bootstrapper) installInfrastructureServices(repo RepoIO, env EnvConfig) 
 	return nil
 }
 
-func configureMainRepo(repo RepoIO, env EnvConfig) error {
+func configureMainRepo(repo RepoIO, bootstrap BootstrapConfig) error {
 	return repo.Atomic(func(r RepoFS) (string, error) {
-		if err := WriteYaml(r, "config.yaml", env); err != nil {
+		if err := WriteYaml(r, "bootstrap-config.yaml", bootstrap); err != nil {
+			return "", err
+		}
+		infra := InfraConfig{
+			Name:                 bootstrap.InfraName,
+			PublicIP:             bootstrap.PublicIP,
+			InfraNamespacePrefix: bootstrap.NamespacePrefix,
+			InfraAdminPublicKey:  bootstrap.AdminPublicKey,
+		}
+		if err := WriteYaml(r, "config.yaml", infra); err != nil {
 			return "", err
 		}
 		if err := WriteYaml(r, "env-cidrs.yaml", EnvCIDRs{}); err != nil {
@@ -435,7 +459,7 @@ func configureMainRepo(repo RepoIO, env EnvConfig) error {
 		}
 		kust := NewKustomization()
 		kust.AddResources(
-			fmt.Sprintf("%s-flux", env.Name),
+			fmt.Sprintf("%s-flux", bootstrap.InfraName),
 			"infrastructure",
 			"environments",
 		)
@@ -459,7 +483,7 @@ spec:
   url: https://github.com/giolekva/pcloud
   ref:
     branch: main
-`, env.Name)))
+`, bootstrap.InfraName)))
 			if err != nil {
 				return "", err
 			}
@@ -476,89 +500,94 @@ spec:
 	})
 }
 
-func (b Bootstrapper) installEnvManager(repo RepoIO, ss *soft.Client, env EnvConfig) error {
+func (b Bootstrapper) installEnvManager(mgr *InfraAppManager, ss *soft.Client, env BootstrapConfig) error {
 	keys, err := NewSSHKeyPair("env-manager")
 	if err != nil {
 		return err
 	}
-	user := fmt.Sprintf("%s-env-manager", env.Name)
+	user := fmt.Sprintf("%s-env-manager", env.InfraName)
 	if err := ss.AddUser(user, keys.AuthorizedKey()); err != nil {
 		return err
 	}
 	if err := ss.MakeUserAdmin(user); err != nil {
 		return err
 	}
-	app, err := b.appRepo.Find("env-manager")
+	app, err := b.findApp("env-manager")
 	if err != nil {
 		return err
 	}
-	namespace := fmt.Sprintf("%s-%s", env.Name, app.Namespace())
-	derived := Derived{
-		Global: Values{
-			PCloudEnvName: env.Name,
-		},
-		Values: map[string]any{
-			"repoIP":        env.ServiceIPs.ConfigRepo,
-			"repoPort":      22,
-			"repoName":      "config",
-			"sshPrivateKey": string(keys.RawPrivateKey()),
-		},
-	}
-	return InstallApp(repo, b.ns, app, filepath.Join("/infrastructure", app.Name()), namespace, derived.Values, derived)
+	namespace := fmt.Sprintf("%s-%s", env.InfraName, app.Namespace())
+	appDir := filepath.Join("/infrastructure", app.Name())
+	return mgr.Install(app, appDir, namespace, map[string]any{
+		"repoIP":        env.ServiceIPs.ConfigRepo,
+		"repoPort":      22,
+		"repoName":      "config",
+		"sshPrivateKey": string(keys.RawPrivateKey()),
+	})
 }
 
-func (b Bootstrapper) installOryHydraMaester(repo RepoIO, env EnvConfig) error {
-	app, err := b.appRepo.Find("hydra-maester")
+func (b Bootstrapper) installIngressPublic(mgr *InfraAppManager, ss *soft.Client, env BootstrapConfig) error {
+	keys, err := NewSSHKeyPair("port-allocator")
 	if err != nil {
 		return err
 	}
-	namespace := fmt.Sprintf("%s-%s", env.Name, app.Namespace())
-	derived := Derived{
-		Global: Values{
-			PCloudEnvName: env.Name,
-		},
+	user := fmt.Sprintf("%s-port-allocator", env.InfraName)
+	if err := ss.AddUser(user, keys.AuthorizedKey()); err != nil {
+		return err
 	}
-	return InstallApp(repo, b.ns, app, filepath.Join("/infrastructure", app.Name()), namespace, nil, derived)
+	if err := ss.AddReadWriteCollaborator("config", user); err != nil {
+		return err
+	}
+	app, err := b.findApp("ingress-public")
+	if err != nil {
+		return err
+	}
+	namespace := fmt.Sprintf("%s-%s", env.InfraName, app.Namespace())
+	appDir := filepath.Join("/infrastructure", app.Name())
+	return mgr.Install(app, appDir, namespace, map[string]any{
+		"sshPrivateKey": string(keys.RawPrivateKey()),
+	})
 }
 
-func (b Bootstrapper) installDNSZoneManager(repo RepoIO, env EnvConfig) error {
+func (b Bootstrapper) installOryHydraMaester(mgr *InfraAppManager, env BootstrapConfig) error {
+	app, err := b.findApp("hydra-maester")
+	if err != nil {
+		return err
+	}
+	namespace := fmt.Sprintf("%s-%s", env.InfraName, app.Namespace())
+	appDir := filepath.Join("/infrastructure", app.Name())
+	return mgr.Install(app, appDir, namespace, map[string]any{})
+}
+
+func (b Bootstrapper) installDNSZoneManager(mgr *InfraAppManager, env BootstrapConfig) error {
 	const (
 		volumeClaimName = "dns-zone-configs"
 		volumeMountPath = "/etc/pcloud/dns-zone-configs"
 	)
-	app, err := b.appRepo.Find("dns-zone-manager")
+	app, err := b.findApp("dns-zone-manager")
 	if err != nil {
 		return err
 	}
-	namespace := fmt.Sprintf("%s-%s", env.Name, app.Namespace())
-	derived := Derived{
-		Global: Values{
-			PCloudEnvName: env.Name,
+	namespace := fmt.Sprintf("%s-%s", env.InfraName, app.Namespace())
+	appDir := filepath.Join("/infrastructure", app.Name())
+	return mgr.Install(app, appDir, namespace, map[string]any{
+		"volume": map[string]any{
+			"claimName": volumeClaimName,
+			"mountPath": volumeMountPath,
+			"size":      "1Gi",
 		},
-		Values: map[string]any{
-			"volume": map[string]any{
-				"claimName": volumeClaimName,
-				"mountPath": volumeMountPath,
-				"size":      "1Gi",
-			},
-			"apiConfigMapName": dnsAPIConfigMapName,
-		},
-	}
-	return InstallApp(repo, b.ns, app, filepath.Join("/infrastructure", app.Name()), namespace, derived.Values, derived)
+		"apiConfigMapName": dnsAPIConfigMapName,
+	})
 }
 
-func (b Bootstrapper) installFluxcdReconciler(repo RepoIO, ss *soft.Client, env EnvConfig) error {
-	app, err := b.appRepo.Find("fluxcd-reconciler")
+func (b Bootstrapper) installFluxcdReconciler(mgr *InfraAppManager, ss *soft.Client, env BootstrapConfig) error {
+	app, err := b.findApp("fluxcd-reconciler")
 	if err != nil {
 		return err
 	}
-	namespace := fmt.Sprintf("%s-%s", env.Name, app.Namespace())
-	derived := Derived{
-		Global: Values{
-			PCloudEnvName: env.Name,
-		},
-	}
-	return InstallApp(repo, b.ns, app, filepath.Join("/infrastructure", app.Name()), namespace, nil, derived)
+	namespace := fmt.Sprintf("%s-%s", env.InfraName, app.Namespace())
+	appDir := filepath.Join("/infrastructure", app.Name())
+	return mgr.Install(app, appDir, namespace, map[string]any{})
 }
 
 type HelmActionConfigFactory interface {

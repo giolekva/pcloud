@@ -3,8 +3,10 @@ package main
 import (
 	_ "embed"
 	"fmt"
+	"net"
 	"net/netip"
 	"os"
+	"strings"
 
 	"github.com/spf13/cobra"
 
@@ -34,7 +36,7 @@ func bootstrapCmd() *cobra.Command {
 		"",
 	)
 	cmd.Flags().StringVar(
-		&bootstrapFlags.envName,
+		&bootstrapFlags.publicIP,
 		"public-ip",
 		"",
 		"",
@@ -93,9 +95,10 @@ func bootstrapCmdRun(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-	envConfig := installer.EnvConfig{
-		Name:                      bootstrapFlags.envName,
-		PublicIP:                  bootstrapFlags.publicIP,
+	publicIPs, err := parseIPs(bootstrapFlags.publicIP)
+	envConfig := installer.BootstrapConfig{
+		InfraName:                 bootstrapFlags.envName,
+		PublicIP:                  publicIPs,
 		NamespacePrefix:           fmt.Sprintf("%s-", bootstrapFlags.envName),
 		StorageDir:                bootstrapFlags.storageDir,
 		VolumeDefaultReplicaCount: bootstrapFlags.volumeDefaultReplicaCount,
@@ -129,4 +132,16 @@ func newServiceIPs(from, to string) (installer.EnvServiceIPs, error) {
 		From:          restFrom,
 		To:            t,
 	}, nil
+}
+
+func parseIPs(ip string) ([]net.IP, error) {
+	ret := make([]net.IP, 0)
+	for _, i := range strings.Split(ip, ",") {
+		ip := net.ParseIP(i)
+		if ip == nil {
+			return nil, fmt.Errorf("invalid ip: %s", i)
+		}
+		ret = append(ret, ip)
+	}
+	return ret, nil
 }

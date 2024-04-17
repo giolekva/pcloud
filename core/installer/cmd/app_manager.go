@@ -84,7 +84,7 @@ func appManagerCmdRun(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-	config, err := m.Config()
+	env, err := m.Config()
 	if err != nil {
 		return err
 	}
@@ -110,7 +110,7 @@ func appManagerCmdRun(cmd *cobra.Command, args []string) error {
 		r,
 		tasks.NewFluxcdReconciler( // TODO(gio): make reconciler address a flag
 			"http://fluxcd-reconciler.dodo-fluxcd-reconciler.svc.cluster.local",
-			config.Values.Id,
+			env.Id,
 		),
 	)
 	return s.Start()

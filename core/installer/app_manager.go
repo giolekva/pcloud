@@ -14,7 +14,7 @@ import (
 	"sigs.k8s.io/yaml"
 )
 
-const appDir = "/apps"
+const appDirRoot = "/apps"
 const configFileName = "config.yaml"
 const kustomizationFileName = "kustomization.yaml"
 
@@ -30,32 +30,32 @@ func NewAppManager(repoIO RepoIO, nsCreator NamespaceCreator) (*AppManager, erro
 	}, nil
 }
 
-func (m *AppManager) Config() (Config, error) {
-	var cfg Config
+func (m *AppManager) Config() (AppEnvConfig, error) {
+	var cfg AppEnvConfig
 	if err := ReadYaml(m.repoIO, configFileName, &cfg); err != nil {
-		return Config{}, err
+		return AppEnvConfig{}, err
 	} else {
 		return cfg, nil
 	}
 }
 
-func (m *AppManager) appConfig(path string) (AppConfig, error) {
-	var cfg AppConfig
+func (m *AppManager) appConfig(path string) (AppInstanceConfig, error) {
+	var cfg AppInstanceConfig
 	if err := ReadYaml(m.repoIO, path, &cfg); err != nil {
-		return AppConfig{}, err
+		return AppInstanceConfig{}, err
 	} else {
 		return cfg, nil
 	}
 }
 
-func (m *AppManager) FindAllInstances(name string) ([]AppConfig, error) {
-	kust, err := ReadKustomization(m.repoIO, filepath.Join(appDir, "kustomization.yaml"))
+func (m *AppManager) FindAllInstances(name string) ([]AppInstanceConfig, error) {
+	kust, err := ReadKustomization(m.repoIO, filepath.Join(appDirRoot, "kustomization.yaml"))
 	if err != nil {
 		return nil, err
 	}
-	ret := make([]AppConfig, 0)
+	ret := make([]AppInstanceConfig, 0)
 	for _, app := range kust.Resources {
-		cfg, err := m.appConfig(filepath.Join(appDir, app, "config.yaml"))
+		cfg, err := m.appConfig(filepath.Join(appDirRoot, app, "config.yaml"))
 		if err != nil {
 			return nil, err
 		}
@@ -67,34 +67,34 @@ func (m *AppManager) FindAllInstances(name string) ([]AppConfig, error) {
 	return ret, nil
 }
 
-func (m *AppManager) FindInstance(id string) (AppConfig, error) {
-	kust, err := ReadKustomization(m.repoIO, filepath.Join(appDir, "kustomization.yaml"))
+func (m *AppManager) FindInstance(id string) (AppInstanceConfig, error) {
+	kust, err := ReadKustomization(m.repoIO, filepath.Join(appDirRoot, "kustomization.yaml"))
 	if err != nil {
-		return AppConfig{}, err
+		return AppInstanceConfig{}, err
 	}
 	for _, app := range kust.Resources {
 		if app == id {
-			cfg, err := m.appConfig(filepath.Join(appDir, app, "config.yaml"))
+			cfg, err := m.appConfig(filepath.Join(appDirRoot, app, "config.yaml"))
 			if err != nil {
-				return AppConfig{}, err
+				return AppInstanceConfig{}, err
 			}
 			cfg.Id = id
 			return cfg, nil
 		}
 	}
-	return AppConfig{}, nil
+	return AppInstanceConfig{}, nil
 }
 
-func (m *AppManager) AppConfig(name string) (AppConfig, error) {
-	configF, err := m.repoIO.Reader(filepath.Join(appDir, name, configFileName))
+func (m *AppManager) AppConfig(name string) (AppInstanceConfig, error) {
+	configF, err := m.repoIO.Reader(filepath.Join(appDirRoot, name, configFileName))
 	if err != nil {
-		return AppConfig{}, err
+		return AppInstanceConfig{}, err
 	}
 	defer configF.Close()
-	var cfg AppConfig
+	var cfg AppInstanceConfig
 	contents, err := ioutil.ReadAll(configF)
 	if err != nil {
-		return AppConfig{}, err
+		return AppInstanceConfig{}, err
 	}
 	err = yaml.UnmarshalStrict(contents, &cfg)
 	return cfg, err
@@ -152,19 +152,8 @@ func createKustomizationChain(r RepoFS, path string) error {
 	return nil
 }
 
-func InstallApp(repo RepoIO, nsc NamespaceCreator, app App, appDir string, namespace string, initValues map[string]any, derived Derived) error {
-	if err := nsc.Create(namespace); err != nil {
-		return err
-	}
-	derived.Release = Release{
-		Namespace: namespace,
-		RepoAddr:  repo.FullAddress(),
-		AppDir:    appDir,
-	}
-	rendered, err := app.Render(derived)
-	if err != nil {
-		return err
-	}
+// TODO(gio): rename to CommitApp
+func InstallApp(repo RepoIO, appDir string, rendered Rendered) error {
 	if err := openPorts(rendered.Ports); err != nil {
 		return err
 	}
@@ -179,12 +168,7 @@ func InstallApp(repo RepoIO, nsc NamespaceCreator, app App, appDir string, names
 			if err := r.CreateDir(appDir); err != nil {
 				return "", err
 			}
-			cfg := AppConfig{
-				AppId:   app.Name(),
-				Config:  initValues,
-				Derived: derived,
-			}
-			if err := WriteYaml(r, path.Join(appDir, configFileName), cfg); err != nil {
+			if err := WriteYaml(r, path.Join(appDir, configFileName), rendered.Config); err != nil {
 				return "", err
 			}
 		}
@@ -205,54 +189,61 @@ func InstallApp(repo RepoIO, nsc NamespaceCreator, app App, appDir string, names
 				return "", err
 			}
 		}
-		return fmt.Sprintf("install: %s", app.Name()), nil
+		return fmt.Sprintf("install: %s", rendered.Name), nil
 	})
 }
 
-func (m *AppManager) Install(app App, appDir string, namespace string, values map[string]any) error {
+// TODO(gio): commit instanceId -> appDir mapping as well
+func (m *AppManager) Install(app EnvApp, instanceId string, appDir string, namespace string, values map[string]any) error {
 	appDir = filepath.Clean(appDir)
 	if err := m.repoIO.Pull(); err != nil {
 		return err
 	}
-	globalConfig, err := m.Config()
+	if err := m.nsCreator.Create(namespace); err != nil {
+		return err
+	}
+	env, err := m.Config()
 	if err != nil {
 		return err
 	}
-	derivedValues, err := deriveValues(values, app.Schema(), CreateNetworks(globalConfig))
+	release := Release{
+		AppInstanceId: instanceId,
+		Namespace:     namespace,
+		RepoAddr:      m.repoIO.FullAddress(),
+		AppDir:        appDir,
+	}
+	rendered, err := app.Render(release, env, values)
 	if err != nil {
 		return err
 	}
-	derived := Derived{
-		Global: globalConfig.Values,
-		Values: derivedValues,
-	}
-	return InstallApp(m.repoIO, m.nsCreator, app, appDir, namespace, values, derived)
+	return InstallApp(m.repoIO, appDir, rendered)
 }
 
-func (m *AppManager) Update(app App, instanceId string, config map[string]any) error {
+func (m *AppManager) Update(app EnvApp, instanceId string, values map[string]any) error {
 	if err := m.repoIO.Pull(); err != nil {
 		return err
 	}
-	globalConfig, err := m.Config()
+	env, err := m.Config()
 	if err != nil {
 		return err
 	}
-	instanceDir := filepath.Join(appDir, instanceId)
+	instanceDir := filepath.Join(appDirRoot, instanceId)
 	instanceConfigPath := filepath.Join(instanceDir, configFileName)
-	appConfig, err := m.appConfig(instanceConfigPath)
+	config, err := m.appConfig(instanceConfigPath)
 	if err != nil {
 		return err
 	}
-	derivedValues, err := deriveValues(config, app.Schema(), CreateNetworks(globalConfig))
+	release := Release{
+		AppInstanceId: instanceId,
+		Namespace:     config.Release.Namespace,
+		RepoAddr:      m.repoIO.FullAddress(),
+		AppDir:        instanceDir,
+	}
+	rendered, err := app.Render(release, env, values)
 	if err != nil {
 		return err
 	}
-	derived := Derived{
-		Global:  globalConfig.Values,
-		Release: appConfig.Derived.Release,
-		Values:  derivedValues,
-	}
-	return InstallApp(m.repoIO, m.nsCreator, app, instanceDir, appConfig.Derived.Release.Namespace, config, derived)
+	return InstallApp(m.repoIO, instanceDir, rendered)
 }
 
 func (m *AppManager) Remove(instanceId string) error {
@@ -260,8 +251,8 @@ func (m *AppManager) Remove(instanceId string) error {
 		return err
 	}
 	return m.repoIO.Atomic(func(r RepoFS) (string, error) {
-		r.RemoveDir(filepath.Join(appDir, instanceId))
-		kustPath := filepath.Join(appDir, "kustomization.yaml")
+		r.RemoveDir(filepath.Join(appDirRoot, instanceId))
+		kustPath := filepath.Join(appDirRoot, "kustomization.yaml")
 		kust, err := ReadKustomization(r, kustPath)
 		if err != nil {
 			return "", err
@@ -273,20 +264,67 @@ func (m *AppManager) Remove(instanceId string) error {
 }
 
 // TODO(gio): deduplicate with cue definition in app.go, this one should be removed.
-func CreateNetworks(global Config) []Network {
+func CreateNetworks(env AppEnvConfig) []Network {
 	return []Network{
 		{
 			Name:              "Public",
-			IngressClass:      fmt.Sprintf("%s-ingress-public", global.Values.PCloudEnvName),
-			CertificateIssuer: fmt.Sprintf("%s-public", global.Values.Id),
-			Domain:            global.Values.Domain,
-			AllocatePortAddr:  fmt.Sprintf("http://port-allocator.%s-ingress-public/api/allocate", global.Values.PCloudEnvName),
+			IngressClass:      fmt.Sprintf("%s-ingress-public", env.InfraName),
+			CertificateIssuer: fmt.Sprintf("%s-public", env.Id),
+			Domain:            env.Domain,
+			AllocatePortAddr:  fmt.Sprintf("http://port-allocator.%s-ingress-public.svc.cluster.local/api/allocate", env.InfraName),
 		},
 		{
 			Name:             "Private",
-			IngressClass:     fmt.Sprintf("%s-ingress-private", global.Values.Id),
-			Domain:           global.Values.PrivateDomain,
-			AllocatePortAddr: fmt.Sprintf("http://port-allocator.%s-ingress-private/api/allocate", global.Values.Id),
+			IngressClass:     fmt.Sprintf("%s-ingress-private", env.Id),
+			Domain:           env.PrivateDomain,
+			AllocatePortAddr: fmt.Sprintf("http://port-allocator.%s-ingress-private.svc.cluster.local/api/allocate", env.Id),
 		},
 	}
+}
+
+// InfraAppmanager
+
+type InfraAppManager struct {
+	repoIO    RepoIO
+	nsCreator NamespaceCreator
+}
+
+func NewInfraAppManager(repoIO RepoIO, nsCreator NamespaceCreator) (*InfraAppManager, error) {
+	return &InfraAppManager{
+		repoIO,
+		nsCreator,
+	}, nil
+}
+
+func (m *InfraAppManager) Config() (InfraConfig, error) {
+	var cfg InfraConfig
+	if err := ReadYaml(m.repoIO, configFileName, &cfg); err != nil {
+		return InfraConfig{}, err
+	} else {
+		return cfg, nil
+	}
+}
+
+func (m *InfraAppManager) Install(app InfraApp, appDir string, namespace string, values map[string]any) error {
+	appDir = filepath.Clean(appDir)
+	if err := m.repoIO.Pull(); err != nil {
+		return err
+	}
+	if err := m.nsCreator.Create(namespace); err != nil {
+		return err
+	}
+	infra, err := m.Config()
+	if err != nil {
+		return err
+	}
+	release := Release{
+		Namespace: namespace,
+		RepoAddr:  m.repoIO.FullAddress(),
+		AppDir:    appDir,
+	}
+	rendered, err := app.Render(release, infra, values)
+	if err != nil {
+		return err
+	}
+	return InstallApp(m.repoIO, appDir, rendered)
 }

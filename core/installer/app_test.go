@@ -1,47 +1,41 @@
 package installer
 
 import (
+	"net"
 	"testing"
 )
 
 func TestAuthProxyEnabled(t *testing.T) {
 	r := NewInMemoryAppRepository(CreateAllApps())
 	for _, app := range []string{"rpuppy", "Pi-hole", "url-shortener"} {
-		a, err := r.Find(app)
+		a, err := FindEnvApp(r, app)
 		if err != nil {
 			t.Fatal(err)
 		}
 		if a == nil {
 			t.Fatal("returned app is nil")
 		}
-		d := Derived{
-			Release: Release{
-				Namespace: "foo",
-			},
-			Global: Values{
-				PCloudEnvName:   "dodo",
-				Id:              "id",
-				ContactEmail:    "foo@bar.ge",
-				Domain:          "bar.ge",
-				PrivateDomain:   "p.bar.ge",
-				PublicIP:        "1.2.3.4",
-				NamespacePrefix: "id-",
-			},
-			Values: map[string]any{
-				"network": map[string]any{
-					"name":              "Public",
-					"ingressClass":      "dodo-ingress-public",
-					"certificateIssuer": "id-public",
-					"domain":            "bar.ge",
-				},
-				"subdomain": "woof",
-				"auth": map[string]any{
-					"enabled": true,
-					"groups":  "a,b",
-				},
+		release := Release{
+			Namespace: "foo",
+		}
+		env := AppEnvConfig{
+			InfraName:       "dodo",
+			Id:              "id",
+			ContactEmail:    "foo@bar.ge",
+			Domain:          "bar.ge",
+			PrivateDomain:   "p.bar.ge",
+			PublicIP:        []net.IP{net.ParseIP("1.2.3.4")},
+			NamespacePrefix: "id-",
+		}
+		values := map[string]any{
+			"network":   "Public",
+			"subdomain": "woof",
+			"auth": map[string]any{
+				"enabled": true,
+				"groups":  "a,b",
 			},
 		}
-		rendered, err := a.Render(d)
+		rendered, err := a.Render(release, env, values)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -54,40 +48,33 @@ func TestAuthProxyEnabled(t *testing.T) {
 func TestAuthProxyDisabled(t *testing.T) {
 	r := NewInMemoryAppRepository(CreateAllApps())
 	for _, app := range []string{"rpuppy", "Pi-hole", "url-shortener"} {
-		a, err := r.Find(app)
+		a, err := FindEnvApp(r, app)
 		if err != nil {
 			t.Fatal(err)
 		}
 		if a == nil {
 			t.Fatal("returned app is nil")
 		}
-		d := Derived{
-			Release: Release{
-				Namespace: "foo",
-			},
-			Global: Values{
-				PCloudEnvName:   "dodo",
-				Id:              "id",
-				ContactEmail:    "foo@bar.ge",
-				Domain:          "bar.ge",
-				PrivateDomain:   "p.bar.ge",
-				PublicIP:        "1.2.3.4",
-				NamespacePrefix: "id-",
-			},
-			Values: map[string]any{
-				"network": map[string]any{
-					"name":              "Public",
-					"ingressClass":      "dodo-ingress-public",
-					"certificateIssuer": "id-public",
-					"domain":            "bar.ge",
-				},
-				"subdomain": "woof",
-				"auth": map[string]any{
-					"enabled": false,
-				},
+		release := Release{
+			Namespace: "foo",
+		}
+		env := AppEnvConfig{
+			InfraName:       "dodo",
+			Id:              "id",
+			ContactEmail:    "foo@bar.ge",
+			Domain:          "bar.ge",
+			PrivateDomain:   "p.bar.ge",
+			PublicIP:        []net.IP{net.ParseIP("1.2.3.4")},
+			NamespacePrefix: "id-",
+		}
+		values := map[string]any{
+			"network":   "Public",
+			"subdomain": "woof",
+			"auth": map[string]any{
+				"enabled": false,
 			},
 		}
-		rendered, err := a.Render(d)
+		rendered, err := a.Render(release, env, values)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -99,29 +86,27 @@ func TestAuthProxyDisabled(t *testing.T) {
 
 func TestGroupMemberships(t *testing.T) {
 	r := NewInMemoryAppRepository(CreateAllApps())
-	a, err := r.Find("memberships")
+	a, err := FindEnvApp(r, "memberships")
 	if err != nil {
 		t.Fatal(err)
 	}
 	if a == nil {
 		t.Fatal("returned app is nil")
 	}
-	d := Derived{
-		Release: Release{
-			Namespace: "foo",
-		},
-		Global: Values{
-			PCloudEnvName:   "dodo",
-			Id:              "id",
-			ContactEmail:    "foo@bar.ge",
-			Domain:          "bar.ge",
-			PrivateDomain:   "p.bar.ge",
-			PublicIP:        "1.2.3.4",
-			NamespacePrefix: "id-",
-		},
-		Values: map[string]any{},
+	release := Release{
+		Namespace: "foo",
 	}
-	rendered, err := a.Render(d)
+	env := AppEnvConfig{
+		InfraName:       "dodo",
+		Id:              "id",
+		ContactEmail:    "foo@bar.ge",
+		Domain:          "bar.ge",
+		PrivateDomain:   "p.bar.ge",
+		PublicIP:        []net.IP{net.ParseIP("1.2.3.4")},
+		NamespacePrefix: "id-",
+	}
+	values := map[string]any{}
+	rendered, err := a.Render(release, env, values)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -132,42 +117,35 @@ func TestGroupMemberships(t *testing.T) {
 
 func TestGerrit(t *testing.T) {
 	r := NewInMemoryAppRepository(CreateAllApps())
-	a, err := r.Find("gerrit")
+	a, err := FindEnvApp(r, "gerrit")
 	if err != nil {
 		t.Fatal(err)
 	}
 	if a == nil {
 		t.Fatal("returned app is nil")
 	}
-	d := Derived{
-		Release: Release{
-			Namespace: "foo",
-		},
-		Global: Values{
-			PCloudEnvName:   "dodo",
-			Id:              "id",
-			ContactEmail:    "foo@bar.ge",
-			Domain:          "bar.ge",
-			PrivateDomain:   "p.bar.ge",
-			PublicIP:        "1.2.3.4",
-			NamespacePrefix: "id-",
-		},
-		Values: map[string]any{
-			"subdomain": "gerrit",
-			"network": map[string]any{
-				"name":             "Private",
-				"ingressClass":     "id-ingress-private",
-				"domain":           "p.bar.ge",
-				"allocatePortAddr": "http://foo.bar/api/allocate",
-			},
-			"key": map[string]any{
-				"public":  "foo",
-				"private": "bar",
-			},
-			"sshPort": 22,
-		},
+	release := Release{
+		Namespace: "foo",
 	}
-	rendered, err := a.Render(d)
+	env := AppEnvConfig{
+		InfraName:       "dodo",
+		Id:              "id",
+		ContactEmail:    "foo@bar.ge",
+		Domain:          "bar.ge",
+		PrivateDomain:   "p.bar.ge",
+		PublicIP:        []net.IP{net.ParseIP("1.2.3.4")},
+		NamespacePrefix: "id-",
+	}
+	values := map[string]any{
+		"subdomain": "gerrit",
+		"network":   "Private",
+		"key": map[string]any{
+			"public":  "foo",
+			"private": "bar",
+		},
+		"sshPort": 22,
+	}
+	rendered, err := a.Render(release, env, values)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -178,37 +156,30 @@ func TestGerrit(t *testing.T) {
 
 func TestJenkins(t *testing.T) {
 	r := NewInMemoryAppRepository(CreateAllApps())
-	a, err := r.Find("jenkins")
+	a, err := FindEnvApp(r, "jenkins")
 	if err != nil {
 		t.Fatal(err)
 	}
 	if a == nil {
 		t.Fatal("returned app is nil")
 	}
-	d := Derived{
-		Release: Release{
-			Namespace: "foo",
-		},
-		Global: Values{
-			PCloudEnvName:   "dodo",
-			Id:              "id",
-			ContactEmail:    "foo@bar.ge",
-			Domain:          "bar.ge",
-			PrivateDomain:   "p.bar.ge",
-			PublicIP:        "1.2.3.4",
-			NamespacePrefix: "id-",
-		},
-		Values: map[string]any{
-			"subdomain": "jenkins",
-			"network": map[string]any{
-				"name":             "Private",
-				"ingressClass":     "id-ingress-private",
-				"domain":           "p.bar.ge",
-				"allocatePortAddr": "http://foo.bar/api/allocate",
-			},
-		},
+	release := Release{
+		Namespace: "foo",
 	}
-	rendered, err := a.Render(d)
+	env := AppEnvConfig{
+		InfraName:       "dodo",
+		Id:              "id",
+		ContactEmail:    "foo@bar.ge",
+		Domain:          "bar.ge",
+		PrivateDomain:   "p.bar.ge",
+		PublicIP:        []net.IP{net.ParseIP("1.2.3.4")},
+		NamespacePrefix: "id-",
+	}
+	values := map[string]any{
+		"subdomain": "jenkins",
+		"network":   "Private",
+	}
+	rendered, err := a.Render(release, env, values)
 	if err != nil {
 		t.Fatal(err)
 	}

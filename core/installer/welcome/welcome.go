@@ -210,21 +210,22 @@ func (s *Server) createAccount(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
-		config, err := appManager.Config()
+		env, err := appManager.Config()
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
 		appsRepo := installer.NewInMemoryAppRepository(installer.CreateAllApps())
 		{
-			app, err := appsRepo.Find("headscale-user")
+			app, err := installer.FindEnvApp(appsRepo, "headscale-user")
 			if err != nil {
 				http.Error(w, err.Error(), http.StatusInternalServerError)
 				return
 			}
-			appDir := fmt.Sprintf("/apps/%s-%s", app.Name(), req.Username)
-			namespace := fmt.Sprintf("%s%s", config.Values.NamespacePrefix, app.Namespace())
-			if err := appManager.Install(app, appDir, namespace, map[string]any{
+			instanceId := fmt.Sprintf("%s-%s", app.Name(), req.Username)
+			appDir := fmt.Sprintf("/apps/%s", instanceId)
+			namespace := fmt.Sprintf("%s%s", env.NamespacePrefix, app.Namespace())
+			if err := appManager.Install(app, instanceId, appDir, namespace, map[string]any{
 				"username": req.Username,
 				"preAuthKey": map[string]any{
 					"enabled": false,
