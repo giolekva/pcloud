@@ -187,3 +187,71 @@ func TestJenkins(t *testing.T) {
 		t.Log(string(r))
 	}
 }
+
+func TestIngressPublic(t *testing.T) {
+	r := NewInMemoryAppRepository(CreateAllApps())
+	a, err := FindInfraApp(r, "ingress-public")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if a == nil {
+		t.Fatal("returned app is nil")
+	}
+	release := Release{
+		Namespace: "foo",
+	}
+	env := InfraConfig{
+		Name:                 "dodo",
+		PublicIP:             []net.IP{net.ParseIP("1.2.3.4")},
+		InfraNamespacePrefix: "id-",
+		InfraAdminPublicKey:  []byte("foo"),
+	}
+	values := map[string]any{
+		"sshPrivateKey": "private",
+	}
+	rendered, err := a.Render(release, env, values)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, r := range rendered.Resources {
+		t.Log(string(r))
+	}
+}
+
+func TestPrivateNetwork(t *testing.T) {
+	r := NewInMemoryAppRepository(CreateAllApps())
+	a, err := FindEnvApp(r, "private-network")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if a == nil {
+		t.Fatal("returned app is nil")
+	}
+	release := Release{
+		Namespace: "foo",
+	}
+	env := AppEnvConfig{
+		InfraName:       "dodo",
+		Id:              "id",
+		ContactEmail:    "foo@bar.ge",
+		Domain:          "bar.ge",
+		PrivateDomain:   "p.bar.ge",
+		PublicIP:        []net.IP{net.ParseIP("1.2.3.4")},
+		NamespacePrefix: "id-",
+	}
+	values := map[string]any{
+		"privateNetwork": map[string]any{
+			"hostname": "foo",
+			"username": "bar",
+			"ipSubnet": "123123",
+		},
+		"sshPrivateKey": "private",
+	}
+	rendered, err := a.Render(release, env, values)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, r := range rendered.Resources {
+		t.Log(string(r))
+	}
+}

@@ -84,7 +84,11 @@ helm: {
 					controllerValue: "k8s.io/\(_ingressPrivate)"
 				}
 				config: {
+					"proxy-body-size": "200M" // TODO(giolekva): configurable
 					"force-ssl-redirect": "true"
+					"server-snippet": """
+					more_clear_headers "X-Frame-Options";
+					"""
 				}
 				extraArgs: {
 					"default-ssl-certificate": "\(_ingressPrivate)/cert-wildcard.\(global.privateDomain)"

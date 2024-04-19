@@ -61,7 +61,12 @@ helm: {
 					default: false
 					controllerValue: "k8s.io/\(_ingressPublic)"
 				}
-				config: "proxy-body-size": "100M" // TODO(giolekva): configurable
+				config: {
+					"proxy-body-size": "200M" // TODO(giolekva): configurable
+					"server-snippet": """
+					more_clear_headers "X-Frame-Options";
+					"""
+				}
 				image: {
 					registry: images.ingressNginx.registry
 					image: images.ingressNginx.imageName
