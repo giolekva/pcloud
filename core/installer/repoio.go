@@ -1,6 +1,7 @@
 package installer
 
 import (
+	"encoding/json"
 	"errors"
 	"io"
 	"io/fs"
@@ -28,14 +29,26 @@ type RepoFS interface {
 	RemoveDir(path string) error
 }
 
-type AtomicOp func(r RepoFS) (string, error)
+type DoFn func(r RepoFS) (string, error)
+
+type doOptions struct {
+	NoCommit bool
+}
+
+type DoOption func(*doOptions)
+
+func WithNoCommit() DoOption {
+	return func(o *doOptions) {
+		o.NoCommit = true
+	}
+}
 
 type RepoIO interface {
 	RepoFS
 	FullAddress() string
 	Pull() error
 	CommitAndPush(message string) error
-	Atomic(op AtomicOp) error
+	Do(op DoFn, opts ...DoOption) error
 }
 
 type repoFS struct {
@@ -138,17 +151,24 @@ func (r *repoIO) CommitAndPush(message string) error {
 	})
 }
 
-func (r *repoIO) Atomic(op AtomicOp) error {
+func (r *repoIO) Do(op DoFn, opts ...DoOption) error {
 	r.l.Lock()
 	defer r.l.Unlock()
 	if err := r.pullWithoutLock(); err != nil {
 		return err
 	}
+	o := &doOptions{}
+	for _, i := range opts {
+		i(o)
+	}
 	if msg, err := op(r); err != nil {
 		return err
 	} else {
-		return r.CommitAndPush(msg)
+		if !o.NoCommit {
+			return r.CommitAndPush(msg)
+		}
 	}
+	return nil
 }
 
 func auth(signer ssh.Signer) *gitssh.PublicKeys {
@@ -193,6 +213,28 @@ func WriteYaml(repo RepoFS, path string, data any) error {
 		return err
 	}
 	return nil
+}
+
+func ReadJson[T any](repo RepoFS, path string, o *T) error {
+	r, err := repo.Reader(path)
+	if err != nil {
+		return err
+	}
+	defer r.Close()
+	return json.NewDecoder(r).Decode(o)
+}
+
+func WriteJson(repo RepoFS, path string, data any) error {
+	if d, ok := data.(*Kustomization); ok {
+		data = d
+	}
+	w, err := repo.Writer(path)
+	if err != nil {
+		return err
+	}
+	e := json.NewEncoder(w)
+	e.SetIndent("", "\t")
+	return e.Encode(data)
 }
 
 func ReadKustomization(repo RepoFS, path string) (*Kustomization, error) {

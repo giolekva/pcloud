@@ -205,7 +205,7 @@ func (s *Server) createAccount(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	{
-		appManager, err := installer.NewAppManager(s.repo, s.nsCreator)
+		appManager, err := installer.NewAppManager(s.repo, s.nsCreator, "/apps")
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
@@ -250,7 +250,7 @@ type initRequest struct {
 }
 
 func (s *Server) initMemberships(username string) error {
-	return s.repo.Atomic(func(r installer.RepoFS) (string, error) {
+	return s.repo.Do(func(r installer.RepoFS) (string, error) {
 		var fa firstaccount
 		if err := installer.ReadYaml(r, "first-account.yaml", &fa); err != nil {
 			return "", err

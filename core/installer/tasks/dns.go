@@ -50,7 +50,7 @@ func CreateZoneRecords(
 		if err != nil {
 			return err
 		}
-		return r.Atomic(func(r installer.RepoFS) (string, error) {
+		return r.Do(func(r installer.RepoFS) (string, error) {
 			{
 				out, err := r.Writer("dns-zone.yaml")
 				if err != nil {

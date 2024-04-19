@@ -31,7 +31,7 @@ func AddNewEnvTask(env Env, st *state) Task {
 			return err
 		}
 		repoHost := strings.Split(st.ssClient.Addr, ":")[0]
-		return st.repo.Atomic(func(r installer.RepoFS) (string, error) {
+		return st.repo.Do(func(r installer.RepoFS) (string, error) {
 			kust, err := installer.ReadKustomization(r, "environments/kustomization.yaml")
 			if err != nil {
 				return "", err

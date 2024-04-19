@@ -27,10 +27,10 @@ func appManagerCmd() *cobra.Command {
 		Use:  "appmanager",
 		RunE: appManagerCmdRun,
 	}
-	cmd.Flags().StringVar(
-		&appManagerFlags.sshKey,
-		"ssh-key",
-		"",
+	cmd.Flags().IntVar(
+		&appManagerFlags.port,
+		"port",
+		8080,
 		"",
 	)
 	cmd.Flags().StringVar(
@@ -39,10 +39,10 @@ func appManagerCmd() *cobra.Command {
 		"",
 		"",
 	)
-	cmd.Flags().IntVar(
-		&appManagerFlags.port,
-		"port",
-		8080,
+	cmd.Flags().StringVar(
+		&appManagerFlags.sshKey,
+		"ssh-key",
+		"",
 		"",
 	)
 	cmd.Flags().StringVar(
@@ -80,7 +80,7 @@ func appManagerCmdRun(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-	m, err := installer.NewAppManager(repoIO, kube)
+	m, err := installer.NewAppManager(repoIO, kube, "/apps")
 	if err != nil {
 		return err
 	}

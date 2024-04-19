@@ -105,7 +105,9 @@ func TestGroupMemberships(t *testing.T) {
 		PublicIP:        []net.IP{net.ParseIP("1.2.3.4")},
 		NamespacePrefix: "id-",
 	}
-	values := map[string]any{}
+	values := map[string]any{
+		"authGroups": "foo,bar",
+	}
 	rendered, err := a.Render(release, env, values)
 	if err != nil {
 		t.Fatal(err)
@@ -252,6 +254,50 @@ func TestPrivateNetwork(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, r := range rendered.Resources {
+		t.Log(string(r))
+	}
+}
+
+func TestAppPackages(t *testing.T) {
+	contents, err := valuesTmpls.ReadFile("values-tmpl/rpuppy.cue")
+	if err != nil {
+		t.Fatal(err)
+	}
+	app, err := NewCueEnvApp(CueAppData{
+		"base.cue": []byte(cueBaseConfig),
+		"app.cue":  []byte(contents),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	release := Release{
+		Namespace: "foo",
+	}
+	env := AppEnvConfig{
+		InfraName:       "dodo",
+		Id:              "id",
+		ContactEmail:    "foo@bar.ge",
+		Domain:          "bar.ge",
+		PrivateDomain:   "p.bar.ge",
+		PublicIP:        []net.IP{net.ParseIP("1.2.3.4")},
+		NamespacePrefix: "id-",
+	}
+	values := map[string]any{
+		"network":   "Public",
+		"subdomain": "woof",
+		"auth": map[string]any{
+			"enabled": true,
+			"groups":  "a,b",
+		},
+	}
+	rendered, err := app.Render(release, env, values)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, r := range rendered.Resources {
+		t.Log(string(r))
+	}
+	for _, r := range rendered.Data {
 		t.Log(string(r))
 	}
 }

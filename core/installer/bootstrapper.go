@@ -347,7 +347,7 @@ func (b Bootstrapper) installFluxcd(ss *soft.Client, envName string) error {
 	if err != nil {
 		return err
 	}
-	if err := repoIO.Atomic(func(r RepoFS) (string, error) {
+	if err := repoIO.Do(func(r RepoFS) (string, error) {
 		w, err := r.Writer("README.md")
 		if err != nil {
 			return "", err
@@ -441,7 +441,7 @@ func (b Bootstrapper) installInfrastructureServices(mgr *InfraAppManager, env Bo
 }
 
 func configureMainRepo(repo RepoIO, bootstrap BootstrapConfig) error {
-	return repo.Atomic(func(r RepoFS) (string, error) {
+	return repo.Do(func(r RepoFS) (string, error) {
 		if err := WriteYaml(r, "bootstrap-config.yaml", bootstrap); err != nil {
 			return "", err
 		}

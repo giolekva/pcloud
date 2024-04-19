@@ -91,7 +91,7 @@ func (s *AppManagerServer) handleApp(c echo.Context) error {
 	if err != nil {
 		return err
 	}
-	instances, err := s.m.FindAllInstances(slug)
+	instances, err := s.m.FindAllAppInstances(slug)
 	if err != nil {
 		return err
 	}
@@ -269,7 +269,7 @@ func (s *AppManagerServer) handleAppUI(c echo.Context) error {
 	if err != nil {
 		return err
 	}
-	instances, err := s.m.FindAllInstances(slug)
+	instances, err := s.m.FindAllAppInstances(slug)
 	if err != nil {
 		return err
 	}
@@ -304,7 +304,7 @@ func (s *AppManagerServer) handleInstanceUI(c echo.Context) error {
 	if err != nil {
 		return err
 	}
-	instances, err := s.m.FindAllInstances(a.Name())
+	instances, err := s.m.FindAllAppInstances(a.Name())
 	if err != nil {
 		return err
 	}

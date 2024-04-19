@@ -10,8 +10,6 @@ import (
 	"log"
 	"net/http"
 
-	"cuelang.org/go/cue"
-	"cuelang.org/go/cue/cuecontext"
 	"github.com/go-git/go-billy/v5"
 	"sigs.k8s.io/yaml"
 )
@@ -95,11 +93,14 @@ func CreateAllApps() []App {
 func CreateStoreApps() []App {
 	ret := make([]App, 0)
 	for _, cfgFile := range storeAppConfigs {
-		cfg, err := readCueConfigFromFile(valuesTmpls, cfgFile)
+		contents, err := valuesTmpls.ReadFile(cfgFile)
 		if err != nil {
 			panic(err)
 		}
-		if app, err := NewCueEnvApp(cfg); err != nil {
+		if app, err := NewCueEnvApp(CueAppData{
+			"base.cue": []byte(cueBaseConfig),
+			"app.cue":  contents,
+		}); err != nil {
 			panic(err)
 		} else {
 			ret = append(ret, app)
@@ -111,11 +112,14 @@ func CreateStoreApps() []App {
 func createInfraApps() []App {
 	ret := make([]App, 0)
 	for _, cfgFile := range infraAppConfigs {
-		cfg, err := readCueConfigFromFile(valuesTmpls, cfgFile)
+		contents, err := valuesTmpls.ReadFile(cfgFile)
 		if err != nil {
 			panic(err)
 		}
-		if app, err := NewCueInfraApp(cfg); err != nil {
+		if app, err := NewCueInfraApp(CueAppData{
+			"base.cue": []byte(cueBaseConfig),
+			"app.cue":  contents,
+		}); err != nil {
 			panic(err)
 		} else {
 			ret = append(ret, app)
@@ -259,32 +263,31 @@ func loadApp(fs billy.Filesystem) (App, error) {
 			return nil, err
 		}
 	}
-	cfg, err := processCueConfig(contents.String())
-	if err != nil {
-		return nil, err
-	}
-	return NewCueEnvApp(cfg)
+	return NewCueEnvApp(CueAppData{
+		"base.cue": []byte(cueBaseConfig),
+		"app.cue":  contents.Bytes(),
+	})
 }
 
-func readCueConfigFromFile(fs embed.FS, f string) (*cue.Value, error) {
-	contents, err := fs.ReadFile(f)
-	if err != nil {
-		return nil, err
-	}
-	return processCueConfig(string(contents))
-}
+// func readCueConfigFromFile(fs embed.FS, f string) (*cue.Value, error) {
+// 	contents, err := fs.ReadFile(f)
+// 	if err != nil {
+// 		return nil, err
+// 	}
+// 	return processCueConfig(string(contents))
+// }
 
-func processCueConfig(contents string) (*cue.Value, error) {
-	ctx := cuecontext.New()
-	cfg := ctx.CompileString(contents + cueBaseConfig)
-	if err := cfg.Err(); err != nil {
-		return nil, err
-	}
-	if err := cfg.Validate(); err != nil {
-		return nil, err
-	}
-	return &cfg, nil
-}
+// func processCueConfig(contents string) (*cue.Value, error) {
+// 	ctx := cuecontext.New()
+// 	cfg := ctx.CompileString(contents + cueBaseConfig)
+// 	if err := cfg.Err(); err != nil {
+// 		return nil, err
+// 	}
+// 	if err := cfg.Validate(); err != nil {
+// 		return nil, err
+// 	}
+// 	return &cfg, nil
+// }
 
 // func CreateAppMaddy(fs embed.FS, tmpls *template.Template) App {
 // 	schema, err := readJSONSchemaFromFile(fs, "values-tmpl/maddy.jsonschema")

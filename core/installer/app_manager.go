@@ -6,27 +6,25 @@ import (
 	"errors"
 	"fmt"
 	"io/fs"
-	"io/ioutil"
 	"net/http"
 	"path"
 	"path/filepath"
-
-	"sigs.k8s.io/yaml"
 )
 
-const appDirRoot = "/apps"
 const configFileName = "config.yaml"
 const kustomizationFileName = "kustomization.yaml"
 
 type AppManager struct {
-	repoIO    RepoIO
-	nsCreator NamespaceCreator
+	repoIO     RepoIO
+	nsCreator  NamespaceCreator
+	appDirRoot string
 }
 
-func NewAppManager(repoIO RepoIO, nsCreator NamespaceCreator) (*AppManager, error) {
+func NewAppManager(repoIO RepoIO, nsCreator NamespaceCreator, appDirRoot string) (*AppManager, error) {
 	return &AppManager{
 		repoIO,
 		nsCreator,
+		appDirRoot,
 	}, nil
 }
 
@@ -41,21 +39,38 @@ func (m *AppManager) Config() (AppEnvConfig, error) {
 
 func (m *AppManager) appConfig(path string) (AppInstanceConfig, error) {
 	var cfg AppInstanceConfig
-	if err := ReadYaml(m.repoIO, path, &cfg); err != nil {
+	if err := ReadJson(m.repoIO, path, &cfg); err != nil {
 		return AppInstanceConfig{}, err
 	} else {
 		return cfg, nil
 	}
 }
 
-func (m *AppManager) FindAllInstances(name string) ([]AppInstanceConfig, error) {
-	kust, err := ReadKustomization(m.repoIO, filepath.Join(appDirRoot, "kustomization.yaml"))
+func (m *AppManager) FindAllInstances() ([]AppInstanceConfig, error) {
+	kust, err := ReadKustomization(m.repoIO, filepath.Join(m.appDirRoot, "kustomization.yaml"))
 	if err != nil {
 		return nil, err
 	}
 	ret := make([]AppInstanceConfig, 0)
 	for _, app := range kust.Resources {
-		cfg, err := m.appConfig(filepath.Join(appDirRoot, app, "config.yaml"))
+		cfg, err := m.appConfig(filepath.Join(m.appDirRoot, app, "config.json"))
+		if err != nil {
+			return nil, err
+		}
+		cfg.Id = app
+		ret = append(ret, cfg)
+	}
+	return ret, nil
+}
+
+func (m *AppManager) FindAllAppInstances(name string) ([]AppInstanceConfig, error) {
+	kust, err := ReadKustomization(m.repoIO, filepath.Join(m.appDirRoot, "kustomization.yaml"))
+	if err != nil {
+		return nil, err
+	}
+	ret := make([]AppInstanceConfig, 0)
+	for _, app := range kust.Resources {
+		cfg, err := m.appConfig(filepath.Join(m.appDirRoot, app, "config.json"))
 		if err != nil {
 			return nil, err
 		}
@@ -68,13 +83,13 @@ func (m *AppManager) FindAllInstances(name string) ([]AppInstanceConfig, error) 
 }
 
 func (m *AppManager) FindInstance(id string) (AppInstanceConfig, error) {
-	kust, err := ReadKustomization(m.repoIO, filepath.Join(appDirRoot, "kustomization.yaml"))
+	kust, err := ReadKustomization(m.repoIO, filepath.Join(m.appDirRoot, "kustomization.yaml"))
 	if err != nil {
 		return AppInstanceConfig{}, err
 	}
 	for _, app := range kust.Resources {
 		if app == id {
-			cfg, err := m.appConfig(filepath.Join(appDirRoot, app, "config.yaml"))
+			cfg, err := m.appConfig(filepath.Join(m.appDirRoot, app, "config.json"))
 			if err != nil {
 				return AppInstanceConfig{}, err
 			}
@@ -86,18 +101,11 @@ func (m *AppManager) FindInstance(id string) (AppInstanceConfig, error) {
 }
 
 func (m *AppManager) AppConfig(name string) (AppInstanceConfig, error) {
-	configF, err := m.repoIO.Reader(filepath.Join(appDirRoot, name, configFileName))
-	if err != nil {
-		return AppInstanceConfig{}, err
-	}
-	defer configF.Close()
 	var cfg AppInstanceConfig
-	contents, err := ioutil.ReadAll(configF)
-	if err != nil {
+	if err := ReadJson(m.repoIO, filepath.Join(m.appDirRoot, name, "config.json"), &cfg); err != nil {
 		return AppInstanceConfig{}, err
 	}
-	err = yaml.UnmarshalStrict(contents, &cfg)
-	return cfg, err
+	return cfg, nil
 }
 
 type allocatePortReq struct {
@@ -153,44 +161,61 @@ func createKustomizationChain(r RepoFS, path string) error {
 }
 
 // TODO(gio): rename to CommitApp
-func InstallApp(repo RepoIO, appDir string, rendered Rendered) error {
-	if err := openPorts(rendered.Ports); err != nil {
-		return err
-	}
-	return repo.Atomic(func(r RepoFS) (string, error) {
-		if err := createKustomizationChain(r, appDir); err != nil {
+func InstallApp(repo RepoIO, appDir string, rendered Rendered, opts ...DoOption) error {
+	// if err := openPorts(rendered.Ports); err != nil {
+	// 	return err
+	// }
+	return repo.Do(func(r RepoFS) (string, error) {
+		if err := r.RemoveDir(appDir); err != nil {
+			return "", err
+		}
+		resourcesDir := path.Join(appDir, "resources")
+		if err := r.CreateDir(resourcesDir); err != nil {
 			return "", err
 		}
 		{
-			if err := r.RemoveDir(appDir); err != nil {
-				return "", err
-			}
-			if err := r.CreateDir(appDir); err != nil {
-				return "", err
-			}
 			if err := WriteYaml(r, path.Join(appDir, configFileName), rendered.Config); err != nil {
 				return "", err
 			}
-		}
-		{
-			appKust := NewKustomization()
-			for name, contents := range rendered.Resources {
-				appKust.AddResources(name)
-				out, err := r.Writer(path.Join(appDir, name))
+			if err := WriteJson(r, path.Join(appDir, "config.json"), rendered.Config); err != nil {
+				return "", err
+			}
+			for name, contents := range rendered.Data {
+				if name == "config.json" || name == "kustomization.yaml" || name == "resources" {
+					return "", fmt.Errorf("%s is forbidden", name)
+				}
+				w, err := r.Writer(path.Join(appDir, name))
 				if err != nil {
 					return "", err
 				}
-				defer out.Close()
-				if _, err := out.Write(contents); err != nil {
+				defer w.Close()
+				if _, err := w.Write(contents); err != nil {
 					return "", err
 				}
 			}
-			if err := WriteYaml(r, path.Join(appDir, "kustomization.yaml"), appKust); err != nil {
+		}
+		{
+			if err := createKustomizationChain(r, resourcesDir); err != nil {
+				return "", err
+			}
+			appKust := NewKustomization()
+			for name, contents := range rendered.Resources {
+				appKust.AddResources(name)
+				w, err := r.Writer(path.Join(resourcesDir, name))
+				if err != nil {
+					return "", err
+				}
+				defer w.Close()
+				if _, err := w.Write(contents); err != nil {
+					return "", err
+				}
+			}
+			if err := WriteYaml(r, path.Join(resourcesDir, "kustomization.yaml"), appKust); err != nil {
 				return "", err
 			}
 		}
 		return fmt.Sprintf("install: %s", rendered.Name), nil
-	})
+	}, opts...)
 }
 
 // TODO(gio): commit instanceId -> appDir mapping as well
@@ -219,7 +244,7 @@ func (m *AppManager) Install(app EnvApp, instanceId string, appDir string, names
 	return InstallApp(m.repoIO, appDir, rendered)
 }
 
-func (m *AppManager) Update(app EnvApp, instanceId string, values map[string]any) error {
+func (m *AppManager) Update(app EnvApp, instanceId string, values map[string]any, opts ...DoOption) error {
 	if err := m.repoIO.Pull(); err != nil {
 		return err
 	}
@@ -227,8 +252,8 @@ func (m *AppManager) Update(app EnvApp, instanceId string, values map[string]any
 	if err != nil {
 		return err
 	}
-	instanceDir := filepath.Join(appDirRoot, instanceId)
-	instanceConfigPath := filepath.Join(instanceDir, configFileName)
+	instanceDir := filepath.Join(m.appDirRoot, instanceId)
+	instanceConfigPath := filepath.Join(instanceDir, "config.json")
 	config, err := m.appConfig(instanceConfigPath)
 	if err != nil {
 		return err
@@ -243,16 +268,17 @@ func (m *AppManager) Update(app EnvApp, instanceId string, values map[string]any
 	if err != nil {
 		return err
 	}
-	return InstallApp(m.repoIO, instanceDir, rendered)
+	fmt.Println(rendered)
+	return InstallApp(m.repoIO, instanceDir, rendered, opts...)
 }
 
 func (m *AppManager) Remove(instanceId string) error {
 	if err := m.repoIO.Pull(); err != nil {
 		return err
 	}
-	return m.repoIO.Atomic(func(r RepoFS) (string, error) {
-		r.RemoveDir(filepath.Join(appDirRoot, instanceId))
-		kustPath := filepath.Join(appDirRoot, "kustomization.yaml")
+	return m.repoIO.Do(func(r RepoFS) (string, error) {
+		r.RemoveDir(filepath.Join(m.appDirRoot, instanceId))
+		kustPath := filepath.Join(m.appDirRoot, "kustomization.yaml")
 		kust, err := ReadKustomization(r, kustPath)
 		if err != nil {
 			return "", err

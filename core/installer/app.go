@@ -9,6 +9,9 @@ import (
 	"strings"
 
 	"cuelang.org/go/cue"
+	"cuelang.org/go/cue/build"
+	"cuelang.org/go/cue/cuecontext"
+	"cuelang.org/go/cue/load"
 	cueyaml "cuelang.org/go/encoding/yaml"
 )
 
@@ -19,6 +22,9 @@ description: string | *""
 readme: string | *""
 icon: string | *""
 namespace: string | *""
+
+#AppType: "infra" | "env"
+appType: #AppType | *"env"
 
 #Auth: {
   enabled: bool | *false // TODO(gio): enabled by default?
@@ -263,9 +269,10 @@ output: {
 type Rendered struct {
 	Name      string
 	Readme    string
-	Resources map[string][]byte
+	Resources CueAppData
 	Ports     []PortForward
 	Config    AppInstanceConfig
+	Data      CueAppData
 }
 
 type PortForward struct {
@@ -326,13 +333,45 @@ type cueApp struct {
 	icon        template.HTML
 	namespace   string
 	schema      Schema
-	cfg         *cue.Value
+	cfg         cue.Value
+	data        CueAppData
 }
 
-func newCueApp(config *cue.Value) (cueApp, error) {
-	if config == nil {
-		return cueApp{}, fmt.Errorf("config not provided")
+type CueAppData map[string][]byte
+
+func ParseCueAppConfig(data CueAppData) (cue.Value, error) {
+	ctx := cuecontext.New()
+	buildCtx := build.NewContext()
+	cfg := &load.Config{
+		Context: buildCtx,
+		Overlay: map[string]load.Source{},
 	}
+	names := make([]string, 0)
+	for n, b := range data {
+		a := fmt.Sprintf("/%s", n)
+		names = append(names, a)
+		cfg.Overlay[a] = load.FromString("package main\n\n" + string(b))
+	}
+	instances := load.Instances(names, cfg)
+	for _, inst := range instances {
+		if inst.Err != nil {
+			return cue.Value{}, inst.Err
+		}
+	}
+	if len(instances) != 1 {
+		return cue.Value{}, fmt.Errorf("invalid")
+	}
+	ret := ctx.BuildInstance(instances[0])
+	if ret.Err() != nil {
+		return cue.Value{}, ret.Err()
+	}
+	if err := ret.Validate(); err != nil {
+		return cue.Value{}, err
+	}
+	return ret, nil
+}
+
+func newCueApp(config cue.Value, data CueAppData) (cueApp, error) {
 	cfg := struct {
 		Name        string `json:"name"`
 		Namespace   string `json:"namespace"`
@@ -353,7 +392,16 @@ func newCueApp(config *cue.Value) (cueApp, error) {
 		namespace:   cfg.Namespace,
 		schema:      schema,
 		cfg:         config,
+		data:        data,
 	}, nil
+}
+
+func ParseAndCreateNewCueApp(data CueAppData) (cueApp, error) {
+	config, err := ParseCueAppConfig(data)
+	if err != nil {
+		return cueApp{}, err
+	}
+	return newCueApp(config, data)
 }
 
 func (a cueApp) Name() string {
@@ -379,8 +427,9 @@ func (a cueApp) Namespace() string {
 func (a cueApp) render(values map[string]any) (Rendered, error) {
 	ret := Rendered{
 		Name:      a.Name(),
-		Resources: make(map[string][]byte),
+		Resources: make(CueAppData),
 		Ports:     make([]PortForward, 0),
+		Data:      a.data,
 	}
 	var buf bytes.Buffer
 	if err := json.NewEncoder(&buf).Encode(values); err != nil {
@@ -395,6 +444,11 @@ func (a cueApp) render(values map[string]any) (Rendered, error) {
 	if err := res.Validate(); err != nil {
 		return Rendered{}, err
 	}
+	full, err := json.MarshalIndent(res, "", "\t")
+	if err != nil {
+		return Rendered{}, err
+	}
+	ret.Data["rendered.json"] = full
 	readme, err := res.LookupPath(cue.ParsePath("readme")).String()
 	if err != nil {
 		return Rendered{}, err
@@ -423,8 +477,8 @@ type cueEnvApp struct {
 	cueApp
 }
 
-func NewCueEnvApp(config *cue.Value) (EnvApp, error) {
-	app, err := newCueApp(config)
+func NewCueEnvApp(data CueAppData) (EnvApp, error) {
+	app, err := ParseAndCreateNewCueApp(data)
 	if err != nil {
 		return nil, err
 	}
@@ -463,8 +517,8 @@ type cueInfraApp struct {
 	cueApp
 }
 
-func NewCueInfraApp(config *cue.Value) (InfraApp, error) {
-	app, err := newCueApp(config)
+func NewCueInfraApp(data CueAppData) (InfraApp, error) {
+	app, err := ParseAndCreateNewCueApp(data)
 	if err != nil {
 		return nil, err
 	}

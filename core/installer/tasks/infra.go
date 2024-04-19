@@ -23,7 +23,7 @@ func CreateRepoClient(env Env, st *state) Task {
 		if err != nil {
 			return err
 		}
-		appManager, err := installer.NewAppManager(r, st.nsCreator)
+		appManager, err := installer.NewAppManager(r, st.nsCreator, "/apps")
 		if err != nil {
 			return err
 		}
@@ -61,7 +61,7 @@ func CommitEnvironmentConfiguration(env Env, st *state) Task {
 		if err != nil {
 			return err
 		}
-		r.Atomic(func(r installer.RepoFS) (string, error) {
+		r.Do(func(r installer.RepoFS) (string, error) {
 			{
 				// TODO(giolekva): private domain can be configurable as well
 				config := installer.AppEnvConfig{
@@ -127,7 +127,7 @@ func ConfigureFirstAccount(env Env, st *state) Task {
 		if err != nil {
 			return err
 		}
-		return r.Atomic(func(r installer.RepoFS) (string, error) {
+		return r.Do(func(r installer.RepoFS) (string, error) {
 			fa := firstAccount{false, initGroups}
 			if err := installer.WriteYaml(r, "first-account.yaml", fa); err != nil {
 				return "", err
