@@ -1,0 +1,6 @@
+# !/bin/bash
+
+# Install OpenProject in development mode, that is without https and allowing writes
+# to the container file system.
+
+helm upgrade --create-namespace --namespace openproject --install openproject --set develop=true "$@" .

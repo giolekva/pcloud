@@ -1,0 +1,128 @@
+---
+apiVersion: {{ include "common.capabilities.deployment.apiVersion" . }}
+kind: Deployment
+metadata:
+  name: {{ include "common.names.fullname" . }}-web
+  labels:
+    {{- include "common.labels.standard" . | nindent 4 }}
+    openproject/process: web
+spec:
+  replicas: {{ .Values.replicaCount }}
+  strategy:
+    type: {{ .Values.strategy.type }}
+  selector:
+    matchLabels:
+      {{- include "common.labels.matchLabels" . | nindent 6 }}
+      openproject/process: web
+  template:
+    metadata:
+      annotations:
+        {{- range $key, $val := .Values.podAnnotations }}
+        {{ $key }}: {{ $val | quote }}
+        {{- end }}
+        {{- include "openproject.envChecksums" . | nindent 8 }}
+      labels:
+        {{- include "common.labels.standard" . | nindent 8 }}
+        openproject/process: web
+    spec:
+      {{- include "openproject.imagePullSecrets" . | indent 6 }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{ toYaml . | nindent 8 | trim }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{ toYaml . | nindent 8 | trim }}
+      {{- end }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{ toYaml . | nindent 8 | trim }}
+      {{- end }}
+      {{- include "openproject.podSecurityContext" . | indent 6 }}
+      serviceAccountName: {{ include "common.names.fullname" . }}
+      volumes:
+        {{- include "openproject.tmpVolumeSpec" . | indent 8 }}
+        {{- if .Values.egress.tls.rootCA.fileName }}
+        - name: ca-pemstore
+          configMap:
+            name: "{{- .Values.egress.tls.rootCA.configMap }}"
+        {{- end }}
+        {{- if .Values.persistence.enabled }}
+        - name: "data"
+          persistentVolumeClaim:
+            claimName: {{ if .Values.persistence.existingClaim }}{{ .Values.persistence.existingClaim }}{{- else }}{{ include "common.names.fullname" . }}{{- end }}
+        {{- end }}
+      initContainers:
+        - name: wait-for-db
+          {{- include "openproject.containerSecurityContext" . | indent 10 }}
+          image: {{ include "openproject.image" . }}
+          imagePullPolicy: {{ .Values.image.imagePullPolicy }}
+          envFrom:
+            {{- include "openproject.envFrom" . | nindent 12 }}
+          env:
+            {{- include "openproject.env" . | nindent 12 }}
+          command:
+            - bash
+            - /app/docker/prod/wait-for-db
+      containers:
+        - name: "openproject"
+          {{- include "openproject.containerSecurityContext" . | indent 10 }}
+          image: {{ include "openproject.image" . }}
+          imagePullPolicy: {{ .Values.image.imagePullPolicy }}
+          envFrom:
+            {{- include "openproject.envFrom" . | nindent 12 }}
+          env:
+            {{- include "openproject.env" . | nindent 12 }}
+          command:
+            - bash
+            - /app/docker/prod/web
+          volumeMounts:
+            {{- include "openproject.tmpVolumeMounts" . | indent 12 }}
+            {{- if .Values.persistence.enabled }}
+            - name: "data"
+              mountPath: "/var/openproject/assets"
+            {{- end }}
+            {{- if .Values.egress.tls.rootCA.fileName }}
+            - name: ca-pemstore
+              mountPath: /etc/ssl/certs/custom-ca.pem
+              subPath: {{ .Values.egress.tls.rootCA.fileName }}
+              readOnly: false
+            {{- end }}
+          ports:
+            {{- range $key, $value := .Values.service.ports }}
+            - name: {{ $key }}
+              containerPort: {{ $value.containerPort }}
+              protocol: {{ $value.protocol }}
+            {{- end }}
+          {{- if .Values.probes.liveness.enabled }}
+          livenessProbe:
+            httpGet:
+              path: "{{ .Values.openproject.railsRelativeUrlRoot | default "" }}/health_checks/default"
+              port: 8080
+              httpHeaders:
+                # required otherwise health check will return 404 because health check is done using the Pod IP, which may cause issues with downstream variants
+                - name: Host
+                  value: localhost
+            initialDelaySeconds: {{ .Values.probes.liveness.initialDelaySeconds }}
+            timeoutSeconds: {{ .Values.probes.liveness.timeoutSeconds }}
+            periodSeconds: {{ .Values.probes.liveness.periodSeconds }}
+            failureThreshold: {{ .Values.probes.liveness.failureThreshold }}
+            successThreshold: {{ .Values.probes.liveness.successThreshold }}
+          {{- end }}
+          {{- if .Values.probes.readiness.enabled }}
+          readinessProbe:
+            httpGet:
+              path: "{{ .Values.openproject.railsRelativeUrlRoot | default "" }}/health_checks/default"
+              port: 8080
+              httpHeaders:
+                # required otherwise health check will return 404 because health check is done using the Pod IP, which may cause issues with downstream variants
+                - name: Host
+                  value: localhost
+            initialDelaySeconds: {{ .Values.probes.readiness.initialDelaySeconds }}
+            timeoutSeconds: {{ .Values.probes.readiness.timeoutSeconds }}
+            periodSeconds: {{ .Values.probes.readiness.periodSeconds }}
+            failureThreshold: {{ .Values.probes.readiness.failureThreshold }}
+            successThreshold: {{ .Values.probes.readiness.successThreshold }}
+          {{- end }}
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}

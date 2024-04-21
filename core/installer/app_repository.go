@@ -31,6 +31,7 @@ var storeAppConfigs = []string{
 	"values-tmpl/gerrit.cue",
 	"values-tmpl/jenkins.cue",
 	"values-tmpl/zot.cue",
+	"values-tmpl/open-project.cue",
 	// TODO(gio): should be part of env infra
 	"values-tmpl/certificate-issuer-private.cue",
 	"values-tmpl/certificate-issuer-public.cue",
