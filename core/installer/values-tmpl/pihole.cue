@@ -14,17 +14,19 @@ icon: "<svg xmlns='http://www.w3.org/2000/svg' width='50' height='50' viewBox='0
 
 _serviceWebPort: 80
 
-_ingressWithAuthProxy: _IngressWithAuthProxy & {
-	inp: {
+ingress: {
+	pihole: {
 		auth: input.auth
 		network: input.network
 		subdomain: input.subdomain
-		serviceName: "pihole-web"
-		port: number: _serviceWebPort
+		service: {
+			name: "pihole-web"
+			port: number: _serviceWebPort
+		}
 	}
 }
 
-images: _ingressWithAuthProxy.out.images & {
+images: {
 	pihole: {
 		repository: "pihole"
 		name: "pihole"
@@ -33,7 +35,7 @@ images: _ingressWithAuthProxy.out.images & {
 	}
 }
 
-charts: _ingressWithAuthProxy.out.charts & {
+charts: {
 	pihole: {
 		chart: "charts/pihole"
 		sourceRef: {
@@ -44,7 +46,7 @@ charts: _ingressWithAuthProxy.out.charts & {
 	}
 }
 
-helm: _ingressWithAuthProxy.out.helm & {
+helm: {
 	pihole: {
 		chart: charts.pihole
 		values: {

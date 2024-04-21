@@ -13,19 +13,19 @@ icon: "<svg xmlns='http://www.w3.org/2000/svg' width='50' height='50' viewBox='0
 
 _jenkinsServiceHTTPPortNumber: 80
 
-_ingressWithAuthProxy: _IngressWithAuthProxy & {
-	inp: {
+ingress: {
+	jenkins: {
 		auth: enabled: false
 		network: networks.private
 		subdomain: input.subdomain
-		serviceName: "jenkins"
-		// TODO(gio): looks like this port config selection logic does not work.
-		// Investigate and fix in app.go
-		port: number: _jenkinsServiceHTTPPortNumber
+		service: {
+			name: "jenkins"
+			port: number: _jenkinsServiceHTTPPortNumber
+		}
 	}
 }
 
-images: _ingressWithAuthProxy.out.images & {
+images: {
     jenkins: {
         repository: "jenkins"
         name: "jenkins"
@@ -34,7 +34,7 @@ images: _ingressWithAuthProxy.out.images & {
     }
 }
 
-charts: _ingressWithAuthProxy.out.charts & {
+charts: {
     jenkins: {
         chart: "charts/jenkins"
         sourceRef: {
@@ -73,7 +73,7 @@ _oauth2ClientCredentials:  "oauth2-credentials"
 _oauth2ClientId: "client_id"
 _oauth2ClientSecret: "client_secret"
 
-helm: _ingressWithAuthProxy.out.helm & {
+helm: {
 	"oauth2-client": {
 		chart: charts.oauth2Client
 		values: {

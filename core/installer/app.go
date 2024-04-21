@@ -111,16 +111,16 @@ _ingressPublic: "\(global.pcloudEnvName)-ingress-public"
 _issuerPrivate: "\(global.id)-private"
 _issuerPublic: "\(global.id)-public"
 
-_IngressWithAuthProxy: {
-	inp: {
-		auth: #Auth
-		network: #Network
-		subdomain: string
-		serviceName: string
-		port: { name: string } | { number: int & > 0 }
-	}
+#Ingress: {
+	auth: #Auth
+	network: #Network
+	subdomain: string
+	service: close({
+		name: string
+		port: close({ name: string }) | close({ number: int & > 0 })
+	})
 
-	_domain: "\(inp.subdomain).\(inp.network.domain)"
+	_domain: "\(subdomain).\(network.domain)"
     _authProxyHTTPPortName: "http"
 
 	out: {
@@ -151,7 +151,7 @@ _IngressWithAuthProxy: {
 			}
 		}
 		helm: {
-			if inp.auth.enabled {
+			if auth.enabled {
 				"auth-proxy": {
 					chart: charts.authProxy
 					values: {
@@ -160,33 +160,34 @@ _IngressWithAuthProxy: {
 							tag: images.authProxy.tag
 							pullPolicy: images.authProxy.pullPolicy
 						}
-						upstream: "\(inp.serviceName).\(release.namespace).svc.cluster.local"
+						upstream: "\(service.name).\(release.namespace).svc.cluster.local"
 						whoAmIAddr: "https://accounts.\(global.domain)/sessions/whoami"
 						loginAddr: "https://accounts-ui.\(global.domain)/login"
 						membershipAddr: "http://memberships-api.\(global.id)-core-auth-memberships.svc.cluster.local/api/user"
-						groups: inp.auth.groups
+						groups: auth.groups
 						portName: _authProxyHTTPPortName
 					}
 				}
 			}
 			ingress: {
 				chart: charts.ingress
+				_service: service
 				values: {
 					domain: _domain
-					ingressClassName: inp.network.ingressClass
-					certificateIssuer: inp.network.certificateIssuer
+					ingressClassName: network.ingressClass
+					certificateIssuer: network.certificateIssuer
 					service: {
-						if inp.auth.enabled {
+						if auth.enabled {
 							name: "auth-proxy"
                             port: name: _authProxyHTTPPortName
 						}
-						if !inp.auth.enabled {
-							name: inp.serviceName
-							if inp.port.name != _|_ {
-								port: name: inp.port.name
+						if !auth.enabled {
+							name: _service.name
+							if _service.port.name != _|_ {
+								port: name: _service.port.name
 							}
-							if inp.port.number != _|_ {
-								port: number: inp.port.number
+							if _service.port.number != _|_ {
+								port: number: _service.port.number
 							}
 						}
 					}
@@ -196,16 +197,34 @@ _IngressWithAuthProxy: {
 	}
 }
 
+ingress: {}
+
+_ingressValidate: {
+	for key, value in ingress {
+		"\(key)": #Ingress & value
+	}
+}
+
 images: {
 	for key, value in images {
 		"\(key)": #Image & value
 	}
+    for _, value in _ingressValidate {
+        for name, image in value.out.images {
+            "\(name)": #Image & image
+        }
+    }
 }
 
 charts: {
 	for key, value in charts {
 		"\(key)": #Chart & value
 	}
+    for _, value in _ingressValidate {
+        for name, chart in value.out.charts {
+            "\(name)": #Chart & chart
+        }
+    }
 }
 
 #ResourceReference: {
@@ -219,10 +238,20 @@ charts: {
 	...
 }
 
-helmValidate: {
+_helmValidate: {
 	for key, value in helm {
 		"\(key)": #Helm & value & {
 			name: key
+		}
+	}
+	for key, value in _ingressValidate {
+		for ing, ingValue in value.out.helm {
+            // TODO(gio): support multiple ingresses
+			// "\(key)-\(ing)": #Helm & ingValue & {
+			"\(ing)": #Helm & ingValue & {
+				// name: "\(key)-\(ing)"
+				name: ing
+			}
 		}
 	}
 }
@@ -250,7 +279,7 @@ helmValidate: {
 }
 
 output: {
-	for name, r in helmValidate {
+	for name, r in _helmValidate {
 		"\(name)": #HelmRelease & {
 			_name: name
 			_chart: r.chart

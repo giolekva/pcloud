@@ -14,17 +14,19 @@ icon: "<svg xmlns='http://www.w3.org/2000/svg' width='40.63' height='50' viewBox
 
 _httpPortName: "http"
 
-_ingressWithAuthProxy: _IngressWithAuthProxy & {
-	inp: {
+ingress: {
+	"url-shorteners": {
 		auth: input.auth
 		network: input.network
 		subdomain: input.subdomain
-		serviceName: "url-shortener"
-		port: name: _httpPortName
+		service: {
+			name: "url-shortener"
+			port: name: _httpPortName
+		}
 	}
 }
 
-images: _ingressWithAuthProxy.out.images & {
+images: {
 	urlShortener: {
 		repository: "giolekva"
 		name: "url-shortener"
@@ -33,7 +35,7 @@ images: _ingressWithAuthProxy.out.images & {
 	}
 }
 
-charts: _ingressWithAuthProxy.out.charts & {
+charts: {
     urlShortener: {
         chart: "charts/url-shortener"
         sourceRef: {
@@ -44,7 +46,7 @@ charts: _ingressWithAuthProxy.out.charts & {
     }
 }
 
-helm: _ingressWithAuthProxy.out.helm & {
+helm: {
     "url-shortener": {
         chart: charts.urlShortener
         values: {

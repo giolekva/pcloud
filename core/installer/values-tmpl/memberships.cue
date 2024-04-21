@@ -13,20 +13,22 @@ icon: "<svg xmlns='http://www.w3.org/2000/svg' width='50' height='50' viewBox='0
 
 _httpPortName: "http"
 
-_ingressWithAuthProxy: _IngressWithAuthProxy & {
-	inp: {
+ingress: {
+	memberships: {
 		auth: {
 			enabled: true
 			groups: input.authGroups
 		}
 		network: networks.private
 		subdomain: _subdomain
-		serviceName: "memberships"
-		port: name: _httpPortName
+		service: {
+			name: "memberships"
+			port: name: _httpPortName
+		}
 	}
 }
 
-images: _ingressWithAuthProxy.out.images & {
+images: {
     memberships: {
         repository: "giolekva"
         name: "memberships"
@@ -35,7 +37,7 @@ images: _ingressWithAuthProxy.out.images & {
     }
 }
 
-charts: _ingressWithAuthProxy.out.charts & {
+charts: {
     memberships: {
         chart: "charts/memberships"
         sourceRef: {
@@ -46,7 +48,7 @@ charts: _ingressWithAuthProxy.out.charts & {
     }
 }
 
-helm: _ingressWithAuthProxy.out.helm & {
+helm: {
     memberships: {
         chart: charts.memberships
         values: {

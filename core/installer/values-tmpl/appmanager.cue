@@ -14,20 +14,22 @@ namespace: "appmanager"
 _subdomain: "apps"
 _httpPortName: "http"
 
-_ingressWithAuthProxy: _IngressWithAuthProxy & {
-	inp: {
+ingress: {
+	appmanager: {
 		auth: {
 			enabled: true
 			groups: input.authGroups
 		}
 		network: networks.private
 		subdomain: _subdomain
-		serviceName: "appmanager"
-		port: name: _httpPortName
+		service: {
+			name: "appmanager"
+			port: name: _httpPortName
+		}
 	}
 }
 
-images: _ingressWithAuthProxy.out.images & {
+images: {
 	appmanager: {
 		repository: "giolekva"
 		name: "pcloud-installer"
@@ -36,7 +38,7 @@ images: _ingressWithAuthProxy.out.images & {
 	}
 }
 
-charts: _ingressWithAuthProxy.out.charts & {
+charts: {
 	appmanager: {
 		chart: "charts/appmanager"
 		sourceRef: {
@@ -47,7 +49,7 @@ charts: _ingressWithAuthProxy.out.charts & {
 	}
 }
 
-helm: _ingressWithAuthProxy.out.helm & {
+helm: {
 	appmanager: {
 		chart: charts.appmanager
 		values: {
