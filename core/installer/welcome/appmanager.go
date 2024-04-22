@@ -211,6 +211,7 @@ func (s *AppManagerServer) handleAppUpdate(c echo.Context) error {
 		return err
 	}
 	if err := s.m.Update(a, slug, values); err != nil {
+		fmt.Println(err)
 		return err
 	}
 	ctx, _ := context.WithTimeout(context.Background(), 2*time.Minute)

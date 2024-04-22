@@ -10,14 +10,15 @@ import (
 type Kind int
 
 const (
-	KindBoolean Kind = 0
-	KindInt          = 7
-	KindString       = 1
-	KindStruct       = 2
-	KindNetwork      = 3
-	KindAuth         = 5
-	KindSSHKey       = 6
-	KindNumber       = 4
+	KindBoolean     Kind = 0
+	KindInt              = 7
+	KindString           = 1
+	KindStruct           = 2
+	KindNetwork          = 3
+	KindAuth             = 5
+	KindSSHKey           = 6
+	KindNumber           = 4
+	KindArrayString      = 8
 )
 
 type Schema interface {
@@ -148,6 +149,8 @@ func NewCueSchema(v cue.Value) (Schema, error) {
 		return basicSchema{KindNumber}, nil
 	case cue.IntKind:
 		return basicSchema{KindInt}, nil
+	case cue.ListKind:
+		return basicSchema{KindArrayString}, nil
 	case cue.StructKind:
 		if isNetwork(v) {
 			return basicSchema{KindNetwork}, nil

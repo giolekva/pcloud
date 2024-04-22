@@ -74,8 +74,8 @@ helm: {
 				pullPolicy: images.headscale.pullPolicy
 			}
 			storage: size: "5Gi"
-			ingressClassName: _ingressPublic
-			certificateIssuer: _issuerPublic
+			ingressClassName: ingressPublic
+			certificateIssuer: issuerPublic
 			domain: _domain
 			publicBaseDomain: global.domain
 			ipAddressPool: "\(global.id)-headscale"

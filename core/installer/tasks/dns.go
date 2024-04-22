@@ -2,24 +2,24 @@ package tasks
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"net"
-	"text/template"
+	"strings"
 	"time"
 
-	"github.com/Masterminds/sprig/v3"
-
 	"github.com/giolekva/pcloud/core/installer"
+	"github.com/giolekva/pcloud/core/installer/dns"
 )
 
 type Check func(ch Check) error
 
-func SetupZoneTask(env Env, ingressIP net.IP, st *state) Task {
+func SetupZoneTask(env installer.EnvConfig, mgr *installer.InfraAppManager, st *state) Task {
 	ret := newSequentialParentTask(
 		"Configure DNS",
 		true,
-		CreateZoneRecords(env.Domain, st.publicIPs, ingressIP, env, st),
-		WaitToPropagate(env.Domain, st.publicIPs),
+		SetupDNSServer(env, st),
+		WaitToPropagate(st.dnsClient, env.Domain, env.PublicIP),
 	)
 	ret.beforeStart = func() {
 		st.infoListener(fmt.Sprintf("Generating DNS zone records for %s", env.Domain))
@@ -30,100 +30,86 @@ func SetupZoneTask(env Env, ingressIP net.IP, st *state) Task {
 	return ret
 }
 
-func CreateZoneRecords(
-	name string,
-	expected []net.IP,
-	ingressIP net.IP,
-	env Env,
-	st *state,
-) Task {
-	t := newLeafTask("Generate and publish DNS records", func() error {
-		key, err := newDNSSecKey(env.Domain)
-		if err != nil {
-			return err
-		}
-		repo, err := st.ssClient.GetRepo("config")
-		if err != nil {
-			return err
-		}
-		r, err := installer.NewRepoIO(repo, st.ssClient.Signer)
-		if err != nil {
-			return err
-		}
-		return r.Do(func(r installer.RepoFS) (string, error) {
-			{
-				out, err := r.Writer("dns-zone.yaml")
-				if err != nil {
-					return "", err
-				}
-				defer out.Close()
-				dnsZoneTmpl, err := template.New("config").Funcs(sprig.TxtFuncMap()).Parse(`
-apiVersion: dodo.cloud.dodo.cloud/v1
-kind: DNSZone
-metadata:
-  name: dns-zone
-  namespace: {{ .namespace }}
-spec:
-  zone: {{ .zone }}
-  privateIP: {{ .ingressIP }}
-  publicIPs:
-{{ range .publicIPs }}
-  - {{ .String }}
-{{ end }}
-  nameservers:
-{{ range .publicIPs }}
-  - {{ .String }}
-{{ end }}
-  dnssec:
-    enabled: true
-    secretName: dnssec-key
----
-apiVersion: v1
-kind: Secret
-metadata:
-  name: dnssec-key
-  namespace: {{ .namespace }}
-type: Opaque
-data:
-  basename: {{ .dnssec.Basename | b64enc }}
-  key: {{ .dnssec.Key | toString | b64enc }}
-  private: {{ .dnssec.Private | toString | b64enc }}
-  ds: {{ .dnssec.DS | toString | b64enc }}
-`)
-				if err != nil {
-					return "", err
-				}
-				if err := dnsZoneTmpl.Execute(out, map[string]any{
-					"namespace": env.Name,
-					"zone":      env.Domain,
-					"dnssec":    key,
-					"publicIPs": st.publicIPs,
-					"ingressIP": ingressIP.String(),
-				}); err != nil {
-					return "", err
-				}
-				rootKust, err := installer.ReadKustomization(r, "kustomization.yaml")
-				if err != nil {
-					return "", err
-				}
-				rootKust.AddResources("dns-zone.yaml")
-				if err := installer.WriteYaml(r, "kustomization.yaml", rootKust); err != nil {
-					return "", err
-				}
-				return "configure dns zone", nil
+func join[T fmt.Stringer](items []T, sep string) string {
+	var tmp []string
+	for _, i := range items {
+		tmp = append(tmp, i.String())
+	}
+	return strings.Join(tmp, ",")
+}
+
+func SetupDNSServer(env installer.EnvConfig, st *state) Task {
+	t := newLeafTask("Start up DNS server", func() error {
+		addressPool := fmt.Sprintf("%s-dns", env.Id)
+		{
+			app, err := installer.FindEnvApp(st.appsRepo, "env-dns")
+			if err != nil {
+				return err
 			}
-		})
+			instanceId := app.Name()
+			appDir := fmt.Sprintf("/apps/%s", instanceId)
+			namespace := fmt.Sprintf("%s%s", env.NamespacePrefix, app.Namespace())
+			if err := st.appManager.Install(app, instanceId, appDir, namespace, map[string]any{
+				"addressPool":  addressPool,
+				"inClusterIP":  env.Network.DNSInClusterIP.String(),
+				"publicIP":     join(env.PublicIP, ","),
+				"privateIP":    env.Network.Ingress.String(),
+				"nameserverIP": join(env.NameserverIP, ","),
+			}); err != nil {
+				return err
+			}
+		}
+		{
+			app, err := installer.FindInfraApp(st.appsRepo, "dns-gateway")
+			if err != nil {
+				return err
+			}
+			cfg, err := st.infraAppManager.FindInstance("dns-gateway")
+			if err != nil {
+				return err
+			}
+			serversJSON, ok := cfg.Values["servers"]
+			if !ok {
+				serversJSON = []installer.EnvDNS{}
+			}
+			serversTmp, err := json.Marshal(serversJSON)
+			if err != nil {
+				return err
+			}
+			servers := []installer.EnvDNS{}
+			if err := json.Unmarshal(serversTmp, &servers); err != nil {
+				return err
+			}
+			servers = append(servers, installer.EnvDNS{
+				env.Domain,
+				env.Network.DNSInClusterIP.String(),
+			})
+			if err := st.infraAppManager.Update(app, "dns-gateway", map[string]any{
+				"servers": servers,
+			}); err != nil {
+				return err
+			}
+		}
+		{
+			for {
+				if _, err := st.dnsFetcher.Fetch(fmt.Sprintf("http://dns-api.%sdns.svc.cluster.local/records-to-publish", env.NamespacePrefix)); err != nil {
+					time.Sleep(5 * time.Second)
+				} else {
+					break
+				}
+			}
+		}
+		return nil
 	})
 	return &t
 }
 
 func WaitToPropagate(
+	client dns.Client,
 	name string,
 	expected []net.IP,
 ) Task {
 	t := newLeafTask("Wait to propagate", func() error {
-		time.Sleep(2 * time.Minute)
-		return nil
 		ctx := context.TODO()
 		gotExpectedIPs := func(actual []net.IP) bool {
 			for _, a := range actual {
@@ -141,7 +127,7 @@ func WaitToPropagate(
 			return true
 		}
 		check := func(check Check) error {
-			addrs, err := net.LookupIP(name)
+			addrs, err := client.Lookup(name)
 			fmt.Printf("DNS LOOKUP: %+v\n", addrs)
 			if err == nil && gotExpectedIPs(addrs) {
 				return err

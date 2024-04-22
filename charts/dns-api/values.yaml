@@ -1,0 +1,16 @@
+image:
+  repository: giolekva/dns-api
+  tag: latest
+  pullPolicy: Always
+config: "coredns.conf"
+db: "records.db"
+zone: "example.com"
+publicIP: "1.2.3.4,5.6.7.8"
+privateIP: "10.0.1.0"
+nameserverIP: "4.3.2.1,8.7.6.5"
+volume:
+  claimName: "data"
+  mountPath: "/pcloud"
+service:
+  type: "ClusterIP"
+  annotations: {}

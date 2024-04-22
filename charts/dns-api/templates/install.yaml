@@ -1,0 +1,72 @@
+# TODO(gio): we'll need to separate intra-dns service and one accessible from k8s cluster
+apiVersion: v1
+kind: Service
+metadata:
+  name: dns-api
+  namespace: {{ .Release.Namespace }}
+  {{- if .Values.service.annotations }}
+  annotations:
+    {{- toYaml .Values.service.annotations | nindent 4 }}
+  {{- end }}
+spec:
+  type: {{ .Values.service.type }}
+  selector:
+    app: dns-api
+  ports:
+  - name: http
+    port: 80
+    targetPort: http
+    protocol: TCP
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: dns-api
+  namespace: {{ .Release.Namespace }}
+spec:
+  selector:
+    matchLabels:
+      app: dns-api
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: dns-api
+    spec:
+      containers:
+      - name: dns-api
+        image: {{ .Values.image.repository }}:{{ .Values.image.tag }}
+        imagePullPolicy: {{ .Values.image.pullPolicy }}
+        ports:
+        - name: http
+          containerPort: 8080
+          protocol: TCP
+        command:
+        - dns-api
+        - --port=8080
+        - --root-dir={{ .Values.volume.mountPath }}
+        - --config={{ .Values.config }}
+        - --db={{ .Values.db }}
+        - --zone={{ .Values.zone }}
+        - --public-ip={{ .Values.publicIP }}
+        - --private-ip={{ .Values.privateIP }}
+        - --nameserver-ip={{ .Values.nameserverIP }}
+        volumeMounts:
+        - name: data
+          mountPath: {{ .Values.volume.mountPath }}
+        resources:
+          requests:
+            memory: "10Mi"
+            cpu: "10m"
+          limits:
+            memory: "20Mi"
+            cpu: "100m"
+      volumes:
+      - name: data
+        persistentVolumeClaim:
+          claimName: {{ .Values.volume.claimName }}
+      tolerations:
+      - key: "pcloud"
+        operator: "Equal"
+        value: "role"
+        effect: "NoSchedule"

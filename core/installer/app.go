@@ -6,6 +6,7 @@ import (
 	"fmt"
 	template "html/template"
 	"net"
+	"net/netip"
 	"strings"
 
 	"cuelang.org/go/cue"
@@ -16,36 +17,18 @@ import (
 )
 
 // TODO(gio): import
-const cueBaseConfig = `
-name: string | *""
-description: string | *""
-readme: string | *""
-icon: string | *""
-namespace: string | *""
-help: [...#HelpDocument] | *[]
-
-#HelpDocument: {
-	title: string
-	contents: string
-	children: [...#HelpDocument] | *[]
-}
-
-url: string | *""
-
-#AppType: "infra" | "env"
-appType: #AppType | *"env"
-
-#Auth: {
-  enabled: bool | *false // TODO(gio): enabled by default?
-  groups: string | *"" // TODO(gio): []string
-}
-
-#Network: {
-	name: string
-	ingressClass: string
-	certificateIssuer: string | *""
-	domain: string
-	allocatePortAddr: string
+const cueEnvAppGlobal = `
+#Global: {
+	id: string | *""
+	pcloudEnvName: string | *""
+	domain: string | *""
+    privateDomain: string | *""
+    contactEmail: string | *""
+    adminPublicKey: string | *""
+    publicIP: [...string] | *[]
+    nameserverIP: [...string] | *[]
+	namespacePrefix: string | *""
+	network: #EnvNetwork
 }
 
 networks: {
@@ -64,61 +47,11 @@ networks: {
 	}
 }
 
-#Image: {
-	registry: string | *"docker.io"
-	repository: string
-	name: string
-	tag: string
-	pullPolicy: string | *"IfNotPresent"
-	imageName: "\(repository)/\(name)"
-	fullName: "\(registry)/\(imageName)"
-	fullNameWithTag: "\(fullName):\(tag)"
-}
-
-#Chart: {
-	chart: string
-	sourceRef: #SourceRef
-}
-
-#SourceRef: {
-	kind: "GitRepository" | "HelmRepository"
-	name: string
-	namespace: string // TODO(gio): default global.id
-}
-
-#Global: {
-	id: string | *""
-	pcloudEnvName: string | *""
-	domain: string | *""
-    privateDomain: string | *""
-	namespacePrefix: string | *""
-	...
-}
-
-#Release: {
-	appInstanceId: string
-	namespace: string
-	repoAddr: string
-	appDir: string
-}
-
-#PortForward: {
-	allocator: string
-	protocol: "TCP" | "UDP" | *"TCP"
-	sourcePort: int
-	targetService: string
-	targetPort: int
-}
-
-portForward: [...#PortForward] | *[]
-
-global: #Global
-release: #Release
-
-_ingressPrivate: "\(global.id)-ingress-private"
-_ingressPublic: "\(global.pcloudEnvName)-ingress-public"
-_issuerPrivate: "\(global.id)-private"
-_issuerPublic: "\(global.id)-public"
+// TODO(gio): remove
+ingressPrivate: "\(global.id)-ingress-private"
+ingressPublic: "\(global.pcloudEnvName)-ingress-public"
+issuerPrivate: "\(global.id)-private"
+issuerPublic: "\(global.id)-public"
 
 #Ingress: {
 	auth: #Auth
@@ -213,6 +146,110 @@ _ingressValidate: {
 		"\(key)": #Ingress & value
 	}
 }
+`
+
+const cueInfraAppGlobal = `
+#Global: {
+	pcloudEnvName: string | *""
+    publicIP: [...string] | *[]
+	namespacePrefix: string | *""
+    infraAdminPublicKey: string | *""
+}
+
+// TODO(gio): remove
+ingressPublic: "\(global.pcloudEnvName)-ingress-public"
+
+ingress: {}
+_ingressValidate: {}
+`
+
+const cueBaseConfig = `
+import (
+  "net"
+)
+
+name: string | *""
+description: string | *""
+readme: string | *""
+icon: string | *""
+namespace: string | *""
+
+help: [...#HelpDocument] | *[]
+
+#HelpDocument: {
+	title: string
+	contents: string
+	children: [...#HelpDocument] | *[]
+}
+
+url: string | *""
+
+#AppType: "infra" | "env"
+appType: #AppType | *"env"
+
+#Auth: {
+  enabled: bool | *false // TODO(gio): enabled by default?
+  groups: string | *"" // TODO(gio): []string
+}
+
+#Network: {
+	name: string
+	ingressClass: string
+	certificateIssuer: string | *""
+	domain: string
+	allocatePortAddr: string
+}
+
+#Image: {
+	registry: string | *"docker.io"
+	repository: string
+	name: string
+	tag: string
+	pullPolicy: string | *"IfNotPresent"
+	imageName: "\(repository)/\(name)"
+	fullName: "\(registry)/\(imageName)"
+	fullNameWithTag: "\(fullName):\(tag)"
+}
+
+#Chart: {
+	chart: string
+	sourceRef: #SourceRef
+}
+
+#SourceRef: {
+	kind: "GitRepository" | "HelmRepository"
+	name: string
+	namespace: string // TODO(gio): default global.id
+}
+
+#EnvNetwork: {
+	dns: net.IPv4
+	dnsInClusterIP: net.IPv4
+	ingress: net.IPv4
+	headscale: net.IPv4
+	servicesFrom: net.IPv4
+	servicesTo: net.IPv4
+}
+
+#Release: {
+	appInstanceId: string
+	namespace: string
+	repoAddr: string
+	appDir: string
+}
+
+#PortForward: {
+	allocator: string
+	protocol: "TCP" | "UDP" | *"TCP"
+	sourcePort: int
+	targetService: string
+	targetPort: int
+}
+
+portForward: [...#PortForward] | *[]
+
+global: #Global
+release: #Release
 
 images: {
 	for key, value in images {
@@ -304,12 +341,11 @@ output: {
 }
 `
 
-type Rendered struct {
+type rendered struct {
 	Name      string
 	Readme    string
 	Resources CueAppData
 	Ports     []PortForward
-	Config    AppInstanceConfig
 	Data      CueAppData
 	Help      []HelpDocument
 	Url       string
@@ -320,6 +356,16 @@ type HelpDocument struct {
 	Title    string
 	Contents string
 	Children []HelpDocument
+}
+
+type EnvAppRendered struct {
+	rendered
+	Config AppInstanceConfig
+}
+
+type InfraAppRendered struct {
+	rendered
+	Config InfraAppInstanceConfig
 }
 
 type PortForward struct {
@@ -347,31 +393,86 @@ type App interface {
 }
 
 type InfraConfig struct {
-	Name                 string   `json:"pcloudEnvName"` // #TODO(gio): change to name
-	PublicIP             []net.IP `json:"publicIP"`
-	InfraNamespacePrefix string   `json:"namespacePrefix"`
-	InfraAdminPublicKey  []byte   `json:"infraAdminPublicKey"`
+	Name                 string   `json:"pcloudEnvName,omitempty"` // #TODO(gio): change to name
+	PublicIP             []net.IP `json:"publicIP,omitempty"`
+	InfraNamespacePrefix string   `json:"namespacePrefix,omitempty"`
+	InfraAdminPublicKey  []byte   `json:"infraAdminPublicKey,omitempty"`
 }
 
 type InfraApp interface {
 	App
-	Render(release Release, infra InfraConfig, values map[string]any) (Rendered, error)
+	Render(release Release, infra InfraConfig, values map[string]any) (InfraAppRendered, error)
+}
+
+type EnvNetwork struct {
+	DNS            net.IP `json:"dns,omitempty"`
+	DNSInClusterIP net.IP `json:"dnsInClusterIP,omitempty"`
+	Ingress        net.IP `json:"ingress,omitempty"`
+	Headscale      net.IP `json:"headscale,omitempty"`
+	ServicesFrom   net.IP `json:"servicesFrom,omitempty"`
+	ServicesTo     net.IP `json:"servicesTo,omitempty"`
+}
+
+func NewEnvNetwork(subnet net.IP) (EnvNetwork, error) {
+	addr, err := netip.ParseAddr(subnet.String())
+	if err != nil {
+		return EnvNetwork{}, err
+	}
+	if !addr.Is4() {
+		return EnvNetwork{}, fmt.Errorf("Expected IPv4, got %s instead", addr)
+	}
+	dns := addr.Next()
+	ingress := dns.Next()
+	headscale := ingress.Next()
+	b := addr.AsSlice()
+	if b[3] != 0 {
+		return EnvNetwork{}, fmt.Errorf("Expected last byte to be zero, got %d instead", b[3])
+	}
+	b[3] = 10
+	servicesFrom, ok := netip.AddrFromSlice(b)
+	if !ok {
+		return EnvNetwork{}, fmt.Errorf("Must not reach")
+	}
+	b[3] = 254
+	servicesTo, ok := netip.AddrFromSlice(b)
+	if !ok {
+		return EnvNetwork{}, fmt.Errorf("Must not reach")
+	}
+	b[3] = b[2]
+	b[2] = b[1]
+	b[0] = 10
+	b[1] = 44
+	dnsInClusterIP, ok := netip.AddrFromSlice(b)
+	if !ok {
+		return EnvNetwork{}, fmt.Errorf("Must not reach")
+	}
+	return EnvNetwork{
+		DNS:            net.ParseIP(dns.String()),
+		DNSInClusterIP: net.ParseIP(dnsInClusterIP.String()),
+		Ingress:        net.ParseIP(ingress.String()),
+		Headscale:      net.ParseIP(headscale.String()),
+		ServicesFrom:   net.ParseIP(servicesFrom.String()),
+		ServicesTo:     net.ParseIP(servicesTo.String()),
+	}, nil
 }
 
 // TODO(gio): rename to EnvConfig
-type AppEnvConfig struct {
-	Id              string   `json:"id"`
-	InfraName       string   `json:"pcloudEnvName"`
-	Domain          string   `json:"domain"`
-	PrivateDomain   string   `json:"privateDomain"`
-	ContactEmail    string   `json:"contactEmail"`
-	PublicIP        []net.IP `json:"publicIP"`
-	NamespacePrefix string   `json:"namespacePrefix"`
+type EnvConfig struct {
+	Id              string     `json:"id,omitempty"`
+	InfraName       string     `json:"pcloudEnvName,omitempty"`
+	Domain          string     `json:"domain,omitempty"`
+	PrivateDomain   string     `json:"privateDomain,omitempty"`
+	ContactEmail    string     `json:"contactEmail,omitempty"`
+	AdminPublicKey  string     `json:"adminPublicKey,omitempty"`
+	PublicIP        []net.IP   `json:"publicIP,omitempty"`
+	NameserverIP    []net.IP   `json:"nameserverIP,omitempty"`
+	NamespacePrefix string     `json:"namespacePrefix,omitempty"`
+	Network         EnvNetwork `json:"network,omitempty"`
 }
 
 type EnvApp interface {
 	App
-	Render(release Release, env AppEnvConfig, values map[string]any) (Rendered, error)
+	Render(release Release, env EnvConfig, values map[string]any) (EnvAppRendered, error)
 }
 
 type cueApp struct {
@@ -471,8 +572,8 @@ func (a cueApp) Namespace() string {
 	return a.namespace
 }
 
-func (a cueApp) render(values map[string]any) (Rendered, error) {
-	ret := Rendered{
+func (a cueApp) render(values map[string]any) (rendered, error) {
+	ret := rendered{
 		Name:      a.Name(),
 		Resources: make(CueAppData),
 		Ports:     make([]PortForward, 0),
@@ -480,38 +581,38 @@ func (a cueApp) render(values map[string]any) (Rendered, error) {
 	}
 	var buf bytes.Buffer
 	if err := json.NewEncoder(&buf).Encode(values); err != nil {
-		return Rendered{}, err
+		return rendered{}, err
 	}
 	ctx := a.cfg.Context()
 	d := ctx.CompileBytes(buf.Bytes())
 	res := a.cfg.Unify(d).Eval()
 	if err := res.Err(); err != nil {
-		return Rendered{}, err
+		return rendered{}, err
 	}
 	if err := res.Validate(); err != nil {
-		return Rendered{}, err
+		return rendered{}, err
 	}
 	full, err := json.MarshalIndent(res, "", "\t")
 	if err != nil {
-		return Rendered{}, err
+		return rendered{}, err
 	}
 	ret.Data["rendered.json"] = full
 	readme, err := res.LookupPath(cue.ParsePath("readme")).String()
 	if err != nil {
-		return Rendered{}, err
+		return rendered{}, err
 	}
 	ret.Readme = readme
 	if err := res.LookupPath(cue.ParsePath("portForward")).Decode(&ret.Ports); err != nil {
-		return Rendered{}, err
+		return rendered{}, err
 	}
 	output := res.LookupPath(cue.ParsePath("output"))
 	i, err := output.Fields()
 	if err != nil {
-		return Rendered{}, err
+		return rendered{}, err
 	}
 	for i.Next() {
 		if contents, err := cueyaml.Encode(i.Value()); err != nil {
-			return Rendered{}, err
+			return rendered{}, err
 		} else {
 			name := fmt.Sprintf("%s.yaml", cleanName(i.Selector().String()))
 			ret.Resources[name] = contents
@@ -520,17 +621,17 @@ func (a cueApp) render(values map[string]any) (Rendered, error) {
 	helpValue := res.LookupPath(cue.ParsePath("help"))
 	if helpValue.Exists() {
 		if err := helpValue.Decode(&ret.Help); err != nil {
-			return Rendered{}, err
+			return rendered{}, err
 		}
 	}
 	url, err := res.LookupPath(cue.ParsePath("url")).String()
 	if err != nil {
-		return Rendered{}, err
+		return rendered{}, err
 	}
 	ret.Url = url
 	icon, err := res.LookupPath(cue.ParsePath("icon")).String()
 	if err != nil {
-		return Rendered{}, err
+		return rendered{}, err
 	}
 	ret.Icon = icon
 	return ret, nil
@@ -552,11 +653,11 @@ func (a cueEnvApp) Type() AppType {
 	return AppTypeEnv
 }
 
-func (a cueEnvApp) Render(release Release, env AppEnvConfig, values map[string]any) (Rendered, error) {
+func (a cueEnvApp) Render(release Release, env EnvConfig, values map[string]any) (EnvAppRendered, error) {
 	networks := CreateNetworks(env)
 	derived, err := deriveValues(values, a.Schema(), networks)
 	if err != nil {
-		return Rendered{}, nil
+		return EnvAppRendered{}, nil
 	}
 	ret, err := a.cueApp.render(map[string]any{
 		"global":  env,
@@ -564,18 +665,20 @@ func (a cueEnvApp) Render(release Release, env AppEnvConfig, values map[string]a
 		"input":   derived,
 	})
 	if err != nil {
-		return Rendered{}, err
+		return EnvAppRendered{}, err
 	}
-	ret.Config = AppInstanceConfig{
-		AppId:   a.Name(),
-		Env:     env,
-		Release: release,
-		Values:  values,
-		Input:   derived,
-		Help:    ret.Help,
-		Url:     ret.Url,
-	}
-	return ret, nil
+	return EnvAppRendered{
+		rendered: ret,
+		Config: AppInstanceConfig{
+			AppId:   a.Name(),
+			Env:     env,
+			Release: release,
+			Values:  values,
+			Input:   derived,
+			Help:    ret.Help,
+			Url:     ret.Url,
+		},
+	}, nil
 }
 
 type cueInfraApp struct {
@@ -594,14 +697,35 @@ func (a cueInfraApp) Type() AppType {
 	return AppTypeInfra
 }
 
-func (a cueInfraApp) Render(release Release, infra InfraConfig, values map[string]any) (Rendered, error) {
-	return a.cueApp.render(map[string]any{
+func (a cueInfraApp) Render(release Release, infra InfraConfig, values map[string]any) (InfraAppRendered, error) {
+	ret, err := a.cueApp.render(map[string]any{
 		"global":  infra,
 		"release": release,
 		"input":   values,
 	})
+	if err != nil {
+		return InfraAppRendered{}, err
+	}
+	return InfraAppRendered{
+		rendered: ret,
+		Config: InfraAppInstanceConfig{
+			AppId:   a.Name(),
+			Infra:   infra,
+			Release: release,
+			Values:  values,
+			Input:   values,
+		},
+	}, nil
 }
 
 func cleanName(s string) string {
 	return strings.ReplaceAll(strings.ReplaceAll(s, "\"", ""), "'", "")
+}
+
+func join[T fmt.Stringer](items []T, sep string) string {
+	var tmp []string
+	for _, i := range items {
+		tmp = append(tmp, i.String())
+	}
+	return strings.Join(tmp, ",")
 }

@@ -3,19 +3,16 @@ package installer
 import (
 	"bytes"
 	"context"
-	"encoding/json"
 	"fmt"
+	"io"
+	"net/http"
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime/schema"
-	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
-
-	dnsv1 "github.com/giolekva/pcloud/core/ns-controller/api/v1"
 )
 
 type NamespaceCreator interface {
@@ -28,7 +25,7 @@ type ZoneInfo struct {
 }
 
 type ZoneStatusFetcher interface {
-	Fetch(namespace, name string) (error, bool, ZoneInfo)
+	Fetch(addr string) (string, error)
 }
 
 type realNamespaceCreator struct {
@@ -51,26 +48,20 @@ func (n *realNamespaceCreator) Create(name string) error {
 	return err
 }
 
-type realZoneStatusFetcher struct {
-	clientset dynamic.Interface
-}
+// TODO(gio): take http client
+type realZoneStatusFetcher struct{}
 
-func (f *realZoneStatusFetcher) Fetch(namespace, name string) (error, bool, ZoneInfo) {
-	dnsZoneRes := schema.GroupVersionResource{Group: "dodo.cloud.dodo.cloud", Version: "v1", Resource: "dnszones"}
-	zoneUnstr, err := f.clientset.Resource(dnsZoneRes).Namespace(namespace).Get(context.TODO(), name, metav1.GetOptions{})
-	fmt.Printf("%+v %+v\n", zoneUnstr, err)
+func (f *realZoneStatusFetcher) Fetch(addr string) (string, error) {
+	fmt.Printf("--- %s\n", addr)
+	resp, err := http.Get(addr)
 	if err != nil {
-		return err, false, ZoneInfo{}
+		return "", err
 	}
-	var contents bytes.Buffer
-	if err := json.NewEncoder(&contents).Encode(zoneUnstr.Object); err != nil {
-		return err, false, ZoneInfo{}
+	var buf bytes.Buffer
+	if _, err := io.Copy(&buf, resp.Body); err != nil {
+		return "", err
 	}
-	var zone dnsv1.DNSZone
-	if err := json.NewDecoder(&contents).Decode(&zone); err != nil {
-		return err, false, ZoneInfo{}
-	}
-	return nil, zone.Status.Ready, ZoneInfo{zone.Spec.Zone, zone.Status.RecordsToPublish}
+	return buf.String(), nil
 }
 
 func NewNamespaceCreator(kubeconfig string) (NamespaceCreator, error) {
@@ -82,28 +73,7 @@ func NewNamespaceCreator(kubeconfig string) (NamespaceCreator, error) {
 }
 
 func NewZoneStatusFetcher(kubeconfig string) (ZoneStatusFetcher, error) {
-	if kubeconfig == "" {
-		config, err := rest.InClusterConfig()
-		if err != nil {
-			return nil, err
-		}
-		client, err := dynamic.NewForConfig(config)
-		if err != nil {
-			return nil, err
-		}
-		return &realZoneStatusFetcher{client}, nil
-
-	} else {
-		config, err := clientcmd.BuildConfigFromFlags("", kubeconfig)
-		if err != nil {
-			return nil, err
-		}
-		client, err := dynamic.NewForConfig(config)
-		if err != nil {
-			return nil, err
-		}
-		return &realZoneStatusFetcher{client}, nil
-	}
+	return &realZoneStatusFetcher{}, nil
 }
 
 func NewKubeConfig(kubeconfig string) (*kubernetes.Clientset, error) {

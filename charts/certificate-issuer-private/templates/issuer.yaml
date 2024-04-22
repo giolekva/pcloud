@@ -15,5 +15,5 @@ spec:
           groupName: dodo.cloud # TODO(gio): configurable, this and one below
           solverName: dns-resolver-pcloud
           config:
-            apiConfigMapName: {{ .Values.apiConfigMap.name }}
-            apiConfigMapNamespace: {{ .Values.apiConfigMap.namespace }}
+            createTXTAddr: {{ .Values.config.createTXTAddr }}
+            deleteTXTAddr: {{ .Values.config.deleteTXTAddr }}

@@ -1,3 +1,9 @@
+repo_name ?= dtabidze
+podman ?= docker
+ifeq ($(podman), podman)
+manifest_dest=docker://docker.io/$(repo_name)/dns-challenge-solver:latest
+endif
+
 clean:
 	rm -f dns-challenge-solver*
 
@@ -20,14 +26,14 @@ build_amd64:
 	/usr/local/go/bin/go build -o dns-challenge-solver_amd64 *.go
 
 push_arm64: clean build_arm64
-	podman build --platform linux/arm64 --tag=giolekva/dns-challenge-solver:arm64 .
-	podman push giolekva/dns-challenge-solver:arm64
+	$(podman) build --platform linux/arm64 --tag=giolekva/dns-challenge-solver:arm64 .
+	$(podman) push giolekva/dns-challenge-solver:arm64
 
 push_amd64: clean build_amd64
-	podman build --platform linux/amd64 --tag=giolekva/dns-challenge-solver:amd64 .
-	podman push giolekva/dns-challenge-solver:amd64
+	$(podman) build --platform linux/amd64 --tag=giolekva/dns-challenge-solver:amd64 .
+	$(podman) push giolekva/dns-challenge-solver:amd64
 
 push: push_arm64 push_amd64
-	podman manifest create giolekva/dns-challenge-solver:latest giolekva/dns-challenge-solver:arm64 giolekva/dns-challenge-solver:amd64
-	podman manifest push giolekva/dns-challenge-solver:latest docker://docker.io/giolekva/dns-challenge-solver:latest
-	podman manifest rm giolekva/dns-challenge-solver:latest
+	$(podman) manifest create giolekva/dns-challenge-solver:latest giolekva/dns-challenge-solver:arm64 giolekva/dns-challenge-solver:amd64
+	$(podman) manifest push giolekva/dns-challenge-solver:latest $(manifest_dest)
+	$(podman) manifest rm giolekva/dns-challenge-solver:latest

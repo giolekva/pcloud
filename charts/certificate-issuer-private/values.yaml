@@ -4,6 +4,6 @@ issuer:
   contactEmail: admin@example.com
   gandiAPIToken: token
   domain: p.example.com
-apiConfigMap:
-  name: api-config
-  namespace: pcloud-dns-zone-manager
+config:
+  createTXTAddr: http://10.44.0.1/create-txt-record
+  deleteTXTAddr: http://10.44.0.1/delete-txt-record

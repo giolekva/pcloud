@@ -40,9 +40,9 @@ helm: {
 			loginAddr: "https://launcher.\(global.domain)"
 			membershipsInitAddr: "http://memberships-api.\(global.namespacePrefix)core-auth-memberships.svc.cluster.local/api/init"
 			ingress: {
-				className: _ingressPublic
+				className: ingressPublic
 				domain: "welcome.\(global.domain)"
-				certificateIssuer: _issuerPublic
+				certificateIssuer: issuerPublic
 			}
 			clusterRoleName: "\(global.id)-welcome"
 			image: {

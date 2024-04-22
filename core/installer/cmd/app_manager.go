@@ -72,7 +72,7 @@ func appManagerCmdRun(cmd *cobra.Command, args []string) error {
 		return err
 	}
 	log.Println("Cloned repository")
-	repoIO, err := installer.NewRepoIO(repo, signer)
+	repoIO, err := soft.NewRepoIO(repo, signer)
 	if err != nil {
 		return err
 	}

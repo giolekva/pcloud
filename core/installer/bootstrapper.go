@@ -14,6 +14,7 @@ import (
 	"helm.sh/helm/v3/pkg/chart"
 	"helm.sh/helm/v3/pkg/chart/loader"
 
+	"github.com/giolekva/pcloud/core/installer/io"
 	"github.com/giolekva/pcloud/core/installer/soft"
 )
 
@@ -24,14 +25,15 @@ const IPAddressPoolIngressPublic = "ingress-public"
 const dnsAPIConfigMapName = "api-config"
 
 type Bootstrapper struct {
-	cl      ChartLoader
-	ns      NamespaceCreator
-	ha      HelmActionConfigFactory
-	appRepo AppRepository
+	cl         ChartLoader
+	ns         NamespaceCreator
+	ha         HelmActionConfigFactory
+	appRepo    AppRepository
+	repoClient soft.ClientGetter
 }
 
-func NewBootstrapper(cl ChartLoader, ns NamespaceCreator, ha HelmActionConfigFactory, appRepo AppRepository) Bootstrapper {
-	return Bootstrapper{cl, ns, ha, appRepo}
+func NewBootstrapper(cl ChartLoader, ns NamespaceCreator, ha HelmActionConfigFactory, appRepo AppRepository, repoClient soft.ClientGetter) Bootstrapper {
+	return Bootstrapper{cl, ns, ha, appRepo, repoClient}
 }
 
 func (b Bootstrapper) findApp(name string) (InfraApp, error) {
@@ -64,7 +66,7 @@ func (b Bootstrapper) Run(env BootstrapConfig) error {
 		return err
 	}
 	time.Sleep(30 * time.Second)
-	ss, err := soft.WaitForClient(
+	ss, err := b.repoClient.Get(
 		netip.AddrPortFrom(env.ServiceIPs.ConfigRepo, 22).String(),
 		bootstrapJobKeys.RawPrivateKey(),
 		log.Default())
@@ -83,13 +85,9 @@ func (b Bootstrapper) Run(env BootstrapConfig) error {
 		return err
 	}
 	fmt.Println("Fluxcd installed")
-	repo, err := ss.GetRepo("config")
+	repoIO, err := ss.GetRepo("config")
 	if err != nil {
 		fmt.Println("Failed to get config repo")
-		return err
-	}
-	repoIO, err := NewRepoIO(repo, ss.Signer)
-	if err != nil {
 		return err
 	}
 	mgr, err := NewInfraAppManager(repoIO, b.ns)
@@ -325,7 +323,7 @@ func (b Bootstrapper) installSoftServe(adminPublicKey string, namespace string, 
 	return nil
 }
 
-func (b Bootstrapper) installFluxcd(ss *soft.Client, envName string) error {
+func (b Bootstrapper) installFluxcd(ss soft.Client, envName string) error {
 	keys, err := NewSSHKeyPair("fluxcd")
 	if err != nil {
 		return err
@@ -339,15 +337,11 @@ func (b Bootstrapper) installFluxcd(ss *soft.Client, envName string) error {
 	if err := ss.AddRepository("config"); err != nil {
 		return err
 	}
-	repo, err := ss.GetRepo("config")
+	repoIO, err := ss.GetRepo("config")
 	if err != nil {
 		return err
 	}
-	repoIO, err := NewRepoIO(repo, ss.Signer)
-	if err != nil {
-		return err
-	}
-	if err := repoIO.Do(func(r RepoFS) (string, error) {
+	if err := repoIO.Do(func(r soft.RepoFS) (string, error) {
 		w, err := r.Writer("README.md")
 		if err != nil {
 			return "", err
@@ -364,7 +358,7 @@ func (b Bootstrapper) installFluxcd(ss *soft.Client, envName string) error {
 	if err != nil {
 		return err
 	}
-	host := strings.Split(ss.Addr, ":")[0]
+	host := strings.Split(ss.Address(), ":")[0]
 	if err := b.installFluxBootstrap(
 		ss.GetRepoAddress("config"),
 		host,
@@ -440,9 +434,9 @@ func (b Bootstrapper) installInfrastructureServices(mgr *InfraAppManager, env Bo
 	return nil
 }
 
-func configureMainRepo(repo RepoIO, bootstrap BootstrapConfig) error {
-	return repo.Do(func(r RepoFS) (string, error) {
-		if err := WriteYaml(r, "bootstrap-config.yaml", bootstrap); err != nil {
+func configureMainRepo(repo soft.RepoIO, bootstrap BootstrapConfig) error {
+	return repo.Do(func(r soft.RepoFS) (string, error) {
+		if err := soft.WriteYaml(r, "bootstrap-config.yaml", bootstrap); err != nil {
 			return "", err
 		}
 		infra := InfraConfig{
@@ -451,19 +445,19 @@ func configureMainRepo(repo RepoIO, bootstrap BootstrapConfig) error {
 			InfraNamespacePrefix: bootstrap.NamespacePrefix,
 			InfraAdminPublicKey:  bootstrap.AdminPublicKey,
 		}
-		if err := WriteYaml(r, "config.yaml", infra); err != nil {
+		if err := soft.WriteYaml(r, "config.yaml", infra); err != nil {
 			return "", err
 		}
-		if err := WriteYaml(r, "env-cidrs.yaml", EnvCIDRs{}); err != nil {
+		if err := soft.WriteYaml(r, "env-cidrs.yaml", EnvCIDRs{}); err != nil {
 			return "", err
 		}
-		kust := NewKustomization()
+		kust := io.NewKustomization()
 		kust.AddResources(
 			fmt.Sprintf("%s-flux", bootstrap.InfraName),
 			"infrastructure",
 			"environments",
 		)
-		if err := WriteYaml(r, "kustomization.yaml", kust); err != nil {
+		if err := soft.WriteYaml(r, "kustomization.yaml", kust); err != nil {
 			return "", err
 		}
 		{
@@ -488,19 +482,19 @@ spec:
 				return "", err
 			}
 		}
-		infraKust := NewKustomization()
+		infraKust := io.NewKustomization()
 		infraKust.AddResources("pcloud-charts.yaml")
-		if err := WriteYaml(r, "infrastructure/kustomization.yaml", infraKust); err != nil {
+		if err := soft.WriteYaml(r, "infrastructure/kustomization.yaml", infraKust); err != nil {
 			return "", err
 		}
-		if err := WriteYaml(r, "environments/kustomization.yaml", NewKustomization()); err != nil {
+		if err := soft.WriteYaml(r, "environments/kustomization.yaml", io.NewKustomization()); err != nil {
 			return "", err
 		}
 		return "initialize pcloud directory structure", nil
 	})
 }
 
-func (b Bootstrapper) installEnvManager(mgr *InfraAppManager, ss *soft.Client, env BootstrapConfig) error {
+func (b Bootstrapper) installEnvManager(mgr *InfraAppManager, ss soft.Client, env BootstrapConfig) error {
 	keys, err := NewSSHKeyPair("env-manager")
 	if err != nil {
 		return err
@@ -526,7 +520,7 @@ func (b Bootstrapper) installEnvManager(mgr *InfraAppManager, ss *soft.Client, e
 	})
 }
 
-func (b Bootstrapper) installIngressPublic(mgr *InfraAppManager, ss *soft.Client, env BootstrapConfig) error {
+func (b Bootstrapper) installIngressPublic(mgr *InfraAppManager, ss soft.Client, env BootstrapConfig) error {
 	keys, err := NewSSHKeyPair("port-allocator")
 	if err != nil {
 		return err
@@ -560,27 +554,18 @@ func (b Bootstrapper) installOryHydraMaester(mgr *InfraAppManager, env Bootstrap
 }
 
 func (b Bootstrapper) installDNSZoneManager(mgr *InfraAppManager, env BootstrapConfig) error {
-	const (
-		volumeClaimName = "dns-zone-configs"
-		volumeMountPath = "/etc/pcloud/dns-zone-configs"
-	)
-	app, err := b.findApp("dns-zone-manager")
+	app, err := b.findApp("dns-gateway")
 	if err != nil {
 		return err
 	}
 	namespace := fmt.Sprintf("%s-%s", env.InfraName, app.Namespace())
 	appDir := filepath.Join("/infrastructure", app.Name())
 	return mgr.Install(app, appDir, namespace, map[string]any{
-		"volume": map[string]any{
-			"claimName": volumeClaimName,
-			"mountPath": volumeMountPath,
-			"size":      "1Gi",
-		},
-		"apiConfigMapName": dnsAPIConfigMapName,
+		"servers": []EnvDNS{},
 	})
 }
 
-func (b Bootstrapper) installFluxcdReconciler(mgr *InfraAppManager, ss *soft.Client, env BootstrapConfig) error {
+func (b Bootstrapper) installFluxcdReconciler(mgr *InfraAppManager, ss soft.Client, env BootstrapConfig) error {
 	app, err := b.findApp("fluxcd-reconciler")
 	if err != nil {
 		return err

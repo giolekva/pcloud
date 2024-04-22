@@ -11,6 +11,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/giolekva/pcloud/core/installer"
+	"github.com/giolekva/pcloud/core/installer/soft"
 )
 
 var bootstrapFlags struct {
@@ -110,6 +111,7 @@ func bootstrapCmdRun(cmd *cobra.Command, args []string) error {
 		nsCreator,
 		installer.NewActionConfigFactory(rootFlags.kubeConfig),
 		installer.NewInMemoryAppRepository(installer.CreateAllApps()),
+		soft.RealClientGetter{},
 	)
 	return b.Run(envConfig)
 }

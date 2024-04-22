@@ -3,7 +3,6 @@ package main
 import (
 	"os"
 
-	"github.com/giolekva/pcloud/core/installer"
 	"github.com/giolekva/pcloud/core/installer/soft"
 	"github.com/giolekva/pcloud/core/installer/welcome"
 	"github.com/spf13/cobra"
@@ -80,7 +79,7 @@ func welcomeCmdRun(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-	repoIO, err := installer.NewRepoIO(repo, signer)
+	repoIO, err := soft.NewRepoIO(repo, signer)
 	if err != nil {
 		return err
 	}

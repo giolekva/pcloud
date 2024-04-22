@@ -25,12 +25,12 @@ helm: {
 		}]
 		values: {
 			issuer: {
-				name: _issuerPublic
+				name: issuerPublic
 				server: "https://acme-v02.api.letsencrypt.org/directory"
 				// server: "https://acme-staging-v02.api.letsencrypt.org/directory"
 				domain: global.domain
 				contactEmail: global.contactEmail
-				ingressClass: _ingressPublic
+				ingressClass: ingressPublic
 			}
 		}
 	}

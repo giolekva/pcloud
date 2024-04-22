@@ -3,21 +3,25 @@ package tasks
 import (
 	"context"
 	"fmt"
-	"net"
 
 	"github.com/charmbracelet/keygen"
 
 	"github.com/giolekva/pcloud/core/installer"
+	"github.com/giolekva/pcloud/core/installer/dns"
+	"github.com/giolekva/pcloud/core/installer/http"
 	"github.com/giolekva/pcloud/core/installer/soft"
 )
 
 type state struct {
 	infoListener    EnvInfoListener
-	publicIPs       []net.IP
 	nsCreator       installer.NamespaceCreator
-	repo            installer.RepoIO
+	dnsFetcher      installer.ZoneStatusFetcher
+	httpClient      http.Client
+	dnsClient       dns.Client
+	repo            soft.RepoIO
+	repoClient      soft.ClientGetter
 	ssAdminKeys     *keygen.KeyPair
-	ssClient        *soft.Client
+	ssClient        soft.Client
 	fluxUserName    string
 	keys            *keygen.KeyPair
 	appManager      *installer.AppManager
@@ -25,44 +29,35 @@ type state struct {
 	infraAppManager *installer.InfraAppManager
 }
 
-type Env struct {
-	PCloudEnvName   string
-	Name            string
-	ContactEmail    string
-	Domain          string
-	AdminPublicKey  string
-	NamespacePrefix string
-}
-
 type EnvInfoListener func(string)
 
-type DNSZoneRef struct {
-	Name      string
-	Namespace string
-}
-
 func NewCreateEnvTask(
-	env Env,
-	publicIPs []net.IP,
-	startIP net.IP,
+	env installer.EnvConfig,
 	nsCreator installer.NamespaceCreator,
-	repo installer.RepoIO,
+	dnsFetcher installer.ZoneStatusFetcher,
+	httpClient http.Client,
+	dnsClient dns.Client,
+	repo soft.RepoIO,
+	repoClient soft.ClientGetter,
 	mgr *installer.InfraAppManager,
 	infoListener EnvInfoListener,
-) (Task, DNSZoneRef) {
+) (Task, installer.EnvDNS) {
 	st := state{
 		infoListener:    infoListener,
-		publicIPs:       publicIPs,
 		nsCreator:       nsCreator,
+		dnsFetcher:      dnsFetcher,
+		httpClient:      httpClient,
+		dnsClient:       dnsClient,
 		repo:            repo,
+		repoClient:      repoClient,
 		infraAppManager: mgr,
 	}
 	t := newSequentialParentTask(
 		"Create env",
 		true,
 		SetupConfigRepoTask(env, &st),
-		SetupZoneTask(env, startIP, &st),
-		SetupInfra(env, startIP, &st),
+		SetupZoneTask(env, mgr, &st),
+		SetupInfra(env, &st),
 	)
 	t.afterDone = func() {
 		infoListener(fmt.Sprintf("dodo environment for %s has been provisioned successfully. Visit [https://welcome.%s](https://welcome.%s) to create administrative account and log into the system.", env.Domain, env.Domain, env.Domain))
@@ -73,13 +68,16 @@ func NewCreateEnvTask(
 	})
 	pr := NewFluxcdReconciler( // TODO(gio): make reconciler address a flag
 		"http://fluxcd-reconciler.dodo-fluxcd-reconciler.svc.cluster.local",
-		fmt.Sprintf("%s-flux", env.PCloudEnvName),
+		fmt.Sprintf("%s-flux", env.InfraName),
 	)
 	er := NewFluxcdReconciler(
 		"http://fluxcd-reconciler.dodo-fluxcd-reconciler.svc.cluster.local",
-		env.Name,
+		env.Id,
 	)
 	go pr.Reconcile(rctx)
 	go er.Reconcile(rctx)
-	return t, DNSZoneRef{"dns-zone", env.Name}
+	return t, installer.EnvDNS{
+		Zone:    env.Domain,
+		Address: fmt.Sprintf("http://dns-api.%sdns.svc.cluster.local/records-to-publish", env.NamespacePrefix),
+	}
 }

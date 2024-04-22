@@ -44,13 +44,14 @@ var storeAppConfigs = []string{
 	"values-tmpl/memberships.cue",
 	"values-tmpl/headscale.cue",
 	"values-tmpl/launcher.cue",
+	"values-tmpl/env-dns.cue",
 }
 
 var infraAppConfigs = []string{
 	"values-tmpl/cert-manager.cue",
 	"values-tmpl/config-repo.cue",
 	"values-tmpl/csi-driver-smb.cue",
-	"values-tmpl/dns-zone-manager.cue",
+	"values-tmpl/dns-gateway.cue",
 	"values-tmpl/env-manager.cue",
 	"values-tmpl/fluxcd-reconciler.cue",
 	"values-tmpl/headscale-controller.cue",
@@ -100,9 +101,11 @@ func CreateStoreApps() []App {
 			panic(err)
 		}
 		if app, err := NewCueEnvApp(CueAppData{
-			"base.cue": []byte(cueBaseConfig),
-			"app.cue":  contents,
+			"base.cue":   []byte(cueBaseConfig),
+			"global.cue": []byte(cueEnvAppGlobal),
+			"app.cue":    contents,
 		}); err != nil {
+			fmt.Println(cfgFile)
 			panic(err)
 		} else {
 			ret = append(ret, app)
@@ -119,9 +122,11 @@ func createInfraApps() []App {
 			panic(err)
 		}
 		if app, err := NewCueInfraApp(CueAppData{
-			"base.cue": []byte(cueBaseConfig),
-			"app.cue":  contents,
+			"base.cue":   []byte(cueBaseConfig),
+			"global.cue": []byte(cueInfraAppGlobal),
+			"app.cue":    contents,
 		}); err != nil {
+			fmt.Println(cfgFile)
 			panic(err)
 		} else {
 			ret = append(ret, app)

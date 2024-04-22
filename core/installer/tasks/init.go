@@ -6,10 +6,11 @@ import (
 	"path/filepath"
 
 	"github.com/giolekva/pcloud/core/installer"
+	"github.com/giolekva/pcloud/core/installer/io"
 	"github.com/giolekva/pcloud/core/installer/soft"
 )
 
-func SetupConfigRepoTask(env Env, st *state) Task {
+func SetupConfigRepoTask(env installer.EnvConfig, st *state) Task {
 	ret := newSequentialParentTask(
 		"Configure Git repository",
 		true,
@@ -35,24 +36,24 @@ func SetupConfigRepoTask(env Env, st *state) Task {
 	return ret
 }
 
-func NewCreateConfigRepoTask(env Env, st *state) Task {
+func NewCreateConfigRepoTask(env installer.EnvConfig, st *state) Task {
 	t := newLeafTask("Install Git server", func() error {
 		appsRepo := installer.NewInMemoryAppRepository(installer.CreateAllApps())
 		app, err := installer.FindInfraApp(appsRepo, "config-repo")
 		if err != nil {
 			return err
 		}
-		adminKeys, err := installer.NewSSHKeyPair(fmt.Sprintf("%s-config-repo-admin-keys", env.Name))
+		adminKeys, err := installer.NewSSHKeyPair(fmt.Sprintf("%s-config-repo-admin-keys", env.Id))
 		if err != nil {
 			return err
 		}
 		st.ssAdminKeys = adminKeys
-		keys, err := installer.NewSSHKeyPair(fmt.Sprintf("%s-config-repo-keys", env.Name))
+		keys, err := installer.NewSSHKeyPair(fmt.Sprintf("%s-config-repo-keys", env.Id))
 		if err != nil {
 			return err
 		}
-		appDir := filepath.Join("/environments", env.Name, "config-repo")
-		return st.infraAppManager.Install(app, appDir, env.Name, map[string]any{
+		appDir := filepath.Join("/environments", env.Id, "config-repo")
+		return st.infraAppManager.Install(app, appDir, env.Id, map[string]any{
 			"privateKey": string(keys.RawPrivateKey()),
 			"publicKey":  string(keys.RawAuthorizedKey()),
 			"adminKey":   string(adminKeys.RawAuthorizedKey()),
@@ -61,10 +62,10 @@ func NewCreateConfigRepoTask(env Env, st *state) Task {
 	return &t
 }
 
-func CreateGitClientTask(env Env, st *state) Task {
+func CreateGitClientTask(env installer.EnvConfig, st *state) Task {
 	t := newLeafTask("Wait git server to come up", func() error {
-		ssClient, err := soft.WaitForClient(
-			fmt.Sprintf("soft-serve.%s.svc.cluster.local:%d", env.Name, 22),
+		ssClient, err := st.repoClient.Get(
+			fmt.Sprintf("soft-serve.%s.svc.cluster.local:%d", env.Id, 22),
 			st.ssAdminKeys.RawPrivateKey(),
 			log.Default())
 		if err != nil {
@@ -85,9 +86,9 @@ func CreateGitClientTask(env Env, st *state) Task {
 	return &t
 }
 
-func NewInitConfigRepoTask(env Env, st *state) Task {
+func NewInitConfigRepoTask(env installer.EnvConfig, st *state) Task {
 	t := newLeafTask("Configure access control lists", func() error {
-		st.fluxUserName = fmt.Sprintf("flux-%s", env.Name)
+		st.fluxUserName = fmt.Sprintf("flux-%s", env.Id)
 		keys, err := installer.NewSSHKeyPair(st.fluxUserName)
 		if err != nil {
 			return err
@@ -96,24 +97,20 @@ func NewInitConfigRepoTask(env Env, st *state) Task {
 		if err := st.ssClient.AddRepository("config"); err != nil {
 			return err
 		}
-		repo, err := st.ssClient.GetRepo("config")
+		repoIO, err := st.ssClient.GetRepo("config")
 		if err != nil {
 			return err
 		}
-		repoIO, err := installer.NewRepoIO(repo, st.ssClient.Signer)
-		if err != nil {
-			return err
-		}
-		if err := repoIO.Do(func(r installer.RepoFS) (string, error) {
+		if err := repoIO.Do(func(r soft.RepoFS) (string, error) {
 			w, err := r.Writer("README.md")
 			if err != nil {
 				return "", err
 			}
 			defer w.Close()
-			if _, err := fmt.Fprintf(w, "# %s PCloud environment", env.Name); err != nil {
+			if _, err := fmt.Fprintf(w, "# %s PCloud environment", env.Id); err != nil {
 				return "", err
 			}
-			if err := installer.WriteYaml(r, "kustomization.yaml", installer.NewKustomization()); err != nil {
+			if err := soft.WriteYaml(r, "kustomization.yaml", io.NewKustomization()); err != nil {
 				return "", err
 			}
 			return "init", nil

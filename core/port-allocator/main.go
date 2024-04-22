@@ -28,7 +28,7 @@ type client interface {
 }
 
 type repoClient struct {
-	repo installer.RepoIO
+	repo soft.RepoIO
 	path string
 }
 
@@ -192,7 +192,7 @@ func (s *server) handleAllocate(w http.ResponseWriter, r *http.Request) {
 }
 
 // TODO(gio): deduplicate
-func createRepoClient(addr string, keyPath string) (installer.RepoIO, error) {
+func createRepoClient(addr string, keyPath string) (soft.RepoIO, error) {
 	sshKey, err := os.ReadFile(keyPath)
 	if err != nil {
 		return nil, err
@@ -209,7 +209,7 @@ func createRepoClient(addr string, keyPath string) (installer.RepoIO, error) {
 	if err != nil {
 		return nil, err
 	}
-	return installer.NewRepoIO(repo, signer), nil
+	return soft.NewRepoIO(repo, signer), nil
 }
 
 func main() {

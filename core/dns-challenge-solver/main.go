@@ -2,7 +2,6 @@ package main
 
 import (
 	"bytes"
-	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -11,7 +10,6 @@ import (
 	"strings"
 
 	extapi "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 
@@ -111,11 +109,6 @@ type pcloudDNSProviderSolver struct {
 // be used by your provider here, you should reference a Kubernetes Secret
 // resource and fetch these credentials using a Kubernetes clientset.
 type pcloudDNSProviderConfig struct {
-	APIConfigMapName      string `json:"apiConfigMapName,omitempty"`
-	APIConfigMapNamespace string `json:"apiConfigMapNamespace,omitempty"`
-}
-
-type apiConfig struct {
 	CreateAddress string `json:"createTXTAddr,omitempty"`
 	DeleteAddress string `json:"deleteTXTAddr,omitempty"`
 }
@@ -141,13 +134,8 @@ func (c *pcloudDNSProviderSolver) Present(ch *v1alpha1.ChallengeRequest) error {
 	if err != nil {
 		return err
 	}
-	apiCfg, err := loadAPIConfig(c.client, cfg)
-	if err != nil {
-		fmt.Printf("Failed to load API config: %s\n", err.Error())
-		return err
-	}
-	fmt.Printf("API config: %+v\n", apiCfg)
-	zm := &zoneControllerManager{apiCfg.CreateAddress, apiCfg.DeleteAddress}
+	fmt.Printf("API config: %+v\n", cfg)
+	zm := &zoneControllerManager{cfg.CreateAddress, cfg.DeleteAddress}
 	domain, entry := getDomainAndEntry(ch)
 	fmt.Printf("%s %s\n", domain, entry)
 	err = zm.CreateTextRecord(domain, entry, ch.Key)
@@ -169,13 +157,8 @@ func (c *pcloudDNSProviderSolver) CleanUp(ch *v1alpha1.ChallengeRequest) error {
 	if err != nil {
 		return err
 	}
-	apiCfg, err := loadAPIConfig(c.client, cfg)
-	if err != nil {
-		fmt.Printf("Failed to load API config: %s\n", err.Error())
-		return err
-	}
-	fmt.Printf("API config: %+v\n", apiCfg)
-	zm := &zoneControllerManager{apiCfg.CreateAddress, apiCfg.DeleteAddress}
+	fmt.Printf("API config: %+v\n", cfg)
+	zm := &zoneControllerManager{cfg.CreateAddress, cfg.DeleteAddress}
 	domain, entry := getDomainAndEntry(ch)
 	err = zm.DeleteTextRecord(domain, entry, ch.Key)
 	if err != nil {
@@ -218,22 +201,6 @@ func loadConfig(cfgJSON *extapi.JSON) (pcloudDNSProviderConfig, error) {
 	}
 
 	return cfg, nil
-}
-
-func loadAPIConfig(client *kubernetes.Clientset, cfg pcloudDNSProviderConfig) (apiConfig, error) {
-	config, err := client.CoreV1().ConfigMaps(cfg.APIConfigMapNamespace).Get(context.Background(), cfg.APIConfigMapName, metav1.GetOptions{})
-	if err != nil {
-		return apiConfig{}, fmt.Errorf("unable to get api config map `%s` `%s`; %v", cfg.APIConfigMapName, cfg.APIConfigMapNamespace, err)
-	}
-	create, ok := config.Data["createTXTAddr"]
-	if !ok {
-		return apiConfig{}, fmt.Errorf("create address missing")
-	}
-	delete, ok := config.Data["deleteTXTAddr"]
-	if !ok {
-		return apiConfig{}, fmt.Errorf("delete address missing")
-	}
-	return apiConfig{create, delete}, nil
 }
 
 func getDomainAndEntry(ch *v1alpha1.ChallengeRequest) (string, string) {

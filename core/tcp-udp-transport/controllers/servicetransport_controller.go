@@ -115,7 +115,7 @@ func (r *ServiceTransportReconciler) Reconcile(ctx context.Context, req ctrl.Req
 	if err != nil {
 		return ctrl.Result{RequeueAfter: time.Minute}, err
 	}
-	repoIO := installer.NewRepoIO(repo, r.Signer)
+	repoIO := soft.NewRepoIO(repo, r.Signer)
 	data, err := repoIO.ReadYaml(repoPath)
 	if err != nil {
 		return ctrl.Result{RequeueAfter: time.Minute}, err

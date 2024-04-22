@@ -1,9 +1,4 @@
-input: {
-	apiConfigMap: {
-		name: string
-		namespace: string
-	}
-}
+input: {}
 
 name: "certificate-issuer-private"
 namespace: "ingress-private"
@@ -30,15 +25,15 @@ helm: {
 		}]
 		values: {
 			issuer: {
-				name: _issuerPrivate
+				name: issuerPrivate
 				server: "https://acme-v02.api.letsencrypt.org/directory"
 				// server: "https://acme-staging-v02.api.letsencrypt.org/directory"
 				domain: global.privateDomain
 				contactEmail: global.contactEmail
 			}
-			apiConfigMap: {
-				name: input.apiConfigMap.name
-				namespace: input.apiConfigMap.namespace
+			config: {
+				createTXTAddr: "http://dns-api.\(global.id)-dns.svc.cluster.local/create-txt-record"
+				deleteTXTAddr: "http://dns-api.\(global.id)-dns.svc.cluster.local/delete-txt-record"
 			}
 		}
 	}

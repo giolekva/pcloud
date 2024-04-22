@@ -18,6 +18,8 @@ import (
 	"github.com/gorilla/mux"
 
 	"github.com/giolekva/pcloud/core/installer"
+	"github.com/giolekva/pcloud/core/installer/dns"
+	phttp "github.com/giolekva/pcloud/core/installer/http"
 	"github.com/giolekva/pcloud/core/installer/soft"
 	"github.com/giolekva/pcloud/core/installer/tasks"
 )
@@ -78,35 +80,44 @@ type invitation struct {
 
 type EnvServer struct {
 	port          int
-	ss            *soft.Client
-	repo          installer.RepoIO
+	ss            soft.Client
+	repo          soft.RepoIO
+	repoClient    soft.ClientGetter
 	nsCreator     installer.NamespaceCreator
 	dnsFetcher    installer.ZoneStatusFetcher
 	nameGenerator installer.NameGenerator
-	tasks         map[string]tasks.Task
+	httpClient    phttp.Client
+	dnsClient     dns.Client
+	Tasks         map[string]tasks.Task
 	envInfo       map[string]template.HTML
-	dns           map[string]tasks.DNSZoneRef
+	dns           map[string]installer.EnvDNS
 	dnsPublished  map[string]struct{}
 }
 
 func NewEnvServer(
 	port int,
-	ss *soft.Client,
-	repo installer.RepoIO,
+	ss soft.Client,
+	repo soft.RepoIO,
+	repoClient soft.ClientGetter,
 	nsCreator installer.NamespaceCreator,
 	dnsFetcher installer.ZoneStatusFetcher,
 	nameGenerator installer.NameGenerator,
+	httpClient phttp.Client,
+	dnsClient dns.Client,
 ) *EnvServer {
 	return &EnvServer{
 		port,
 		ss,
 		repo,
+		repoClient,
 		nsCreator,
 		dnsFetcher,
 		nameGenerator,
+		httpClient,
+		dnsClient,
 		make(map[string]tasks.Task),
 		make(map[string]template.HTML),
-		make(map[string]tasks.DNSZoneRef),
+		make(map[string]installer.EnvDNS),
 		make(map[string]struct{}),
 	}
 }
@@ -130,7 +141,7 @@ func (s *EnvServer) monitorTask(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Task key not provided", http.StatusBadRequest)
 		return
 	}
-	t, ok := s.tasks[key]
+	t, ok := s.Tasks[key]
 	if !ok {
 		http.Error(w, "Task not found", http.StatusBadRequest)
 		return
@@ -142,15 +153,9 @@ func (s *EnvServer) monitorTask(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "Task dns configuration not found", http.StatusInternalServerError)
 			return
 		}
-		err, ready, info := s.dnsFetcher.Fetch(dnsRef.Namespace, dnsRef.Name)
-		// TODO(gio): check error type
-		if err != nil && (ready || len(info.Records) > 0) {
-			panic("!! SHOULD NOT REACH !!")
+		if records, err := s.dnsFetcher.Fetch(dnsRef.Address); err == nil {
+			dnsRecords = records
 		}
-		if !ready && len(info.Records) > 0 {
-			panic("!! SHOULD NOT REACH !!")
-		}
-		dnsRecords = info.Records
 	}
 	data := map[string]any{
 		"Root":       t,
@@ -175,13 +180,10 @@ func (s *EnvServer) publishDNSRecords(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Task dns configuration not found", http.StatusInternalServerError)
 		return
 	}
-	err, ready, info := s.dnsFetcher.Fetch(dnsRef.Namespace, dnsRef.Name)
-	// TODO(gio): check error type
-	if err != nil && (ready || len(info.Records) > 0) {
-		panic("!! SHOULD NOT REACH !!")
-	}
-	if !ready && len(info.Records) > 0 {
-		panic("!! SHOULD NOT REACH !!")
+	records, err := s.dnsFetcher.Fetch(dnsRef.Address)
+	if err != nil {
+		http.Error(w, "Task dns configuration not found", http.StatusInternalServerError)
+		return
 	}
 	r.ParseForm()
 	if apiToken, err := getFormValue(r.PostForm, "api-token"); err != nil {
@@ -189,8 +191,8 @@ func (s *EnvServer) publishDNSRecords(w http.ResponseWriter, r *http.Request) {
 		return
 	} else {
 		p := NewGandiUpdater(apiToken)
-		zone := strings.Join(strings.Split(info.Zone, ".")[1:], ".") // TODO(gio): this is not gonna work with no subdomain case
-		if err := p.Update(zone, strings.Split(info.Records, "\n")); err != nil {
+		zone := strings.Join(strings.Split(dnsRef.Zone, ".")[1:], ".") // TODO(gio): this is not gonna work with no subdomain case
+		if err := p.Update(zone, strings.Split(records, "\n")); err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
@@ -332,7 +334,7 @@ func (s *EnvServer) createEnv(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var infra installer.InfraConfig
-	if err := installer.ReadYaml(s.repo, "config.yaml", &infra); err != nil {
+	if err := soft.ReadYaml(s.repo, "config.yaml", &infra); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -347,7 +349,7 @@ func (s *EnvServer) createEnv(w http.ResponseWriter, r *http.Request) {
 		req.Name = name
 	}
 	var cidrs installer.EnvCIDRs
-	if err := installer.ReadYaml(s.repo, "env-cidrs.yaml", &cidrs); err != nil {
+	if err := soft.ReadYaml(s.repo, "env-cidrs.yaml", &cidrs); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -357,13 +359,30 @@ func (s *EnvServer) createEnv(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	cidrs = append(cidrs, installer.EnvCIDR{req.Name, startIP})
-	if err := installer.WriteYaml(s.repo, "env-cidrs.yaml", cidrs); err != nil {
+	if err := soft.WriteYaml(s.repo, "env-cidrs.yaml", cidrs); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 	if err := s.repo.CommitAndPush(fmt.Sprintf("Allocate CIDR for %s", req.Name)); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
+	}
+	envNetwork, err := installer.NewEnvNetwork(startIP)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	env := installer.EnvConfig{
+		Id:              req.Name,
+		InfraName:       infra.Name,
+		Domain:          req.Domain,
+		PrivateDomain:   fmt.Sprintf("p.%s", req.Domain),
+		ContactEmail:    req.ContactEmail,
+		AdminPublicKey:  req.AdminPublicKey,
+		PublicIP:        infra.PublicIP,
+		NameserverIP:    infra.PublicIP,
+		NamespacePrefix: fmt.Sprintf("%s-", req.Name),
+		Network:         envNetwork,
 	}
 	key := func() string {
 		for {
@@ -377,22 +396,17 @@ func (s *EnvServer) createEnv(w http.ResponseWriter, r *http.Request) {
 		s.envInfo[key] = template.HTML(markdown.ToHTML([]byte(info), nil, nil))
 	}
 	t, dns := tasks.NewCreateEnvTask(
-		tasks.Env{
-			PCloudEnvName:   infra.Name,
-			Name:            req.Name,
-			ContactEmail:    req.ContactEmail,
-			Domain:          req.Domain,
-			AdminPublicKey:  req.AdminPublicKey,
-			NamespacePrefix: fmt.Sprintf("%s-", req.Name),
-		},
-		infra.PublicIP,
-		startIP,
+		env,
 		s.nsCreator,
+		s.dnsFetcher,
+		s.httpClient,
+		s.dnsClient,
 		s.repo,
+		s.repoClient,
 		mgr,
 		infoUpdater,
 	)
-	s.tasks[key] = t
+	s.Tasks[key] = t
 	s.dns[key] = dns
 	go t.Start()
 	http.Redirect(w, r, fmt.Sprintf("/env/%s", key), http.StatusSeeOther)

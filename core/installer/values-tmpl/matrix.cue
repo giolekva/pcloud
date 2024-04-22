@@ -88,8 +88,8 @@ helm: {
 				user: "matrix"
 				password: "matrix"
 			}
-			certificateIssuer: _issuerPublic
-			ingressClassName: _ingressPublic
+			certificateIssuer: issuerPublic
+			ingressClassName: ingressPublic
 			configMerge: {
 				configName: "config-to-merge"
 				fileName: "to-merge.yaml"

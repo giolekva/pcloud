@@ -48,7 +48,7 @@ helm: {
 	"ingress-public": {
 		chart: charts.ingressNginx
 		values: {
-			fullnameOverride: _ingressPublic
+			fullnameOverride: ingressPublic
 			controller: {
 				kind: "DaemonSet"
 				hostNetwork: true
@@ -56,10 +56,10 @@ helm: {
 				service: enabled: false
 				ingressClassByName: true
 				ingressClassResource: {
-					name: _ingressPublic
+					name: ingressPublic
 					enabled: true
 					default: false
-					controllerValue: "k8s.io/\(_ingressPublic)"
+					controllerValue: "k8s.io/\(ingressPublic)"
 				}
 				config: {
 					"proxy-body-size": "200M" // TODO(giolekva): configurable
@@ -75,10 +75,10 @@ helm: {
 				}
 			}
 			tcp: {
-				"53": "\(global.pcloudEnvName)-dns-zone-manager/coredns:53"
+				"53": "\(global.pcloudEnvName)-dns-gateway/coredns:53"
 			}
 			udp: {
-				"53": "\(global.pcloudEnvName)-dns-zone-manager/coredns:53"
+				"53": "\(global.pcloudEnvName)-dns-gateway/coredns:53"
 			}
 		}
 	}

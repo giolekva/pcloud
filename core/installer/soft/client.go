@@ -19,21 +19,36 @@ import (
 	"github.com/go-git/go-git/v5/storage/memory"
 )
 
-type Client struct {
-	Addr     string
-	Signer   ssh.Signer
+type Client interface {
+	Address() string
+	Signer() ssh.Signer
+	GetPublicKeys() ([]string, error)
+	GetRepo(name string) (RepoIO, error)
+	GetRepoAddress(name string) string
+	AddRepository(name string) error
+	AddUser(name, pubKey string) error
+	AddPublicKey(user string, pubKey string) error
+	RemovePublicKey(user string, pubKey string) error
+	MakeUserAdmin(name string) error
+	AddReadWriteCollaborator(repo, user string) error
+	AddReadOnlyCollaborator(repo, user string) error
+}
+
+type realClient struct {
+	addr     string
+	signer   ssh.Signer
 	log      *log.Logger
 	pemBytes []byte
 }
 
-func NewClient(addr string, clientPrivateKey []byte, log *log.Logger) (*Client, error) {
+func NewClient(addr string, clientPrivateKey []byte, log *log.Logger) (Client, error) {
 	signer, err := ssh.ParsePrivateKey(clientPrivateKey)
 	if err != nil {
 		return nil, err
 	}
 	log.SetPrefix("SOFT-SERVE: ")
 	log.Printf("Created signer")
-	return &Client{
+	return &realClient{
 		addr,
 		signer,
 		log,
@@ -41,8 +56,14 @@ func NewClient(addr string, clientPrivateKey []byte, log *log.Logger) (*Client, 
 	}, nil
 }
 
-func WaitForClient(addr string, clientPrivateKey []byte, log *log.Logger) (*Client, error) {
-	var client *Client
+type ClientGetter interface {
+	Get(addr string, clientPrivateKey []byte, log *log.Logger) (Client, error)
+}
+
+type RealClientGetter struct{}
+
+func (c RealClientGetter) Get(addr string, clientPrivateKey []byte, log *log.Logger) (Client, error) {
+	var client Client
 	err := backoff.RetryNotify(func() error {
 		var err error
 		client, err = NewClient(addr, clientPrivateKey, log)
@@ -59,7 +80,15 @@ func WaitForClient(addr string, clientPrivateKey []byte, log *log.Logger) (*Clie
 	return client, err
 }
 
-func (ss *Client) AddUser(name, pubKey string) error {
+func (ss *realClient) Address() string {
+	return ss.addr
+}
+
+func (ss *realClient) Signer() ssh.Signer {
+	return ss.signer
+}
+
+func (ss *realClient) AddUser(name, pubKey string) error {
 	log.Printf("Adding user %s", name)
 	if err := ss.RunCommand("user", "create", name); err != nil {
 		return err
@@ -67,25 +96,25 @@ func (ss *Client) AddUser(name, pubKey string) error {
 	return ss.AddPublicKey(name, pubKey)
 }
 
-func (ss *Client) MakeUserAdmin(name string) error {
+func (ss *realClient) MakeUserAdmin(name string) error {
 	log.Printf("Making user %s admin", name)
 	return ss.RunCommand("user", "set-admin", name, "true")
 }
 
-func (ss *Client) AddPublicKey(user string, pubKey string) error {
+func (ss *realClient) AddPublicKey(user string, pubKey string) error {
 	log.Printf("Adding public key: %s %s\n", user, pubKey)
 	return ss.RunCommand("user", "add-pubkey", user, pubKey)
 }
 
-func (ss *Client) RemovePublicKey(user string, pubKey string) error {
+func (ss *realClient) RemovePublicKey(user string, pubKey string) error {
 	log.Printf("Removing public key: %s %s\n", user, pubKey)
 	return ss.RunCommand("user", "remove-pubkey", user, pubKey)
 }
 
-func (ss *Client) RunCommand(args ...string) error {
+func (ss *realClient) RunCommand(args ...string) error {
 	cmd := strings.Join(args, " ")
 	log.Printf("Running command %s", cmd)
-	client, err := ssh.Dial("tcp", ss.Addr, ss.sshClientConfig())
+	client, err := ssh.Dial("tcp", ss.addr, ss.sshClientConfig())
 	if err != nil {
 		return err
 	}
@@ -100,17 +129,17 @@ func (ss *Client) RunCommand(args ...string) error {
 	return session.Run(cmd)
 }
 
-func (ss *Client) AddRepository(name string) error {
+func (ss *realClient) AddRepository(name string) error {
 	log.Printf("Adding repository %s", name)
 	return ss.RunCommand("repo", "create", name)
 }
 
-func (ss *Client) AddReadWriteCollaborator(repo, user string) error {
+func (ss *realClient) AddReadWriteCollaborator(repo, user string) error {
 	log.Printf("Adding read-write collaborator %s %s", repo, user)
 	return ss.RunCommand("repo", "collab", "add", repo, user, "read-write")
 }
 
-func (ss *Client) AddReadOnlyCollaborator(repo, user string) error {
+func (ss *realClient) AddReadOnlyCollaborator(repo, user string) error {
 	log.Printf("Adding read-only collaborator %s %s", repo, user)
 	return ss.RunCommand("repo", "collab", "add", repo, user, "read-only")
 }
@@ -120,8 +149,12 @@ type Repository struct {
 	Addr RepositoryAddress
 }
 
-func (ss *Client) GetRepo(name string) (*Repository, error) {
-	return CloneRepository(RepositoryAddress{ss.Addr, name}, ss.Signer)
+func (ss *realClient) GetRepo(name string) (RepoIO, error) {
+	r, err := CloneRepository(RepositoryAddress{ss.addr, name}, ss.signer)
+	if err != nil {
+		return nil, err
+	}
+	return NewRepoIO(r, ss.signer)
 }
 
 type RepositoryAddress struct {
@@ -172,7 +205,7 @@ func CloneRepository(addr RepositoryAddress, signer ssh.Signer) (*Repository, er
 }
 
 // TODO(giolekva): dead code
-func (ss *Client) authSSH() gitssh.AuthMethod {
+func (ss *realClient) authSSH() gitssh.AuthMethod {
 	a, err := gitssh.NewPublicKeys("git", ss.pemBytes, "")
 	if err != nil {
 		panic(err)
@@ -196,10 +229,10 @@ func (ss *Client) authSSH() gitssh.AuthMethod {
 	// }
 }
 
-func (ss *Client) authGit() *gitssh.PublicKeys {
+func (ss *realClient) authGit() *gitssh.PublicKeys {
 	return &gitssh.PublicKeys{
 		User:   "git",
-		Signer: ss.Signer,
+		Signer: ss.signer,
 		HostKeyCallbackHelper: gitssh.HostKeyCallbackHelper{
 			HostKeyCallback: func(hostname string, remote net.Addr, key ssh.PublicKey) error {
 				// TODO(giolekva): verify server public key
@@ -210,18 +243,18 @@ func (ss *Client) authGit() *gitssh.PublicKeys {
 	}
 }
 
-func (ss *Client) GetPublicKeys() ([]string, error) {
+func (ss *realClient) GetPublicKeys() ([]string, error) {
 	var ret []string
 	config := &ssh.ClientConfig{
 		Auth: []ssh.AuthMethod{
-			ssh.PublicKeys(ss.Signer),
+			ssh.PublicKeys(ss.signer),
 		},
 		HostKeyCallback: func(hostname string, remote net.Addr, key ssh.PublicKey) error {
 			ret = append(ret, string(ssh.MarshalAuthorizedKey(key)))
 			return nil
 		},
 	}
-	client, err := ssh.Dial("tcp", ss.Addr, config)
+	client, err := ssh.Dial("tcp", ss.addr, config)
 	if err != nil {
 		return nil, err
 	}
@@ -229,10 +262,10 @@ func (ss *Client) GetPublicKeys() ([]string, error) {
 	return ret, nil
 }
 
-func (ss *Client) sshClientConfig() *ssh.ClientConfig {
+func (ss *realClient) sshClientConfig() *ssh.ClientConfig {
 	return &ssh.ClientConfig{
 		Auth: []ssh.AuthMethod{
-			ssh.PublicKeys(ss.Signer),
+			ssh.PublicKeys(ss.signer),
 		},
 		HostKeyCallback: func(hostname string, remote net.Addr, key ssh.PublicKey) error {
 			// TODO(giolekva): verify server public key
@@ -243,10 +276,10 @@ func (ss *Client) sshClientConfig() *ssh.ClientConfig {
 	}
 }
 
-func (ss *Client) GetRepoAddress(name string) string {
+func (ss *realClient) GetRepoAddress(name string) string {
 	return fmt.Sprintf("%s/%s", ss.addressGit(), name)
 }
 
-func (ss *Client) addressGit() string {
-	return fmt.Sprintf("ssh://%s", ss.Addr)
+func (ss *realClient) addressGit() string {
+	return fmt.Sprintf("ssh://%s", ss.addr)
 }

@@ -160,7 +160,7 @@ helm: {
 				ingress: {
 					admin: {
 						enabled: true
-						className: _ingressPrivate
+						className: ingressPrivate
 						hosts: [{
 							host: "kratos.\(global.privateDomain)"
 							paths: [{
@@ -176,10 +176,10 @@ helm: {
 					}
 					public: {
 						enabled: true
-						className: _ingressPublic
+						className: ingressPublic
 						annotations: {
 							"acme.cert-manager.io/http01-edit-in-place": "true"
-							"cert-manager.io/cluster-issuer": _issuerPublic
+							"cert-manager.io/cluster-issuer": issuerPublic
 						}
 						hosts: [{
 							host: "accounts.\(global.domain)"
@@ -342,7 +342,7 @@ helm: {
 				ingress: {
 					admin: {
 						enabled: true
-						className: _ingressPrivate
+						className: ingressPrivate
 						hosts: [{
 							host: "hydra.\(global.privateDomain)"
 							paths: [{
@@ -356,10 +356,10 @@ helm: {
 					}
 					public: {
 						enabled: true
-						className: _ingressPublic
+						className: ingressPublic
 						annotations: {
 							"acme.cert-manager.io/http01-edit-in-place": "true"
-							"cert-manager.io/cluster-issuer": _issuerPublic
+							"cert-manager.io/cluster-issuer": issuerPublic
 						}
 						hosts: [{
 							host: "hydra.\(global.domain)"
@@ -455,8 +455,8 @@ helm: {
 				}
 			}
 			ui: {
-				certificateIssuer: _issuerPublic
-				ingressClassName: _ingressPublic
+				certificateIssuer: issuerPublic
+				ingressClassName: ingressPublic
 				domain: global.domain
 				internalDomain: global.privateDomain
 				hydra: "hydra-admin.\(global.namespacePrefix)core-auth.svc.cluster.local"

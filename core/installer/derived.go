@@ -19,10 +19,19 @@ type Network struct {
 	AllocatePortAddr  string `json:"allocatePortAddr,omitempty"`
 }
 
+type InfraAppInstanceConfig struct {
+	Id      string         `json:"id"`
+	AppId   string         `json:"appId"`
+	Infra   InfraConfig    `json:"infra"`
+	Release Release        `json:"release"`
+	Values  map[string]any `json:"values"`
+	Input   map[string]any `json:"input"`
+}
+
 type AppInstanceConfig struct {
 	Id      string         `json:"id"`
 	AppId   string         `json:"appId"`
-	Env     AppEnvConfig   `json:"env"`
+	Env     EnvConfig      `json:"env"`
 	Release Release        `json:"release"`
 	Values  map[string]any `json:"values"`
 	Input   map[string]any `json:"input"`
@@ -65,6 +74,12 @@ func deriveValues(values any, schema Schema, networks []Network) (map[string]any
 			ret[k] = v
 		case KindInt:
 			ret[k] = v
+		case KindArrayString:
+			a, ok := v.([]string)
+			if !ok {
+				return nil, fmt.Errorf("expected string array")
+			}
+			ret[k] = a
 		case KindNetwork:
 			n, err := findNetwork(networks, v.(string)) // TODO(giolekva): validate
 			if err != nil {
@@ -111,6 +126,12 @@ func derivedToConfig(derived map[string]any, schema Schema) (map[string]any, err
 			ret[k] = v
 		case KindInt:
 			ret[k] = v
+		case KindArrayString:
+			a, ok := v.([]string)
+			if !ok {
+				return nil, fmt.Errorf("expected string array")
+			}
+			ret[k] = a
 		case KindNetwork:
 			vm, ok := v.(map[string]any)
 			if !ok {

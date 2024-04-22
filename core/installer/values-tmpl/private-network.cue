@@ -73,15 +73,15 @@ helm: {
 					enabled: true
 					type: "LoadBalancer"
 					annotations: {
-						"metallb.universe.tf/address-pool": _ingressPrivate
+						"metallb.universe.tf/address-pool": ingressPrivate
 					}
 				}
 				ingressClassByName: true
 				ingressClassResource: {
-					name: _ingressPrivate
+					name: ingressPrivate
 					enabled: true
 					default: false
-					controllerValue: "k8s.io/\(_ingressPrivate)"
+					controllerValue: "k8s.io/\(ingressPrivate)"
 				}
 				config: {
 					"proxy-body-size": "200M" // TODO(giolekva): configurable
@@ -91,7 +91,7 @@ helm: {
 					"""
 				}
 				extraArgs: {
-					"default-ssl-certificate": "\(_ingressPrivate)/cert-wildcard.\(global.privateDomain)"
+					"default-ssl-certificate": "\(ingressPrivate)/cert-wildcard.\(global.privateDomain)"
 				}
 				admissionWebhooks: {
 					enabled: false

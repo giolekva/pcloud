@@ -10,12 +10,13 @@ import (
 	"text/template"
 
 	"github.com/giolekva/pcloud/core/installer"
+	"github.com/giolekva/pcloud/core/installer/soft"
 )
 
 //go:embed env-tmpl
 var filesTmpls embed.FS
 
-func NewActivateEnvTask(env Env, st *state) Task {
+func NewActivateEnvTask(env installer.EnvConfig, st *state) Task {
 	return newSequentialParentTask(
 		"Activate GitOps",
 		false,
@@ -24,19 +25,19 @@ func NewActivateEnvTask(env Env, st *state) Task {
 	)
 }
 
-func AddNewEnvTask(env Env, st *state) Task {
+func AddNewEnvTask(env installer.EnvConfig, st *state) Task {
 	t := newLeafTask("Commit initial configuration", func() error {
 		ssPublicKeys, err := st.ssClient.GetPublicKeys()
 		if err != nil {
 			return err
 		}
-		repoHost := strings.Split(st.ssClient.Addr, ":")[0]
-		return st.repo.Do(func(r installer.RepoFS) (string, error) {
-			kust, err := installer.ReadKustomization(r, "environments/kustomization.yaml")
+		repoHost := strings.Split(st.ssClient.Address(), ":")[0]
+		return st.repo.Do(func(r soft.RepoFS) (string, error) {
+			kust, err := soft.ReadKustomization(r, "environments/kustomization.yaml")
 			if err != nil {
 				return "", err
 			}
-			kust.AddResources(env.Name)
+			kust.AddResources(env.Id)
 			tmpls, err := template.ParseFS(filesTmpls, "env-tmpl/*.yaml")
 			if err != nil {
 				return "", err
@@ -46,14 +47,14 @@ func AddNewEnvTask(env Env, st *state) Task {
 				fmt.Fprintf(&knownHosts, "%s %s\n", repoHost, key)
 			}
 			for _, tmpl := range tmpls.Templates() { // TODO(gio): migrate to cue
-				dstPath := path.Join("environments", env.Name, tmpl.Name())
+				dstPath := path.Join("environments", env.Id, tmpl.Name())
 				dst, err := r.Writer(dstPath)
 				if err != nil {
 					return "", err
 				}
 				defer dst.Close()
 				if err := tmpl.Execute(dst, map[string]string{
-					"Name":       env.Name,
+					"Name":       env.Id,
 					"PrivateKey": base64.StdEncoding.EncodeToString(st.keys.RawPrivateKey()),
 					"PublicKey":  base64.StdEncoding.EncodeToString(st.keys.RawAuthorizedKey()),
 					"RepoHost":   repoHost,
@@ -63,10 +64,10 @@ func AddNewEnvTask(env Env, st *state) Task {
 					return "", err
 				}
 			}
-			if err := installer.WriteYaml(r, "environments/kustomization.yaml", kust); err != nil {
+			if err := soft.WriteYaml(r, "environments/kustomization.yaml", kust); err != nil {
 				return "", err
 			}
-			return fmt.Sprintf("%s: initialize environment", env.Name), nil
+			return fmt.Sprintf("%s: initialize environment", env.Id), nil
 		})
 	})
 	return &t

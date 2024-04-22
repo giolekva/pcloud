@@ -6,6 +6,8 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/giolekva/pcloud/core/installer"
+	"github.com/giolekva/pcloud/core/installer/dns"
+	"github.com/giolekva/pcloud/core/installer/http"
 	"github.com/giolekva/pcloud/core/installer/soft"
 	"github.com/giolekva/pcloud/core/installer/welcome"
 )
@@ -50,24 +52,21 @@ func envManagerCmd() *cobra.Command {
 }
 
 func envManagerCmdRun(cmd *cobra.Command, args []string) error {
+	repoClient := soft.RealClientGetter{}
 	sshKey, err := installer.NewSSHKeyPair(envManagerFlags.sshKey)
 	if err != nil {
 		return err
 	}
-	ss, err := soft.WaitForClient(envManagerFlags.repoAddr, sshKey.RawPrivateKey(), log.Default())
+	ss, err := repoClient.Get(envManagerFlags.repoAddr, sshKey.RawPrivateKey(), log.Default())
 	if err != nil {
 		return err
 	}
 	log.Printf("Created Soft Serve client\n")
-	repo, err := ss.GetRepo(envManagerFlags.repoName)
+	repoIO, err := ss.GetRepo(envManagerFlags.repoName)
 	if err != nil {
 		return err
 	}
 	log.Printf("Cloned repo: %s\n", envManagerFlags.repoName)
-	repoIO, err := installer.NewRepoIO(repo, sshKey.Signer())
-	if err != nil {
-		return err
-	}
 	nsCreator, err := newNSCreator()
 	if err != nil {
 		return err
@@ -76,13 +75,17 @@ func envManagerCmdRun(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
+	httpClient := http.NewClient()
 	s := welcome.NewEnvServer(
 		envManagerFlags.port,
 		ss,
 		repoIO,
+		repoClient,
 		nsCreator,
 		dnsFetcher,
 		installer.NewFixedLengthRandomNameGenerator(4),
+		httpClient,
+		dns.NewClient(),
 	)
 	log.Printf("Starting server\n")
 	s.Start()

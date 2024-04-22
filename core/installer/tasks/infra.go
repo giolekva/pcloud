@@ -2,24 +2,19 @@ package tasks
 
 import (
 	"fmt"
-	"net"
-	"net/netip"
 	"strings"
 
 	"github.com/miekg/dns"
 
 	"github.com/giolekva/pcloud/core/installer"
+	"github.com/giolekva/pcloud/core/installer/soft"
 )
 
 var initGroups = []string{"admin"}
 
-func CreateRepoClient(env Env, st *state) Task {
+func CreateRepoClient(env installer.EnvConfig, st *state) Task {
 	t := newLeafTask("Create repo client", func() error {
-		repo, err := st.ssClient.GetRepo("config")
-		if err != nil {
-			return err
-		}
-		r, err := installer.NewRepoIO(repo, st.ssClient.Signer)
+		r, err := st.ssClient.GetRepo("config")
 		if err != nil {
 			return err
 		}
@@ -37,46 +32,30 @@ func CreateRepoClient(env Env, st *state) Task {
 	return &t
 }
 
-func SetupInfra(env Env, startIP net.IP, st *state) Task {
+func SetupInfra(env installer.EnvConfig, st *state) Task {
 	return newConcurrentParentTask(
 		"Setup core services",
 		true,
-		SetupNetwork(env, startIP, st),
+		SetupNetwork(env, st),
 		SetupCertificateIssuers(env, st),
 		SetupAuth(env, st),
 		SetupGroupMemberships(env, st),
-		SetupHeadscale(env, startIP, st),
+		SetupHeadscale(env, st),
 		SetupWelcome(env, st),
 		SetupAppStore(env, st),
 		SetupLauncher(env, st),
 	)
 }
 
-func CommitEnvironmentConfiguration(env Env, st *state) Task {
+func CommitEnvironmentConfiguration(env installer.EnvConfig, st *state) Task {
 	t := newLeafTask("commit config", func() error {
-		repo, err := st.ssClient.GetRepo("config")
+		r, err := st.ssClient.GetRepo("config")
 		if err != nil {
 			return err
 		}
-		r, err := installer.NewRepoIO(repo, st.ssClient.Signer)
-		if err != nil {
-			return err
-		}
-		r.Do(func(r installer.RepoFS) (string, error) {
-			{
-				// TODO(giolekva): private domain can be configurable as well
-				config := installer.AppEnvConfig{
-					Id:              env.Name,
-					InfraName:       env.PCloudEnvName,
-					Domain:          env.Domain,
-					PrivateDomain:   fmt.Sprintf("p.%s", env.Domain),
-					ContactEmail:    env.ContactEmail,
-					PublicIP:        st.publicIPs,
-					NamespacePrefix: fmt.Sprintf("%s-", env.Name),
-				}
-				if err := installer.WriteYaml(r, "config.yaml", config); err != nil {
-					return "", err
-				}
+		r.Do(func(r soft.RepoFS) (string, error) {
+			if err := soft.WriteYaml(r, "config.yaml", env); err != nil {
+				return "", err
 			}
 			out, err := r.Writer("pcloud-charts.yaml")
 			if err != nil {
@@ -94,16 +73,16 @@ spec:
   url: https://github.com/giolekva/pcloud
   ref:
     branch: main
-`, env.Name)
+`, env.Id)
 			if err != nil {
 				return "", err
 			}
-			rootKust, err := installer.ReadKustomization(r, "kustomization.yaml")
+			rootKust, err := soft.ReadKustomization(r, "kustomization.yaml")
 			if err != nil {
 				return "", err
 			}
 			rootKust.AddResources("pcloud-charts.yaml")
-			if err := installer.WriteYaml(r, "kustomization.yaml", rootKust); err != nil {
+			if err := soft.WriteYaml(r, "kustomization.yaml", rootKust); err != nil {
 				return "", err
 			}
 			return "configure charts repo", nil
@@ -118,19 +97,15 @@ type firstAccount struct {
 	Groups  []string `json:"groups"`
 }
 
-func ConfigureFirstAccount(env Env, st *state) Task {
+func ConfigureFirstAccount(env installer.EnvConfig, st *state) Task {
 	t := newLeafTask("Configure first account settings", func() error {
-		repo, err := st.ssClient.GetRepo("config")
+		r, err := st.ssClient.GetRepo("config")
 		if err != nil {
 			return err
 		}
-		r, err := installer.NewRepoIO(repo, st.ssClient.Signer)
-		if err != nil {
-			return err
-		}
-		return r.Do(func(r installer.RepoFS) (string, error) {
+		return r.Do(func(r soft.RepoFS) (string, error) {
 			fa := firstAccount{false, initGroups}
-			if err := installer.WriteYaml(r, "first-account.yaml", fa); err != nil {
+			if err := soft.WriteYaml(r, "first-account.yaml", fa); err != nil {
 				return "", err
 			}
 			return "first account membership configuration", nil
@@ -139,32 +114,9 @@ func ConfigureFirstAccount(env Env, st *state) Task {
 	return &t
 }
 
-func SetupNetwork(env Env, startIP net.IP, st *state) Task {
+func SetupNetwork(env installer.EnvConfig, st *state) Task {
 	t := newLeafTask("Setup private and public networks", func() error {
-		startAddr, err := netip.ParseAddr(startIP.String())
-		if err != nil {
-			return err
-		}
-		if !startAddr.Is4() {
-			return fmt.Errorf("Expected IPv4, got %s instead", startAddr)
-		}
-		addr := startAddr.AsSlice()
-		if addr[3] != 0 {
-			return fmt.Errorf("Expected last byte to be zero, got %d instead", addr[3])
-		}
-		addr[3] = 10
-		fromIP, ok := netip.AddrFromSlice(addr)
-		if !ok {
-			return fmt.Errorf("Must not reach")
-		}
-		addr[3] = 254
-		toIP, ok := netip.AddrFromSlice(addr)
-		if !ok {
-			return fmt.Errorf("Must not reach")
-		}
 		{
-			ingressPrivateIP := startAddr
-			headscaleIP := ingressPrivateIP.Next()
 			app, err := installer.FindEnvApp(st.appsRepo, "metallb-ipaddresspool")
 			if err != nil {
 				return err
@@ -174,9 +126,9 @@ func SetupNetwork(env Env, startIP net.IP, st *state) Task {
 				appDir := fmt.Sprintf("/apps/%s", instanceId)
 				namespace := fmt.Sprintf("%s%s-ingress-private", env.NamespacePrefix, app.Namespace())
 				if err := st.appManager.Install(app, instanceId, appDir, namespace, map[string]any{
-					"name":       fmt.Sprintf("%s-ingress-private", env.Name),
-					"from":       ingressPrivateIP.String(),
-					"to":         ingressPrivateIP.String(),
+					"name":       fmt.Sprintf("%s-ingress-private", env.Id),
+					"from":       env.Network.Ingress.String(),
+					"to":         env.Network.Ingress.String(),
 					"autoAssign": false,
 					"namespace":  "metallb-system",
 				}); err != nil {
@@ -188,9 +140,9 @@ func SetupNetwork(env Env, startIP net.IP, st *state) Task {
 				appDir := fmt.Sprintf("/apps/%s", instanceId)
 				namespace := fmt.Sprintf("%s%s-ingress-private", env.NamespacePrefix, app.Namespace())
 				if err := st.appManager.Install(app, instanceId, appDir, namespace, map[string]any{
-					"name":       fmt.Sprintf("%s-headscale", env.Name),
-					"from":       headscaleIP.String(),
-					"to":         headscaleIP.String(),
+					"name":       fmt.Sprintf("%s-headscale", env.Id),
+					"from":       env.Network.Headscale.String(),
+					"to":         env.Network.Headscale.String(),
 					"autoAssign": false,
 					"namespace":  "metallb-system",
 				}); err != nil {
@@ -202,9 +154,9 @@ func SetupNetwork(env Env, startIP net.IP, st *state) Task {
 				appDir := fmt.Sprintf("/apps/%s", instanceId)
 				namespace := fmt.Sprintf("%s%s", env.NamespacePrefix, app.Namespace())
 				if err := st.appManager.Install(app, instanceId, appDir, namespace, map[string]any{
-					"name":       env.Name,
-					"from":       fromIP.String(),
-					"to":         toIP.String(),
+					"name":       env.Id,
+					"from":       env.Network.ServicesFrom.String(),
+					"to":         env.Network.ServicesTo.String(),
 					"autoAssign": false,
 					"namespace":  "metallb-system",
 				}); err != nil {
@@ -217,7 +169,7 @@ func SetupNetwork(env Env, startIP net.IP, st *state) Task {
 			if err != nil {
 				return err
 			}
-			user := fmt.Sprintf("%s-port-allocator", env.Name)
+			user := fmt.Sprintf("%s-port-allocator", env.Id)
 			if err := st.ssClient.AddUser(user, keys.AuthorizedKey()); err != nil {
 				return err
 			}
@@ -235,7 +187,7 @@ func SetupNetwork(env Env, startIP net.IP, st *state) Task {
 				"privateNetwork": map[string]any{
 					"hostname": "private-network-proxy",
 					"username": "private-network-proxy",
-					"ipSubnet": fmt.Sprintf("%s/24", startIP.String()),
+					"ipSubnet": fmt.Sprintf("%s.0/24", strings.Join(strings.Split(env.Network.DNS.String(), ".")[:3], ".")),
 				},
 				"sshPrivateKey": string(keys.RawPrivateKey()),
 			}); err != nil {
@@ -247,7 +199,7 @@ func SetupNetwork(env Env, startIP net.IP, st *state) Task {
 	return &t
 }
 
-func SetupCertificateIssuers(env Env, st *state) Task {
+func SetupCertificateIssuers(env installer.EnvConfig, st *state) Task {
 	pub := newLeafTask(fmt.Sprintf("Public %s", env.Domain), func() error {
 		app, err := installer.FindEnvApp(st.appsRepo, "certificate-issuer-public")
 		if err != nil {
@@ -269,12 +221,7 @@ func SetupCertificateIssuers(env Env, st *state) Task {
 		instanceId := app.Name()
 		appDir := fmt.Sprintf("/apps/%s", instanceId)
 		namespace := fmt.Sprintf("%s%s", env.NamespacePrefix, app.Namespace())
-		if err := st.appManager.Install(app, instanceId, appDir, namespace, map[string]any{
-			"apiConfigMap": map[string]any{
-				"name":      "api-config", // TODO(gio): take from global pcloud config
-				"namespace": fmt.Sprintf("%s-dns-zone-manager", env.PCloudEnvName),
-			},
-		}); err != nil {
+		if err := st.appManager.Install(app, instanceId, appDir, namespace, map[string]any{}); err != nil {
 			return err
 		}
 		return nil
@@ -282,7 +229,7 @@ func SetupCertificateIssuers(env Env, st *state) Task {
 	return newSequentialParentTask("Configure TLS certificate issuers", false, &pub, &priv)
 }
 
-func SetupAuth(env Env, st *state) Task {
+func SetupAuth(env installer.EnvConfig, st *state) Task {
 	t := newLeafTask("Setup", func() error {
 		app, err := installer.FindEnvApp(st.appsRepo, "core-auth")
 		if err != nil {
@@ -302,11 +249,11 @@ func SetupAuth(env Env, st *state) Task {
 		"Authentication services",
 		false,
 		&t,
-		waitForAddr(fmt.Sprintf("https://accounts-ui.%s", env.Domain)),
+		waitForAddr(st.httpClient, fmt.Sprintf("https://accounts-ui.%s", env.Domain)),
 	)
 }
 
-func SetupGroupMemberships(env Env, st *state) Task {
+func SetupGroupMemberships(env installer.EnvConfig, st *state) Task {
 	t := newLeafTask("Setup", func() error {
 		app, err := installer.FindEnvApp(st.appsRepo, "memberships")
 		if err != nil {
@@ -326,11 +273,11 @@ func SetupGroupMemberships(env Env, st *state) Task {
 		"Group membership",
 		false,
 		&t,
-		waitForAddr(fmt.Sprintf("https://memberships.p.%s", env.Domain)),
+		waitForAddr(st.httpClient, fmt.Sprintf("https://memberships.p.%s", env.Domain)),
 	)
 }
 
-func SetupHeadscale(env Env, startIP net.IP, st *state) Task {
+func SetupHeadscale(env installer.EnvConfig, st *state) Task {
 	t := newLeafTask("Setup", func() error {
 		app, err := installer.FindEnvApp(st.appsRepo, "headscale")
 		if err != nil {
@@ -341,7 +288,7 @@ func SetupHeadscale(env Env, startIP net.IP, st *state) Task {
 		namespace := fmt.Sprintf("%s%s", env.NamespacePrefix, app.Namespace())
 		if err := st.appManager.Install(app, instanceId, appDir, namespace, map[string]any{
 			"subdomain": "headscale",
-			"ipSubnet":  fmt.Sprintf("%s/24", startIP),
+			"ipSubnet":  fmt.Sprintf("%s/24", env.Network.DNS.String()),
 		}); err != nil {
 			return err
 		}
@@ -351,17 +298,17 @@ func SetupHeadscale(env Env, startIP net.IP, st *state) Task {
 		"Setup mesh VPN",
 		false,
 		&t,
-		waitForAddr(fmt.Sprintf("https://headscale.%s/apple", env.Domain)),
+		waitForAddr(st.httpClient, fmt.Sprintf("https://headscale.%s/apple", env.Domain)),
 	)
 }
 
-func SetupWelcome(env Env, st *state) Task {
+func SetupWelcome(env installer.EnvConfig, st *state) Task {
 	t := newLeafTask("Setup", func() error {
 		keys, err := installer.NewSSHKeyPair("welcome")
 		if err != nil {
 			return err
 		}
-		user := fmt.Sprintf("%s-welcome", env.Name)
+		user := fmt.Sprintf("%s-welcome", env.Id)
 		if err := st.ssClient.AddUser(user, keys.AuthorizedKey()); err != nil {
 			return err
 		}
@@ -387,13 +334,13 @@ func SetupWelcome(env Env, st *state) Task {
 		"Welcome service",
 		false,
 		&t,
-		waitForAddr(fmt.Sprintf("https://welcome.%s", env.Domain)),
+		waitForAddr(st.httpClient, fmt.Sprintf("https://welcome.%s", env.Domain)),
 	)
 }
 
-func SetupAppStore(env Env, st *state) Task {
+func SetupAppStore(env installer.EnvConfig, st *state) Task {
 	t := newLeafTask("Application marketplace", func() error {
-		user := fmt.Sprintf("%s-appmanager", env.Name)
+		user := fmt.Sprintf("%s-appmanager", env.Id)
 		keys, err := installer.NewSSHKeyPair(user)
 		if err != nil {
 			return err
@@ -423,9 +370,9 @@ func SetupAppStore(env Env, st *state) Task {
 	return &t
 }
 
-func SetupLauncher(env Env, st *state) Task {
+func SetupLauncher(env installer.EnvConfig, st *state) Task {
 	t := newLeafTask("Application Launcher", func() error {
-		user := fmt.Sprintf("%s-launcher", env.Name)
+		user := fmt.Sprintf("%s-launcher", env.Id)
 		keys, err := installer.NewSSHKeyPair(user)
 		if err != nil {
 			return err
@@ -454,6 +401,7 @@ func SetupLauncher(env Env, st *state) Task {
 	return &t
 }
 
+// TODO(gio-dns): remove
 type DNSSecKey struct {
 	Basename string `json:"basename,omitempty"`
 	Key      []byte `json:"key,omitempty"`

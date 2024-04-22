@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Values.name }}
+  namespace: {{ .Release.Namespace }}
+  {{- if or .Values.annotations }}
+  annotations:
+    {{- toYaml .Values.annotations | nindent 4 }}
+  {{- end }}
+spec:
+  type: {{ .Values.type }}
+  selector:
+    {{- toYaml .Values.selector | nindent 4 }}
+  ports:
+    {{- toYaml .Values.ports | nindent 4 }}

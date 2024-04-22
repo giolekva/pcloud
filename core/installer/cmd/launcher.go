@@ -68,7 +68,7 @@ func launcherCmdRun(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return fmt.Errorf("failed cloning repository: %v", err)
 	}
-	repoIO, err := installer.NewRepoIO(repo, signer)
+	repoIO, err := soft.NewRepoIO(repo, signer)
 	if err != nil {
 		return fmt.Errorf("failed initializing RepoIO: %v", err)
 	}

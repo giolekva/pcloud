@@ -55,7 +55,7 @@ func rewriteCmdRun(cmd *cobra.Command, args []string) error {
 		return err
 	}
 	log.Println("Cloned repository")
-	repoIO, err := installer.NewRepoIO(repo, signer)
+	repoIO, err := soft.NewRepoIO(repo, signer)
 	if err != nil {
 		return err
 	}
@@ -84,7 +84,7 @@ func rewriteCmdRun(cmd *cobra.Command, args []string) error {
 			return err
 		}
 		v := inst.InputToValues(app.Schema())
-		if err := mgr.Update(app, inst.Id, v, installer.WithNoCommit()); err != nil {
+		if err := mgr.Update(app, inst.Id, v, soft.WithNoCommit()); err != nil {
 			return err
 		}
 	}

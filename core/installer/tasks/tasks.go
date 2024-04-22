@@ -1,5 +1,9 @@
 package tasks
 
+import (
+	"fmt"
+)
+
 type Status int
 
 const (
@@ -55,6 +59,9 @@ func (b *basicTask) OnDone(l TaskDoneListener) {
 }
 
 func (b *basicTask) callDoneListeners(err error) {
+	if err != nil {
+		fmt.Printf("%s %s\n", b.title, err.Error())
+	}
 	for _, l := range b.listeners {
 		go l(err)
 	}

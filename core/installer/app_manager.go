@@ -9,18 +9,21 @@ import (
 	"net/http"
 	"path"
 	"path/filepath"
+
+	"github.com/giolekva/pcloud/core/installer/io"
+	"github.com/giolekva/pcloud/core/installer/soft"
 )
 
 const configFileName = "config.yaml"
 const kustomizationFileName = "kustomization.yaml"
 
 type AppManager struct {
-	repoIO     RepoIO
+	repoIO     soft.RepoIO
 	nsCreator  NamespaceCreator
 	appDirRoot string
 }
 
-func NewAppManager(repoIO RepoIO, nsCreator NamespaceCreator, appDirRoot string) (*AppManager, error) {
+func NewAppManager(repoIO soft.RepoIO, nsCreator NamespaceCreator, appDirRoot string) (*AppManager, error) {
 	return &AppManager{
 		repoIO,
 		nsCreator,
@@ -28,10 +31,10 @@ func NewAppManager(repoIO RepoIO, nsCreator NamespaceCreator, appDirRoot string)
 	}, nil
 }
 
-func (m *AppManager) Config() (AppEnvConfig, error) {
-	var cfg AppEnvConfig
-	if err := ReadYaml(m.repoIO, configFileName, &cfg); err != nil {
-		return AppEnvConfig{}, err
+func (m *AppManager) Config() (EnvConfig, error) {
+	var cfg EnvConfig
+	if err := soft.ReadYaml(m.repoIO, configFileName, &cfg); err != nil {
+		return EnvConfig{}, err
 	} else {
 		return cfg, nil
 	}
@@ -39,7 +42,7 @@ func (m *AppManager) Config() (AppEnvConfig, error) {
 
 func (m *AppManager) appConfig(path string) (AppInstanceConfig, error) {
 	var cfg AppInstanceConfig
-	if err := ReadJson(m.repoIO, path, &cfg); err != nil {
+	if err := soft.ReadJson(m.repoIO, path, &cfg); err != nil {
 		return AppInstanceConfig{}, err
 	} else {
 		return cfg, nil
@@ -47,7 +50,7 @@ func (m *AppManager) appConfig(path string) (AppInstanceConfig, error) {
 }
 
 func (m *AppManager) FindAllInstances() ([]AppInstanceConfig, error) {
-	kust, err := ReadKustomization(m.repoIO, filepath.Join(m.appDirRoot, "kustomization.yaml"))
+	kust, err := soft.ReadKustomization(m.repoIO, filepath.Join(m.appDirRoot, "kustomization.yaml"))
 	if err != nil {
 		return nil, err
 	}
@@ -64,7 +67,7 @@ func (m *AppManager) FindAllInstances() ([]AppInstanceConfig, error) {
 }
 
 func (m *AppManager) FindAllAppInstances(name string) ([]AppInstanceConfig, error) {
-	kust, err := ReadKustomization(m.repoIO, filepath.Join(m.appDirRoot, "kustomization.yaml"))
+	kust, err := soft.ReadKustomization(m.repoIO, filepath.Join(m.appDirRoot, "kustomization.yaml"))
 	if err != nil {
 		return nil, err
 	}
@@ -83,7 +86,7 @@ func (m *AppManager) FindAllAppInstances(name string) ([]AppInstanceConfig, erro
 }
 
 func (m *AppManager) FindInstance(id string) (AppInstanceConfig, error) {
-	kust, err := ReadKustomization(m.repoIO, filepath.Join(m.appDirRoot, "kustomization.yaml"))
+	kust, err := soft.ReadKustomization(m.repoIO, filepath.Join(m.appDirRoot, "kustomization.yaml"))
 	if err != nil {
 		return AppInstanceConfig{}, err
 	}
@@ -102,7 +105,7 @@ func (m *AppManager) FindInstance(id string) (AppInstanceConfig, error) {
 
 func (m *AppManager) AppConfig(name string) (AppInstanceConfig, error) {
 	var cfg AppInstanceConfig
-	if err := ReadJson(m.repoIO, filepath.Join(m.appDirRoot, name, "config.json"), &cfg); err != nil {
+	if err := soft.ReadJson(m.repoIO, filepath.Join(m.appDirRoot, name, "config.json"), &cfg); err != nil {
 		return AppInstanceConfig{}, err
 	}
 	return cfg, nil
@@ -138,21 +141,21 @@ func openPorts(ports []PortForward) error {
 	return nil
 }
 
-func createKustomizationChain(r RepoFS, path string) error {
+func createKustomizationChain(r soft.RepoFS, path string) error {
 	for p := filepath.Clean(path); p != "/"; {
 		parent, child := filepath.Split(p)
 		kustPath := filepath.Join(parent, "kustomization.yaml")
-		kust, err := ReadKustomization(r, kustPath)
+		kust, err := soft.ReadKustomization(r, kustPath)
 		if err != nil {
 			if errors.Is(err, fs.ErrNotExist) {
-				k := NewKustomization()
+				k := io.NewKustomization()
 				kust = &k
 			} else {
 				return err
 			}
 		}
 		kust.AddResources(child)
-		if err := WriteYaml(r, kustPath, kust); err != nil {
+		if err := soft.WriteYaml(r, kustPath, kust); err != nil {
 			return err
 		}
 		p = filepath.Clean(parent)
@@ -161,11 +164,19 @@ func createKustomizationChain(r RepoFS, path string) error {
 }
 
 // TODO(gio): rename to CommitApp
-func InstallApp(repo RepoIO, appDir string, rendered Rendered, opts ...DoOption) error {
+func InstallApp(
+	repo soft.RepoIO,
+	appDir string,
+	name string,
+	config any,
+	ports []PortForward,
+	resources CueAppData,
+	data CueAppData,
+	opts ...soft.DoOption) error {
 	// if err := openPorts(rendered.Ports); err != nil {
 	// 	return err
 	// }
-	return repo.Do(func(r RepoFS) (string, error) {
+	return repo.Do(func(r soft.RepoFS) (string, error) {
 		if err := r.RemoveDir(appDir); err != nil {
 			return "", err
 		}
@@ -174,13 +185,13 @@ func InstallApp(repo RepoIO, appDir string, rendered Rendered, opts ...DoOption)
 			return "", err
 		}
 		{
-			if err := WriteYaml(r, path.Join(appDir, configFileName), rendered.Config); err != nil {
+			if err := soft.WriteYaml(r, path.Join(appDir, configFileName), config); err != nil {
 				return "", err
 			}
-			if err := WriteJson(r, path.Join(appDir, "config.json"), rendered.Config); err != nil {
+			if err := soft.WriteJson(r, path.Join(appDir, "config.json"), config); err != nil {
 				return "", err
 			}
-			for name, contents := range rendered.Data {
+			for name, contents := range data {
 				if name == "config.json" || name == "kustomization.yaml" || name == "resources" {
 					return "", fmt.Errorf("%s is forbidden", name)
 				}
@@ -198,8 +209,8 @@ func InstallApp(repo RepoIO, appDir string, rendered Rendered, opts ...DoOption)
 			if err := createKustomizationChain(r, resourcesDir); err != nil {
 				return "", err
 			}
-			appKust := NewKustomization()
-			for name, contents := range rendered.Resources {
+			appKust := io.NewKustomization()
+			for name, contents := range resources {
 				appKust.AddResources(name)
 				w, err := r.Writer(path.Join(resourcesDir, name))
 				if err != nil {
@@ -210,11 +221,11 @@ func InstallApp(repo RepoIO, appDir string, rendered Rendered, opts ...DoOption)
 					return "", err
 				}
 			}
-			if err := WriteYaml(r, path.Join(resourcesDir, "kustomization.yaml"), appKust); err != nil {
+			if err := soft.WriteYaml(r, path.Join(resourcesDir, "kustomization.yaml"), appKust); err != nil {
 				return "", err
 			}
 		}
-		return fmt.Sprintf("install: %s", rendered.Name), nil
+		return fmt.Sprintf("install: %s", name), nil
 	}, opts...)
 }
 
@@ -241,10 +252,10 @@ func (m *AppManager) Install(app EnvApp, instanceId string, appDir string, names
 	if err != nil {
 		return err
 	}
-	return InstallApp(m.repoIO, appDir, rendered)
+	return InstallApp(m.repoIO, appDir, rendered.Name, rendered.Config, rendered.Ports, rendered.Resources, rendered.Data)
 }
 
-func (m *AppManager) Update(app EnvApp, instanceId string, values map[string]any, opts ...DoOption) error {
+func (m *AppManager) Update(app EnvApp, instanceId string, values map[string]any, opts ...soft.DoOption) error {
 	if err := m.repoIO.Pull(); err != nil {
 		return err
 	}
@@ -268,29 +279,28 @@ func (m *AppManager) Update(app EnvApp, instanceId string, values map[string]any
 	if err != nil {
 		return err
 	}
-	fmt.Println(rendered)
-	return InstallApp(m.repoIO, instanceDir, rendered, opts...)
+	return InstallApp(m.repoIO, instanceDir, rendered.Name, rendered.Config, rendered.Ports, rendered.Resources, rendered.Data, opts...)
 }
 
 func (m *AppManager) Remove(instanceId string) error {
 	if err := m.repoIO.Pull(); err != nil {
 		return err
 	}
-	return m.repoIO.Do(func(r RepoFS) (string, error) {
+	return m.repoIO.Do(func(r soft.RepoFS) (string, error) {
 		r.RemoveDir(filepath.Join(m.appDirRoot, instanceId))
 		kustPath := filepath.Join(m.appDirRoot, "kustomization.yaml")
-		kust, err := ReadKustomization(r, kustPath)
+		kust, err := soft.ReadKustomization(r, kustPath)
 		if err != nil {
 			return "", err
 		}
 		kust.RemoveResources(instanceId)
-		WriteYaml(r, kustPath, kust)
+		soft.WriteYaml(r, kustPath, kust)
 		return fmt.Sprintf("uninstall: %s", instanceId), nil
 	})
 }
 
 // TODO(gio): deduplicate with cue definition in app.go, this one should be removed.
-func CreateNetworks(env AppEnvConfig) []Network {
+func CreateNetworks(env EnvConfig) []Network {
 	return []Network{
 		{
 			Name:              "Public",
@@ -311,11 +321,11 @@ func CreateNetworks(env AppEnvConfig) []Network {
 // InfraAppmanager
 
 type InfraAppManager struct {
-	repoIO    RepoIO
+	repoIO    soft.RepoIO
 	nsCreator NamespaceCreator
 }
 
-func NewInfraAppManager(repoIO RepoIO, nsCreator NamespaceCreator) (*InfraAppManager, error) {
+func NewInfraAppManager(repoIO soft.RepoIO, nsCreator NamespaceCreator) (*InfraAppManager, error) {
 	return &InfraAppManager{
 		repoIO,
 		nsCreator,
@@ -324,11 +334,38 @@ func NewInfraAppManager(repoIO RepoIO, nsCreator NamespaceCreator) (*InfraAppMan
 
 func (m *InfraAppManager) Config() (InfraConfig, error) {
 	var cfg InfraConfig
-	if err := ReadYaml(m.repoIO, configFileName, &cfg); err != nil {
+	if err := soft.ReadYaml(m.repoIO, configFileName, &cfg); err != nil {
 		return InfraConfig{}, err
 	} else {
 		return cfg, nil
 	}
+}
+
+func (m *InfraAppManager) appConfig(path string) (InfraAppInstanceConfig, error) {
+	var cfg InfraAppInstanceConfig
+	if err := soft.ReadJson(m.repoIO, path, &cfg); err != nil {
+		return InfraAppInstanceConfig{}, err
+	} else {
+		return cfg, nil
+	}
+}
+
+func (m *InfraAppManager) FindInstance(id string) (InfraAppInstanceConfig, error) {
+	kust, err := soft.ReadKustomization(m.repoIO, filepath.Join("/infrastructure", "kustomization.yaml"))
+	if err != nil {
+		return InfraAppInstanceConfig{}, err
+	}
+	for _, app := range kust.Resources {
+		if app == id {
+			cfg, err := m.appConfig(filepath.Join("/infrastructure", app, "config.json"))
+			if err != nil {
+				return InfraAppInstanceConfig{}, err
+			}
+			cfg.Id = id
+			return cfg, nil
+		}
+	}
+	return InfraAppInstanceConfig{}, nil
 }
 
 func (m *InfraAppManager) Install(app InfraApp, appDir string, namespace string, values map[string]any) error {
@@ -352,5 +389,32 @@ func (m *InfraAppManager) Install(app InfraApp, appDir string, namespace string,
 	if err != nil {
 		return err
 	}
-	return InstallApp(m.repoIO, appDir, rendered)
+	return InstallApp(m.repoIO, appDir, rendered.Name, rendered.Config, rendered.Ports, rendered.Resources, rendered.Data)
+}
+
+func (m *InfraAppManager) Update(app InfraApp, instanceId string, values map[string]any, opts ...soft.DoOption) error {
+	if err := m.repoIO.Pull(); err != nil {
+		return err
+	}
+	env, err := m.Config()
+	if err != nil {
+		return err
+	}
+	instanceDir := filepath.Join("/infrastructure", instanceId)
+	instanceConfigPath := filepath.Join(instanceDir, "config.json")
+	config, err := m.appConfig(instanceConfigPath)
+	if err != nil {
+		return err
+	}
+	release := Release{
+		AppInstanceId: instanceId,
+		Namespace:     config.Release.Namespace,
+		RepoAddr:      m.repoIO.FullAddress(),
+		AppDir:        instanceDir,
+	}
+	rendered, err := app.Render(release, env, values)
+	if err != nil {
+		return err
+	}
+	return InstallApp(m.repoIO, instanceDir, rendered.Name, rendered.Config, rendered.Ports, rendered.Resources, rendered.Data, opts...)
 }

@@ -14,6 +14,7 @@ import (
 	"github.com/gorilla/mux"
 
 	"github.com/giolekva/pcloud/core/installer"
+	"github.com/giolekva/pcloud/core/installer/soft"
 )
 
 //go:embed create-account.html
@@ -27,7 +28,7 @@ var staticAssets embed.FS
 
 type Server struct {
 	port                int
-	repo                installer.RepoIO
+	repo                soft.RepoIO
 	nsCreator           installer.NamespaceCreator
 	createAccountAddr   string
 	loginAddr           string
@@ -36,7 +37,7 @@ type Server struct {
 
 func NewServer(
 	port int,
-	repo installer.RepoIO,
+	repo soft.RepoIO,
 	nsCreator installer.NamespaceCreator,
 	createAccountAddr string,
 	loginAddr string,
@@ -250,9 +251,9 @@ type initRequest struct {
 }
 
 func (s *Server) initMemberships(username string) error {
-	return s.repo.Do(func(r installer.RepoFS) (string, error) {
+	return s.repo.Do(func(r soft.RepoFS) (string, error) {
 		var fa firstaccount
-		if err := installer.ReadYaml(r, "first-account.yaml", &fa); err != nil {
+		if err := soft.ReadYaml(r, "first-account.yaml", &fa); err != nil {
 			return "", err
 		}
 		if fa.Created {
@@ -267,7 +268,7 @@ func (s *Server) initMemberships(username string) error {
 			return "", err
 		}
 		fa.Created = true
-		if err := installer.WriteYaml(r, "first-account.yaml", fa); err != nil {
+		if err := soft.WriteYaml(r, "first-account.yaml", fa); err != nil {
 			return "", err
 		}
 		return "initialized groups for first account", nil

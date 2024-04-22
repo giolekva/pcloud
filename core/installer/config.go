@@ -5,6 +5,11 @@ import (
 	"net/netip"
 )
 
+type EnvDNS struct {
+	Zone    string `json:"zone,omitempty"`
+	Address string `json:"address,omitempty"`
+}
+
 type EnvServiceIPs struct {
 	ConfigRepo    netip.Addr `json:"configRepo"`
 	IngressPublic netip.Addr `json:"ingressPublic"`
