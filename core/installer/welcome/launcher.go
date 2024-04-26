@@ -32,6 +32,26 @@ type AppManagerDirectory struct {
 	AppManager *installer.AppManager
 }
 
+func (d *AppManagerDirectory) GetAllApps() ([]AppLauncherInfo, error) {
+	all, err := d.AppManager.FindAllInstances()
+	if err != nil {
+		return nil, err
+	}
+	ret := []AppLauncherInfo{}
+	for _, a := range all {
+		if a.URL == "" && len(a.Help) == 0 {
+			continue
+		}
+		ret = append(ret, AppLauncherInfo{
+			Name: a.AppId,
+			Icon: template.HTML(a.Icon),
+			Help: a.Help,
+			Url:  a.URL,
+		})
+	}
+	return ret, nil
+}
+
 type LauncherServer struct {
 	port         int
 	logoutUrl    string
@@ -75,24 +95,6 @@ func cleanAppName(name string) string {
 	cleanName := strings.ToLower(name)
 	cleanName = strings.ReplaceAll(cleanName, " ", "-")
 	return cleanName
-}
-
-func (d *AppManagerDirectory) GetAllApps() ([]AppLauncherInfo, error) {
-	allAppInstances, err := d.AppManager.FindAllInstances()
-	if err != nil {
-		return nil, err
-	}
-	var ret []AppLauncherInfo
-	for _, appInstance := range allAppInstances {
-		appLauncherInfo := AppLauncherInfo{
-			Name: appInstance.AppId,
-			Icon: template.HTML(appInstance.Icon),
-			Help: appInstance.Help,
-			Url:  appInstance.Url,
-		}
-		ret = append(ret, appLauncherInfo)
-	}
-	return ret, nil
 }
 
 func getLoggedInUser(r *http.Request) (string, error) {

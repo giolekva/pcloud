@@ -4,6 +4,7 @@ input: {
 
 _subdomain: "memberships"
 _domain: "\(_subdomain).\(global.privateDomain)"
+url: "https://\(_domain)"
 
 name: "Memberships"
 namespace: "core-auth-memberships"

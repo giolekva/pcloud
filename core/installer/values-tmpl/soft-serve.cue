@@ -4,6 +4,7 @@ input: {
 }
 
 _domain: "\(input.subdomain).\(global.privateDomain)"
+url: "https://\(_domain)"
 
 name: "Soft-Serve"
 namespace: "app-soft-serve"

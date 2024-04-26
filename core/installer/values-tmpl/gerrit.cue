@@ -6,6 +6,7 @@ input: {
 }
 
 _domain: "\(input.subdomain).\(input.network.domain)"
+url: "https://\(_domain)"
 
 name: "Gerrit"
 namespace: "app-gerrit"

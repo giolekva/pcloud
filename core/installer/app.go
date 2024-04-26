@@ -339,6 +339,16 @@ output: {
 	public: string
 	private: string
 }
+
+#HelpDocument: {
+    title: string
+    contents: string
+    children: [...#HelpDocument]
+}
+
+help: [...#HelpDocument] | *[]
+
+url: string | *""
 `
 
 type rendered struct {
@@ -347,8 +357,8 @@ type rendered struct {
 	Resources CueAppData
 	Ports     []PortForward
 	Data      CueAppData
+	URL       string
 	Help      []HelpDocument
-	Url       string
 	Icon      string
 }
 
@@ -633,7 +643,7 @@ func (a cueApp) render(values map[string]any) (rendered, error) {
 	if err != nil {
 		return rendered{}, err
 	}
-	ret.Url = url
+	ret.URL = url
 	icon, err := res.LookupPath(cue.ParsePath("icon")).String()
 	if err != nil {
 		return rendered{}, err
@@ -680,8 +690,9 @@ func (a cueEnvApp) Render(release Release, env EnvConfig, values map[string]any)
 			Release: release,
 			Values:  values,
 			Input:   derived,
+			URL:     ret.URL,
 			Help:    ret.Help,
-			Url:     ret.Url,
+			Icon:    ret.Icon,
 		},
 	}, nil
 }
@@ -719,6 +730,8 @@ func (a cueInfraApp) Render(release Release, infra InfraConfig, values map[strin
 			Release: release,
 			Values:  values,
 			Input:   values,
+			URL:     ret.URL,
+			Help:    ret.Help,
 		},
 	}, nil
 }

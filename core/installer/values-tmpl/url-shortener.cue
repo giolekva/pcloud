@@ -5,6 +5,7 @@ input: {
 }
 
 _domain: "\(input.subdomain).\(input.network.domain)"
+url: "https://\(_domain)"
 
 name: "URL Shortener"
 namespace: "app-url-shortener"

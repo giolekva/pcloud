@@ -4,6 +4,7 @@ input: {
 }
 
 _domain: "\(input.subdomain).\(input.network.domain)"
+url: "https://\(_domain)"
 
 name: "Jenkins"
 namespace: "app-jenkins"

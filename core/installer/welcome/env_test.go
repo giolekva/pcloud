@@ -264,6 +264,7 @@ func TestCreateNewEnv(t *testing.T) {
 		"https://accounts-ui.test.t",
 		"https://welcome.test.t",
 		"https://memberships.p.test.t",
+		"https://launcher.test.t",
 		"https://headscale.test.t/apple",
 	}
 	for _, e := range expected {
@@ -271,7 +272,7 @@ func TestCreateNewEnv(t *testing.T) {
 			t.Fatal(httpClient.counts)
 		}
 	}
-	if len(httpClient.counts) != 4 {
+	if len(httpClient.counts) != 5 {
 		t.Fatal(httpClient.counts)
 	}
 }

@@ -47,6 +47,7 @@ var envAppConfigs = []string{
 	"values-tmpl/headscale.cue",
 	"values-tmpl/launcher.cue",
 	"values-tmpl/env-dns.cue",
+	"values-tmpl/launcher.cue",
 }
 
 var infraAppConfigs = []string{

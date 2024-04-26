@@ -277,6 +277,42 @@ func SetupGroupMemberships(env installer.EnvConfig, st *state) Task {
 	)
 }
 
+func SetupLauncher(env installer.EnvConfig, st *state) Task {
+	t := newLeafTask("Setup", func() error {
+		user := fmt.Sprintf("%s-launcher", env.Id)
+		keys, err := installer.NewSSHKeyPair(user)
+		if err != nil {
+			return err
+		}
+		if err := st.ssClient.AddUser(user, keys.AuthorizedKey()); err != nil {
+			return err
+		}
+		if err := st.ssClient.AddReadWriteCollaborator("config", user); err != nil {
+			return err
+		}
+		app, err := installer.FindEnvApp(st.appsRepo, "launcher")
+		if err != nil {
+			return err
+		}
+		instanceId := app.Slug()
+		appDir := fmt.Sprintf("/apps/%s", instanceId)
+		namespace := fmt.Sprintf("%s%s", env.NamespacePrefix, app.Namespace())
+		if _, err := st.appManager.Install(app, instanceId, appDir, namespace, map[string]any{
+			"repoAddr":      st.ssClient.GetRepoAddress("config"),
+			"sshPrivateKey": string(keys.RawPrivateKey()),
+		}); err != nil {
+			return err
+		}
+		return nil
+	})
+	return newSequentialParentTask(
+		"Launcher",
+		false,
+		&t,
+		waitForAddr(st.httpClient, fmt.Sprintf("https://launcher.%s", env.Domain)),
+	)
+}
+
 func SetupHeadscale(env installer.EnvConfig, st *state) Task {
 	t := newLeafTask("Setup", func() error {
 		app, err := installer.FindEnvApp(st.appsRepo, "headscale")
@@ -362,37 +398,6 @@ func SetupAppStore(env installer.EnvConfig, st *state) Task {
 			"repoAddr":      st.ssClient.GetRepoAddress("config"),
 			"sshPrivateKey": string(keys.RawPrivateKey()),
 			"authGroups":    strings.Join(initGroups, ","),
-		}); err != nil {
-			return err
-		}
-		return nil
-	})
-	return &t
-}
-
-func SetupLauncher(env installer.EnvConfig, st *state) Task {
-	t := newLeafTask("Application Launcher", func() error {
-		user := fmt.Sprintf("%s-launcher", env.Id)
-		keys, err := installer.NewSSHKeyPair(user)
-		if err != nil {
-			return err
-		}
-		if err := st.ssClient.AddUser(user, keys.AuthorizedKey()); err != nil {
-			return err
-		}
-		if err := st.ssClient.AddReadWriteCollaborator("config", user); err != nil { //TODO(gio): add read only
-			return err
-		}
-		app, err := installer.FindEnvApp(st.appsRepo, "launcher") // TODO(giolekva): configure
-		if err != nil {
-			return err
-		}
-		instanceId := app.Name()
-		appDir := fmt.Sprintf("/apps/%s", instanceId)
-		namespace := fmt.Sprintf("%s%s", env.NamespacePrefix, app.Namespace())
-		if _, err := st.appManager.Install(app, instanceId, appDir, namespace, map[string]any{
-			"repoAddr":      st.ssClient.GetRepoAddress("config"),
-			"sshPrivateKey": string(keys.RawPrivateKey()),
 		}); err != nil {
 			return err
 		}

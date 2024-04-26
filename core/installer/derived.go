@@ -2,6 +2,7 @@ package installer
 
 import (
 	"fmt"
+	"html/template"
 )
 
 type Release struct {
@@ -26,6 +27,9 @@ type InfraAppInstanceConfig struct {
 	Release Release        `json:"release"`
 	Values  map[string]any `json:"values"`
 	Input   map[string]any `json:"input"`
+	URL     string         `json:"url"`
+	Help    []HelpDocument `json:"help"`
+	Icon    template.HTML  `json:"icon"`
 }
 
 type AppInstanceConfig struct {
@@ -35,9 +39,9 @@ type AppInstanceConfig struct {
 	Release Release        `json:"release"`
 	Values  map[string]any `json:"values"`
 	Input   map[string]any `json:"input"`
-	Icon    string         `json:"icon"`
+	URL     string         `json:"url"`
 	Help    []HelpDocument `json:"help"`
-	Url     string         `json:"url"`
+	Icon    string         `json:"icon"`
 }
 
 func (a AppInstanceConfig) InputToValues(schema Schema) map[string]any {

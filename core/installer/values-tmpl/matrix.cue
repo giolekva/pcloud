@@ -144,3 +144,11 @@ helm: {
 		}
 	}
 }
+
+help: [{
+	title: "Client Applications"
+	contents: "You can connect to \(_domain) Matrix server with any of the official clients. We recommend using Element. You can use official Element Web application to chat within the browser. Platform native client applications can be downloaded from: [https://element.io/download](https://element.io/download). Follow **Custom Homeserver** section to login with your dodo: account."
+}, {
+	title: "Custom Homeserver"
+	contents: "Click **Sign in** button, edit **Homeserver** address and enter **\(input.network.domain)**, click **Continue**. Choose **Continue with PCloud** option and login to your dodo: account."
+}]

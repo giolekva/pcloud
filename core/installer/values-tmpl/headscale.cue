@@ -96,3 +96,42 @@ helm: {
 		}
 	}
 }
+
+help: [{
+	title: "Install"
+	contents: """
+	You can install Tailscale client on any of your personal devices running: macOS, iOS, Windows, Lonux or Android. Installer packages can be found at: [https://tailscale.com/download](https://tailscale.com/download). After installing the client application you need to configure it to use https://\(_domain) as a login URL, so you can login to the VPN network with your dodo: account. See "Configure Login URL" section below for more details.
+	"""
+	children: [{
+		title: "Widnows with MSI"
+		contents: "[https://tailscale.com/kb/1189/install-windows-msi](https://tailscale.com/kb/1189/install-windows-msi)"
+	}]
+}, {
+	title: "Configure Login URL"
+	contents: "After installing the client application you need to configure it to use https://\(_domain) as a login URL, so you can login to the VPN network with your dodo: account"
+	children: [{
+		title: "macOS"
+		contents: "[https://headscale.v1.dodo.cloud/apple](https://headscale.v1.dodo.cloud/apple)"
+	}, {
+		title: "iOS"
+		contents: "[https://headscale.v1.dodo.cloud/apple](https://headscale.v1.dodo.cloud/apple)"
+	}, {
+		title: "Windows"
+		contents: "[https://tailscale.com/kb/1318/windows-mdm](https://tailscale.com/kb/1318/windows-mdm)"
+	}, {
+		title: "Linux"
+		contents: "tailscale up --login-server https://\(_domain)"
+	}, {
+		title: "Android"
+		contents: """
+		After opening the app, the kebab menu icon (three dots) on the top bar on the right must be repeatedly opened and closed until the Change server option appears in the menu. This is where you can enter your headscale URL: https://\(_domain)
+
+		A screen recording of this process can be seen in the tailscale-android PR which implemented this functionality: [https://github.com/tailscale/tailscale-android/pull/55](https://github.com/tailscale/tailscale-android/pull/55)
+
+		After saving and restarting the app, selecting the regular Sign in option should open up the dodo: authentication page.
+		"""
+	}, {
+		title: "Command Line"
+		contents: "tailscale up --login-server https://\(_domain)"
+	}]
+}]

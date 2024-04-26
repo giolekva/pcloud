@@ -54,6 +54,7 @@ func (m *AppManager) appConfig(path string) (AppInstanceConfig, error) {
 }
 
 func (m *AppManager) FindAllInstances() ([]AppInstanceConfig, error) {
+	m.repoIO.Pull()
 	kust, err := soft.ReadKustomization(m.repoIO, filepath.Join(m.appDirRoot, "kustomization.yaml"))
 	if err != nil {
 		return nil, err
