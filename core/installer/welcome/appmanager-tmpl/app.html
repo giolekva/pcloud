@@ -1,3 +1,16 @@
+{{ define "task" }}
+{{ range . }}
+<li aria-busy="{{ eq .Status 1 }}">
+	{{ if eq .Status 3 }}<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"><g fill="none"><circle cx="12" cy="12" r="8" fill="green" fill-opacity="0.25"/><path stroke="green" stroke-width="1.2" d="m8.5 11l2.894 2.894a.15.15 0 0 0 .212 0L19.5 6"/><path stroke="green" stroke-linecap="round" d="M19.358 10.547a7.5 7.5 0 1 1-3.608-5.042"/></g></svg>{{ end }}{{ .Title }}{{ if .Err }} - {{ .Err.Error }} {{ end }}
+	{{ if .Subtasks }}
+	<ul>
+   		{{ template "task" .Subtasks }}
+	</ul>
+	{{ end }}
+</li>
+{{ end }}
+{{ end }}
+
 {{ define "schema-form" }}
   {{ $readonly := .ReadOnly }}
   {{ $networks := .AvailableNetworks }}
@@ -75,6 +88,20 @@
 {{ $schema := .App.Schema }}
 {{ $networks := .AvailableNetworks }}
 
+{{ $renderForm := true }}
+
+{{ if .Task }}
+  {{if or (eq .Task.Status 0) (eq .Task.Status 1) }}
+  {{ $renderForm = false }}
+  Waiting for resources:
+	<ul class="progress">
+		{{ template "task" .Task.Subtasks }}
+	</ul>
+	<script>setTimeout(() => location.reload(), 3000);</script>
+  {{ end }}
+{{ end }}
+
+{{ if $renderForm }}
 <form id="config-form">
     {{ if $instance }}
       {{ template "schema-form" (dict "Schema" $schema "AvailableNetworks" $networks "ReadOnly" false "Data" ($instance.InputToValues $schema)) }}
@@ -92,7 +119,13 @@
 </form>
 
 {{ range .Instances }}
-  {{ if or (not $instance) (ne $instance.Id .Id)}}
+  {{ $r := true}}
+  {{ if $instance }}
+	{{ if eq $instance.Id .Id }}
+  	  {{ $r = false}}
+	{{ end }}
+  {{ end }}
+  {{ if $r }}
     <details>
       <summary>{{ .Id }}</summary>
       {{ template "schema-form" (dict "Schema" $schema "AvailableNetworks" $networks "ReadOnly" true "Data" (.InputToValues $schema)) }}
@@ -100,18 +133,10 @@
     </details>
   {{ end }}
 {{ end }}
-
-
-<div id="toast-success" class="toast hidden">
-  <svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 36 36"><path fill="currentColor" d="M18 2a16 16 0 1 0 16 16A16 16 0 0 0 18 2Zm0 30a14 14 0 1 1 14-14a14 14 0 0 1-14 14Z" class="clr-i-outline clr-i-outline-path-1"/><path fill="currentColor" d="M28 12.1a1 1 0 0 0-1.41 0l-11.1 11.05l-6-6A1 1 0 0 0 8 18.53L15.49 26L28 13.52a1 1 0 0 0 0-1.42Z" class="clr-i-outline clr-i-outline-path-2"/><path fill="none" d="M0 0h36v36H0z"/></svg> {{ if $instance }}Update succeeded{{ else }}Install succeeded{{ end}}
-</div>
+{{ end }}
 
 <div id="toast-failure" class="toast hidden">
   <svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2S2 6.477 2 12s4.477 10 10 10Zm3-6L9 8m0 8l6-8"/></svg> {{ if $instance }}Update failed{{ else}}Install failed{{ end }}
-</div>
-
-<div id="toast-uninstall-success" class="toast hidden">
-  <svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 36 36"><path fill="currentColor" d="M18 2a16 16 0 1 0 16 16A16 16 0 0 0 18 2Zm0 30a14 14 0 1 1 14-14a14 14 0 0 1-14 14Z" class="clr-i-outline clr-i-outline-path-1"/><path fill="currentColor" d="M28 12.1a1 1 0 0 0-1.41 0l-11.1 11.05l-6-6A1 1 0 0 0 8 18.53L15.49 26L28 13.52a1 1 0 0 0 0-1.42Z" class="clr-i-outline clr-i-outline-path-2"/><path fill="none" d="M0 0h36v36H0z"/></svg> Uninstalled application
 </div>
 
 <div id="toast-uninstall-failure" class="toast hidden">
@@ -192,16 +217,8 @@
      );
  }
 
- function installSucceeded() {
-     actionFinished(document.getElementById("toast-success"));
- }
-
  function installFailed() {
      actionFinished(document.getElementById("toast-failure"));
- }
-
- function uninstallSucceeded() {
-     actionFinished(document.getElementById("toast-uninstall-success"));
  }
 
  function uninstallFailed() {
@@ -213,16 +230,16 @@
  async function install() {
      installStarted();
 	 const resp = await fetch(submitAddr, {
-         method: "POST",
-         headers: {
-             "Content-Type": "application/json",
-             "Accept": "application/json",
-         },
-         body: JSON.stringify(config),
-     });
+		 method: "POST",
+		 headers: {
+			 "Content-Type": "application/json",
+			 "Accept": "application/json",
+		 },
+		 body: JSON.stringify(config),
+	 });
      if (resp.status === 200) {
-         installSucceeded();
-     } else {
+		 window.location = await resp.text();
+	 } else {
          installFailed();
      }
  }
@@ -234,7 +251,7 @@
          method: "POST",
      });
      if (resp.status === 200) {
-         uninstallSucceeded();
+		 window.location = await resp.text();
      } else {
          uninstallFailed();
      }

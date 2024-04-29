@@ -53,11 +53,12 @@ func NewCreateConfigRepoTask(env installer.EnvConfig, st *state) Task {
 			return err
 		}
 		appDir := filepath.Join("/environments", env.Id, "config-repo")
-		return st.infraAppManager.Install(app, appDir, env.Id, map[string]any{
+		_, err = st.infraAppManager.Install(app, appDir, env.Id, map[string]any{
 			"privateKey": string(keys.RawPrivateKey()),
 			"publicKey":  string(keys.RawAuthorizedKey()),
 			"adminKey":   string(adminKeys.RawAuthorizedKey()),
 		})
+		return err
 	})
 	return &t
 }

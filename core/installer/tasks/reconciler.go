@@ -27,7 +27,7 @@ func NewFluxcdReconciler(addr, name string) Reconciler {
 func (r fluxcdReconciler) Reconcile(ctx context.Context) {
 	for {
 		select {
-		case <-time.After(30 * time.Second):
+		case <-time.After(3 * time.Second):
 			for _, res := range r.resources {
 				http.Get(res)
 			}

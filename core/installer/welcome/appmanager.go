@@ -32,6 +32,8 @@ type AppManagerServer struct {
 	m          *installer.AppManager
 	r          installer.AppRepository
 	reconciler tasks.Reconciler
+	h          installer.HelmReleaseMonitor
+	tasks      map[string]tasks.Task
 }
 
 func NewAppManagerServer(
@@ -39,12 +41,15 @@ func NewAppManagerServer(
 	m *installer.AppManager,
 	r installer.AppRepository,
 	reconciler tasks.Reconciler,
+	h installer.HelmReleaseMonitor,
 ) *AppManagerServer {
 	return &AppManagerServer{
 		port,
 		m,
 		r,
 		reconciler,
+		h,
+		map[string]tasks.Task{},
 	}
 }
 
@@ -107,7 +112,7 @@ func (s *AppManagerServer) handleInstance(c echo.Context) error {
 	if err != nil {
 		return err
 	}
-	return c.JSON(http.StatusOK, app{a.Name(), a.Icon(), a.Description(), a.Slug(), []installer.AppInstanceConfig{instance}})
+	return c.JSON(http.StatusOK, app{a.Name(), a.Icon(), a.Description(), a.Slug(), []installer.AppInstanceConfig{*instance}})
 }
 
 func (s *AppManagerServer) handleAppInstall(c echo.Context) error {
@@ -139,13 +144,22 @@ func (s *AppManagerServer) handleAppInstall(c echo.Context) error {
 	instanceId := a.Slug() + suffix
 	appDir := fmt.Sprintf("/apps/%s", instanceId)
 	namespace := fmt.Sprintf("%s%s%s", env.NamespacePrefix, a.Namespace(), suffix)
-	if err := s.m.Install(a, instanceId, appDir, namespace, values); err != nil {
-		log.Printf("%s\n", err.Error())
+	rr, err := s.m.Install(a, instanceId, appDir, namespace, values)
+	if err != nil {
 		return err
 	}
 	ctx, _ := context.WithTimeout(context.Background(), 2*time.Minute)
 	go s.reconciler.Reconcile(ctx)
-	return c.String(http.StatusOK, "Installed")
+	if _, ok := s.tasks[instanceId]; ok {
+		panic("MUST NOT REACH!")
+	}
+	t := tasks.NewMonitorRelease(s.h, rr)
+	t.OnDone(func(err error) {
+		delete(s.tasks, instanceId)
+	})
+	s.tasks[instanceId] = t
+	go t.Start()
+	return c.String(http.StatusOK, fmt.Sprintf("/instance/%s", instanceId))
 }
 
 func (s *AppManagerServer) handleAppUpdate(c echo.Context) error {
@@ -166,13 +180,22 @@ func (s *AppManagerServer) handleAppUpdate(c echo.Context) error {
 	if err != nil {
 		return err
 	}
-	if err := s.m.Update(a, slug, values); err != nil {
-		fmt.Println(err)
+	if _, ok := s.tasks[slug]; ok {
+		return fmt.Errorf("Update already in progress")
+	}
+	rr, err := s.m.Update(a, slug, values)
+	if err != nil {
 		return err
 	}
 	ctx, _ := context.WithTimeout(context.Background(), 2*time.Minute)
 	go s.reconciler.Reconcile(ctx)
-	return c.String(http.StatusOK, "Installed")
+	t := tasks.NewMonitorRelease(s.h, rr)
+	t.OnDone(func(err error) {
+		delete(s.tasks, slug)
+	})
+	s.tasks[slug] = t
+	go t.Start()
+	return c.String(http.StatusOK, fmt.Sprintf("/instance/%s", slug))
 }
 
 func (s *AppManagerServer) handleAppRemove(c echo.Context) error {
@@ -182,7 +205,7 @@ func (s *AppManagerServer) handleAppRemove(c echo.Context) error {
 	}
 	ctx, _ := context.WithTimeout(context.Background(), 2*time.Minute)
 	go s.reconciler.Reconcile(ctx)
-	return c.String(http.StatusOK, "Installed")
+	return c.String(http.StatusOK, "/")
 }
 
 func (s *AppManagerServer) handleIndex(c echo.Context) error {
@@ -206,6 +229,7 @@ type appContext struct {
 	Instance          *installer.AppInstanceConfig
 	Instances         []installer.AppInstanceConfig
 	AvailableNetworks []installer.Network
+	Task              tasks.Task
 }
 
 func (s *AppManagerServer) handleAppUI(c echo.Context) error {
@@ -265,11 +289,13 @@ func (s *AppManagerServer) handleInstanceUI(c echo.Context) error {
 	if err != nil {
 		return err
 	}
+	t := s.tasks[slug]
 	err = appTmpl.Execute(c.Response(), appContext{
 		App:               a,
-		Instance:          &instance,
+		Instance:          instance,
 		Instances:         instances,
 		AvailableNetworks: installer.CreateNetworks(global),
+		Task:              t,
 	})
 	return err
 }

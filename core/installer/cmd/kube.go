@@ -11,3 +11,7 @@ func newNSCreator() (installer.NamespaceCreator, error) {
 func newZoneFetcher() (installer.ZoneStatusFetcher, error) {
 	return installer.NewZoneStatusFetcher(rootFlags.kubeConfig)
 }
+
+func newHelmReleaseMonitor() (installer.HelmReleaseMonitor, error) {
+	return installer.NewHelmReleaseMonitor(rootFlags.kubeConfig)
+}

@@ -84,7 +84,7 @@ func rewriteCmdRun(cmd *cobra.Command, args []string) error {
 			return err
 		}
 		v := inst.InputToValues(app.Schema())
-		if err := mgr.Update(app, inst.Id, v, soft.WithNoCommit()); err != nil {
+		if _, err := mgr.Update(app, inst.Id, v, soft.WithNoCommit()); err != nil {
 			return err
 		}
 	}

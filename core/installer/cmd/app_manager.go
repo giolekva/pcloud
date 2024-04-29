@@ -104,6 +104,10 @@ func appManagerCmdRun(cmd *cobra.Command, args []string) error {
 	} else {
 		r = installer.NewInMemoryAppRepository(installer.CreateStoreApps())
 	}
+	helmMon, err := newHelmReleaseMonitor()
+	if err != nil {
+		return err
+	}
 	s := welcome.NewAppManagerServer(
 		appManagerFlags.port,
 		m,
@@ -112,6 +116,7 @@ func appManagerCmdRun(cmd *cobra.Command, args []string) error {
 			"http://fluxcd-reconciler.dodo-fluxcd-reconciler.svc.cluster.local",
 			env.Id,
 		),
+		helmMon,
 	)
 	return s.Start()
 }

@@ -3,6 +3,7 @@ package installer
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
@@ -10,6 +11,8 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
@@ -74,6 +77,45 @@ func NewNamespaceCreator(kubeconfig string) (NamespaceCreator, error) {
 
 func NewZoneStatusFetcher(kubeconfig string) (ZoneStatusFetcher, error) {
 	return &realZoneStatusFetcher{}, nil
+}
+
+type HelmReleaseMonitor interface {
+	IsReleased(namespace, name string) (bool, error)
+}
+
+type realHelmReleaseMonitor struct {
+	d dynamic.Interface
+}
+
+func (m *realHelmReleaseMonitor) IsReleased(namespace, name string) (bool, error) {
+	ctx := context.Background()
+	res, err := m.d.Resource(schema.GroupVersionResource{"helm.toolkit.fluxcd.io", "v2beta1", "helmreleases"}).Namespace(namespace).Get(ctx, name, metav1.GetOptions{})
+	if err != nil {
+		return false, err
+	}
+	b, err := res.MarshalJSON()
+	if err != nil {
+		return false, err
+	}
+	var hr helmRelease
+	if err := json.Unmarshal(b, &hr); err != nil {
+		return false, err
+	}
+	for _, c := range hr.Status.Conditions {
+		if c.Type == "Ready" && c.Status == "True" {
+			return true, nil
+		}
+	}
+	return false, nil
+}
+
+func NewHelmReleaseMonitor(kubeconfig string) (HelmReleaseMonitor, error) {
+	c, err := NewKubeConfig(kubeconfig)
+	if err != nil {
+		return nil, err
+	}
+	d := dynamic.New(c.RESTClient())
+	return &realHelmReleaseMonitor{d}, nil
 }
 
 func NewKubeConfig(kubeconfig string) (*kubernetes.Clientset, error) {

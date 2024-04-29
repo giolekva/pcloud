@@ -49,7 +49,7 @@ func SetupDNSServer(env installer.EnvConfig, st *state) Task {
 			instanceId := app.Slug()
 			appDir := fmt.Sprintf("/apps/%s", instanceId)
 			namespace := fmt.Sprintf("%s%s", env.NamespacePrefix, app.Namespace())
-			if err := st.appManager.Install(app, instanceId, appDir, namespace, map[string]any{
+			if _, err := st.appManager.Install(app, instanceId, appDir, namespace, map[string]any{
 				"addressPool":  addressPool,
 				"inClusterIP":  env.Network.DNSInClusterIP.String(),
 				"publicIP":     join(env.PublicIP, ","),
@@ -84,7 +84,7 @@ func SetupDNSServer(env installer.EnvConfig, st *state) Task {
 				env.Domain,
 				env.Network.DNSInClusterIP.String(),
 			})
-			if err := st.infraAppManager.Update(app, "dns-gateway", map[string]any{
+			if _, err := st.infraAppManager.Update(app, "dns-gateway", map[string]any{
 				"servers": servers,
 			}); err != nil {
 				return err

@@ -205,7 +205,7 @@ func TestCreateNewEnv(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if err := infraMgr.Install(app, "/infrastructure/dns-gateway", "dns-gateway", map[string]any{
+		if _, err := infraMgr.Install(app, "/infrastructure/dns-gateway", "dns-gateway", map[string]any{
 			"servers": []installer.EnvDNS{},
 		}); err != nil {
 			t.Fatal(err)

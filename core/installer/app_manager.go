@@ -12,10 +12,14 @@ import (
 
 	"github.com/giolekva/pcloud/core/installer/io"
 	"github.com/giolekva/pcloud/core/installer/soft"
+
+	"sigs.k8s.io/yaml"
 )
 
 const configFileName = "config.yaml"
 const kustomizationFileName = "kustomization.yaml"
+
+var ErrorNotFound = errors.New("not found")
 
 type AppManager struct {
 	repoIO     soft.RepoIO
@@ -85,22 +89,22 @@ func (m *AppManager) FindAllAppInstances(name string) ([]AppInstanceConfig, erro
 	return ret, nil
 }
 
-func (m *AppManager) FindInstance(id string) (AppInstanceConfig, error) {
+func (m *AppManager) FindInstance(id string) (*AppInstanceConfig, error) {
 	kust, err := soft.ReadKustomization(m.repoIO, filepath.Join(m.appDirRoot, "kustomization.yaml"))
 	if err != nil {
-		return AppInstanceConfig{}, err
+		return nil, err
 	}
 	for _, app := range kust.Resources {
 		if app == id {
 			cfg, err := m.appConfig(filepath.Join(m.appDirRoot, app, "config.json"))
 			if err != nil {
-				return AppInstanceConfig{}, err
+				return nil, err
 			}
 			cfg.Id = id
-			return cfg, nil
+			return &cfg, nil
 		}
 	}
-	return AppInstanceConfig{}, nil
+	return nil, ErrorNotFound
 }
 
 func (m *AppManager) AppConfig(name string) (AppInstanceConfig, error) {
@@ -163,6 +167,15 @@ func createKustomizationChain(r soft.RepoFS, path string) error {
 	return nil
 }
 
+type Resource struct {
+	Name      string `json:"name"`
+	Namespace string `json:"namespace"`
+}
+
+type ReleaseResources struct {
+	Helm []Resource
+}
+
 // TODO(gio): rename to CommitApp
 func InstallApp(
 	repo soft.RepoIO,
@@ -172,11 +185,12 @@ func InstallApp(
 	ports []PortForward,
 	resources CueAppData,
 	data CueAppData,
-	opts ...soft.DoOption) error {
+	opts ...soft.DoOption,
+) (ReleaseResources, error) {
 	// if err := openPorts(rendered.Ports); err != nil {
 	// 	return err
 	// }
-	return repo.Do(func(r soft.RepoFS) (string, error) {
+	return ReleaseResources{}, repo.Do(func(r soft.RepoFS) (string, error) {
 		if err := r.RemoveDir(appDir); err != nil {
 			return "", err
 		}
@@ -230,17 +244,17 @@ func InstallApp(
 }
 
 // TODO(gio): commit instanceId -> appDir mapping as well
-func (m *AppManager) Install(app EnvApp, instanceId string, appDir string, namespace string, values map[string]any) error {
+func (m *AppManager) Install(app EnvApp, instanceId string, appDir string, namespace string, values map[string]any) (ReleaseResources, error) {
 	appDir = filepath.Clean(appDir)
 	if err := m.repoIO.Pull(); err != nil {
-		return err
+		return ReleaseResources{}, err
 	}
 	if err := m.nsCreator.Create(namespace); err != nil {
-		return err
+		return ReleaseResources{}, err
 	}
 	env, err := m.Config()
 	if err != nil {
-		return err
+		return ReleaseResources{}, err
 	}
 	release := Release{
 		AppInstanceId: instanceId,
@@ -250,24 +264,51 @@ func (m *AppManager) Install(app EnvApp, instanceId string, appDir string, names
 	}
 	rendered, err := app.Render(release, env, values)
 	if err != nil {
-		return err
+		return ReleaseResources{}, err
 	}
-	return InstallApp(m.repoIO, appDir, rendered.Name, rendered.Config, rendered.Ports, rendered.Resources, rendered.Data)
+	if _, err := InstallApp(m.repoIO, appDir, rendered.Name, rendered.Config, rendered.Ports, rendered.Resources, rendered.Data); err != nil {
+		return ReleaseResources{}, err
+	}
+	return ReleaseResources{
+		Helm: extractHelm(rendered.Resources),
+	}, nil
 }
 
-func (m *AppManager) Update(app EnvApp, instanceId string, values map[string]any, opts ...soft.DoOption) error {
+type helmRelease struct {
+	Metadata Resource `json:"metadata"`
+	Status   struct {
+		Conditions []struct {
+			Type   string `json:"type"`
+			Status string `json:"status"`
+		} `json:"conditions"`
+	} `json:"status,omitempty"`
+}
+
+func extractHelm(resources CueAppData) []Resource {
+	ret := make([]Resource, 0, len(resources))
+	for _, contents := range resources {
+		var h helmRelease
+		if err := yaml.Unmarshal(contents, &h); err != nil {
+			panic(err) // TODO(gio): handle
+		}
+		ret = append(ret, h.Metadata)
+	}
+	return ret
+}
+
+func (m *AppManager) Update(app EnvApp, instanceId string, values map[string]any, opts ...soft.DoOption) (ReleaseResources, error) {
 	if err := m.repoIO.Pull(); err != nil {
-		return err
+		return ReleaseResources{}, err
 	}
 	env, err := m.Config()
 	if err != nil {
-		return err
+		return ReleaseResources{}, err
 	}
 	instanceDir := filepath.Join(m.appDirRoot, instanceId)
 	instanceConfigPath := filepath.Join(instanceDir, "config.json")
 	config, err := m.appConfig(instanceConfigPath)
 	if err != nil {
-		return err
+		return ReleaseResources{}, err
 	}
 	release := Release{
 		AppInstanceId: instanceId,
@@ -277,7 +318,7 @@ func (m *AppManager) Update(app EnvApp, instanceId string, values map[string]any
 	}
 	rendered, err := app.Render(release, env, values)
 	if err != nil {
-		return err
+		return ReleaseResources{}, err
 	}
 	return InstallApp(m.repoIO, instanceDir, rendered.Name, rendered.Config, rendered.Ports, rendered.Resources, rendered.Data, opts...)
 }
@@ -368,17 +409,17 @@ func (m *InfraAppManager) FindInstance(id string) (InfraAppInstanceConfig, error
 	return InfraAppInstanceConfig{}, nil
 }
 
-func (m *InfraAppManager) Install(app InfraApp, appDir string, namespace string, values map[string]any) error {
+func (m *InfraAppManager) Install(app InfraApp, appDir string, namespace string, values map[string]any) (ReleaseResources, error) {
 	appDir = filepath.Clean(appDir)
 	if err := m.repoIO.Pull(); err != nil {
-		return err
+		return ReleaseResources{}, err
 	}
 	if err := m.nsCreator.Create(namespace); err != nil {
-		return err
+		return ReleaseResources{}, err
 	}
 	infra, err := m.Config()
 	if err != nil {
-		return err
+		return ReleaseResources{}, err
 	}
 	release := Release{
 		Namespace: namespace,
@@ -387,24 +428,24 @@ func (m *InfraAppManager) Install(app InfraApp, appDir string, namespace string,
 	}
 	rendered, err := app.Render(release, infra, values)
 	if err != nil {
-		return err
+		return ReleaseResources{}, err
 	}
 	return InstallApp(m.repoIO, appDir, rendered.Name, rendered.Config, rendered.Ports, rendered.Resources, rendered.Data)
 }
 
-func (m *InfraAppManager) Update(app InfraApp, instanceId string, values map[string]any, opts ...soft.DoOption) error {
+func (m *InfraAppManager) Update(app InfraApp, instanceId string, values map[string]any, opts ...soft.DoOption) (ReleaseResources, error) {
 	if err := m.repoIO.Pull(); err != nil {
-		return err
+		return ReleaseResources{}, err
 	}
 	env, err := m.Config()
 	if err != nil {
-		return err
+		return ReleaseResources{}, err
 	}
 	instanceDir := filepath.Join("/infrastructure", instanceId)
 	instanceConfigPath := filepath.Join(instanceDir, "config.json")
 	config, err := m.appConfig(instanceConfigPath)
 	if err != nil {
-		return err
+		return ReleaseResources{}, err
 	}
 	release := Release{
 		AppInstanceId: instanceId,
@@ -414,7 +455,7 @@ func (m *InfraAppManager) Update(app InfraApp, instanceId string, values map[str
 	}
 	rendered, err := app.Render(release, env, values)
 	if err != nil {
-		return err
+		return ReleaseResources{}, err
 	}
 	return InstallApp(m.repoIO, instanceDir, rendered.Name, rendered.Config, rendered.Ports, rendered.Resources, rendered.Data, opts...)
 }

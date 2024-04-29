@@ -418,7 +418,8 @@ func (b Bootstrapper) installInfrastructureServices(mgr *InfraAppManager, env Bo
 		}
 		namespace := fmt.Sprintf("%s-%s", env.InfraName, app.Namespace())
 		appDir := filepath.Join("/infrastructure", app.Slug())
-		return mgr.Install(app, appDir, namespace, map[string]any{})
+		_, err = mgr.Install(app, appDir, namespace, map[string]any{})
+		return err
 	}
 	appsToInstall := []string{
 		"resource-renderer-controller",
@@ -512,12 +513,13 @@ func (b Bootstrapper) installEnvManager(mgr *InfraAppManager, ss soft.Client, en
 	}
 	namespace := fmt.Sprintf("%s-%s", env.InfraName, app.Namespace())
 	appDir := filepath.Join("/infrastructure", app.Slug())
-	return mgr.Install(app, appDir, namespace, map[string]any{
+	_, err = mgr.Install(app, appDir, namespace, map[string]any{
 		"repoIP":        env.ServiceIPs.ConfigRepo,
 		"repoPort":      22,
 		"repoName":      "config",
 		"sshPrivateKey": string(keys.RawPrivateKey()),
 	})
+	return err
 }
 
 func (b Bootstrapper) installIngressPublic(mgr *InfraAppManager, ss soft.Client, env BootstrapConfig) error {
@@ -538,9 +540,10 @@ func (b Bootstrapper) installIngressPublic(mgr *InfraAppManager, ss soft.Client,
 	}
 	namespace := fmt.Sprintf("%s-%s", env.InfraName, app.Namespace())
 	appDir := filepath.Join("/infrastructure", app.Slug())
-	return mgr.Install(app, appDir, namespace, map[string]any{
+	_, err = mgr.Install(app, appDir, namespace, map[string]any{
 		"sshPrivateKey": string(keys.RawPrivateKey()),
 	})
+	return err
 }
 
 func (b Bootstrapper) installOryHydraMaester(mgr *InfraAppManager, env BootstrapConfig) error {
@@ -550,7 +553,8 @@ func (b Bootstrapper) installOryHydraMaester(mgr *InfraAppManager, env Bootstrap
 	}
 	namespace := fmt.Sprintf("%s-%s", env.InfraName, app.Namespace())
 	appDir := filepath.Join("/infrastructure", app.Slug())
-	return mgr.Install(app, appDir, namespace, map[string]any{})
+	_, err = mgr.Install(app, appDir, namespace, map[string]any{})
+	return err
 }
 
 func (b Bootstrapper) installDNSZoneManager(mgr *InfraAppManager, env BootstrapConfig) error {
@@ -560,9 +564,10 @@ func (b Bootstrapper) installDNSZoneManager(mgr *InfraAppManager, env BootstrapC
 	}
 	namespace := fmt.Sprintf("%s-%s", env.InfraName, app.Namespace())
 	appDir := filepath.Join("/infrastructure", app.Slug())
-	return mgr.Install(app, appDir, namespace, map[string]any{
+	_, err = mgr.Install(app, appDir, namespace, map[string]any{
 		"servers": []EnvDNS{},
 	})
+	return err
 }
 
 func (b Bootstrapper) installFluxcdReconciler(mgr *InfraAppManager, ss soft.Client, env BootstrapConfig) error {
@@ -572,7 +577,8 @@ func (b Bootstrapper) installFluxcdReconciler(mgr *InfraAppManager, ss soft.Clie
 	}
 	namespace := fmt.Sprintf("%s-%s", env.InfraName, app.Namespace())
 	appDir := filepath.Join("/infrastructure", app.Slug())
-	return mgr.Install(app, appDir, namespace, map[string]any{})
+	_, err = mgr.Install(app, appDir, namespace, map[string]any{})
+	return err
 }
 
 type HelmActionConfigFactory interface {

@@ -125,7 +125,7 @@ func SetupNetwork(env installer.EnvConfig, st *state) Task {
 				instanceId := fmt.Sprintf("%s-ingress-private", app.Slug())
 				appDir := fmt.Sprintf("/apps/%s", instanceId)
 				namespace := fmt.Sprintf("%s%s-ingress-private", env.NamespacePrefix, app.Namespace())
-				if err := st.appManager.Install(app, instanceId, appDir, namespace, map[string]any{
+				if _, err := st.appManager.Install(app, instanceId, appDir, namespace, map[string]any{
 					"name":       fmt.Sprintf("%s-ingress-private", env.Id),
 					"from":       env.Network.Ingress.String(),
 					"to":         env.Network.Ingress.String(),
@@ -139,7 +139,7 @@ func SetupNetwork(env installer.EnvConfig, st *state) Task {
 				instanceId := fmt.Sprintf("%s-headscale", app.Slug())
 				appDir := fmt.Sprintf("/apps/%s", instanceId)
 				namespace := fmt.Sprintf("%s%s-ingress-private", env.NamespacePrefix, app.Namespace())
-				if err := st.appManager.Install(app, instanceId, appDir, namespace, map[string]any{
+				if _, err := st.appManager.Install(app, instanceId, appDir, namespace, map[string]any{
 					"name":       fmt.Sprintf("%s-headscale", env.Id),
 					"from":       env.Network.Headscale.String(),
 					"to":         env.Network.Headscale.String(),
@@ -153,7 +153,7 @@ func SetupNetwork(env installer.EnvConfig, st *state) Task {
 				instanceId := app.Slug()
 				appDir := fmt.Sprintf("/apps/%s", instanceId)
 				namespace := fmt.Sprintf("%s%s", env.NamespacePrefix, app.Namespace())
-				if err := st.appManager.Install(app, instanceId, appDir, namespace, map[string]any{
+				if _, err := st.appManager.Install(app, instanceId, appDir, namespace, map[string]any{
 					"name":       env.Id,
 					"from":       env.Network.ServicesFrom.String(),
 					"to":         env.Network.ServicesTo.String(),
@@ -183,7 +183,7 @@ func SetupNetwork(env installer.EnvConfig, st *state) Task {
 			instanceId := app.Slug()
 			appDir := fmt.Sprintf("/apps/%s", instanceId)
 			namespace := fmt.Sprintf("%s%s", env.NamespacePrefix, app.Namespace())
-			if err := st.appManager.Install(app, instanceId, appDir, namespace, map[string]any{
+			if _, err := st.appManager.Install(app, instanceId, appDir, namespace, map[string]any{
 				"privateNetwork": map[string]any{
 					"hostname": "private-network-proxy",
 					"username": "private-network-proxy",
@@ -208,7 +208,7 @@ func SetupCertificateIssuers(env installer.EnvConfig, st *state) Task {
 		instanceId := app.Slug()
 		appDir := fmt.Sprintf("/apps/%s", instanceId)
 		namespace := fmt.Sprintf("%s%s", env.NamespacePrefix, app.Namespace())
-		if err := st.appManager.Install(app, instanceId, appDir, namespace, map[string]any{}); err != nil {
+		if _, err := st.appManager.Install(app, instanceId, appDir, namespace, map[string]any{}); err != nil {
 			return err
 		}
 		return nil
@@ -221,7 +221,7 @@ func SetupCertificateIssuers(env installer.EnvConfig, st *state) Task {
 		instanceId := app.Slug()
 		appDir := fmt.Sprintf("/apps/%s", instanceId)
 		namespace := fmt.Sprintf("%s%s", env.NamespacePrefix, app.Namespace())
-		if err := st.appManager.Install(app, instanceId, appDir, namespace, map[string]any{}); err != nil {
+		if _, err := st.appManager.Install(app, instanceId, appDir, namespace, map[string]any{}); err != nil {
 			return err
 		}
 		return nil
@@ -238,7 +238,7 @@ func SetupAuth(env installer.EnvConfig, st *state) Task {
 		instanceId := app.Slug()
 		appDir := fmt.Sprintf("/apps/%s", instanceId)
 		namespace := fmt.Sprintf("%s%s", env.NamespacePrefix, app.Namespace())
-		if err := st.appManager.Install(app, instanceId, appDir, namespace, map[string]any{
+		if _, err := st.appManager.Install(app, instanceId, appDir, namespace, map[string]any{
 			"subdomain": "test", // TODO(giolekva): make core-auth chart actually use this
 		}); err != nil {
 			return err
@@ -262,7 +262,7 @@ func SetupGroupMemberships(env installer.EnvConfig, st *state) Task {
 		instanceId := app.Slug()
 		appDir := fmt.Sprintf("/apps/%s", instanceId)
 		namespace := fmt.Sprintf("%s%s", env.NamespacePrefix, app.Namespace())
-		if err := st.appManager.Install(app, instanceId, appDir, namespace, map[string]any{
+		if _, err := st.appManager.Install(app, instanceId, appDir, namespace, map[string]any{
 			"authGroups": strings.Join(initGroups, ","),
 		}); err != nil {
 			return err
@@ -286,7 +286,7 @@ func SetupHeadscale(env installer.EnvConfig, st *state) Task {
 		instanceId := app.Slug()
 		appDir := fmt.Sprintf("/apps/%s", instanceId)
 		namespace := fmt.Sprintf("%s%s", env.NamespacePrefix, app.Namespace())
-		if err := st.appManager.Install(app, instanceId, appDir, namespace, map[string]any{
+		if _, err := st.appManager.Install(app, instanceId, appDir, namespace, map[string]any{
 			"subdomain": "headscale",
 			"ipSubnet":  fmt.Sprintf("%s/24", env.Network.DNS.String()),
 		}); err != nil {
@@ -322,7 +322,7 @@ func SetupWelcome(env installer.EnvConfig, st *state) Task {
 		instanceId := app.Slug()
 		appDir := fmt.Sprintf("/apps/%s", instanceId)
 		namespace := fmt.Sprintf("%s%s", env.NamespacePrefix, app.Namespace())
-		if err := st.appManager.Install(app, instanceId, appDir, namespace, map[string]any{
+		if _, err := st.appManager.Install(app, instanceId, appDir, namespace, map[string]any{
 			"repoAddr":      st.ssClient.GetRepoAddress("config"),
 			"sshPrivateKey": string(keys.RawPrivateKey()),
 		}); err != nil {
@@ -358,7 +358,7 @@ func SetupAppStore(env installer.EnvConfig, st *state) Task {
 		instanceId := app.Slug()
 		appDir := fmt.Sprintf("/apps/%s", instanceId)
 		namespace := fmt.Sprintf("%s%s", env.NamespacePrefix, app.Namespace())
-		if err := st.appManager.Install(app, instanceId, appDir, namespace, map[string]any{
+		if _, err := st.appManager.Install(app, instanceId, appDir, namespace, map[string]any{
 			"repoAddr":      st.ssClient.GetRepoAddress("config"),
 			"sshPrivateKey": string(keys.RawPrivateKey()),
 			"authGroups":    strings.Join(initGroups, ","),
@@ -390,7 +390,7 @@ func SetupLauncher(env installer.EnvConfig, st *state) Task {
 		instanceId := app.Name()
 		appDir := fmt.Sprintf("/apps/%s", instanceId)
 		namespace := fmt.Sprintf("%s%s", env.NamespacePrefix, app.Namespace())
-		if err := st.appManager.Install(app, instanceId, appDir, namespace, map[string]any{
+		if _, err := st.appManager.Install(app, instanceId, appDir, namespace, map[string]any{
 			"repoAddr":      st.ssClient.GetRepoAddress("config"),
 			"sshPrivateKey": string(keys.RawPrivateKey()),
 		}); err != nil {

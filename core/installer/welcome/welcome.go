@@ -226,7 +226,7 @@ func (s *Server) createAccount(w http.ResponseWriter, r *http.Request) {
 			instanceId := fmt.Sprintf("%s-%s", app.Slug(), req.Username)
 			appDir := fmt.Sprintf("/apps/%s", instanceId)
 			namespace := fmt.Sprintf("%s%s", env.NamespacePrefix, app.Namespace())
-			if err := appManager.Install(app, instanceId, appDir, namespace, map[string]any{
+			if _, err := appManager.Install(app, instanceId, appDir, namespace, map[string]any{
 				"username": req.Username,
 				"preAuthKey": map[string]any{
 					"enabled": false,
