@@ -5,7 +5,7 @@ input: {
 _subdomain: "memberships"
 _domain: "\(_subdomain).\(global.privateDomain)"
 
-name: "memberships"
+name: "Memberships"
 namespace: "core-auth-memberships"
 readme: "Memberships application will be installed on Private network and be accessible at https://\(_domain)"
 description: "The application is a membership management system designed to facilitate the organization and administration of groups and memberships. Can be configured to be reachable only from private network or publicly."

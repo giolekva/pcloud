@@ -223,7 +223,7 @@ func (s *Server) createAccount(w http.ResponseWriter, r *http.Request) {
 				http.Error(w, err.Error(), http.StatusInternalServerError)
 				return
 			}
-			instanceId := fmt.Sprintf("%s-%s", app.Name(), req.Username)
+			instanceId := fmt.Sprintf("%s-%s", app.Slug(), req.Username)
 			appDir := fmt.Sprintf("/apps/%s", instanceId)
 			namespace := fmt.Sprintf("%s%s", env.NamespacePrefix, app.Namespace())
 			if err := appManager.Install(app, instanceId, appDir, namespace, map[string]any{

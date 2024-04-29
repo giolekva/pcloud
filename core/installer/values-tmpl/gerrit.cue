@@ -1,13 +1,13 @@
 input: {
-	network: #Network
-	subdomain: string
+	network: #Network @name(Network)
+	subdomain: string @name(Subdomain)
 	key: #SSHKey
-	sshPort: int
+	sshPort: int @name(SSH Port)
 }
 
 _domain: "\(input.subdomain).\(input.network.domain)"
 
-name: "gerrit"
+name: "Gerrit"
 namespace: "app-gerrit"
 readme: "gerrit"
 description: "Gerrit Code Review is a web-based code review tool built on Git version control. Gerrit provides a framework you and your teams can use to review code before it becomes part of the code base. Gerrit works equally well in open source projects that limit the number of users who can approve changes (typical in open source software development) and in projects in which all contributors are trusted."

@@ -50,7 +50,9 @@ func (a AppInstanceConfig) InputToValues(schema Schema) map[string]any {
 
 func deriveValues(values any, schema Schema, networks []Network) (map[string]any, error) {
 	ret := make(map[string]any)
-	for k, def := range schema.Fields() {
+	for _, f := range schema.Fields() {
+		k := f.Name
+		def := f.Schema
 		// TODO(gio): validate that it is map
 		v, ok := values.(map[string]any)[k]
 		// TODO(gio): if missing use default value
@@ -113,7 +115,9 @@ func deriveValues(values any, schema Schema, networks []Network) (map[string]any
 
 func derivedToConfig(derived map[string]any, schema Schema) (map[string]any, error) {
 	ret := make(map[string]any)
-	for k, def := range schema.Fields() {
+	for _, f := range schema.Fields() {
+		k := f.Name
+		def := f.Schema
 		v, ok := derived[k]
 		// TODO(gio): if missing use default value
 		if !ok {

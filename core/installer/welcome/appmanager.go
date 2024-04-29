@@ -52,7 +52,6 @@ func (s *AppManagerServer) Start() error {
 	e := echo.New()
 	e.StaticFS("/static", echo.MustSubFS(staticAssets, "static"))
 	e.GET("/api/app-repo", s.handleAppRepo)
-	e.POST("/api/app/:slug/render", s.handleAppRender)
 	e.POST("/api/app/:slug/install", s.handleAppInstall)
 	e.GET("/api/app/:slug", s.handleApp)
 	e.GET("/api/instance/:slug", s.handleInstance)
@@ -80,7 +79,7 @@ func (s *AppManagerServer) handleAppRepo(c echo.Context) error {
 	}
 	resp := make([]app, len(all))
 	for i, a := range all {
-		resp[i] = app{a.Name(), a.Icon(), a.Description(), a.Name(), nil}
+		resp[i] = app{a.Name(), a.Icon(), a.Description(), a.Slug(), nil}
 	}
 	return c.JSON(http.StatusOK, resp)
 }
@@ -95,7 +94,7 @@ func (s *AppManagerServer) handleApp(c echo.Context) error {
 	if err != nil {
 		return err
 	}
-	return c.JSON(http.StatusOK, app{a.Name(), a.Icon(), a.Description(), a.Name(), instances})
+	return c.JSON(http.StatusOK, app{a.Name(), a.Icon(), a.Description(), a.Slug(), instances})
 }
 
 func (s *AppManagerServer) handleInstance(c echo.Context) error {
@@ -108,50 +107,7 @@ func (s *AppManagerServer) handleInstance(c echo.Context) error {
 	if err != nil {
 		return err
 	}
-	return c.JSON(http.StatusOK, app{a.Name(), a.Icon(), a.Description(), a.Name(), []installer.AppInstanceConfig{instance}})
-}
-
-type file struct {
-	Name     string `json:"name"`
-	Contents string `json:"contents"`
-}
-
-type rendered struct {
-	Readme string `json:"readme"`
-}
-
-func (s *AppManagerServer) handleAppRender(c echo.Context) error {
-	slug := c.Param("slug")
-	contents, err := ioutil.ReadAll(c.Request().Body)
-	if err != nil {
-		return err
-	}
-	env, err := s.m.Config()
-	if err != nil {
-		return err
-	}
-	var values map[string]any
-	if err := json.Unmarshal(contents, &values); err != nil {
-		return err
-	}
-	a, err := installer.FindEnvApp(s.r, slug)
-	if err != nil {
-		return err
-	}
-	r, err := a.Render(installer.Release{}, env, values)
-	if err != nil {
-		return err
-	}
-	var resp rendered
-	resp.Readme = r.Readme
-	out, err := json.Marshal(resp)
-	if err != nil {
-		return err
-	}
-	if _, err := c.Response().Writer.Write(out); err != nil {
-		return err
-	}
-	return nil
+	return c.JSON(http.StatusOK, app{a.Name(), a.Icon(), a.Description(), a.Slug(), []installer.AppInstanceConfig{instance}})
 }
 
 func (s *AppManagerServer) handleAppInstall(c echo.Context) error {
@@ -180,7 +136,7 @@ func (s *AppManagerServer) handleAppInstall(c echo.Context) error {
 	if err != nil {
 		return err
 	}
-	instanceId := a.Name() + suffix
+	instanceId := a.Slug() + suffix
 	appDir := fmt.Sprintf("/apps/%s", instanceId)
 	namespace := fmt.Sprintf("%s%s%s", env.NamespacePrefix, a.Namespace(), suffix)
 	if err := s.m.Install(a, instanceId, appDir, namespace, values); err != nil {
@@ -240,7 +196,7 @@ func (s *AppManagerServer) handleIndex(c echo.Context) error {
 	}
 	resp := make([]app, len(all))
 	for i, a := range all {
-		resp[i] = app{a.Name(), a.Icon(), a.Description(), a.Name(), nil}
+		resp[i] = app{a.Name(), a.Icon(), a.Description(), a.Slug(), nil}
 	}
 	return tmpl.Execute(c.Response(), resp)
 }
@@ -305,7 +261,7 @@ func (s *AppManagerServer) handleInstanceUI(c echo.Context) error {
 	if err != nil {
 		return err
 	}
-	instances, err := s.m.FindAllAppInstances(a.Name())
+	instances, err := s.m.FindAllAppInstances(a.Slug())
 	if err != nil {
 		return err
 	}

@@ -8,7 +8,7 @@ input: {
 	authGroups: string
 }
 
-name: "app-manager"
+name: "App Manager"
 namespace: "appmanager"
 
 _subdomain: "apps"

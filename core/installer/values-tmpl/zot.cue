@@ -3,13 +3,13 @@ import (
 )
 
 input: {
-	network: #Network
-	subdomain: string
+    network: #Network @name(Network)
+    subdomain: string @name(Subdomain)
 }
 
 _domain: "\(input.subdomain).\(input.network.domain)"
 
-name: "zot"
+name: "Zot"
 namespace: "app-zot"
 readme: "OCI-native container image registry, simplified"
 description: "OCI-native container image registry, simplified"

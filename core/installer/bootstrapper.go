@@ -417,7 +417,7 @@ func (b Bootstrapper) installInfrastructureServices(mgr *InfraAppManager, env Bo
 			return err
 		}
 		namespace := fmt.Sprintf("%s-%s", env.InfraName, app.Namespace())
-		appDir := filepath.Join("/infrastructure", app.Name())
+		appDir := filepath.Join("/infrastructure", app.Slug())
 		return mgr.Install(app, appDir, namespace, map[string]any{})
 	}
 	appsToInstall := []string{
@@ -511,7 +511,7 @@ func (b Bootstrapper) installEnvManager(mgr *InfraAppManager, ss soft.Client, en
 		return err
 	}
 	namespace := fmt.Sprintf("%s-%s", env.InfraName, app.Namespace())
-	appDir := filepath.Join("/infrastructure", app.Name())
+	appDir := filepath.Join("/infrastructure", app.Slug())
 	return mgr.Install(app, appDir, namespace, map[string]any{
 		"repoIP":        env.ServiceIPs.ConfigRepo,
 		"repoPort":      22,
@@ -537,7 +537,7 @@ func (b Bootstrapper) installIngressPublic(mgr *InfraAppManager, ss soft.Client,
 		return err
 	}
 	namespace := fmt.Sprintf("%s-%s", env.InfraName, app.Namespace())
-	appDir := filepath.Join("/infrastructure", app.Name())
+	appDir := filepath.Join("/infrastructure", app.Slug())
 	return mgr.Install(app, appDir, namespace, map[string]any{
 		"sshPrivateKey": string(keys.RawPrivateKey()),
 	})
@@ -549,7 +549,7 @@ func (b Bootstrapper) installOryHydraMaester(mgr *InfraAppManager, env Bootstrap
 		return err
 	}
 	namespace := fmt.Sprintf("%s-%s", env.InfraName, app.Namespace())
-	appDir := filepath.Join("/infrastructure", app.Name())
+	appDir := filepath.Join("/infrastructure", app.Slug())
 	return mgr.Install(app, appDir, namespace, map[string]any{})
 }
 
@@ -559,7 +559,7 @@ func (b Bootstrapper) installDNSZoneManager(mgr *InfraAppManager, env BootstrapC
 		return err
 	}
 	namespace := fmt.Sprintf("%s-%s", env.InfraName, app.Namespace())
-	appDir := filepath.Join("/infrastructure", app.Name())
+	appDir := filepath.Join("/infrastructure", app.Slug())
 	return mgr.Install(app, appDir, namespace, map[string]any{
 		"servers": []EnvDNS{},
 	})
@@ -571,7 +571,7 @@ func (b Bootstrapper) installFluxcdReconciler(mgr *InfraAppManager, ss soft.Clie
 		return err
 	}
 	namespace := fmt.Sprintf("%s-%s", env.InfraName, app.Namespace())
-	appDir := filepath.Join("/infrastructure", app.Name())
+	appDir := filepath.Join("/infrastructure", app.Slug())
 	return mgr.Install(app, appDir, namespace, map[string]any{})
 }
 

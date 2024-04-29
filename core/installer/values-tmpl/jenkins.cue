@@ -1,11 +1,11 @@
 input: {
-	network: #Network
-	subdomain: string
+	network: #Network @name(Network)
+	subdomain: string @name(Subdomain)
 }
 
 _domain: "\(input.subdomain).\(input.network.domain)"
 
-name: "jenkins"
+name: "Jenkins"
 namespace: "app-jenkins"
 readme: "Jenkins CI/CD"
 description: "Build great things at any scale. The leading open source automation server, Jenkins provides hundreds of plugins to support building, deploying and automating any project."

@@ -46,7 +46,7 @@ func SetupDNSServer(env installer.EnvConfig, st *state) Task {
 			if err != nil {
 				return err
 			}
-			instanceId := app.Name()
+			instanceId := app.Slug()
 			appDir := fmt.Sprintf("/apps/%s", instanceId)
 			namespace := fmt.Sprintf("%s%s", env.NamespacePrefix, app.Namespace())
 			if err := st.appManager.Install(app, instanceId, appDir, namespace, map[string]any{

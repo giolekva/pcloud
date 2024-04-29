@@ -1,12 +1,12 @@
 input: {
-    network: #Network
-    subdomain: string
-	auth: #Auth
+    network: #Network @name(Network)
+    subdomain: string @name(Subdomain)
+	auth: #Auth @name(Authentication)
 }
 
 _domain: "\(input.subdomain).\(input.network.domain)"
 
-name: "url-shortener"
+name: "URL Shortener"
 namespace: "app-url-shortener"
 readme: "URL shortener application will be installed on \(input.network.name) network and be accessible at https://\(_domain)"
 description: "Provides URL shortening service. Can be configured to be reachable only from private network or publicly."

@@ -1,12 +1,12 @@
 input: {
-	network: #Network
-	subdomain: string
-	auth: #Auth
+	network: #Network @name(Network)
+	subdomain: string @name(Subdomain)
+	auth: #Auth @name(Authentication)
 }
 
 _domain: "\(input.subdomain).\(input.network.domain)"
 
-name: "rpuppy"
+name: "rPuppy"
 namespace: "app-rpuppy"
 readme: "rpuppy application will be installed on \(input.network.name) network and be accessible to any user on https://\(_domain)"
 description: "Delights users with randomly generate puppy pictures. Can be configured to be reachable only from private network or publicly."

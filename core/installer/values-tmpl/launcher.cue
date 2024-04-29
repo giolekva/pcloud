@@ -10,7 +10,7 @@ input: {
 _subdomain: "launcher"
 _domain: "\(_subdomain).\(networks.public.domain)"
 
-name: "launcher"
+name: "Launcher"
 namespace: "core-installer-welcome-launcher"
 readme: "App Launcher application will be installed on Private or Public network and be accessible at https://\(_domain)"
 description: "The application is a App launcher, designed to run all accessible applications. Can be configured to be reachable only from private network or publicly."

@@ -1,7 +1,7 @@
 input: {
-	network: #Network
-	subdomain: string
-	auth: #Auth
+	network: #Network @name(Network)
+	subdomain: string @name(Subdomain)
+	auth: #Auth @name(Authentication)
 }
 
 _domain: "\(input.subdomain).\(input.network.domain)"

@@ -1,11 +1,11 @@
 input: {
-	network: #Network
-	subdomain: string
+	network: #Network @name(Network)
+	subdomain: string @name(Subdomain)
 }
 
 _domain: "\(input.subdomain).\(input.network.domain)"
 
-name: "qbitorrent"
+name: "qBitorrent"
 namespace: "app-qbittorrent"
 readme: "qbittorrent application will be installed on \(input.network.name) network and be accessible to any user on https://\(_domain)"
 description: "qBittorrent is a cross-platform free and open-source BitTorrent client written in native C++. It relies on Boost, Qt 6 toolkit and the libtorrent-rasterbar library, with an optional search engine written in Python."

@@ -384,8 +384,9 @@ const (
 )
 
 type App interface {
-	Type() AppType
 	Name() string
+	Type() AppType
+	Slug() string
 	Description() string
 	Icon() template.HTML
 	Schema() Schema
@@ -529,7 +530,7 @@ func newCueApp(config cue.Value, data CueAppData) (cueApp, error) {
 	if err := config.Decode(&cfg); err != nil {
 		return cueApp{}, err
 	}
-	schema, err := NewCueSchema(config.LookupPath(cue.ParsePath("input")))
+	schema, err := NewCueSchema("input", config.LookupPath(cue.ParsePath("input")))
 	if err != nil {
 		return cueApp{}, err
 	}
@@ -556,6 +557,10 @@ func (a cueApp) Name() string {
 	return a.name
 }
 
+func (a cueApp) Slug() string {
+	return strings.ReplaceAll(strings.ToLower(a.name), " ", "-")
+}
+
 func (a cueApp) Description() string {
 	return a.description
 }
@@ -574,7 +579,7 @@ func (a cueApp) Namespace() string {
 
 func (a cueApp) render(values map[string]any) (rendered, error) {
 	ret := rendered{
-		Name:      a.Name(),
+		Name:      a.Slug(),
 		Resources: make(CueAppData),
 		Ports:     make([]PortForward, 0),
 		Data:      a.data,
@@ -670,7 +675,7 @@ func (a cueEnvApp) Render(release Release, env EnvConfig, values map[string]any)
 	return EnvAppRendered{
 		rendered: ret,
 		Config: AppInstanceConfig{
-			AppId:   a.Name(),
+			AppId:   a.Slug(),
 			Env:     env,
 			Release: release,
 			Values:  values,
@@ -709,7 +714,7 @@ func (a cueInfraApp) Render(release Release, infra InfraConfig, values map[strin
 	return InfraAppRendered{
 		rendered: ret,
 		Config: InfraAppInstanceConfig{
-			AppId:   a.Name(),
+			AppId:   a.Slug(),
 			Infra:   infra,
 			Release: release,
 			Values:  values,

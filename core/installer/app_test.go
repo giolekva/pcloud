@@ -26,7 +26,7 @@ var env = EnvConfig{
 
 func TestAuthProxyEnabled(t *testing.T) {
 	r := NewInMemoryAppRepository(CreateAllApps())
-	for _, app := range []string{"rpuppy", "Pi-hole", "url-shortener"} {
+	for _, app := range []string{"rpuppy", "pi-hole", "url-shortener"} {
 		a, err := FindEnvApp(r, app)
 		if err != nil {
 			t.Fatal(err)
@@ -57,7 +57,7 @@ func TestAuthProxyEnabled(t *testing.T) {
 
 func TestAuthProxyDisabled(t *testing.T) {
 	r := NewInMemoryAppRepository(CreateAllApps())
-	for _, app := range []string{"rpuppy", "Pi-hole", "url-shortener"} {
+	for _, app := range []string{"rpuppy", "pi-hole", "url-shortener"} {
 		a, err := FindEnvApp(r, app)
 		if err != nil {
 			t.Fatal(err)

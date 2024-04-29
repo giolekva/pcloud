@@ -1,6 +1,6 @@
 input: {
-	subdomain: string
-	adminKey: string
+	subdomain: string @name(Subdomain)
+	adminKey: string @name(Admin SSH Public Key)
 }
 
 _domain: "\(input.subdomain).\(global.privateDomain)"

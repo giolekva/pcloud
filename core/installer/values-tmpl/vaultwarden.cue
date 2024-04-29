@@ -1,6 +1,6 @@
 input: {
-	network: #Network
-	subdomain: string
+    network: #Network @name(Network)
+    subdomain: string @name(Subdomain)
 }
 
 _domain: "\(input.subdomain).\(input.network.domain)"

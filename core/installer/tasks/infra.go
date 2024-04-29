@@ -122,7 +122,7 @@ func SetupNetwork(env installer.EnvConfig, st *state) Task {
 				return err
 			}
 			{
-				instanceId := fmt.Sprintf("%s-ingress-private", app.Name())
+				instanceId := fmt.Sprintf("%s-ingress-private", app.Slug())
 				appDir := fmt.Sprintf("/apps/%s", instanceId)
 				namespace := fmt.Sprintf("%s%s-ingress-private", env.NamespacePrefix, app.Namespace())
 				if err := st.appManager.Install(app, instanceId, appDir, namespace, map[string]any{
@@ -136,7 +136,7 @@ func SetupNetwork(env installer.EnvConfig, st *state) Task {
 				}
 			}
 			{
-				instanceId := fmt.Sprintf("%s-headscale", app.Name())
+				instanceId := fmt.Sprintf("%s-headscale", app.Slug())
 				appDir := fmt.Sprintf("/apps/%s", instanceId)
 				namespace := fmt.Sprintf("%s%s-ingress-private", env.NamespacePrefix, app.Namespace())
 				if err := st.appManager.Install(app, instanceId, appDir, namespace, map[string]any{
@@ -150,7 +150,7 @@ func SetupNetwork(env installer.EnvConfig, st *state) Task {
 				}
 			}
 			{
-				instanceId := app.Name()
+				instanceId := app.Slug()
 				appDir := fmt.Sprintf("/apps/%s", instanceId)
 				namespace := fmt.Sprintf("%s%s", env.NamespacePrefix, app.Namespace())
 				if err := st.appManager.Install(app, instanceId, appDir, namespace, map[string]any{
@@ -180,7 +180,7 @@ func SetupNetwork(env installer.EnvConfig, st *state) Task {
 			if err != nil {
 				return err
 			}
-			instanceId := app.Name()
+			instanceId := app.Slug()
 			appDir := fmt.Sprintf("/apps/%s", instanceId)
 			namespace := fmt.Sprintf("%s%s", env.NamespacePrefix, app.Namespace())
 			if err := st.appManager.Install(app, instanceId, appDir, namespace, map[string]any{
@@ -205,7 +205,7 @@ func SetupCertificateIssuers(env installer.EnvConfig, st *state) Task {
 		if err != nil {
 			return err
 		}
-		instanceId := app.Name()
+		instanceId := app.Slug()
 		appDir := fmt.Sprintf("/apps/%s", instanceId)
 		namespace := fmt.Sprintf("%s%s", env.NamespacePrefix, app.Namespace())
 		if err := st.appManager.Install(app, instanceId, appDir, namespace, map[string]any{}); err != nil {
@@ -218,7 +218,7 @@ func SetupCertificateIssuers(env installer.EnvConfig, st *state) Task {
 		if err != nil {
 			return err
 		}
-		instanceId := app.Name()
+		instanceId := app.Slug()
 		appDir := fmt.Sprintf("/apps/%s", instanceId)
 		namespace := fmt.Sprintf("%s%s", env.NamespacePrefix, app.Namespace())
 		if err := st.appManager.Install(app, instanceId, appDir, namespace, map[string]any{}); err != nil {
@@ -235,7 +235,7 @@ func SetupAuth(env installer.EnvConfig, st *state) Task {
 		if err != nil {
 			return err
 		}
-		instanceId := app.Name()
+		instanceId := app.Slug()
 		appDir := fmt.Sprintf("/apps/%s", instanceId)
 		namespace := fmt.Sprintf("%s%s", env.NamespacePrefix, app.Namespace())
 		if err := st.appManager.Install(app, instanceId, appDir, namespace, map[string]any{
@@ -259,7 +259,7 @@ func SetupGroupMemberships(env installer.EnvConfig, st *state) Task {
 		if err != nil {
 			return err
 		}
-		instanceId := app.Name()
+		instanceId := app.Slug()
 		appDir := fmt.Sprintf("/apps/%s", instanceId)
 		namespace := fmt.Sprintf("%s%s", env.NamespacePrefix, app.Namespace())
 		if err := st.appManager.Install(app, instanceId, appDir, namespace, map[string]any{
@@ -283,7 +283,7 @@ func SetupHeadscale(env installer.EnvConfig, st *state) Task {
 		if err != nil {
 			return err
 		}
-		instanceId := app.Name()
+		instanceId := app.Slug()
 		appDir := fmt.Sprintf("/apps/%s", instanceId)
 		namespace := fmt.Sprintf("%s%s", env.NamespacePrefix, app.Namespace())
 		if err := st.appManager.Install(app, instanceId, appDir, namespace, map[string]any{
@@ -319,7 +319,7 @@ func SetupWelcome(env installer.EnvConfig, st *state) Task {
 		if err != nil {
 			return err
 		}
-		instanceId := app.Name()
+		instanceId := app.Slug()
 		appDir := fmt.Sprintf("/apps/%s", instanceId)
 		namespace := fmt.Sprintf("%s%s", env.NamespacePrefix, app.Namespace())
 		if err := st.appManager.Install(app, instanceId, appDir, namespace, map[string]any{
@@ -355,7 +355,7 @@ func SetupAppStore(env installer.EnvConfig, st *state) Task {
 		if err != nil {
 			return err
 		}
-		instanceId := app.Name()
+		instanceId := app.Slug()
 		appDir := fmt.Sprintf("/apps/%s", instanceId)
 		namespace := fmt.Sprintf("%s%s", env.NamespacePrefix, app.Namespace())
 		if err := st.appManager.Install(app, instanceId, appDir, namespace, map[string]any{

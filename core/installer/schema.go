@@ -21,23 +21,34 @@ const (
 	KindArrayString      = 8
 )
 
+type Field struct {
+	Name   string
+	Schema Schema
+}
+
 type Schema interface {
+	Name() string
 	Kind() Kind
-	Fields() map[string]Schema
+	Fields() []Field
+	Advanced() bool
 }
 
 var AuthSchema Schema = structSchema{
-	fields: map[string]Schema{
-		"enabled": basicSchema{KindBoolean},
-		"groups":  basicSchema{KindString},
+	name: "Auth",
+	fields: []Field{
+		Field{"enabled", basicSchema{"Enabled", KindBoolean, false}},
+		Field{"groups", basicSchema{"Groups", KindString, false}},
 	},
+	advanced: false,
 }
 
 var SSHKeySchema Schema = structSchema{
-	fields: map[string]Schema{
-		"public":  basicSchema{KindString},
-		"private": basicSchema{KindString},
+	name: "SSH Key",
+	fields: []Field{
+		Field{"public", basicSchema{"Public Key", KindString, false}},
+		Field{"private", basicSchema{"Private Key", KindString, false}},
 	},
+	advanced: true,
 }
 
 const networkSchema = `
@@ -116,60 +127,84 @@ func isSSHKey(v cue.Value) bool {
 }
 
 type basicSchema struct {
-	kind Kind
+	name     string
+	kind     Kind
+	advanced bool
+}
+
+func (s basicSchema) Name() string {
+	return s.name
 }
 
 func (s basicSchema) Kind() Kind {
 	return s.kind
 }
 
-func (s basicSchema) Fields() map[string]Schema {
+func (s basicSchema) Fields() []Field {
 	return nil
 }
 
+func (s basicSchema) Advanced() bool {
+	return s.advanced
+}
+
 type structSchema struct {
-	fields map[string]Schema
+	name     string
+	fields   []Field
+	advanced bool
+}
+
+func (s structSchema) Name() string {
+	return s.name
 }
 
 func (s structSchema) Kind() Kind {
 	return KindStruct
 }
 
-func (s structSchema) Fields() map[string]Schema {
+func (s structSchema) Fields() []Field {
 	return s.fields
 }
 
-func NewCueSchema(v cue.Value) (Schema, error) {
+func (s structSchema) Advanced() bool {
+	return s.advanced
+}
+
+func NewCueSchema(name string, v cue.Value) (Schema, error) {
+	nameAttr := v.Attribute("name")
+	if nameAttr.Err() == nil {
+		name = nameAttr.Contents()
+	}
 	switch v.IncompleteKind() {
 	case cue.StringKind:
-		return basicSchema{KindString}, nil
+		return basicSchema{name, KindString, false}, nil
 	case cue.BoolKind:
-		return basicSchema{KindBoolean}, nil
+		return basicSchema{name, KindBoolean, false}, nil
 	case cue.NumberKind:
-		return basicSchema{KindNumber}, nil
+		return basicSchema{name, KindNumber, false}, nil
 	case cue.IntKind:
-		return basicSchema{KindInt}, nil
+		return basicSchema{name, KindInt, false}, nil
 	case cue.ListKind:
-		return basicSchema{KindArrayString}, nil
+		return basicSchema{name, KindArrayString, false}, nil
 	case cue.StructKind:
 		if isNetwork(v) {
-			return basicSchema{KindNetwork}, nil
+			return basicSchema{name, KindNetwork, false}, nil
 		} else if isAuth(v) {
-			return basicSchema{KindAuth}, nil
+			return basicSchema{name, KindAuth, false}, nil
 		} else if isSSHKey(v) {
-			return basicSchema{KindSSHKey}, nil
+			return basicSchema{name, KindSSHKey, true}, nil
 		}
-		s := structSchema{make(map[string]Schema)}
+		s := structSchema{name, make([]Field, 0), false}
 		f, err := v.Fields(cue.Schema())
 		if err != nil {
 			return nil, err
 		}
 		for f.Next() {
-			scm, err := NewCueSchema(f.Value())
+			scm, err := NewCueSchema(f.Selector().String(), f.Value())
 			if err != nil {
 				return nil, err
 			}
-			s.fields[f.Selector().String()] = scm
+			s.fields = append(s.fields, Field{f.Selector().String(), scm})
 		}
 		return s, nil
 	default:

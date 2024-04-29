@@ -17,22 +17,24 @@ import (
 //go:embed values-tmpl
 var valuesTmpls embed.FS
 
-var storeAppConfigs = []string{
-	"values-tmpl/jellyfin.cue",
-	// "values-tmpl/maddy.cue",
-	"values-tmpl/matrix.cue",
-	"values-tmpl/penpot.cue",
-	"values-tmpl/pihole.cue",
-	"values-tmpl/qbittorrent.cue",
-	"values-tmpl/rpuppy.cue",
-	"values-tmpl/soft-serve.cue",
-	"values-tmpl/vaultwarden.cue",
+var storeEnvAppConfigs = []string{
 	"values-tmpl/url-shortener.cue",
+	"values-tmpl/matrix.cue",
+	"values-tmpl/vaultwarden.cue",
+	"values-tmpl/open-project.cue",
 	"values-tmpl/gerrit.cue",
 	"values-tmpl/jenkins.cue",
 	"values-tmpl/zot.cue",
-	"values-tmpl/open-project.cue",
-	// TODO(gio): should be part of env infra
+	"values-tmpl/penpot.cue",
+	"values-tmpl/soft-serve.cue",
+	"values-tmpl/pihole.cue",
+	// "values-tmpl/maddy.cue",
+	"values-tmpl/qbittorrent.cue",
+	"values-tmpl/jellyfin.cue",
+	"values-tmpl/rpuppy.cue",
+}
+
+var envAppConfigs = []string{
 	"values-tmpl/certificate-issuer-private.cue",
 	"values-tmpl/certificate-issuer-public.cue",
 	"values-tmpl/appmanager.cue",
@@ -75,7 +77,7 @@ func NewInMemoryAppRepository(apps []App) InMemoryAppRepository {
 
 func (r InMemoryAppRepository) Find(name string) (App, error) {
 	for _, a := range r.apps {
-		if a.Name() == name {
+		if a.Slug() == name {
 			return a, nil
 		}
 	}
@@ -89,13 +91,20 @@ func (r InMemoryAppRepository) GetAll() ([]App, error) {
 func CreateAllApps() []App {
 	return append(
 		createInfraApps(),
-		CreateStoreApps()...,
+		append(
+			CreateEnvApps(storeEnvAppConfigs),
+			CreateEnvApps(envAppConfigs)...,
+		)...,
 	)
 }
 
 func CreateStoreApps() []App {
+	return CreateEnvApps(storeEnvAppConfigs)
+}
+
+func CreateEnvApps(configs []string) []App {
 	ret := make([]App, 0)
-	for _, cfgFile := range storeAppConfigs {
+	for _, cfgFile := range configs {
 		contents, err := valuesTmpls.ReadFile(cfgFile)
 		if err != nil {
 			panic(err)

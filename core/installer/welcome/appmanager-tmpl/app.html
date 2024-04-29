@@ -2,73 +2,75 @@
   {{ $readonly := .ReadOnly }}
   {{ $networks := .AvailableNetworks }}
   {{ $data := .Data }}
-  {{ range $name, $schema := .Schema.Fields }}
+  {{ range $f := .Schema.Fields }}
+  {{ $name := $f.Name }}
+  {{ $schema := $f.Schema }}
     {{ if eq $schema.Kind 0 }}
-      <label for="{{ $name }}">
-        <span>{{ $name }}</span>
+      <label {{ if $schema.Advanced }}hidden{{ end }}>
+		  <input type="checkbox" role="swtich" name="{{ $name }}" oninput="valueChanged({{ $name }}, this.checked)" {{ if $readonly }}disabled{{ end }} {{ if index $data $name }}checked{{ end }} />
+          {{ $schema.Name }}
       </label>
-	  <input type="checkbox" role="swtich" name="{{ $name }}" oninput="valueChanged({{ $name }}, this.checked)" {{ if $readonly }}disabled{{ end }} {{ if index $data $name }}checked{{ end }} />
     {{ else if eq $schema.Kind 7 }}
-      <label for="{{ $name }}">
-        <span>{{ $name }}</span>
+      <label {{ if $schema.Advanced }}hidden{{ end }}>
+          {{ $schema.Name }}
+		  <input type="text" name="{{ $name }}" oninput="valueChanged({{ $name }}, parseInt(this.value))" {{ if $readonly }}disabled{{ end }} value="{{ index $data $name }}" />
       </label>
-	  <input type="text" name="{{ $name }}" oninput="valueChanged({{ $name }}, parseInt(this.value))" {{ if $readonly }}disabled{{ end }} value="{{ index $data $name }}" />
     {{ else if eq $schema.Kind 1 }}
-      <label for="{{ $name }}">
-        <span>{{ $name }}</span>
-      </label>
+      <label {{ if $schema.Advanced }}hidden{{ end }}>
+          {{ $schema.Name }}
 	  <input type="text" name="{{ $name }}" oninput="valueChanged({{ $name }}, this.value)" {{ if $readonly }}disabled{{ end }} value="{{ index $data $name }}" />
     {{ else if eq $schema.Kind 4 }}
-      <label for="{{ $name }}">
-        <span>{{ $name }}</span>
       </label>
-	  <input type="text" name="{{ $name }}" oninput="valueChanged({{ $name }}, this.value)" {{ if $readonly }}disabled{{ end }} value="{{ index $data $name }}" />
+      <label {{ if $schema.Advanced }}hidden{{ end }}>
+          {{ $schema.Name }}
+		  <input type="text" name="{{ $name }}" oninput="valueChanged({{ $name }}, this.value)" {{ if $readonly }}disabled{{ end }} value="{{ index $data $name }}" />
+      </label>
 	{{ else if eq $schema.Kind 3 }}
-      <label for="{{ $name }}">
-        <span>{{ $name }}</span>
+      <label {{ if $schema.Advanced }}hidden{{ end }}>
+          {{ $schema.Name }}
+		  <select name="{{ $name }}" oninput="valueChanged({{ $name }}, this.value)" {{ if $readonly }}disabled{{ end }} >
+			  {{ if not $readonly }}<option disabled selected value>Available networks</option>{{ end }}
+			  {{ range $networks }}
+			  <option {{if eq .Name (index $data $name) }}selected{{ end }}>{{ .Name }}</option>
+			  {{ end }}
+		  </select>
       </label>
-	  <select name="{{ $name }}" oninput="valueChanged({{ $name }}, this.value)" {{ if $readonly }}disabled{{ end }} >
-		{{ if not $readonly }}<option disabled selected value>Available networks</option>{{ end }}
-		{{ range $networks }}
-		  <option {{if eq .Name (index $data $name) }}selected{{ end }}>{{ .Name }}</option>
-		{{ end }}
-	  </select>
 	{{ else if eq $schema.Kind 5 }}
-      <label for="authEnabled">
-        <span>Require authentication</span>
-      </label>
 	  {{ $auth := index $data $name }}
 	  {{ $authEnabled := false }}
 	  {{ $authGroups := "" }}
 	  {{ if and $auth (index $auth "enabled") }}{{ $authEnabled = true }}{{ end }}
 	  {{ if and $auth (index $auth "groups") }}{{ $authGroups = index $auth "groups" }}{{ end }}
-      <input type="checkbox" role="swtich" name="authEnabled" oninput="valueChanged('{{- $name -}}.enabled', this.checked)" {{ if $readonly }}disabled{{ end }} {{ if $authEnabled  }}checked{{ end }} />
-      <label for="authGroups">
-        <span>Authentication Groups</span>
+      <label {{ if $schema.Advanced }}hidden{{ end }}>
+		  <input type="checkbox" role="swtich" name="authEnabled" oninput="valueChanged('{{- $name -}}.enabled', this.checked)" {{ if $readonly }}disabled{{ end }} {{ if $authEnabled  }}checked{{ end }} />
+          <span>Require authentication</span>
       </label>
-      <input type="text" name="authGroups" oninput="valueChanged('{{- $name -}}.groups', this.value)" {{ if $readonly }}disabled{{ end }} value="{{ $authGroups }}" />
+      <label for="authGroups">
+          <span>Authentication groups</span>
+		  <input type="text" name="authGroups" oninput="valueChanged('{{- $name -}}.groups', this.value)" {{ if $readonly }}disabled{{ end }} value="{{ $authGroups }}" />
+      </label>
 	{{ else if eq $schema.Kind 6 }}
  	  {{ $sshKey := index $data $name }}
 	  {{ $public := "" }}
 	  {{ $private := "" }}
 	  {{ if $sshKey }}{{ $public = index $sshKey "public" }}{{ end }}
 	  {{ if $sshKey }}{{ $private = index $sshKey "private" }}{{ end }}
-      <label for="{{ $name }}-public">
-        <span>Public Key</span>
+      <label {{ if $schema.Advanced }}hidden{{ end }}>
+          <span>Public Key</span>
+		  <textarea name="{{ $name }}-public" disabled>{{ $public }}</textarea>
       </label>
-	  <textarea name="{{ $name }}-public" disabled>{{ $public }}</textarea>
-      <label for="{{ $name }}-private">
-        <span>Private Key</span>
+      <label {{ if $schema.Advanced }}hidden{{ end }}>
+          <span>Private Key</span>
+		  <textarea name="{{ $name }}-private" disabled>{{ $private }}</textarea>
       </label>
-	  <textarea name="{{ $name }}-private" disabled>{{ $private }}</textarea>
     {{ end }}
   {{ end }}
 {{ end }}
 
 {{ define "main" }}
 {{ $instance := .Instance }}
-<h1>{{ .App.Icon }}{{ .App.Name }}</h1>
-<pre id="readme"></pre>
+<h1 style="margin-bottom: 20px">{{ .App.Icon }}{{ .App.Name }}</h1>
+<pre id="readme" style="margin-bottom: 50px">{{ .App.Description }}</pre>
 
 {{ $schema := .App.Schema }}
 {{ $networks := .AvailableNetworks }}
@@ -138,7 +140,6 @@
 </style>
 
 <script>
- let readme = "";
  let config = {{ if $instance }}JSON.parse({{ toJson ($instance.InputToValues $schema) }}){{ else }}{}{{ end }};
 
  function setValue(name, value, config) {
@@ -153,23 +154,7 @@
 }
  function valueChanged(name, value) {
 	 setValue(name, value, config);
-     renderReadme();
  }
-
- async function renderReadme() {
-	 const resp = await fetch("/api/app/{{ .App.Name }}/render", {
-         method: "POST",
-         headers: {
-             "Content-Type": "application/json",
-             "Accept": "application/json",
-         },
-         body: JSON.stringify(config),
-     });
-     const app = await resp.json();
-     document.getElementById("readme").innerHTML = app.readme;
- }
-
- {{ if $instance }}renderReadme();{{ end }}
 
  function disableForm() {
      document.querySelectorAll("#config-form input").forEach((i) => i.setAttribute("disabled", ""));
@@ -223,7 +208,7 @@
      actionFinished(document.getElementById("toast-uninstall-failure"));
  }
 
- const submitAddr = {{ if $instance }}"/api/instance/{{ $instance.Id }}/update"{{ else }}"/api/app/{{ .App.Name }}/install"{{ end }};
+ const submitAddr = {{ if $instance }}"/api/instance/{{ $instance.Id }}/update"{{ else }}"/api/app/{{ .App.Slug }}/install"{{ end }};
 
  async function install() {
      installStarted();
