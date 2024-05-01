@@ -30,6 +30,8 @@ spec:
         env:
         - name: SOFT_SERVE_SSH_LISTEN_ADDR
           value: ":{{ .Values.port }}"
+        - name: SOFT_SERVE_SSH_PUBLIC_URL
+          value: "ssh://{{ .Values.ingress.domain }}:{{ .Values.sshPublicPort }}"
         - name: SOFT_SERVE_INITIAL_ADMIN_KEYS
           value: "{{ .Values.adminKey }}"
         {{ if and .Values.privateKey .Values.publicKey }}
@@ -38,12 +40,10 @@ spec:
         {{ end }}
         - name: SOFT_SERVE_DATA_PATH
           value: /var/lib/soft-serve/repos
-        {{ if .Values.ingress.enabled }}
         - name: SOFT_SERVE_HTTP_LISTEN_ADDR
           value: ":80"
         - name: SOFT_SERVE_HTTP_PUBLIC_URL
           value: "http://{{ .Values.ingress.domain }}"
-        {{ end }}
         ports:
         - name: ssh
           containerPort: {{ .Values.port }}

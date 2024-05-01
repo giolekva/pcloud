@@ -5,6 +5,7 @@ image:
 storage:
   size: 1Gi
 port: 22
+sshPublicPort: 22
 privateKey: ""
 publicKey: ""
 adminKey: ""

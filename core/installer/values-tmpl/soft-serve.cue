@@ -1,10 +1,11 @@
 input: {
+	network: #Network @name(Network)
 	subdomain: string @name(Subdomain)
+	sshPort: int @name(SSH Port)
 	adminKey: string @name(Admin SSH Public Key)
 }
 
 _domain: "\(input.subdomain).\(global.privateDomain)"
-url: "https://\(_domain)"
 
 name: "Soft-Serve"
 namespace: "app-soft-serve"
@@ -33,18 +34,37 @@ charts: {
 	}
 }
 
+ingress: {
+	gerrit: {
+		auth: enabled: false
+		network: input.network
+		subdomain: input.subdomain
+		service: {
+			name: "soft-serve"
+			port: number: 80
+		}
+	}
+}
+
+portForward: [#PortForward & {
+	allocator: input.network.allocatePortAddr
+	sourcePort: input.sshPort
+	// TODO(gio): namespace part must be populated by app manager. Otherwise
+	// third-party app developer might point to a service from different namespace.
+	targetService: "\(release.namespace)/soft-serve"
+	targetPort: 22
+}]
+
 helm: {
 	softserve: {
 		chart: charts.softserve
 		values: {
-			serviceType: "LoadBalancer"
-			reservedIP: ""
-			addressPool: global.id
+			serviceType: "ClusterIP"
 			adminKey: input.adminKey
-			privateKey: ""
-			publicKey: ""
+			sshPublicPort: input.sshPort
 			ingress: {
 				enabled: false
+				domain: _domain
 			}
 			image: {
 				repository: images.softserve.fullName
@@ -54,3 +74,15 @@ helm: {
 		}
 	}
 }
+
+help: [{
+	title: "Access"
+	contents: """
+	SSH CLI: ssh \(_domain) -p \(input.sshPort) help  
+	SSH TUI: ssh \(_domain) -p \(input.sshPort)  
+	HTTP: git clone https://\(_domain)/<REPO-NAME>  
+	SSH: git clone ssh://\(_domain):\(input.sshPort)/<REPO-NAME>  
+
+	See following resource on what you can do with Soft-Serve TUI: [https://github.com/charmbracelet/soft-serve](https://github.com/charmbracelet/soft-serve)
+	"""
+}]

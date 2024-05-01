@@ -126,7 +126,7 @@ helm: {
 		values: {
 			repoAddr: release.repoAddr
 			sshPrivateKey: base64.Encode(null, input.sshPrivateKey)
-			ingressNginxPath: "\(release.appDir)/ingress-nginx.yaml"
+			ingressNginxPath: "\(release.appDir)/resources/ingress-nginx.yaml"
 			image: {
 				repository: images.portAllocator.fullName
 				tag: images.portAllocator.tag

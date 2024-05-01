@@ -11,7 +11,6 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/giolekva/pcloud/core/installer"
 	"github.com/giolekva/pcloud/core/installer/soft"
 
 	"golang.org/x/crypto/ssh"
@@ -36,19 +35,15 @@ func (c *repoClient) ReadRelease() (map[string]any, error) {
 	if err := c.repo.Pull(); err != nil {
 		return nil, err
 	}
-	rel, err := c.repo.ReadYaml(c.path)
-	if err != nil {
+	ingressRel := map[string]any{}
+	if err := soft.ReadYaml(c.repo, c.path, &ingressRel); err != nil {
 		return nil, err
-	}
-	ingressRel, ok := rel.(map[string]any)
-	if !ok {
-		panic("MUST NOT REACH!")
 	}
 	return ingressRel, nil
 }
 
 func (c *repoClient) WriteRelease(rel map[string]any, meta string) error {
-	if err := c.repo.WriteYaml(c.path, rel); err != nil {
+	if err := soft.WriteYaml(c.repo, c.path, rel); err != nil {
 		return err
 	}
 	return c.repo.CommitAndPush(meta)
@@ -160,12 +155,14 @@ func (s *server) handleAllocate(w http.ResponseWriter, r *http.Request) {
 	fmt.Printf("%+v\n", req)
 	ingressRel, err := s.client.ReadRelease()
 	if err != nil {
+		fmt.Println(err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 	fmt.Printf("%+v\n", ingressRel)
 	tcp, udp, err := extractPorts(ingressRel)
 	if err != nil {
+		fmt.Println(err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -173,11 +170,13 @@ func (s *server) handleAllocate(w http.ResponseWriter, r *http.Request) {
 	switch req.Protocol {
 	case "tcp":
 		if err := addPort(tcp, req); err != nil {
+			fmt.Println(err)
 			http.Error(w, err.Error(), http.StatusConflict)
 			return
 		}
 	case "udp":
 		if err := addPort(udp, req); err != nil {
+			fmt.Println(err)
 			http.Error(w, err.Error(), http.StatusConflict)
 			return
 		}
@@ -209,7 +208,7 @@ func createRepoClient(addr string, keyPath string) (soft.RepoIO, error) {
 	if err != nil {
 		return nil, err
 	}
-	return soft.NewRepoIO(repo, signer), nil
+	return soft.NewRepoIO(repo, signer)
 }
 
 func main() {

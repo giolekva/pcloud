@@ -188,9 +188,6 @@ func InstallApp(
 	data CueAppData,
 	opts ...soft.DoOption,
 ) (ReleaseResources, error) {
-	// if err := openPorts(rendered.Ports); err != nil {
-	// 	return err
-	// }
 	return ReleaseResources{}, repo.Do(func(r soft.RepoFS) (string, error) {
 		if err := r.RemoveDir(appDir); err != nil {
 			return "", err
@@ -268,6 +265,10 @@ func (m *AppManager) Install(app EnvApp, instanceId string, appDir string, names
 		return ReleaseResources{}, err
 	}
 	if _, err := InstallApp(m.repoIO, appDir, rendered.Name, rendered.Config, rendered.Ports, rendered.Resources, rendered.Data); err != nil {
+		return ReleaseResources{}, err
+	}
+	// TODO(gio): add ingress-nginx to release resources
+	if err := openPorts(rendered.Ports); err != nil {
 		return ReleaseResources{}, err
 	}
 	return ReleaseResources{
