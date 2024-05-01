@@ -9,6 +9,8 @@ import (
 	"strings"
 
 	"github.com/giolekva/pcloud/core/installer"
+
+	"github.com/gomarkdown/markdown"
 )
 
 //go:embed launcher-tmpl/launcher.html
@@ -20,8 +22,14 @@ var files embed.FS
 type AppLauncherInfo struct {
 	Name string
 	Icon template.HTML
-	Help []installer.HelpDocument
+	Help []HelpDocumentRendered
 	Url  string
+}
+
+type HelpDocumentRendered struct {
+	Title    string
+	Contents template.HTML
+	Children []HelpDocumentRendered
 }
 
 type AppDirectory interface {
@@ -45,7 +53,7 @@ func (d *AppManagerDirectory) GetAllApps() ([]AppLauncherInfo, error) {
 		ret = append(ret, AppLauncherInfo{
 			Name: a.AppId,
 			Icon: template.HTML(a.Icon),
-			Help: a.Help,
+			Help: toMarkdown(a.Help),
 			Url:  a.URL,
 		})
 	}
@@ -135,4 +143,19 @@ func (s *LauncherServer) homeHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
+}
+
+func toMarkdown(help []installer.HelpDocument) []HelpDocumentRendered {
+	if help == nil {
+		return nil
+	}
+	var ret []HelpDocumentRendered
+	for _, h := range help {
+		ret = append(ret, HelpDocumentRendered{
+			Title:    h.Title,
+			Contents: template.HTML(markdown.ToHTML([]byte(h.Contents), nil, nil)),
+			Children: toMarkdown(h.Children),
+		})
+	}
+	return ret
 }

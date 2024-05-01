@@ -8,6 +8,7 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"strings"
 	"text/template"
 
 	"github.com/labstack/echo/v4"
@@ -23,15 +24,19 @@ const defaultACLs = `
 {
   "autoApprovers": {
     "routes": {
-      "{{ .ipSubnet }}": ["*"],
+      {{- range .cidrs }}
+      "{{ . }}": ["*"],
+      {{- end }}
     },
   },
   "acls": [
+    {{- range .cidrs }}
     { // Everyone has passthough access to private-network-proxy node
       "action": "accept",
       "src": ["*"],
-      "dst": ["{{ .ipSubnet }}:*", "private-network-proxy:0"],
+      "dst": ["{{ . }}:*", "private-network-proxy:0"],
     },
+    {{- end }}
   ],
 }
 `
@@ -88,7 +93,7 @@ func (s *server) enableRoute(c echo.Context) error {
 	}
 }
 
-func updateACLs(cidr net.IPNet, aclsPath string) error {
+func updateACLs(cidrs []string, aclsPath string) error {
 	tmpl, err := template.New("acls").Parse(defaultACLs)
 	if err != nil {
 		return err
@@ -98,18 +103,25 @@ func updateACLs(cidr net.IPNet, aclsPath string) error {
 		return err
 	}
 	defer out.Close()
+	tmpl.Execute(os.Stdout, map[string]any{
+		"cidrs": cidrs,
+	})
 	return tmpl.Execute(out, map[string]any{
-		"ipSubnet": cidr.String(),
+		"cidrs": cidrs,
 	})
 }
 
 func main() {
 	flag.Parse()
-	_, cidr, err := net.ParseCIDR(*ipSubnet)
-	if err != nil {
-		panic(err)
+	var cidrs []string
+	for _, ips := range strings.Split(*ipSubnet, ",") {
+		_, cidr, err := net.ParseCIDR(ips)
+		if err != nil {
+			panic(err)
+		}
+		cidrs = append(cidrs, cidr.String())
 	}
-	updateACLs(*cidr, *acls)
+	updateACLs(cidrs, *acls)
 	c := newClient(*config)
 	s := newServer(*port, c)
 	s.start()
