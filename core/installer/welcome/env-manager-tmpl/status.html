@@ -1,7 +1,7 @@
 {{ define "task" }}
 {{ range . }}
 <li aria-busy="{{ eq .Status 1 }}">
-	{{ .Title }}{{ if .Err }} - {{ .Err.Error }} {{ end }}
+	{{ if eq .Status 3 }}<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"><path fill="black" d="M21 7L9 19l-5.5-5.5l1.41-1.41L9 16.17L19.59 5.59z"/></svg>{{ end }}{{ .Title }}{{ if .Err }} - {{ .Err.Error }} {{ end }}
 	{{ if .Subtasks }}
 	<ul>
    		{{ template "task" .Subtasks }}
@@ -30,12 +30,11 @@
 		{{ if .DNSRecords }}
 		<form action="" method="POST">
 			<p>You will have to publish following DNS records via your domain registrar.</p>
-			<textarea rows="7" disabled>{{ .DNSRecords }}</textarea>
+			<textarea rows="7">{{ .DNSRecords }}</textarea>
 			<label for="domain-registrar">Domain Registrar</label>
 			<select id="domain-registrar" required tabindex="1">
 				<option value="" selected>Select registrar</option>
 				<option value="gandi">Gandi</option>
-				<option value="namecheap">Namecheap</option>
 			</select>
 			<label for="api-token">API Token</label>
 			<input
@@ -59,7 +58,11 @@
 	 if (resp.ok) {
 		 var tmp = document.createElement("html");
 		 tmp.innerHTML = await resp.text();
-		 document.getElementById("contents").innerHTML = tmp.getElementsByClassName("env-status")[0].innerHTML;
+		 if (document.getElementsByTagName("form").length === 0) {
+			 document.getElementById("contents").innerHTML = tmp.getElementsByClassName("env-status")[0].innerHTML;
+		 } else {
+			 document.getElementsByClassName("progress")[0].innerHTML = tmp.getElementsByClassName("progress")[0].innerHTML;
+		 }
 	 }
 	 setTimeout(refresh, 5000);
  }

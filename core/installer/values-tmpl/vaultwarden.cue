@@ -47,3 +47,8 @@ helm: {
 		}
 	}
 }
+
+help: [{
+	title: "Access"
+	contents: "Open [\(url)](\(url)) in a new tab."
+}]

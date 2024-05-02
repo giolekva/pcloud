@@ -9,7 +9,6 @@ input: {
 
 _subdomain: "launcher"
 _domain: "\(_subdomain).\(networks.public.domain)"
-url: "https://\(_domain)"
 
 name: "Launcher"
 namespace: "launcher"

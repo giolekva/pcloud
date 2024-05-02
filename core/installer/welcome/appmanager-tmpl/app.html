@@ -81,6 +81,27 @@
 {{ end }}
 
 {{ define "main" }}
+<style>
+  pre {
+    white-space: pre-wrap;       /* Since CSS 2.1 */
+    white-space: -moz-pre-wrap;  /* Mozilla, since 1999 */
+    white-space: -pre-wrap;      /* Opera 4-6 */
+    white-space: -o-pre-wrap;    /* Opera 7 */
+    word-wrap: break-word;       /* Internet Explorer 5.5+ */
+    background-color: transparent;
+  }
+
+ .hidden {
+     visibility: hidden;
+ }
+
+ .toast {
+     position: fixed;
+     z-index: 999;
+     bottom: 10px;
+ }
+</style>
+
 {{ $instance := .Instance }}
 <h1 style="margin-bottom: 20px">{{ .App.Icon }}{{ .App.Name }}</h1>
 <pre id="readme" style="margin-bottom: 50px">{{ .App.Description }}</pre>
@@ -142,27 +163,6 @@
 <div id="toast-uninstall-failure" class="toast hidden">
   <svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2S2 6.477 2 12s4.477 10 10 10Zm3-6L9 8m0 8l6-8"/></svg> Failed to uninstall application
 </div>
-
-<style>
-  pre {
-    white-space: pre-wrap;       /* Since CSS 2.1 */
-    white-space: -moz-pre-wrap;  /* Mozilla, since 1999 */
-    white-space: -pre-wrap;      /* Opera 4-6 */
-    white-space: -o-pre-wrap;    /* Opera 7 */
-    word-wrap: break-word;       /* Internet Explorer 5.5+ */
-    background-color: transparent;
-  }
-
- .hidden {
-     visibility: hidden;
- }
-
- .toast {
-     position: fixed;
-     z-index: 999;
-     bottom: 10px;
- }
-</style>
 
 <script>
  let config = {{ if $instance }}JSON.parse({{ toJson ($instance.InputToValues $schema) }}){{ else }}{}{{ end }};

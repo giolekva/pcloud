@@ -1,4 +1,26 @@
 {{ define "main" }}
+<style>
+  article {
+    margin: 0.3em;
+    margin-bottom: 0.3em;
+
+    display: flex;
+    flex-direction: row;
+  }
+
+  .logo {
+    display: table-cell;
+    vertical-align: middle;
+  }
+  nav li {
+    padding-top: 0;
+    padding-bottom: 0;
+  }
+
+  input[type="search"] {
+    margin-bottom: 0;
+  }
+</style>
 <form>
   <input type="search" placeholder="Search" />
 </form>
@@ -24,27 +46,4 @@
     </ul>
   </nav>
 </aside>
-
-<style>
-  article {
-    margin: 0.3em;
-    margin-bottom: 0.3em;
-
-    display: flex;
-    flex-direction: row;
-  }
-
-  .logo {
-    display: table-cell;
-    vertical-align: middle;
-  }
-  nav li {
-    padding-top: 0;
-    padding-bottom: 0;
-  }
-
-  input[type="search"] {
-    margin-bottom: 0;
-  }
-</style>
 {{ end }}

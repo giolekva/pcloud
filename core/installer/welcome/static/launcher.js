@@ -1,4 +1,6 @@
 document.addEventListener("DOMContentLoaded", function () {
+  document.querySelector('iframe').contentDocument.write("Welcome to the dodo: application launcher, think of it as your desktop environment. You can launch applications from left-hand side dock. You should setup VPN clients on your devices, so you can install applications from Application Manager and access your private network. Instructions on how to do that can be viewed by clicking <b>Help</b> button after hovering over <b>Headscale</b> icon in the dock.");
+
     function showTooltip(obj) {
         // obj.style.display = 'flex';
         obj.style.visibility = 'visible';
