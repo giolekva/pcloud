@@ -43,7 +43,7 @@
                                 {{ template "help-menu-template" .Help }}
                             </div>
                             <div class="modal-right" id="modal-right-help-content-{{ CleanAppName .Name }}">
-                                {{ template "help-content-template" .Help }}
+                                {{ template "help-content-template" (dict "Help" .Help "First" true) }}
                             </div>
                         </div>
                     </article>
@@ -56,7 +56,7 @@
     </div>
     {{ define "help-menu-template" }}
         <ul class="ul">
-            {{ range .}}
+            {{ range . }}
                 <li>
                     <a class="title-menu" id="title-{{ CleanAppName .Title }}">{{ .Title }}</a>
                     {{ template "help-menu-template" .Children }}
@@ -64,10 +64,11 @@
             {{ end }}
         </ul>
     {{ end }}
-    {{ define "help-content-template" }}
-        {{ range . }}
-            <div class="help-content" id="help-content-{{ CleanAppName .Title }}"> {{ .Contents }}</div>
-            {{ template "help-content-template" .Children }}
+	{{ define "help-content-template" }}
+		{{ $first := .First }}
+        {{ range $i, $h := .Help }}
+            <div class="help-content" id="help-content-{{ CleanAppName $h.Title }}" {{ if (and $first (eq 0 $i)) }}style="display: block;"{{ end }}> {{ $h.Contents }}</div>
+            {{ template "help-content-template" (dict "Help" $h.Children "First" false) }}
         {{ end }}
     {{ end }}
     <script src="/static/launcher.js"></script>

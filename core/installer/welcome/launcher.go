@@ -10,6 +10,7 @@ import (
 
 	"github.com/giolekva/pcloud/core/installer"
 
+	"github.com/Masterminds/sprig/v3"
 	"github.com/gomarkdown/markdown"
 )
 
@@ -76,7 +77,7 @@ func NewLauncherServer(
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse template: %v", err)
 	}
-	t := template.New("index").Funcs(template.FuncMap{
+	t := template.New("index").Funcs(template.FuncMap(sprig.FuncMap())).Funcs(template.FuncMap{
 		"GetUserInitials": getUserInitials,
 		"CleanAppName":    cleanAppName,
 	})
