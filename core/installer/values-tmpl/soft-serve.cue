@@ -80,8 +80,9 @@ help: [{
 	contents: """
 	SSH CLI: ssh \(_domain) -p \(input.sshPort) help  
 	SSH TUI: ssh \(_domain) -p \(input.sshPort)  
-	HTTP: git clone https://\(_domain)/<REPO-NAME>  
-	SSH: git clone ssh://\(_domain):\(input.sshPort)/<REPO-NAME>  
+	Create repository: ssh \(_domain) -p \(input.sshPort) repos create \\<REPO-NAME\\>  
+	HTTP: git clone https://\(_domain)/\\<REPO-NAME\\>  
+	SSH: git clone ssh://\(_domain):\(input.sshPort)/\\<REPO-NAME\\>  
 
 	See following resource on what you can do with Soft-Serve TUI: [https://github.com/charmbracelet/soft-serve](https://github.com/charmbracelet/soft-serve)
 	"""
