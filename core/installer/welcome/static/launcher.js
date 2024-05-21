@@ -24,6 +24,14 @@ document.addEventListener("DOMContentLoaded", function () {
         icon.addEventListener("click", function (event) {
             event.stopPropagation();
             const appUrl = this.getAttribute("data-app-url");
+ 		    if (!appUrl) {
+			  const button = this.querySelector('.help-button');
+			  const buttonId = button.getAttribute('id');
+              const modalId = 'modal-' + buttonId.substring("help-button-".length);
+              const modal = document.getElementById(modalId);
+  		      openModal(modal);
+			  return;
+			}
             document.getElementById('appFrame').src = 'about:blank';
             document.getElementById('appFrame').src = appUrl;
             document.querySelectorAll(".app-icon-tooltip .background-glow").forEach((e) => e.remove());
