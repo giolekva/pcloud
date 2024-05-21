@@ -233,22 +233,27 @@ header {
     width: 100% !important;
 }
 
-ul {
+.modal-left ul {
     padding-inline-start: 0px !important;
     margin-bottom: 0px;
     list-style: none;
     font-size: 14px;
 }
 
-ul ul {
-    padding-inline-start: 19px;
-}
-
-ul li {
+.modal-left ul li {
     list-style: none !important;
     padding-inline-start: 19px !important;
     margin-bottom: 0px;
     font-size: 16px !important;
+}
+
+.modal-left ul li a {
+	--pico-text-decoration: none;
+	cursor: pointer;
+}
+
+.modal-left ul li a[aria-current] {
+	color: var(--pico-primary);
 }
 
 .tooltip-user {

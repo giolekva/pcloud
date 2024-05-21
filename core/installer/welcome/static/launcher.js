@@ -72,9 +72,13 @@ document.addEventListener("DOMContentLoaded", function () {
             const helpContentId = 'help-content-' + helpTitleId;
             const allContentElements = document.querySelectorAll('.help-content');
             allContentElements.forEach(function (contentElement) {
-                contentElement.style.display = 'none';
+			    contentElement.style.display = "none";
             });
-            document.getElementById(helpContentId).style.display = 'block';
+			modalHelpButtons.forEach(function (button) {
+			    button.removeAttribute("aria-current");
+			});
+			document.getElementById(helpContentId).style.display = 'block';
+			button.setAttribute("aria-current", "page");
         });
     });
 });

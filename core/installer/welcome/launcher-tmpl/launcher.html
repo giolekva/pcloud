@@ -40,10 +40,14 @@
                         </header>
                         <div class="app-help-modal-article">
                             <div class="modal-left">
-                                {{ template "help-menu-template" .Help }}
+                                {{ template "help-menu-template" (dict "Help" .Help "First" true) }}
                             </div>
                             <div class="modal-right" id="modal-right-help-content-{{ CleanAppName .Name }}">
-                                {{ template "help-content-template" (dict "Help" .Help "First" true) }}
+								<aside>
+									<nav>
+										{{ template "help-content-template" (dict "Help" .Help "First" true) }}
+									</nav>
+								</aside>
                             </div>
                         </div>
                     </article>
@@ -55,11 +59,12 @@
         <iframe id="appFrame" width="100%" height="100%" frameborder="0"></iframe>
     </div>
     {{ define "help-menu-template" }}
-        <ul class="ul">
-            {{ range . }}
+		{{ $first := .First }}
+        <ul>
+            {{ range $i, $h := .Help }}
                 <li>
-                    <a class="title-menu" id="title-{{ CleanAppName .Title }}">{{ .Title }}</a>
-                    {{ template "help-menu-template" .Children }}
+                    <a class="title-menu secondary" id="title-{{ CleanAppName $h.Title }}" {{ if (and $first (eq 0 $i)) }}aria-current="page"{{ end }}>{{ $h.Title }}</a>
+                    {{ template "help-menu-template" (dict "Help" $h.Children "First" false) }}
                 </li>
             {{ end }}
         </ul>
