@@ -45,6 +45,17 @@ document.addEventListener("DOMContentLoaded", function () {
             icon.addEventListener(event, listener);
         });
     });
+  let visibleModal = undefined;
+  const openModal = function(modal) {
+    modal.removeAttribute("close");
+    modal.setAttribute("open", true);
+	visibleModal = modal;
+  };
+  const closeModal = function(modal) {
+    modal.removeAttribute("open");
+    modal.setAttribute("close", true);
+	visibleModal = undefined;
+  };
     const helpButtons = document.querySelectorAll('.help-button');
     helpButtons.forEach(function (button) {
         button.addEventListener('click', function (event) {
@@ -53,13 +64,11 @@ document.addEventListener("DOMContentLoaded", function () {
             const modalId = 'modal-' + buttonId.substring("help-button-".length);
             const closeHelpId = "close-help-" + buttonId.substring("help-button-".length);
             const modal = document.getElementById(modalId);
-            modal.removeAttribute("close");
-            modal.setAttribute("open", true);
+  		    openModal(modal);
             const closeHelpButton = document.getElementById(closeHelpId);
             closeHelpButton.addEventListener('click', function (event) {
-                event.stopPropagation();
-                modal.removeAttribute("open");
-                modal.setAttribute("close", true);
+              event.stopPropagation();
+			  closeModal(modal);
             });
         });
     });
@@ -81,4 +90,17 @@ document.addEventListener("DOMContentLoaded", function () {
 			button.setAttribute("aria-current", "page");
         });
     });
+  document.addEventListener("keydown", (event) => {
+	if (event.key === "Escape" && visibleModal) {
+      closeModal(visibleModal);
+	}
+  });
+  document.addEventListener("click", (event) => {
+	if (visibleModal === null) return;
+	const modalContent = visibleModal.querySelector("article");
+	const isClickInside = modalContent.contains(event.target);
+	if (!isClickInside) {
+	  closeModal(visibleModal);
+	}
+  });
 });
