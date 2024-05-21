@@ -27,7 +27,9 @@
                     </div>
                     <div class="tooltip">
                         <p>{{ .Name }}</p>
+						{{ if .Help }}
                         <button class="help-button" id="help-button-{{ CleanAppName .Name }}">Help</button>
+						{{ end }}
                     </div>
                 </div>
                 <dialog class="app-help-modal" id="modal-{{ CleanAppName .Name }}" close>
