@@ -6,6 +6,7 @@ import (
 	"html/template"
 	"log"
 	"net/http"
+	"sort"
 	"strings"
 
 	"github.com/giolekva/pcloud/core/installer"
@@ -58,6 +59,21 @@ func (d *AppManagerDirectory) GetAllApps() ([]AppLauncherInfo, error) {
 			Url:  a.URL,
 		})
 	}
+	sort.Slice(ret, func(i, j int) bool {
+		if ret[i].Name == "app-manager" {
+			return true
+		}
+		if ret[j].Name == "app-manager" {
+			return false
+		}
+		if ret[i].Name == "headscale" {
+			return ret[j].Name != "app-manager"
+		}
+		if ret[j].Name == "headscale" {
+			return false
+		}
+		return ret[i].Name < ret[j].Name
+	})
 	return ret, nil
 }
 
