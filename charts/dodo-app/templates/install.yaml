@@ -1,3 +1,28 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: job-creator
+rules:
+- apiGroups:
+  - "batch"
+  resources:
+  - jobs
+  verbs:
+  - create
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: job-creator
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: job-creator
+subjects:
+- kind: ServiceAccount
+  name: default
+  namespace: {{ .Release.Namespace }}
+---
 apiVersion: v1
 kind: Secret
 metadata:
@@ -10,7 +35,6 @@ apiVersion: v1
 kind: Service
 metadata:
   name: dodo-app
-  namespace: {{ .Release.Namespace }}
 spec:
   type: ClusterIP
   selector:
@@ -25,7 +49,6 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: dodo-app
-  namespace: {{ .Release.Namespace }}
 spec:
   selector:
     matchLabels:

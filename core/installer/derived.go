@@ -10,6 +10,7 @@ type Release struct {
 	Namespace     string `json:"namespace"`
 	RepoAddr      string `json:"repoAddr"`
 	AppDir        string `json:"appDir"`
+	ImageRegistry string `json:"imageRegistry,omitempty"`
 }
 
 type Network struct {

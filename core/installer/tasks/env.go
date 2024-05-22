@@ -15,6 +15,8 @@ import (
 type state struct {
 	infoListener    EnvInfoListener
 	nsCreator       installer.NamespaceCreator
+	jc              installer.JobCreator
+	hf              installer.HelmFetcher
 	dnsFetcher      installer.ZoneStatusFetcher
 	httpClient      http.Client
 	dnsClient       dns.Client
@@ -34,6 +36,8 @@ type EnvInfoListener func(string)
 func NewCreateEnvTask(
 	env installer.EnvConfig,
 	nsCreator installer.NamespaceCreator,
+	jc installer.JobCreator,
+	hf installer.HelmFetcher,
 	dnsFetcher installer.ZoneStatusFetcher,
 	httpClient http.Client,
 	dnsClient dns.Client,
@@ -45,6 +49,8 @@ func NewCreateEnvTask(
 	st := state{
 		infoListener:    infoListener,
 		nsCreator:       nsCreator,
+		jc:              jc,
+		hf:              hf,
 		dnsFetcher:      dnsFetcher,
 		httpClient:      httpClient,
 		dnsClient:       dnsClient,

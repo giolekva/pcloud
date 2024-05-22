@@ -14,12 +14,10 @@ images: {
 
 charts: {
 	hydraMaester: {
-		chart: "charts/hydra-maester"
-		sourceRef: {
-			kind: "GitRepository"
-			name: "pcloud"
-			namespace: global.pcloudEnvName
-		}
+		kind: "GitRepository"
+		address: "https://github.com/giolekva/pcloud.git"
+		branch: "main"
+		path: "charts/hydra-maester"
 	}
 }
 

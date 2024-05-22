@@ -3,6 +3,7 @@ package main
 import (
 	"os"
 
+	"github.com/giolekva/pcloud/core/installer"
 	"github.com/giolekva/pcloud/core/installer/soft"
 	"github.com/giolekva/pcloud/core/installer/welcome"
 	"github.com/spf13/cobra"
@@ -91,6 +92,7 @@ func welcomeCmdRun(cmd *cobra.Command, args []string) error {
 		welcomeFlags.port,
 		repoIO,
 		nsCreator,
+		installer.NewGitHelmFetcher(),
 		welcomeFlags.createAccountAddr,
 		welcomeFlags.loginAddr,
 		welcomeFlags.membershipsInitAddr,

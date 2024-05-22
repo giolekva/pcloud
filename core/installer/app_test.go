@@ -2,8 +2,13 @@ package installer
 
 import (
 	_ "embed"
+	"fmt"
 	"net"
 	"testing"
+
+	"github.com/giolekva/pcloud/core/installer/soft"
+
+	"github.com/go-git/go-billy/v5/memfs"
 )
 
 var env = EnvConfig{
@@ -46,7 +51,7 @@ func TestAuthProxyEnabled(t *testing.T) {
 				"groups":  "a,b",
 			},
 		}
-		rendered, err := a.Render(release, env, values)
+		rendered, err := a.Render(release, env, values, nil)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -76,7 +81,7 @@ func TestAuthProxyDisabled(t *testing.T) {
 				"enabled": false,
 			},
 		}
-		rendered, err := a.Render(release, env, values)
+		rendered, err := a.Render(release, env, values, nil)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -101,7 +106,7 @@ func TestGroupMemberships(t *testing.T) {
 	values := map[string]any{
 		"authGroups": "foo,bar",
 	}
-	rendered, err := a.Render(release, env, values)
+	rendered, err := a.Render(release, env, values, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -131,7 +136,7 @@ func TestGerrit(t *testing.T) {
 		},
 		"sshPort": 22,
 	}
-	rendered, err := a.Render(release, env, values)
+	rendered, err := a.Render(release, env, values, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -156,7 +161,7 @@ func TestJenkins(t *testing.T) {
 		"subdomain": "jenkins",
 		"network":   "Private",
 	}
-	rendered, err := a.Render(release, env, values)
+	rendered, err := a.Render(release, env, values, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -186,7 +191,7 @@ func TestIngressPublic(t *testing.T) {
 	values := map[string]any{
 		"sshPrivateKey": "private",
 	}
-	rendered, err := a.Render(release, infra, values)
+	rendered, err := a.Render(release, infra, values, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -215,7 +220,7 @@ func TestPrivateNetwork(t *testing.T) {
 		},
 		"sshPrivateKey": "private",
 	}
-	rendered, err := a.Render(release, env, values)
+	rendered, err := a.Render(release, env, values, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -248,16 +253,38 @@ func TestAppPackages(t *testing.T) {
 			"groups":  "a,b",
 		},
 	}
-	rendered, err := app.Render(release, env, values)
+	rendered, err := app.Render(release, env, values, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
 	for _, r := range rendered.Resources {
 		t.Log(string(r))
 	}
+	for _, r := range rendered.HelmCharts.Git {
+		t.Log(fmt.Sprintf("%+v\n", r))
+	}
 	for _, r := range rendered.Data {
 		t.Log(string(r))
 	}
+}
+
+func TestPullGitHelmCharts(t *testing.T) {
+	charts := HelmCharts{
+		Git: map[string]HelmChartGitRepo{
+			"rpuppy": HelmChartGitRepo{
+				Address: "https://code.v1.dodo.cloud/pcloud",
+				Branch:  "main",
+				Path:    "charts/rpuppy",
+			},
+		},
+	}
+	fs := soft.NewBillyRepoFS(memfs.New())
+	hf := NewGitHelmFetcher()
+	pulled, err := pullHelmCharts(hf, charts, fs, "/helm-charts")
+	if err != nil {
+		t.Fatal(err)
+	}
+	fmt.Println(pulled)
 }
 
 func TestDNSGateway(t *testing.T) {
@@ -288,7 +315,7 @@ func TestDNSGateway(t *testing.T) {
 	values := map[string]any{
 		"servers": []EnvDNS{EnvDNS{"v1.dodo.cloud", "10.0.1.2"}},
 	}
-	rendered, err := app.Render(release, infra, values)
+	rendered, err := app.Render(release, infra, values, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -300,7 +327,7 @@ func TestDNSGateway(t *testing.T) {
 	}
 }
 
-//go:embed testapp.cue
+//go:embed app_configs/testapp.cue
 var testAppCue []byte
 
 type appInput struct {

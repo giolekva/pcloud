@@ -76,11 +76,16 @@ func appManagerCmdRun(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-	kube, err := newNSCreator()
+	nsc, err := newNSCreator()
 	if err != nil {
 		return err
 	}
-	m, err := installer.NewAppManager(repoIO, kube, "/apps")
+	jc, err := newJobCreator()
+	if err != nil {
+		return err
+	}
+	hf := installer.NewGitHelmFetcher()
+	m, err := installer.NewAppManager(repoIO, nsc, jc, hf, "/apps")
 	if err != nil {
 		return err
 	}

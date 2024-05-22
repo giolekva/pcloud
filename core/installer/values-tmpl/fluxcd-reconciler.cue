@@ -14,12 +14,10 @@ images: {
 
 charts: {
 	fluxcdReconciler: {
-		chart: "charts/fluxcd-reconciler"
-		sourceRef: {
-			kind: "GitRepository"
-			name: "pcloud"
-			namespace: global.pcloudEnvName
-		}
+		kind: "GitRepository"
+		address: "https://github.com/giolekva/pcloud.git"
+		branch: "main"
+		path: "charts/fluxcd-reconciler"
 	}
 }
 

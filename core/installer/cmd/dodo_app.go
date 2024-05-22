@@ -85,6 +85,10 @@ func dodoAppCmdRun(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
+	jc, err := newJobCreator()
+	if err != nil {
+		return err
+	}
 	if err := softClient.AddRepository("app"); err == nil {
 		repo, err := softClient.GetRepo("app")
 		if err != nil {
@@ -93,7 +97,7 @@ func dodoAppCmdRun(cmd *cobra.Command, args []string) error {
 		if err := initRepo(repo); err != nil {
 			return err
 		}
-		if err := welcome.UpdateDodoApp(softClient, dodoAppFlags.namespace, string(sshKey), &env); err != nil {
+		if err := welcome.UpdateDodoApp(softClient, dodoAppFlags.namespace, string(sshKey), jc, &env); err != nil {
 			return err
 		}
 		if err := softClient.AddWebhook("app", fmt.Sprintf("http://%s/update", dodoAppFlags.self), "--active=true", "--events=push", "--content-type=json"); err != nil {
@@ -102,7 +106,7 @@ func dodoAppCmdRun(cmd *cobra.Command, args []string) error {
 	} else if !errors.Is(err, soft.ErrorAlreadyExists) {
 		return err
 	}
-	s := welcome.NewDodoAppServer(dodoAppFlags.port, string(sshKey), softClient, dodoAppFlags.namespace, env)
+	s := welcome.NewDodoAppServer(dodoAppFlags.port, string(sshKey), softClient, dodoAppFlags.namespace, jc, env)
 	return s.Start()
 }
 

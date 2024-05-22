@@ -90,7 +90,9 @@ func (b Bootstrapper) Run(env BootstrapConfig) error {
 		fmt.Println("Failed to get config repo")
 		return err
 	}
-	mgr, err := NewInfraAppManager(repoIO, b.ns)
+	hf := NewGitHelmFetcher()
+	lg := NewInfraLocalChartGenerator()
+	mgr, err := NewInfraAppManager(repoIO, b.ns, hf, lg)
 	if err != nil {
 		return err
 	}

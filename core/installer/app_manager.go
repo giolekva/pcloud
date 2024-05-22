@@ -9,10 +9,12 @@ import (
 	"net/http"
 	"path"
 	"path/filepath"
+	"strings"
 
 	"github.com/giolekva/pcloud/core/installer/io"
 	"github.com/giolekva/pcloud/core/installer/soft"
 
+	helmv2 "github.com/fluxcd/helm-controller/api/v2"
 	"sigs.k8s.io/yaml"
 )
 
@@ -23,14 +25,24 @@ var ErrorNotFound = errors.New("not found")
 
 type AppManager struct {
 	repoIO     soft.RepoIO
-	nsCreator  NamespaceCreator
+	nsc        NamespaceCreator
+	jc         JobCreator
+	hf         HelmFetcher
 	appDirRoot string
 }
 
-func NewAppManager(repoIO soft.RepoIO, nsCreator NamespaceCreator, appDirRoot string) (*AppManager, error) {
+func NewAppManager(
+	repoIO soft.RepoIO,
+	nsc NamespaceCreator,
+	jc JobCreator,
+	hf HelmFetcher,
+	appDirRoot string,
+) (*AppManager, error) {
 	return &AppManager{
 		repoIO,
-		nsCreator,
+		nsc,
+		jc,
+		hf,
 		appDirRoot,
 	}, nil
 }
@@ -108,12 +120,30 @@ func (m *AppManager) FindInstance(id string) (*AppInstanceConfig, error) {
 	return nil, ErrorNotFound
 }
 
-func (m *AppManager) AppConfig(name string) (AppInstanceConfig, error) {
-	var cfg AppInstanceConfig
-	if err := soft.ReadJson(m.repoIO, filepath.Join(m.appDirRoot, name, "config.json"), &cfg); err != nil {
-		return AppInstanceConfig{}, err
+func GetCueAppData(fs soft.RepoFS, dir string) (CueAppData, error) {
+	files, err := fs.ListDir(dir)
+	if err != nil {
+		return nil, err
+	}
+	cfg := CueAppData{}
+	for _, f := range files {
+		if !f.IsDir() && strings.HasSuffix(f.Name(), ".cue") {
+			contents, err := soft.ReadFile(fs, filepath.Join(dir, f.Name()))
+			if err != nil {
+				return nil, err
+			}
+			cfg[f.Name()] = contents
+		}
 	}
 	return cfg, nil
+}
+
+func (m *AppManager) GetInstanceApp(id string) (EnvApp, error) {
+	cfg, err := GetCueAppData(m.repoIO, filepath.Join(m.appDirRoot, id))
+	if err != nil {
+		return nil, err
+	}
+	return NewCueEnvApp(cfg)
 }
 
 type allocatePortReq struct {
@@ -186,8 +216,20 @@ func installApp(
 	ports []PortForward,
 	resources CueAppData,
 	data CueAppData,
-	opts ...soft.DoOption,
+	opts ...InstallOption,
 ) (ReleaseResources, error) {
+	var o installOptions
+	for _, i := range opts {
+		i(&o)
+	}
+	dopts := []soft.DoOption{}
+	if o.Branch != "" {
+		dopts = append(dopts, soft.WithForce())
+		dopts = append(dopts, soft.WithCommitToBranch(o.Branch))
+	}
+	if o.NoPublish {
+		dopts = append(dopts, soft.WithNoCommit())
+	}
 	return ReleaseResources{}, repo.Do(func(r soft.RepoFS) (string, error) {
 		if err := r.RemoveDir(appDir); err != nil {
 			return "", err
@@ -238,11 +280,18 @@ func installApp(
 			}
 		}
 		return fmt.Sprintf("install: %s", name), nil
-	}, opts...)
+	}, dopts...)
 }
 
 // TODO(gio): commit instanceId -> appDir mapping as well
-func (m *AppManager) Install(app EnvApp, instanceId string, appDir string, namespace string, values map[string]any, opts ...InstallOption) (ReleaseResources, error) {
+func (m *AppManager) Install(
+	app EnvApp,
+	instanceId string,
+	appDir string,
+	namespace string,
+	values map[string]any,
+	opts ...InstallOption,
+) (ReleaseResources, error) {
 	o := &installOptions{}
 	for _, i := range opts {
 		i(o)
@@ -251,7 +300,7 @@ func (m *AppManager) Install(app EnvApp, instanceId string, appDir string, names
 	if err := m.repoIO.Pull(); err != nil {
 		return ReleaseResources{}, err
 	}
-	if err := m.nsCreator.Create(namespace); err != nil {
+	if err := m.nsc.Create(namespace); err != nil {
 		return ReleaseResources{}, err
 	}
 	var env EnvConfig
@@ -264,22 +313,47 @@ func (m *AppManager) Install(app EnvApp, instanceId string, appDir string, names
 			return ReleaseResources{}, err
 		}
 	}
+	var lg LocalChartGenerator
+	if o.LG != nil {
+		lg = o.LG
+	} else {
+		lg = GitRepositoryLocalChartGenerator{env.Id, env.Id}
+	}
 	release := Release{
 		AppInstanceId: instanceId,
 		Namespace:     namespace,
 		RepoAddr:      m.repoIO.FullAddress(),
 		AppDir:        appDir,
 	}
-	rendered, err := app.Render(release, env, values)
+	rendered, err := app.Render(release, env, values, nil)
 	if err != nil {
 		return ReleaseResources{}, err
 	}
-	dopts := []soft.DoOption{}
-	if o.Branch != "" {
-		dopts = append(dopts, soft.WithForce())
-		dopts = append(dopts, soft.WithCommitToBranch(o.Branch))
+	imageRegistry := fmt.Sprintf("zot.%s", env.PrivateDomain)
+	if o.FetchContainerImages {
+		if err := pullContainerImages(instanceId, rendered.ContainerImages, imageRegistry, namespace, m.jc); err != nil {
+			return ReleaseResources{}, err
+		}
 	}
-	if _, err := installApp(m.repoIO, appDir, rendered.Name, rendered.Config, rendered.Ports, rendered.Resources, rendered.Data, dopts...); err != nil {
+	var localCharts map[string]helmv2.HelmChartTemplateSpec
+	if err := m.repoIO.Do(func(rfs soft.RepoFS) (string, error) {
+		charts, err := pullHelmCharts(m.hf, rendered.HelmCharts, rfs, "/helm-charts")
+		if err != nil {
+			return "", err
+		}
+		localCharts = generateLocalCharts(lg, charts)
+		return "pull helm charts", nil
+	}); err != nil {
+		return ReleaseResources{}, err
+	}
+	if o.FetchContainerImages {
+		release.ImageRegistry = imageRegistry
+	}
+	rendered, err = app.Render(release, env, values, localCharts)
+	if err != nil {
+		return ReleaseResources{}, err
+	}
+	if _, err := installApp(m.repoIO, appDir, rendered.Name, rendered.Config, rendered.Ports, rendered.Resources, rendered.Data, opts...); err != nil {
 		return ReleaseResources{}, err
 	}
 	// TODO(gio): add ingress-nginx to release resources
@@ -316,7 +390,12 @@ func extractHelm(resources CueAppData) []Resource {
 	return ret
 }
 
-func (m *AppManager) Update(app EnvApp, instanceId string, values map[string]any, opts ...soft.DoOption) (ReleaseResources, error) {
+// TODO(gio): take app configuration from the repo
+func (m *AppManager) Update(
+	instanceId string,
+	values map[string]any,
+	opts ...InstallOption,
+) (ReleaseResources, error) {
 	if err := m.repoIO.Pull(); err != nil {
 		return ReleaseResources{}, err
 	}
@@ -325,18 +404,20 @@ func (m *AppManager) Update(app EnvApp, instanceId string, values map[string]any
 		return ReleaseResources{}, err
 	}
 	instanceDir := filepath.Join(m.appDirRoot, instanceId)
+	app, err := m.GetInstanceApp(instanceId)
+	if err != nil {
+		return ReleaseResources{}, err
+	}
 	instanceConfigPath := filepath.Join(instanceDir, "config.json")
 	config, err := m.appConfig(instanceConfigPath)
 	if err != nil {
 		return ReleaseResources{}, err
 	}
-	release := Release{
-		AppInstanceId: instanceId,
-		Namespace:     config.Release.Namespace,
-		RepoAddr:      m.repoIO.FullAddress(),
-		AppDir:        instanceDir,
+	localCharts, err := extractLocalCharts(m.repoIO, filepath.Join(instanceDir, "rendered.json"))
+	if err != nil {
+		return ReleaseResources{}, err
 	}
-	rendered, err := app.Render(release, env, values)
+	rendered, err := app.Render(config.Release, env, values, localCharts)
 	if err != nil {
 		return ReleaseResources{}, err
 	}
@@ -379,16 +460,12 @@ func CreateNetworks(env EnvConfig) []Network {
 	}
 }
 
-// InfraAppmanager
-
-type InfraAppManager struct {
-	repoIO    soft.RepoIO
-	nsCreator NamespaceCreator
-}
-
 type installOptions struct {
-	Env    *EnvConfig
-	Branch string
+	NoPublish            bool
+	Env                  *EnvConfig
+	Branch               string
+	LG                   LocalChartGenerator
+	FetchContainerImages bool
 }
 
 type InstallOption func(*installOptions)
@@ -405,10 +482,44 @@ func WithBranch(branch string) InstallOption {
 	}
 }
 
-func NewInfraAppManager(repoIO soft.RepoIO, nsCreator NamespaceCreator) (*InfraAppManager, error) {
+func WithLocalChartGenerator(lg LocalChartGenerator) InstallOption {
+	return func(o *installOptions) {
+		o.LG = lg
+	}
+}
+
+func WithFetchContainerImages() InstallOption {
+	return func(o *installOptions) {
+		o.FetchContainerImages = true
+	}
+}
+
+func WithNoPublish() InstallOption {
+	return func(o *installOptions) {
+		o.NoPublish = true
+	}
+}
+
+// InfraAppmanager
+
+type InfraAppManager struct {
+	repoIO soft.RepoIO
+	nsc    NamespaceCreator
+	hf     HelmFetcher
+	lg     LocalChartGenerator
+}
+
+func NewInfraAppManager(
+	repoIO soft.RepoIO,
+	nsc NamespaceCreator,
+	hf HelmFetcher,
+	lg LocalChartGenerator,
+) (*InfraAppManager, error) {
 	return &InfraAppManager{
 		repoIO,
-		nsCreator,
+		nsc,
+		hf,
+		lg,
 	}, nil
 }
 
@@ -453,7 +564,7 @@ func (m *InfraAppManager) Install(app InfraApp, appDir string, namespace string,
 	if err := m.repoIO.Pull(); err != nil {
 		return ReleaseResources{}, err
 	}
-	if err := m.nsCreator.Create(namespace); err != nil {
+	if err := m.nsc.Create(namespace); err != nil {
 		return ReleaseResources{}, err
 	}
 	infra, err := m.Config()
@@ -465,14 +576,34 @@ func (m *InfraAppManager) Install(app InfraApp, appDir string, namespace string,
 		RepoAddr:  m.repoIO.FullAddress(),
 		AppDir:    appDir,
 	}
-	rendered, err := app.Render(release, infra, values)
+	rendered, err := app.Render(release, infra, values, nil)
+	if err != nil {
+		return ReleaseResources{}, err
+	}
+	var localCharts map[string]helmv2.HelmChartTemplateSpec
+	if err := m.repoIO.Do(func(rfs soft.RepoFS) (string, error) {
+		charts, err := pullHelmCharts(m.hf, rendered.HelmCharts, rfs, "/helm-charts")
+		if err != nil {
+			return "", err
+		}
+		localCharts = generateLocalCharts(m.lg, charts)
+		return "pull helm charts", nil
+	}); err != nil {
+		return ReleaseResources{}, err
+	}
+	rendered, err = app.Render(release, infra, values, localCharts)
 	if err != nil {
 		return ReleaseResources{}, err
 	}
 	return installApp(m.repoIO, appDir, rendered.Name, rendered.Config, rendered.Ports, rendered.Resources, rendered.Data)
 }
 
-func (m *InfraAppManager) Update(app InfraApp, instanceId string, values map[string]any, opts ...soft.DoOption) (ReleaseResources, error) {
+// TODO(gio): take app configuration from the repo
+func (m *InfraAppManager) Update(
+	instanceId string,
+	values map[string]any,
+	opts ...InstallOption,
+) (ReleaseResources, error) {
 	if err := m.repoIO.Pull(); err != nil {
 		return ReleaseResources{}, err
 	}
@@ -481,20 +612,81 @@ func (m *InfraAppManager) Update(app InfraApp, instanceId string, values map[str
 		return ReleaseResources{}, err
 	}
 	instanceDir := filepath.Join("/infrastructure", instanceId)
+	appCfg, err := GetCueAppData(m.repoIO, instanceDir)
+	if err != nil {
+		return ReleaseResources{}, err
+	}
+	app, err := NewCueInfraApp(appCfg)
+	if err != nil {
+		return ReleaseResources{}, err
+	}
 	instanceConfigPath := filepath.Join(instanceDir, "config.json")
 	config, err := m.appConfig(instanceConfigPath)
 	if err != nil {
 		return ReleaseResources{}, err
 	}
-	release := Release{
-		AppInstanceId: instanceId,
-		Namespace:     config.Release.Namespace,
-		RepoAddr:      m.repoIO.FullAddress(),
-		AppDir:        instanceDir,
+	localCharts, err := extractLocalCharts(m.repoIO, filepath.Join(instanceDir, "rendered.json"))
+	if err != nil {
+		return ReleaseResources{}, err
 	}
-	rendered, err := app.Render(release, env, values)
+	rendered, err := app.Render(config.Release, env, values, localCharts)
 	if err != nil {
 		return ReleaseResources{}, err
 	}
 	return installApp(m.repoIO, instanceDir, rendered.Name, rendered.Config, rendered.Ports, rendered.Resources, rendered.Data, opts...)
+}
+
+func pullHelmCharts(hf HelmFetcher, charts HelmCharts, rfs soft.RepoFS, root string) (map[string]string, error) {
+	ret := make(map[string]string)
+	for name, chart := range charts.Git {
+		chartRoot := filepath.Join(root, name)
+		ret[name] = chartRoot
+		if err := hf.Pull(chart, rfs, chartRoot); err != nil {
+			return nil, err
+		}
+	}
+	return ret, nil
+}
+
+func generateLocalCharts(g LocalChartGenerator, charts map[string]string) map[string]helmv2.HelmChartTemplateSpec {
+	ret := make(map[string]helmv2.HelmChartTemplateSpec)
+	for name, path := range charts {
+		ret[name] = g.Generate(path)
+	}
+	return ret
+}
+
+func pullContainerImages(appName string, imgs map[string]ContainerImage, registry, namespace string, jc JobCreator) error {
+	for _, img := range imgs {
+		name := fmt.Sprintf("copy-image-%s-%s-%s-%s", appName, img.Repository, img.Name, img.Tag)
+		if err := jc.Create(name, namespace, "giolekva/skopeo:latest", []string{
+			"skopeo",
+			"--insecure-policy",
+			"copy",
+			"--dest-tls-verify=false", // TODO(gio): enable
+			"--multi-arch=all",
+			fmt.Sprintf("docker://%s/%s/%s:%s", img.Registry, img.Repository, img.Name, img.Tag),
+			fmt.Sprintf("docker://%s/%s/%s:%s", registry, img.Repository, img.Name, img.Tag),
+		}); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+type renderedInstance struct {
+	LocalCharts map[string]helmv2.HelmChartTemplateSpec `json:"localCharts"`
+}
+
+func extractLocalCharts(fs soft.RepoFS, path string) (map[string]helmv2.HelmChartTemplateSpec, error) {
+	r, err := fs.Reader(path)
+	if err != nil {
+		return nil, err
+	}
+	defer r.Close()
+	var cfg renderedInstance
+	if err := json.NewDecoder(r).Decode(&cfg); err != nil {
+		return nil, err
+	}
+	return cfg.LocalCharts, nil
 }

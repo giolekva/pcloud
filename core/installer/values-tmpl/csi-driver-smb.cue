@@ -30,12 +30,10 @@ images: {
 
 charts: {
 	csiDriverSMB: {
-		chart: "charts/csi-driver-smb"
-		sourceRef: {
-			kind: "GitRepository"
-			name: "pcloud"
-			namespace: global.pcloudEnvName
-		}
+		kind: "GitRepository"
+		address: "https://github.com/giolekva/pcloud.git"
+		branch: "main"
+		path: "charts/csi-driver-smb"
 	}
 }
 

@@ -1,0 +1,26 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: copy-image-{{ .Name }}
+  namespace: {{ .Namespace }}
+  # name: copy-image # -{{ .Name }}
+  # namespace: default # {{ .Namespace }}
+spec:
+  template:
+    spec:
+      containers:
+      - name: copy
+        image: giolekva/skopeo:amd64
+        imagePullPolicy: Always
+        command:
+        - skopeo
+        - --insecure-policy
+        - copy
+        - --dest-tls-verify=false # TODO(gio): enable
+        - --multi-arch=all
+        - {{ .From }}
+        - {{ .To }}
+        # - docker://docker.io/giolekva/skopeo:latest # {{ .From }}
+        # - docker://zot.p.v1.dodo.cloud/giolekva/skopeo:test # {{ .To }}
+      restartPolicy: Never
+  backoffLimit: 4

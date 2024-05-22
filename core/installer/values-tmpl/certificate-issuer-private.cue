@@ -7,12 +7,10 @@ images: {}
 
 charts: {
 	"certificate-issuer-private": {
-		chart: "charts/certificate-issuer-private"
-		sourceRef: {
-			kind: "GitRepository"
-			name: "pcloud"
-			namespace: global.id
-		}
+		path: "charts/certificate-issuer-private"
+		kind: "GitRepository"
+		address: "https://github.com/giolekva/pcloud.git"
+		branch: "main"
 	}
 }
 

@@ -37,28 +37,22 @@ images: {
 
 charts: {
     jenkins: {
-        chart: "charts/jenkins"
-        sourceRef: {
-            kind: "GitRepository"
-            name: "pcloud"
-            namespace: global.id
-        }
+		kind: "GitRepository"
+		address: "https://github.com/giolekva/pcloud.git"
+		branch: "main"
+		path: "charts/jenkins"
     }
 	volume: {
-		chart: "charts/volumes"
-		sourceRef: {
-			kind: "GitRepository"
-			name: "pcloud"
-			namespace: global.id
-		}
+		kind: "GitRepository"
+		address: "https://github.com/giolekva/pcloud.git"
+		branch: "main"
+		path: "charts/volumes"
 	}
 	oauth2Client: {
-		chart: "charts/oauth2-client"
-		sourceRef: {
-			kind: "GitRepository"
-			name: "pcloud"
-			namespace: global.id
-		}
+		kind: "GitRepository"
+		address: "https://github.com/giolekva/pcloud.git"
+		branch: "main"
+		path: "charts/oauth2-client"
 	}
 }
 

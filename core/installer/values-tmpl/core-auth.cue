@@ -64,20 +64,16 @@ images: {
 
 charts: {
 	auth: {
-		chart: "charts/auth"
-		sourceRef: {
-			kind: "GitRepository"
-			name: "pcloud"
-			namespace: global.id
-		}
+		kind: "GitRepository"
+		address: "https://github.com/giolekva/pcloud.git"
+		branch: "main"
+		path: "charts/auth"
 	}
 	postgres: {
-		chart: "charts/postgresql"
-		sourceRef: {
-			kind: "GitRepository"
-			name: "pcloud"
-			namespace: global.id
-		}
+		kind: "GitRepository"
+		address: "https://github.com/giolekva/pcloud.git"
+		branch: "main"
+		path: "charts/postgresql"
 	}
 }
 

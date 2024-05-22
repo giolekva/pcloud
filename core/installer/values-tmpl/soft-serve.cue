@@ -25,12 +25,10 @@ images: {
 
 charts: {
 	softserve: {
-		chart: "charts/soft-serve"
-		sourceRef: {
-			kind: "GitRepository"
-			name: "pcloud"
-			namespace: global.id
-		}
+		kind: "GitRepository"
+		address: "https://github.com/giolekva/pcloud.git"
+		branch: "main"
+		path: "charts/soft-serve"
 	}
 }
 

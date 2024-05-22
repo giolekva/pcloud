@@ -41,20 +41,16 @@ images: {
 
 charts: {
 	zot: {
-		chart: "charts/zot"
-		sourceRef: {
-			kind: "GitRepository"
-			name: "pcloud"
-			namespace: global.id
-		}
+		kind: "GitRepository"
+		address: "https://github.com/giolekva/pcloud.git"
+		branch: "main"
+		path: "charts/zot"
 	}
 	volume: {
-		chart: "charts/volumes"
-		sourceRef: {
-			kind: "GitRepository"
-			name: "pcloud"
-			namespace: global.id
-		}
+		kind: "GitRepository"
+		address: "https://github.com/giolekva/pcloud.git"
+		branch: "main"
+		path: "charts/volumes"
 	}
 }
 
@@ -100,7 +96,7 @@ helm: {
 					}
 				})
 			}
-			persistnce: true
+			persistence: true
 			pvc: {
 				create: false
 				name: volumes.zot.name

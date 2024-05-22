@@ -31,14 +31,11 @@ bootstrap:
 create_env:
 	./pcloud --kubeconfig=../../priv/kubeconfig create-env --admin-priv-key=/Users/lekva/.ssh/id_rsa --name=lekva --ip=192.168.0.211 --admin-username=gio
 
-rpuppy:
-	./pcloud --kubeconfig=../../priv/kubeconfig install --ssh-key=/Users/lekva/.ssh/id_rsa --app=rpuppy --repo-addr=ssh://localhost:2222/lekva
-
 appmanager:
-	./pcloud --kubeconfig=../../priv/kubeconfig-hetzner appmanager --ssh-key=/Users/lekva/.ssh/id_ed25519 --repo-addr=ssh://localhost:2222/config --port=9090 # --app-repo-addr=http://localhost:8080
+	./pcloud --kubeconfig=../../priv/kubeconfig-hetzner appmanager --ssh-key=/Users/lekva/.ssh/id_ed25519 --repo-addr=ssh://10.43.196.174/config --port=9090 # --app-repo-addr=http://localhost:8080
 
 dodo-app:
-	./pcloud --kubeconfig=../../priv/kubeconfig-hetzner dodo-app --ssh-key=/Users/lekva/.ssh/id_ed25519 --repo-addr=ssh://localhost:2222/test
+	./pcloud --kubeconfig=../../priv/kubeconfig-hetzner dodo-app --ssh-key=/Users/lekva/.ssh/id_ed25519 --repo-addr=ssh://10.43.196.174/test
 
 welc:
 	./pcloud --kubeconfig=../../priv/kubeconfig welcome --ssh-key=/Users/lekva/.ssh/id_rsa --repo-addr=ssh://192.168.0.210/config --port=9090
@@ -47,10 +44,10 @@ env:
 	./pcloud --kubeconfig=../../priv/kubeconfig-hetzner envmanager --ssh-key=/Users/lekva/.ssh/id_rsa --repo-addr=192.168.100.210:22 --repo-name=config --port=9090
 
 rewrite:
-	./pcloud rewrite --ssh-key=/Users/lekva/.ssh/id_ed25519 --repo-addr=ssh://localhost:2222/config
+	./pcloud rewrite --ssh-key=/Users/lekva/.ssh/id_ed25519 --repo-addr=ssh://10.43.196.174/config
 
 launcher:
-	./pcloud launcher --port=9090 --logout-url=http://localhost:8080 --ssh-key=/Users/lekva/.ssh/id_ed25519 --repo-addr=ssh://localhost:2222/config
+	./pcloud launcher --port=9090 --logout-url=http://localhost:8080 --ssh-key=/Users/lekva/.ssh/id_ed25519 --repo-addr=ssh://10.43.196.174/config
 
 ## installer image
 build_arm64: export CGO_ENABLED=0

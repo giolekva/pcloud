@@ -24,12 +24,10 @@ images: {
 
 charts: {
 	jellyfin: {
-		chart: "charts/jellyfin"
-		sourceRef: {
-			kind: "GitRepository"
-			name: "pcloud"
-			namespace: global.id
-		}
+		kind: "GitRepository"
+		address: "https://github.com/giolekva/pcloud.git"
+		branch: "main"
+		path: "charts/jellyfin"
 	}
 }
 

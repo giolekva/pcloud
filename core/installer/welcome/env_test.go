@@ -34,6 +34,24 @@ func (f fakeNSCreator) Create(name string) error {
 	return nil
 }
 
+type fakeJobCreator struct {
+	t *testing.T
+}
+
+func (f fakeJobCreator) Create(name, namespace string, image string, cmd []string) error {
+	f.t.Logf("Create job: %s/%s %s \"%s\"", namespace, name, image, strings.Join(cmd, " "))
+	return nil
+}
+
+type fakeHelmFetcher struct {
+	t *testing.T
+}
+
+func (f fakeHelmFetcher) Pull(chart installer.HelmChartGitRepo, rfs soft.RepoFS, root string) error {
+	f.t.Logf("Helm pull: %+v", chart)
+	return nil
+}
+
 type fakeZoneStatusFetcher struct {
 	t *testing.T
 }
@@ -213,8 +231,11 @@ func TestCreateNewEnv(t *testing.T) {
 	infraFS := memfs.New()
 	envFS := memfs.New()
 	nsCreator := fakeNSCreator{t}
+	jc := fakeJobCreator{t}
+	hf := fakeHelmFetcher{t}
+	lg := installer.GitRepositoryLocalChartGenerator{"foo", "bar"}
 	infraRepo := mockRepoIO{soft.NewBillyRepoFS(infraFS), "foo.bar", t, &sync.Mutex{}}
-	infraMgr, err := installer.NewInfraAppManager(infraRepo, nsCreator)
+	infraMgr, err := installer.NewInfraAppManager(infraRepo, nsCreator, hf, lg)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -254,6 +275,8 @@ func TestCreateNewEnv(t *testing.T) {
 		infraRepo,
 		cg,
 		nsCreator,
+		jc,
+		hf,
 		fakeZoneStatusFetcher{t},
 		fixedNameGenerator{},
 		httpClient,

@@ -27,20 +27,16 @@ images: {
 
 charts: {
 	ingressNginx: {
-		chart: "charts/ingress-nginx"
-		sourceRef: {
-			kind: "GitRepository"
-			name: "pcloud"
-			namespace: global.pcloudEnvName
-		}
+		kind: "GitRepository"
+		address: "https://github.com/giolekva/pcloud.git"
+		branch: "main"
+		path: "charts/ingress-nginx"
 	}
 	portAllocator: {
-		chart: "charts/port-allocator"
-		sourceRef: {
-			kind: "GitRepository"
-			name: "pcloud"
-			namespace: global.pcloudEnvName
-		}
+		kind: "GitRepository"
+		address: "https://github.com/giolekva/pcloud.git"
+		branch: "main"
+		path: "charts/port-allocator"
 	}
 }
 

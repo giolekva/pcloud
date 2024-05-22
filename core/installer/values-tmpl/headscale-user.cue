@@ -8,16 +8,12 @@ input: {
 name: "headscale-user"
 namespace: "app-headscale"
 
-images: {}
-
 charts: {
 	headscaleUser: {
-		chart: "charts/headscale-user"
-		sourceRef: {
-			kind: "GitRepository"
-			name: "pcloud"
-			namespace: global.id
-		}
+		kind: "GitRepository"
+		address: "https://github.com/giolekva/pcloud.git"
+		branch: "main"
+		path: "charts/headscale-user"
 	}
 }
 

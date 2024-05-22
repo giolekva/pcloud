@@ -84,6 +84,8 @@ type EnvServer struct {
 	repo          soft.RepoIO
 	repoClient    soft.ClientGetter
 	nsCreator     installer.NamespaceCreator
+	jc            installer.JobCreator
+	hf            installer.HelmFetcher
 	dnsFetcher    installer.ZoneStatusFetcher
 	nameGenerator installer.NameGenerator
 	httpClient    phttp.Client
@@ -100,6 +102,8 @@ func NewEnvServer(
 	repo soft.RepoIO,
 	repoClient soft.ClientGetter,
 	nsCreator installer.NamespaceCreator,
+	jc installer.JobCreator,
+	hf installer.HelmFetcher,
 	dnsFetcher installer.ZoneStatusFetcher,
 	nameGenerator installer.NameGenerator,
 	httpClient phttp.Client,
@@ -112,6 +116,8 @@ func NewEnvServer(
 		repo,
 		repoClient,
 		nsCreator,
+		jc,
+		hf,
 		dnsFetcher,
 		nameGenerator,
 		httpClient,
@@ -333,7 +339,9 @@ func (s *EnvServer) createEnv(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	mgr, err := installer.NewInfraAppManager(s.repo, s.nsCreator)
+	hf := installer.NewGitHelmFetcher()
+	lg := installer.NewInfraLocalChartGenerator()
+	mgr, err := installer.NewInfraAppManager(s.repo, s.nsCreator, hf, lg)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -403,6 +411,8 @@ func (s *EnvServer) createEnv(w http.ResponseWriter, r *http.Request) {
 	t, dns := tasks.NewCreateEnvTask(
 		env,
 		s.nsCreator,
+		s.jc,
+		s.hf,
 		s.dnsFetcher,
 		s.httpClient,
 		s.dnsClient,

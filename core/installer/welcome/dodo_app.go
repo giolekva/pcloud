@@ -18,6 +18,7 @@ type DodoAppServer struct {
 	client    soft.Client
 	namespace string
 	env       installer.EnvConfig
+	jc        installer.JobCreator
 	workers   map[string]struct{}
 }
 
@@ -26,6 +27,7 @@ func NewDodoAppServer(
 	sshKey string,
 	client soft.Client,
 	namespace string,
+	jc installer.JobCreator,
 	env installer.EnvConfig,
 ) *DodoAppServer {
 	return &DodoAppServer{
@@ -34,6 +36,7 @@ func NewDodoAppServer(
 		client,
 		namespace,
 		env,
+		jc,
 		map[string]struct{}{},
 	}
 }
@@ -64,7 +67,7 @@ func (s *DodoAppServer) handleUpdate(w http.ResponseWriter, r *http.Request) {
 	}
 	go func() {
 		time.Sleep(20 * time.Second)
-		if err := UpdateDodoApp(s.client, s.namespace, s.sshKey, &s.env); err != nil {
+		if err := UpdateDodoApp(s.client, s.namespace, s.sshKey, s.jc, &s.env); err != nil {
 			fmt.Println(err)
 		}
 	}()
@@ -90,16 +93,17 @@ func (s *DodoAppServer) handleRegisterWorker(w http.ResponseWriter, r *http.Requ
 	fmt.Printf("registered worker: %s\n", req.Address)
 }
 
-func UpdateDodoApp(client soft.Client, namespace string, sshKey string, env *installer.EnvConfig) error {
+func UpdateDodoApp(client soft.Client, namespace string, sshKey string, jc installer.JobCreator, env *installer.EnvConfig) error {
 	repo, err := client.GetRepo("app")
 	if err != nil {
 		return err
 	}
-	nsCreator := installer.NewNoOpNamespaceCreator()
+	nsc := installer.NewNoOpNamespaceCreator()
 	if err != nil {
 		return err
 	}
-	m, err := installer.NewAppManager(repo, nsCreator, "/.dodo")
+	hf := installer.NewGitHelmFetcher()
+	m, err := installer.NewAppManager(repo, nsc, jc, hf, "/.dodo")
 	if err != nil {
 		return err
 	}
@@ -112,10 +116,11 @@ func UpdateDodoApp(client soft.Client, namespace string, sshKey string, env *ins
 	if err != nil {
 		return err
 	}
+	lg := installer.GitRepositoryLocalChartGenerator{"app", namespace}
 	if _, err := m.Install(app, "app", "/.dodo/app", namespace, map[string]any{
 		"repoAddr":      repo.FullAddress(),
 		"sshPrivateKey": sshKey,
-	}, installer.WithConfig(env), installer.WithBranch("dodo")); err != nil {
+	}, installer.WithConfig(env), installer.WithBranch("dodo"), installer.WithLocalChartGenerator(lg)); err != nil {
 		return err
 	}
 	return nil

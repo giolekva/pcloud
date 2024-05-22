@@ -38,28 +38,22 @@ images: {
 
 charts: {
 	"ingress-nginx": {
-		chart: "charts/ingress-nginx"
-		sourceRef: {
-			kind: "GitRepository"
-			name: "pcloud"
-			namespace: global.pcloudEnvName
-		}
+		kind: "GitRepository"
+		address: "https://github.com/giolekva/pcloud.git"
+		branch: "main"
+		path: "charts/ingress-nginx"
 	}
 	"tailscale-proxy": {
-		chart: "charts/tailscale-proxy"
-		sourceRef: {
-			kind: "GitRepository"
-			name: "pcloud"
-			namespace: global.pcloudEnvName
-		}
+		kind: "GitRepository"
+		address: "https://github.com/giolekva/pcloud.git"
+		branch: "main"
+		path: "charts/tailscale-proxy"
 	}
 	portAllocator: {
-		chart: "charts/port-allocator"
-		sourceRef: {
-			kind: "GitRepository"
-			name: "pcloud"
-			namespace: global.id
-		}
+		kind: "GitRepository"
+		address: "https://github.com/giolekva/pcloud.git"
+		branch: "main"
+		path: "charts/port-allocator"
 	}
 }
 

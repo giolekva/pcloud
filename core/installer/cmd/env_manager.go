@@ -72,6 +72,11 @@ func envManagerCmdRun(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
+	jc, err := newJobCreator()
+	if err != nil {
+		return err
+	}
+	hf := installer.NewGitHelmFetcher()
 	dnsFetcher, err := newZoneFetcher()
 	if err != nil {
 		return err
@@ -83,6 +88,8 @@ func envManagerCmdRun(cmd *cobra.Command, args []string) error {
 		repoIO,
 		repoClient,
 		nsCreator,
+		jc,
+		hf,
 		dnsFetcher,
 		installer.NewFixedLengthRandomNameGenerator(4),
 		httpClient,

@@ -18,7 +18,7 @@ func CreateRepoClient(env installer.EnvConfig, st *state) Task {
 		if err != nil {
 			return err
 		}
-		appManager, err := installer.NewAppManager(r, st.nsCreator, "/apps")
+		appManager, err := installer.NewAppManager(r, st.nsCreator, st.jc, st.hf, "/apps")
 		if err != nil {
 			return err
 		}
@@ -57,31 +57,10 @@ func CommitEnvironmentConfiguration(env installer.EnvConfig, st *state) Task {
 			if err := soft.WriteYaml(r, "config.yaml", env); err != nil {
 				return "", err
 			}
-			out, err := r.Writer("pcloud-charts.yaml")
-			if err != nil {
-				return "", err
-			}
-			defer out.Close()
-			_, err = fmt.Fprintf(out, `
-apiVersion: source.toolkit.fluxcd.io/v1
-kind: GitRepository
-metadata:
-  name: pcloud
-  namespace: %s
-spec:
-  interval: 1m0s
-  url: https://github.com/giolekva/pcloud
-  ref:
-    branch: main
-`, env.Id)
-			if err != nil {
-				return "", err
-			}
 			rootKust, err := soft.ReadKustomization(r, "kustomization.yaml")
 			if err != nil {
 				return "", err
 			}
-			rootKust.AddResources("pcloud-charts.yaml")
 			if err := soft.WriteYaml(r, "kustomization.yaml", rootKust); err != nil {
 				return "", err
 			}

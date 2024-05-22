@@ -30,6 +30,7 @@ type RepoFS interface {
 	Writer(path string) (io.WriteCloser, error)
 	CreateDir(path string) error
 	RemoveDir(path string) error
+	ListDir(path string) ([]os.FileInfo, error)
 }
 
 type DoFn func(r RepoFS) (string, error)
@@ -118,6 +119,10 @@ func (r *repoFS) RemoveDir(path string) error {
 		return err
 	}
 	return nil
+}
+
+func (r *repoFS) ListDir(path string) ([]os.FileInfo, error) {
+	return r.fs.ReadDir(path)
 }
 
 type repoIO struct {

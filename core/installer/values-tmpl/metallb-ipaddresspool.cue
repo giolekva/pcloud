@@ -13,12 +13,10 @@ images: {}
 
 charts: {
 	metallbIPAddressPool: {
-		chart: "charts/metallb-ipaddresspool"
-		sourceRef: {
-			kind: "GitRepository"
-			name: "pcloud"
-			namespace: global.pcloudEnvName // TODO(gio): id ?
-		}
+		kind: "GitRepository"
+		address: "https://github.com/giolekva/pcloud.git"
+		branch: "main"
+		path: "charts/metallb-ipaddresspool"
 	}
 }
 

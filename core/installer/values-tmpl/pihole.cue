@@ -38,12 +38,10 @@ images: {
 
 charts: {
 	pihole: {
-		chart: "charts/pihole"
-		sourceRef: {
-			kind: "GitRepository"
-			name: "pcloud"
-			namespace: global.id
-		}
+		kind: "GitRepository"
+		address: "https://github.com/giolekva/pcloud.git"
+		branch: "main"
+		path: "charts/pihole"
 	}
 }
 

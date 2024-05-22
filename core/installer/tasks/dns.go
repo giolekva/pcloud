@@ -60,10 +60,6 @@ func SetupDNSServer(env installer.EnvConfig, st *state) Task {
 			}
 		}
 		{
-			app, err := installer.FindInfraApp(st.appsRepo, "dns-gateway")
-			if err != nil {
-				return err
-			}
 			cfg, err := st.infraAppManager.FindInstance("dns-gateway")
 			if err != nil {
 				return err
@@ -84,7 +80,7 @@ func SetupDNSServer(env installer.EnvConfig, st *state) Task {
 				env.Domain,
 				env.Network.DNSInClusterIP.String(),
 			})
-			if _, err := st.infraAppManager.Update(app, "dns-gateway", map[string]any{
+			if _, err := st.infraAppManager.Update("dns-gateway", map[string]any{
 				"servers": servers,
 			}); err != nil {
 				return err

@@ -35,20 +35,16 @@ images: {
 
 charts: {
 	certManager: {
-		chart: "charts/cert-manager"
-		sourceRef: {
-			kind: "GitRepository"
-			name: "pcloud"
-			namespace: global.pcloudEnvName
-		}
+		kind: "GitRepository"
+		address: "https://github.com/giolekva/pcloud.git"
+		branch: "main"
+		path: "charts/cert-manager"
 	}
 	dnsChallengeSolver: {
-		chart: "charts/cert-manager-webhook-pcloud"
-		sourceRef: {
-			kind: "GitRepository"
-			name: "pcloud"
-			namespace: global.pcloudEnvName
-		}
+		kind: "GitRepository"
+		address: "https://github.com/giolekva/pcloud.git"
+		branch: "main"
+		path: "charts/cert-manager-webhook-pcloud"
 	}
 }
 

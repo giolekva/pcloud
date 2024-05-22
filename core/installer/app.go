@@ -15,349 +15,59 @@ import (
 	"cuelang.org/go/cue/cuecontext"
 	"cuelang.org/go/cue/load"
 	cueyaml "cuelang.org/go/encoding/yaml"
+	helmv2 "github.com/fluxcd/helm-controller/api/v2"
 )
 
-//go:embed pcloud_app.cue
-var DodoAppCue []byte
+//go:embed app_configs/dodo_app.cue
+var dodoAppCue []byte
 
-// TODO(gio): import
-const cueEnvAppGlobal = `
-import (
-    "net"
-)
+//go:embed app_configs/app_base.cue
+var cueBaseConfig []byte
 
-#Global: {
-	id: string | *""
-	pcloudEnvName: string | *""
-	domain: string | *""
-    privateDomain: string | *""
-    contactEmail: string | *""
-    adminPublicKey: string | *""
-    publicIP: [...string] | *[]
-    nameserverIP: [...string] | *[]
-	namespacePrefix: string | *""
-	network: #EnvNetwork
-}
+//go:embed app_configs/app_global_env.cue
+var cueEnvAppGlobal []byte
 
-#EnvNetwork: {
-	dns: net.IPv4
-	dnsInClusterIP: net.IPv4
-	ingress: net.IPv4
-	headscale: net.IPv4
-	servicesFrom: net.IPv4
-	servicesTo: net.IPv4
-}
-
-// TODO(gio): remove
-ingressPrivate: "\(global.id)-ingress-private"
-ingressPublic: "\(global.pcloudEnvName)-ingress-public"
-issuerPrivate: "\(global.id)-private"
-issuerPublic: "\(global.id)-public"
-
-#Ingress: {
-	auth: #Auth
-	network: #Network
-	subdomain: string
-	service: close({
-		name: string
-		port: close({ name: string }) | close({ number: int & > 0 })
-	})
-
-	_domain: "\(subdomain).\(network.domain)"
-    _authProxyHTTPPortName: "http"
-
-	out: {
-		images: {
-			authProxy: #Image & {
-				repository: "giolekva"
-				name: "auth-proxy"
-				tag: "latest"
-				pullPolicy: "Always"
-			}
-		}
-		charts: {
-			ingress: #Chart & {
-				chart: "charts/ingress"
-				sourceRef: {
-					kind: "GitRepository"
-					name: "pcloud"
-					namespace: global.id
-				}
-			}
-			authProxy: #Chart & {
-				chart: "charts/auth-proxy"
-				sourceRef: {
-					kind: "GitRepository"
-					name: "pcloud"
-					namespace: global.id
-				}
-			}
-		}
-		helm: {
-			if auth.enabled {
-				"auth-proxy": {
-					chart: charts.authProxy
-					values: {
-						image: {
-							repository: images.authProxy.fullName
-							tag: images.authProxy.tag
-							pullPolicy: images.authProxy.pullPolicy
-						}
-						upstream: "\(service.name).\(release.namespace).svc.cluster.local"
-						whoAmIAddr: "https://accounts.\(global.domain)/sessions/whoami"
-						loginAddr: "https://accounts-ui.\(global.domain)/login"
-						membershipAddr: "http://memberships-api.\(global.id)-core-auth-memberships.svc.cluster.local/api/user"
-						groups: auth.groups
-						portName: _authProxyHTTPPortName
-					}
-				}
-			}
-			ingress: {
-				chart: charts.ingress
-				_service: service
-				values: {
-					domain: _domain
-					ingressClassName: network.ingressClass
-					certificateIssuer: network.certificateIssuer
-					service: {
-						if auth.enabled {
-							name: "auth-proxy"
-                            port: name: _authProxyHTTPPortName
-						}
-						if !auth.enabled {
-							name: _service.name
-							if _service.port.name != _|_ {
-								port: name: _service.port.name
-							}
-							if _service.port.number != _|_ {
-								port: number: _service.port.number
-							}
-						}
-					}
-				}
-			}
-		}
-	}
-}
-
-ingress: {}
-
-_ingressValidate: {
-	for key, value in ingress {
-		"\(key)": #Ingress & value
-	}
-}
-`
-
-const cueInfraAppGlobal = `
-#Global: {
-	pcloudEnvName: string | *""
-    publicIP: [...string] | *[]
-	namespacePrefix: string | *""
-    infraAdminPublicKey: string | *""
-}
-
-// TODO(gio): remove
-ingressPublic: "\(global.pcloudEnvName)-ingress-public"
-
-ingress: {}
-_ingressValidate: {}
-`
-
-const cueBaseConfig = `
-name: string | *""
-description: string | *""
-readme: string | *""
-icon: string | *""
-namespace: string | *""
-
-help: [...#HelpDocument] | *[]
-
-#HelpDocument: {
-	title: string
-	contents: string
-	children: [...#HelpDocument] | *[]
-}
-
-url: string | *""
-
-#AppType: "infra" | "env"
-appType: #AppType | *"env"
-
-#Release: {
-	appInstanceId: string
-	namespace: string
-	repoAddr: string
-	appDir: string
-}
-
-#Network: {
-	name: string
-	ingressClass: string
-	certificateIssuer: string | *""
-	domain: string
-	allocatePortAddr: string
-}
-
-#Auth: {
-  enabled: bool | *false // TODO(gio): enabled by default?
-  groups: string | *"" // TODO(gio): []string
-}
-
-#Image: {
-	registry: string | *"docker.io"
-	repository: string
-	name: string
-	tag: string
-	pullPolicy: string | *"IfNotPresent"
-	imageName: "\(repository)/\(name)"
-	fullName: "\(registry)/\(imageName)"
-	fullNameWithTag: "\(fullName):\(tag)"
-}
-
-#Chart: {
-	chart: string
-	sourceRef: #SourceRef
-}
-
-#SourceRef: {
-	kind: "GitRepository" | "HelmRepository"
-	name: string
-	namespace: string // TODO(gio): default global.id
-}
-
-#PortForward: {
-	allocator: string
-	protocol: "TCP" | "UDP" | *"TCP"
-	sourcePort: int
-	targetService: string
-	targetPort: int
-}
-
-portForward: [...#PortForward] | *[]
-
-global: #Global
-release: #Release
-
-images: {
-	for key, value in images {
-		"\(key)": #Image & value
-	}
-    for _, value in _ingressValidate {
-        for name, image in value.out.images {
-            "\(name)": #Image & image
-        }
-    }
-}
-
-charts: {
-	for key, value in charts {
-		"\(key)": #Chart & value
-	}
-    for _, value in _ingressValidate {
-        for name, chart in value.out.charts {
-            "\(name)": #Chart & chart
-        }
-    }
-}
-
-#ResourceReference: {
-    name: string
-    namespace: string
-}
-
-#Helm: {
-	name: string
-	dependsOn: [...#ResourceReference] | *[]
-	...
-}
-
-_helmValidate: {
-	for key, value in helm {
-		"\(key)": #Helm & value & {
-			name: key
-		}
-	}
-	for key, value in _ingressValidate {
-		for ing, ingValue in value.out.helm {
-            // TODO(gio): support multiple ingresses
-			// "\(key)-\(ing)": #Helm & ingValue & {
-			"\(ing)": #Helm & ingValue & {
-				// name: "\(key)-\(ing)"
-				name: ing
-			}
-		}
-	}
-}
-
-resources: {}
-
-#HelmRelease: {
-	_name: string
-	_chart: #Chart
-	_values: _
-	_dependencies: [...#ResourceReference] | *[]
-
-	apiVersion: "helm.toolkit.fluxcd.io/v2beta1"
-	kind: "HelmRelease"
-	metadata: {
-		name: _name
-   		namespace: release.namespace
-	}
-	spec: {
-		interval: "1m0s"
-		dependsOn: _dependencies
-		chart: {
-			spec: _chart
-		}
-		values: _values
-	}
-}
-
-output: {
-	for name, r in _helmValidate {
-		"\(name)": #HelmRelease & {
-			_name: name
-			_chart: r.chart
-			_values: r.values
-			_dependencies: r.dependsOn
-		}
-	}
-}
-
-#SSHKey: {
-	public: string
-	private: string
-}
-
-#HelpDocument: {
-    title: string
-    contents: string
-    children: [...#HelpDocument]
-}
-
-help: [...#HelpDocument] | *[]
-
-url: string | *""
-
-networks: {}
-`
+//go:embed app_configs/app_global_infra.cue
+var cueInfraAppGlobal []byte
 
 type rendered struct {
-	Name      string
-	Readme    string
-	Resources CueAppData
-	Ports     []PortForward
-	Data      CueAppData
-	URL       string
-	Help      []HelpDocument
-	Icon      string
+	Name            string
+	Readme          string
+	Resources       CueAppData
+	HelmCharts      HelmCharts
+	ContainerImages map[string]ContainerImage
+	Ports           []PortForward
+	Data            CueAppData
+	URL             string
+	Help            []HelpDocument
+	Icon            string
 }
 
 type HelpDocument struct {
 	Title    string
 	Contents string
 	Children []HelpDocument
+}
+
+type ContainerImage struct {
+	Registry   string `json:"registry"`
+	Repository string `json:"repository"`
+	Name       string `json:"name"`
+	Tag        string `json:"tag"`
+}
+
+type helmChartRef struct {
+	Kind string `json:"kind"`
+}
+
+type HelmCharts struct {
+	Git map[string]HelmChartGitRepo
+}
+
+type HelmChartGitRepo struct {
+	Address string `json:"address"`
+	Branch  string `json:"branch"`
+	Path    string `json:"path"`
 }
 
 type EnvAppRendered struct {
@@ -404,7 +114,7 @@ type InfraConfig struct {
 
 type InfraApp interface {
 	App
-	Render(release Release, infra InfraConfig, values map[string]any) (InfraAppRendered, error)
+	Render(release Release, infra InfraConfig, values map[string]any, charts map[string]helmv2.HelmChartTemplateSpec) (InfraAppRendered, error)
 }
 
 type EnvNetwork struct {
@@ -459,7 +169,6 @@ func NewEnvNetwork(subnet net.IP) (EnvNetwork, error) {
 	}, nil
 }
 
-// TODO(gio): rename to EnvConfig
 type EnvConfig struct {
 	Id              string     `json:"id,omitempty"`
 	InfraName       string     `json:"pcloudEnvName,omitempty"`
@@ -475,7 +184,7 @@ type EnvConfig struct {
 
 type EnvApp interface {
 	App
-	Render(release Release, env EnvConfig, values map[string]any) (EnvAppRendered, error)
+	Render(release Release, env EnvConfig, values map[string]any, charts map[string]helmv2.HelmChartTemplateSpec) (EnvAppRendered, error)
 }
 
 type cueApp struct {
@@ -583,8 +292,12 @@ func (a cueApp) render(values map[string]any) (rendered, error) {
 	ret := rendered{
 		Name:      a.Slug(),
 		Resources: make(CueAppData),
-		Ports:     make([]PortForward, 0),
-		Data:      a.data,
+		HelmCharts: HelmCharts{
+			Git: make(map[string]HelmChartGitRepo),
+		},
+		ContainerImages: make(map[string]ContainerImage),
+		Ports:           make([]PortForward, 0),
+		Data:            a.data,
 	}
 	var buf bytes.Buffer
 	if err := json.NewEncoder(&buf).Encode(values); err != nil {
@@ -611,6 +324,40 @@ func (a cueApp) render(values map[string]any) (rendered, error) {
 	ret.Readme = readme
 	if err := res.LookupPath(cue.ParsePath("portForward")).Decode(&ret.Ports); err != nil {
 		return rendered{}, err
+	}
+	{
+		charts := res.LookupPath(cue.ParsePath("charts"))
+		i, err := charts.Fields()
+		if err != nil {
+			return rendered{}, err
+		}
+		for i.Next() {
+			var chartRef helmChartRef
+			if err := i.Value().Decode(&chartRef); err != nil {
+				return rendered{}, err
+			}
+			if chartRef.Kind == "GitRepository" {
+				var chart HelmChartGitRepo
+				if err := i.Value().Decode(&chart); err != nil {
+					return rendered{}, err
+				}
+				ret.HelmCharts.Git[cleanName(i.Selector().String())] = chart
+			}
+		}
+	}
+	{
+		images := res.LookupPath(cue.ParsePath("images"))
+		i, err := images.Fields()
+		if err != nil {
+			return rendered{}, err
+		}
+		for i.Next() {
+			var img ContainerImage
+			if err := i.Value().Decode(&img); err != nil {
+				return rendered{}, err
+			}
+			ret.ContainerImages[cleanName(i.Selector().String())] = img
+		}
 	}
 	{
 		output := res.LookupPath(cue.ParsePath("output"))
@@ -677,7 +424,7 @@ func NewDodoApp(appCfg []byte) (EnvApp, error) {
 	return NewCueEnvApp(CueAppData{
 		"app.cue":        appCfg,
 		"base.cue":       []byte(cueBaseConfig),
-		"pcloud_app.cue": DodoAppCue,
+		"pcloud_app.cue": dodoAppCue,
 		"env_app.cue":    []byte(cueEnvAppGlobal),
 	})
 }
@@ -686,17 +433,21 @@ func (a cueEnvApp) Type() AppType {
 	return AppTypeEnv
 }
 
-func (a cueEnvApp) Render(release Release, env EnvConfig, values map[string]any) (EnvAppRendered, error) {
+func (a cueEnvApp) Render(release Release, env EnvConfig, values map[string]any, charts map[string]helmv2.HelmChartTemplateSpec) (EnvAppRendered, error) {
 	networks := CreateNetworks(env)
 	derived, err := deriveValues(values, a.Schema(), networks)
 	if err != nil {
 		return EnvAppRendered{}, nil
 	}
+	if charts == nil {
+		charts = make(map[string]helmv2.HelmChartTemplateSpec)
+	}
 	ret, err := a.cueApp.render(map[string]any{
-		"global":   env,
-		"release":  release,
-		"input":    derived,
-		"networks": networkMap(networks),
+		"global":      env,
+		"release":     release,
+		"input":       derived,
+		"localCharts": charts,
+		"networks":    networkMap(networks),
 	})
 	if err != nil {
 		return EnvAppRendered{}, err
@@ -732,11 +483,15 @@ func (a cueInfraApp) Type() AppType {
 	return AppTypeInfra
 }
 
-func (a cueInfraApp) Render(release Release, infra InfraConfig, values map[string]any) (InfraAppRendered, error) {
+func (a cueInfraApp) Render(release Release, infra InfraConfig, values map[string]any, charts map[string]helmv2.HelmChartTemplateSpec) (InfraAppRendered, error) {
+	if charts == nil {
+		charts = make(map[string]helmv2.HelmChartTemplateSpec)
+	}
 	ret, err := a.cueApp.render(map[string]any{
-		"global":  infra,
-		"release": release,
-		"input":   values,
+		"global":      infra,
+		"release":     release,
+		"input":       values,
+		"localCharts": charts,
 	})
 	if err != nil {
 		return InfraAppRendered{}, err

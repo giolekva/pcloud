@@ -15,3 +15,11 @@ func newZoneFetcher() (installer.ZoneStatusFetcher, error) {
 func newHelmReleaseMonitor() (installer.HelmReleaseMonitor, error) {
 	return installer.NewHelmReleaseMonitor(rootFlags.kubeConfig)
 }
+
+func newJobCreator() (installer.JobCreator, error) {
+	clientset, err := installer.NewKubeConfig(rootFlags.kubeConfig)
+	if err != nil {
+		return nil, err
+	}
+	return installer.NewJobCreator(clientset.BatchV1()), nil
+}

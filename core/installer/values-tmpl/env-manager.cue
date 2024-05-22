@@ -23,12 +23,10 @@ images: {
 
 charts: {
 	envManager: {
-		chart: "charts/env-manager"
-		sourceRef: {
-			kind: "GitRepository"
-			name: "pcloud"
-			namespace: global.pcloudEnvName
-		}
+		kind: "GitRepository"
+		address: "https://github.com/giolekva/pcloud.git"
+		branch: "main"
+		path: "charts/env-manager"
 	}
 }
 

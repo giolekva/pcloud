@@ -10,6 +10,12 @@ rules:
   verbs:
   - create
 - apiGroups:
+  - "batch"
+  resources:
+  - jobs
+  verbs:
+  - create
+- apiGroups:
   - "helm.toolkit.fluxcd.io"
   resources:
   - helmreleases

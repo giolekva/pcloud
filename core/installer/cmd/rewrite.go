@@ -61,7 +61,8 @@ func rewriteCmdRun(cmd *cobra.Command, args []string) error {
 	}
 	log.Println("Creating repository")
 	r := installer.NewInMemoryAppRepository(installer.CreateAllApps())
-	mgr, err := installer.NewAppManager(repoIO, nil, "/apps")
+	hf := installer.NewGitHelmFetcher()
+	mgr, err := installer.NewAppManager(repoIO, nil, nil, hf, "/apps")
 	if err != nil {
 		return err
 	}
@@ -84,7 +85,14 @@ func rewriteCmdRun(cmd *cobra.Command, args []string) error {
 			return err
 		}
 		v := inst.InputToValues(app.Schema())
-		if _, err := mgr.Update(app, inst.Id, v, soft.WithNoCommit()); err != nil {
+		if _, err := mgr.Install(
+			app,
+			inst.Id,
+			inst.Release.AppDir,
+			inst.Release.Namespace,
+			v,
+			installer.WithNoPublish(),
+		); err != nil {
 			return err
 		}
 	}

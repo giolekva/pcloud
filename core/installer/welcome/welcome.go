@@ -30,6 +30,7 @@ type Server struct {
 	port                int
 	repo                soft.RepoIO
 	nsCreator           installer.NamespaceCreator
+	hf                  installer.HelmFetcher
 	createAccountAddr   string
 	loginAddr           string
 	membershipsInitAddr string
@@ -39,6 +40,7 @@ func NewServer(
 	port int,
 	repo soft.RepoIO,
 	nsCreator installer.NamespaceCreator,
+	hf installer.HelmFetcher,
 	createAccountAddr string,
 	loginAddr string,
 	membershipsInitAddr string,
@@ -47,6 +49,7 @@ func NewServer(
 		port,
 		repo,
 		nsCreator,
+		hf,
 		createAccountAddr,
 		loginAddr,
 		membershipsInitAddr,
@@ -205,8 +208,9 @@ func (s *Server) createAccount(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
+	// TODO(gio): remove this once auto user sync is implemented
 	{
-		appManager, err := installer.NewAppManager(s.repo, s.nsCreator, "/apps")
+		appManager, err := installer.NewAppManager(s.repo, s.nsCreator, nil, s.hf, "/apps")
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return

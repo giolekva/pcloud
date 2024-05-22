@@ -247,11 +247,6 @@ func (s *AppManagerServer) handleAppUpdate(w http.ResponseWriter, r *http.Reques
 		http.Error(w, "empty slug", http.StatusBadRequest)
 		return
 	}
-	appConfig, err := s.m.AppConfig(slug)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
 	contents, err := ioutil.ReadAll(r.Body)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -262,16 +257,11 @@ func (s *AppManagerServer) handleAppUpdate(w http.ResponseWriter, r *http.Reques
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	a, err := installer.FindEnvApp(s.r, appConfig.AppId)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
 	if _, ok := s.tasks[slug]; ok {
 		http.Error(w, "Update already in progress", http.StatusBadRequest)
 		return
 	}
-	rr, err := s.m.Update(a, slug, values)
+	rr, err := s.m.Update(slug, values)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -452,7 +442,7 @@ func (s *AppManagerServer) handleInstanceUI(w http.ResponseWriter, r *http.Reque
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	a, err := installer.FindEnvApp(s.r, instance.AppId)
+	a, err := s.m.GetInstanceApp(instance.Id)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
