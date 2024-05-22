@@ -108,15 +108,18 @@ func appManagerCmdRun(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-	s := welcome.NewAppManagerServer(
+	s, err := welcome.NewAppManagerServer(
 		appManagerFlags.port,
 		m,
 		r,
-		tasks.NewFluxcdReconciler( // TODO(gio): make reconciler address a flag
+		tasks.NewFluxcdReconciler(
 			"http://fluxcd-reconciler.dodo-fluxcd-reconciler.svc.cluster.local",
 			env.Id,
 		),
 		helmMon,
 	)
+	if err != nil {
+		return err
+	}
 	return s.Start()
 }

@@ -2,21 +2,29 @@
 <html lang="en" data-theme="light">
 	<head>
 		<meta charset="utf-8" />
-        <link rel="stylesheet" href="/static/pico.min.css">
+        <link rel="stylesheet" href="/static/pico.2.0.6.min.css">
+        <link rel="stylesheet" type="text/css" href="/static/appmanager.css">
 		<meta name="viewport" content="width=device-width, initial-scale=1" />
-        <style>
-          #main {
-            margin-top: 10px;
-          }
-
-          @media screen and (min-width:801px) {
-            #main {
-              width: 600px;
-            }
-          }
-        </style>
 	</head>
 	<body>
-		<div id="main" class="container">{{ block "main" . }}CHILD MUST OVERRIDE THIS{{ end }}</div>
+      <header class="is-fixed-above-lg is-fixed">
+        {{ block "header" . }}{{ end }}
+      </header>
+      <main class="container page-index">
+          <aside id="menu-nav">
+            <nav class="is-sticky-above-lg" style="--max-height: 800px;">
+                <ul>
+                  <li><a href="/" class="{{ if (eq .CurrentPage "ALL") }}outline{{ else }}secondary{{ end }}">All</a></li>
+                  <li><a href="/installed" class="{{ if (eq .CurrentPage "INSTALLED") }}outline{{ else }}secondary{{ end }}">Installed</a></li>
+                  <li><a href="/not-installed" class="{{ if (eq .CurrentPage "NOT_INSTALLED") }}outline{{ else }}secondary{{ end }}">Not Installed</a></li>
+                  <hr>
+                  {{ block "extra_menu" . }}{{ end }}
+                </ul>
+            </nav>
+          </aside>
+		  <div id="content">
+			  {{ block "content" . }}{{ end }}
+		  </div>
+      </main>
 	</body>
 </html>

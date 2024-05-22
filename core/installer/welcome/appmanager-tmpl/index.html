@@ -1,49 +1,36 @@
-{{ define "main" }}
-<style>
-  article {
-    margin: 0.3em;
-    margin-bottom: 0.3em;
+{{ define "header" }}
+  <form class="search-bar">
+      <input type="search" placeholder="Search" />
+  </form>
+{{ end }}
 
-    display: flex;
-    flex-direction: row;
-  }
-
-  .logo {
-    display: table-cell;
-    vertical-align: middle;
-  }
-  nav li {
-    padding-top: 0;
-    padding-bottom: 0;
-  }
-
-  input[type="search"] {
-    margin-bottom: 0;
-  }
-</style>
-<form>
-  <input type="search" placeholder="Search" />
-</form>
-
+{{ define "content" }}
 <aside>
-  <nav>
-    <ul>
-      {{ range . }}
-        <li>
-          <article>
-                  <div>
-                      <a href="/app/{{ .Slug }}" class="logo">
-                          {{ .Icon }}
-                      </a>
-                  </div>
-                  <div>
-                      <a href="/app/{{ .Slug }}">{{ .Name }}</a>
-                      {{ .ShortDescription }}
-                  </div>
-          </article>
-        </li>
-      {{ end }}
-    </ul>
-  </nav>
+    <nav>
+        <ul>
+            {{ range .Apps }}
+                <li class="app-card">
+                    <a href="/app/{{ .Slug }}" class="app-link">
+                        <article>
+                            <div class="icon">
+                                <div>
+                                    {{ .Icon }}
+                                </div>
+                            </div>
+                            <div class="card-content">
+                                <div class="app-details">
+                                    <div class="app-name-container">
+                                        <p class="app">{{ .Name }}</p>
+                                        <span class="instance-count">{{ len .Instances }}</span>
+                                    </div>
+                                    <p class="description">{{ .ShortDescription }}</p>
+                                </div>
+                            </div>
+                        </article>
+                    </a>
+                </li>
+            {{ end }}
+        </ul>
+    </nav>
 </aside>
 {{ end }}

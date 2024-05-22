@@ -80,81 +80,51 @@
   {{ end }}
 {{ end }}
 
-{{ define "main" }}
-<style>
-  pre {
-    white-space: pre-wrap;       /* Since CSS 2.1 */
-    white-space: -moz-pre-wrap;  /* Mozilla, since 1999 */
-    white-space: -pre-wrap;      /* Opera 4-6 */
-    white-space: -o-pre-wrap;    /* Opera 7 */
-    word-wrap: break-word;       /* Internet Explorer 5.5+ */
-    background-color: transparent;
-  }
+{{ define "header" }}
+  <h1>{{ .App.Icon }}{{ .App.Name }}</h1>
+{{ end }}
 
- .hidden {
-     visibility: hidden;
- }
-
- .toast {
-     position: fixed;
-     z-index: 999;
-     bottom: 10px;
- }
-</style>
-
-{{ $instance := .Instance }}
-<h1 style="margin-bottom: 20px">{{ .App.Icon }}{{ .App.Name }}</h1>
-<pre id="readme" style="margin-bottom: 50px">{{ .App.Description }}</pre>
-
-{{ $schema := .App.Schema }}
-{{ $networks := .AvailableNetworks }}
-
-{{ $renderForm := true }}
-
-{{ if .Task }}
-  {{if or (eq .Task.Status 0) (eq .Task.Status 1) }}
-  {{ $renderForm = false }}
-  Waiting for resources:
-	<ul class="progress">
-		{{ template "task" .Task.Subtasks }}
-	</ul>
-	<script>setTimeout(() => location.reload(), 3000);</script>
+{{ define "extra_menu" }}
+  <li><a href="/app/{{ .App.Slug }}" class="{{ if eq $.CurrentPage .App.Name }}outline{{ else }}secondary{{ end }}">{{ .App.Name }}</a></li>
+  {{ range .Instances }}
+  <li><a href="/instance/{{ .Id }}" class="{{ if eq $.CurrentPage .Id }}outline{{ else }}secondary{{ end }}">{{ .Id }}</a></li>
   {{ end }}
 {{ end }}
 
-{{ if $renderForm }}
-<form id="config-form">
-    {{ if $instance }}
-      {{ template "schema-form" (dict "Schema" $schema "AvailableNetworks" $networks "ReadOnly" false "Data" ($instance.InputToValues $schema)) }}
-    {{ else }}
-      {{ template "schema-form" (dict "Schema" $schema "AvailableNetworks" $networks "ReadOnly" false "Data" (dict)) }}
+{{ define "content"}}
+  {{ $schema := .App.Schema }}
+  {{ $networks := .AvailableNetworks }}
+  {{ $instance := .Instance }}
+  {{ $renderForm := true }}
+
+  {{ if .Task }}
+    {{if or (eq .Task.Status 0) (eq .Task.Status 1) }}
+    {{ $renderForm = false }}
+    Waiting for resources:
+    <ul class="progress">
+      {{ template "task" .Task.Subtasks }}
+    </ul>
+    <script>setTimeout(() => location.reload(), 3000);</script>
     {{ end }}
-    {{ if $instance }}
-      <div class="grid">
-        <button type="submit" id="submit" name="update">Update</button>
-        <button type="submit" id="uninstall" name="remove">Uninstall</button>
-      </div>
-    {{ else }}
-      <button type="submit" id="submit">{{ if $instance }}Update{{ else }}Install{{ end }}</button>
-    {{ end }}
-</form>
+  {{ end }}
 
-{{ range .Instances }}
-  {{ $r := true}}
-  {{ if $instance }}
-	{{ if eq $instance.Id .Id }}
-  	  {{ $r = false}}
-	{{ end }}
+  {{ if $renderForm }}
+  <form id="config-form">
+	  {{ if $instance }}
+		{{ template "schema-form" (dict "Schema" $schema "AvailableNetworks" $networks "ReadOnly" false "Data" ($instance.InputToValues $schema)) }}
+	  {{ else }}
+		{{ template "schema-form" (dict "Schema" $schema "AvailableNetworks" $networks "ReadOnly" false "Data" (dict)) }}
+	  {{ end }}
+	  {{ if $instance }}
+		<div class="grid">
+		  <button type="submit" id="submit" name="update">Update</button>
+		  <button type="submit" id="uninstall" name="remove">Uninstall</button>
+		</div>
+	  {{ else }}
+		<button type="submit" id="submit">{{ if $instance }}Update{{ else }}Install{{ end }}</button>
+	  {{ end }}
+  </form>
   {{ end }}
-  {{ if $r }}
-    <details>
-      <summary>{{ .Id }}</summary>
-      {{ template "schema-form" (dict "Schema" $schema "AvailableNetworks" $networks "ReadOnly" true "Data" (.InputToValues $schema)) }}
-      <a href="/instance/{{ .Id }}" role="button" class="secondary">View</a>
-    </details>
-  {{ end }}
-{{ end }}
-{{ end }}
 
 <div id="toast-failure" class="toast hidden">
   <svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2S2 6.477 2 12s4.477 10 10 10Zm3-6L9 8m0 8l6-8"/></svg> {{ if $instance }}Update failed{{ else}}Install failed{{ end }}
@@ -267,4 +237,5 @@
      }
  });
 </script>
-{{ end }}
+
+{{end}}

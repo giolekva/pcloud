@@ -18,14 +18,8 @@ import (
 	"github.com/giolekva/pcloud/core/installer/tasks"
 )
 
-//go:embed appmanager-tmpl
-var mgrTmpl embed.FS
-
-//go:embed appmanager-tmpl/base.html
-var baseHtmlTmpl string
-
-//go:embed appmanager-tmpl/app.html
-var appHtmlTmpl string
+//go:embed appmanager-tmpl/*
+var appTmpls embed.FS
 
 type AppManagerServer struct {
 	port       int
@@ -34,6 +28,35 @@ type AppManagerServer struct {
 	reconciler tasks.Reconciler
 	h          installer.HelmReleaseMonitor
 	tasks      map[string]tasks.Task
+	tmpl       tmplts
+}
+
+type tmplts struct {
+	index *template.Template
+	app   *template.Template
+}
+
+func parseTemplatesAppManager(fs embed.FS) (tmplts, error) {
+	base, err := template.New("base.html").Funcs(template.FuncMap(sprig.FuncMap())).ParseFS(fs, "appmanager-tmpl/base.html")
+	if err != nil {
+		return tmplts{}, err
+	}
+	parse := func(path string) (*template.Template, error) {
+		if b, err := base.Clone(); err != nil {
+			return nil, err
+		} else {
+			return b.ParseFS(fs, path)
+		}
+	}
+	index, err := parse("appmanager-tmpl/index.html")
+	if err != nil {
+		return tmplts{}, err
+	}
+	app, err := parse("appmanager-tmpl/app.html")
+	if err != nil {
+		return tmplts{}, err
+	}
+	return tmplts{index, app}, nil
 }
 
 func NewAppManagerServer(
@@ -42,15 +65,20 @@ func NewAppManagerServer(
 	r installer.AppRepository,
 	reconciler tasks.Reconciler,
 	h installer.HelmReleaseMonitor,
-) *AppManagerServer {
-	return &AppManagerServer{
-		port,
-		m,
-		r,
-		reconciler,
-		h,
-		map[string]tasks.Task{},
+) (*AppManagerServer, error) {
+	tmpl, err := parseTemplatesAppManager(appTmpls)
+	if err != nil {
+		return nil, err
 	}
+	return &AppManagerServer{
+		port:       port,
+		m:          m,
+		r:          r,
+		reconciler: reconciler,
+		h:          h,
+		tasks:      make(map[string]tasks.Task),
+		tmpl:       tmpl,
+	}, nil
 }
 
 func (s *AppManagerServer) Start() error {
@@ -63,6 +91,8 @@ func (s *AppManagerServer) Start() error {
 	e.POST("/api/instance/:slug/update", s.handleAppUpdate)
 	e.POST("/api/instance/:slug/remove", s.handleAppRemove)
 	e.GET("/", s.handleIndex)
+	e.GET("/not-installed", s.handleNotInstalledApps)
+	e.GET("/installed", s.handleInstalledApps)
 	e.GET("/app/:slug", s.handleAppUI)
 	e.GET("/instance/:slug", s.handleInstanceUI)
 	fmt.Printf("Starting HTTP server on port: %d\n", s.port)
@@ -208,39 +238,96 @@ func (s *AppManagerServer) handleAppRemove(c echo.Context) error {
 	return c.String(http.StatusOK, "/")
 }
 
+type PageData struct {
+	Apps        []app
+	CurrentPage string
+}
+
 func (s *AppManagerServer) handleIndex(c echo.Context) error {
-	tmpl, err := template.ParseFS(mgrTmpl, "appmanager-tmpl/base.html", "appmanager-tmpl/index.html")
+	all, err := s.r.GetAll()
 	if err != nil {
+		log.Printf("all apps: %v", err)
 		return err
 	}
+	resp := make([]app, 0)
+	for _, a := range all {
+		instances, err := s.m.FindAllAppInstances(a.Slug())
+		if err != nil {
+			return err
+		}
+		resp = append(resp, app{a.Name(), a.Icon(), a.Description(), a.Slug(), instances})
+	}
+	data := PageData{
+		Apps:        resp,
+		CurrentPage: "ALL",
+	}
+	if err := s.tmpl.index.Execute(c.Response(), data); err != nil {
+		log.Printf("executing template: %v", err)
+		return err
+	}
+	return nil
+}
+
+func (s *AppManagerServer) handleNotInstalledApps(c echo.Context) error {
 	all, err := s.r.GetAll()
 	if err != nil {
 		return err
 	}
-	resp := make([]app, len(all))
-	for i, a := range all {
-		resp[i] = app{a.Name(), a.Icon(), a.Description(), a.Slug(), nil}
+	resp := make([]app, 0)
+	for _, a := range all {
+		instances, err := s.m.FindAllAppInstances(a.Slug())
+		if err != nil {
+			return err
+		}
+		if len(instances) == 0 {
+			resp = append(resp, app{a.Name(), a.Icon(), a.Description(), a.Slug(), nil})
+		}
 	}
-	return tmpl.Execute(c.Response(), resp)
+	data := PageData{
+		Apps:        resp,
+		CurrentPage: "NOT_INSTALLED",
+	}
+	if err := s.tmpl.index.Execute(c.Response(), data); err != nil {
+		return err
+	}
+	return nil
 }
 
-type appContext struct {
+func (s *AppManagerServer) handleInstalledApps(c echo.Context) error {
+	all, err := s.r.GetAll()
+	if err != nil {
+		return err
+	}
+	resp := make([]app, 0)
+	for _, a := range all {
+		instances, err := s.m.FindAllAppInstances(a.Slug())
+		if err != nil {
+			return err
+		}
+		if len(instances) != 0 {
+			resp = append(resp, app{a.Name(), a.Icon(), a.Description(), a.Slug(), instances})
+		}
+	}
+	data := PageData{
+		Apps:        resp,
+		CurrentPage: "INSTALLED",
+	}
+	if err := s.tmpl.index.Execute(c.Response(), data); err != nil {
+		return err
+	}
+	return nil
+}
+
+type appPageData struct {
 	App               installer.EnvApp
 	Instance          *installer.AppInstanceConfig
 	Instances         []installer.AppInstanceConfig
 	AvailableNetworks []installer.Network
 	Task              tasks.Task
+	CurrentPage       string
 }
 
 func (s *AppManagerServer) handleAppUI(c echo.Context) error {
-	baseTmpl, err := newTemplate().Parse(baseHtmlTmpl)
-	if err != nil {
-		return err
-	}
-	appTmpl, err := template.Must(baseTmpl.Clone()).Parse(appHtmlTmpl)
-	if err != nil {
-		return err
-	}
 	global, err := s.m.Config()
 	if err != nil {
 		return err
@@ -254,24 +341,16 @@ func (s *AppManagerServer) handleAppUI(c echo.Context) error {
 	if err != nil {
 		return err
 	}
-	err = appTmpl.Execute(c.Response(), appContext{
+	data := appPageData{
 		App:               a,
 		Instances:         instances,
 		AvailableNetworks: installer.CreateNetworks(global),
-	})
-	return err
+		CurrentPage:       a.Name(),
+	}
+	return s.tmpl.app.Execute(c.Response(), data)
 }
 
 func (s *AppManagerServer) handleInstanceUI(c echo.Context) error {
-	baseTmpl, err := newTemplate().Parse(baseHtmlTmpl)
-	if err != nil {
-		return err
-	}
-	appTmpl, err := template.Must(baseTmpl.Clone()).Parse(appHtmlTmpl)
-	// tmpl, err := newTemplate().ParseFS(mgrTmpl, "appmanager-tmpl/base.html", "appmanager-tmpl/app.html")
-	if err != nil {
-		return err
-	}
 	global, err := s.m.Config()
 	if err != nil {
 		return err
@@ -290,16 +369,13 @@ func (s *AppManagerServer) handleInstanceUI(c echo.Context) error {
 		return err
 	}
 	t := s.tasks[slug]
-	err = appTmpl.Execute(c.Response(), appContext{
+	data := appPageData{
 		App:               a,
 		Instance:          instance,
 		Instances:         instances,
 		AvailableNetworks: installer.CreateNetworks(global),
 		Task:              t,
-	})
-	return err
-}
-
-func newTemplate() *template.Template {
-	return template.New("base").Funcs(template.FuncMap(sprig.FuncMap()))
+		CurrentPage:       instance.Id,
+	}
+	return s.tmpl.app.Execute(c.Response(), data)
 }
