@@ -54,17 +54,22 @@
 </div>
 <script type="text/javascript">
  async function refresh() {
-	 const resp = await fetch(window.location.href);
-	 if (resp.ok) {
-		 var tmp = document.createElement("html");
-		 tmp.innerHTML = await resp.text();
-		 if (document.getElementsByTagName("form").length === 0) {
-			 document.getElementById("contents").innerHTML = tmp.getElementsByClassName("env-status")[0].innerHTML;
-		 } else {
-			 document.getElementsByClassName("progress")[0].innerHTML = tmp.getElementsByClassName("progress")[0].innerHTML;
+	 try {
+		 const resp = await fetch(window.location.href);
+		 if (resp.ok) {
+			 var tmp = document.createElement("html");
+			 tmp.innerHTML = await resp.text();
+			 if (document.getElementsByTagName("form").length === 0) {
+				 document.getElementById("contents").innerHTML = tmp.getElementsByClassName("env-status")[0].innerHTML;
+			 } else {
+				 document.getElementsByClassName("progress")[0].innerHTML = tmp.getElementsByClassName("progress")[0].innerHTML;
+			 }
 		 }
+	 } catch (error) {
+		 console.log(error);
+	 } finally {
+		 setTimeout(refresh, 5000);
 	 }
-	 setTimeout(refresh, 5000);
  }
 
  setTimeout(refresh, 5000);

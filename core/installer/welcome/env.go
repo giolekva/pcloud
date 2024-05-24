@@ -323,6 +323,10 @@ func (s *EnvServer) acceptInvitation(token string) error {
 }
 
 func (s *EnvServer) createEnv(w http.ResponseWriter, r *http.Request) {
+	if err := s.repo.Pull(); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
 	req, err := extractRequest(r)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
