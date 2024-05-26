@@ -112,10 +112,10 @@ help: [{
 	contents: "After installing the client application you need to configure it to use https://\(_domain) as a login URL, so you can login to the VPN network with your dodo: account"
 	children: [{
 		title: "macOS"
-		contents: "[https://headscale.v1.dodo.cloud/apple](https://headscale.v1.dodo.cloud/apple)"
+		contents: "[https://headscale.\(global.domain)/apple](https://headscale.\(global.domain)/apple)"
 	}, {
 		title: "iOS"
-		contents: "[https://headscale.v1.dodo.cloud/apple](https://headscale.v1.dodo.cloud/apple)"
+		contents: "[https://headscale.\(global.domain)/apple](https://headscale.\(global.domain)/apple)"
 	}, {
 		title: "Windows"
 		contents: "[https://tailscale.com/kb/1318/windows-mdm](https://tailscale.com/kb/1318/windows-mdm)"
