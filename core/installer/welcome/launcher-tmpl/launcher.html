@@ -31,15 +31,15 @@
                             <p>{{ .Url }}</p>
                         {{ end }}
                         {{ if .Help }}
-                            <button class="help-button" id="help-button-{{ CleanAppName .Name }}">Help</button>
+                            <button class="help-button" id="help-button-{{ CleanAppName .Id }}">Help</button>
                         {{ end }}
                     </div>
                 </div>
-                <dialog class="app-help-modal" id="modal-{{ CleanAppName .Name }}" close>
+                <dialog class="app-help-modal" id="modal-{{ CleanAppName .Id }}" close>
                     <article class="modal-article">
                         <header>
                             <h4>{{ .Name }}</h4>
-                            <button class="close-button" id="close-help-{{ CleanAppName .Name }}">
+                            <button class="close-button" id="close-help-{{ CleanAppName .Id }}">
                                 <svg xmlns="http://www.w3.org/2000/svg" width="1.5em" height="1.5em" viewBox="0 0 32 32"><path fill="black" d="M16 2C8.2 2 2 8.2 2 16s6.2 14 14 14s14-6.2 14-14S23.8 2 16 2m5.4 21L16 17.6L10.6 23L9 21.4l5.4-5.4L9 10.6L10.6 9l5.4 5.4L21.4 9l1.6 1.6l-5.4 5.4l5.4 5.4z"/></svg>
                             </button>
                         </header>
@@ -47,7 +47,7 @@
                             <div class="modal-left">
                                 {{ template "help-menu-template" (dict "Help" .Help "First" true) }}
                             </div>
-                            <div class="modal-right" id="modal-right-help-content-{{ CleanAppName .Name }}">
+                            <div class="modal-right" id="modal-right-help-content-{{ CleanAppName .Id }}">
 								<aside>
 									<nav>
 										{{ template "help-content-template" (dict "Help" .Help "First" true) }}

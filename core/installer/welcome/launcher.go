@@ -22,6 +22,7 @@ var indexHTML embed.FS
 var files embed.FS
 
 type AppLauncherInfo struct {
+	Id   string
 	Name string
 	Icon template.HTML
 	Help []HelpDocumentRendered
@@ -53,6 +54,7 @@ func (d *AppManagerDirectory) GetAllApps() ([]AppLauncherInfo, error) {
 			continue
 		}
 		ret = append(ret, AppLauncherInfo{
+			Id:   a.Id,
 			Name: a.AppId,
 			Icon: template.HTML(a.Icon),
 			Help: toMarkdown(a.Help),
