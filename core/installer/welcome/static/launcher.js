@@ -106,8 +106,8 @@ document.addEventListener("DOMContentLoaded", function () {
   document.addEventListener("click", (event) => {
 	if (visibleModal === null) return;
 	const modalContent = visibleModal.querySelector("article");
-	const isClickInside = modalContent.contains(event.target);
-	if (!isClickInside) {
+	const closeButton = visibleModal.querySelector(".close-button");
+	if (!modalContent.contains(event.target) || closeButton.contains(event.target)) {
 	  closeModal(visibleModal);
 	}
   });
