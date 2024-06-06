@@ -9,6 +9,7 @@ import (
 	"github.com/giolekva/pcloud/core/installer/dns"
 	"github.com/giolekva/pcloud/core/installer/http"
 	"github.com/giolekva/pcloud/core/installer/soft"
+	"github.com/giolekva/pcloud/core/installer/tasks"
 	"github.com/giolekva/pcloud/core/installer/welcome"
 )
 
@@ -86,6 +87,7 @@ func envManagerCmdRun(cmd *cobra.Command, args []string) error {
 		installer.NewFixedLengthRandomNameGenerator(4),
 		httpClient,
 		dns.NewClient(),
+		tasks.NewTaskMap(),
 	)
 	log.Printf("Starting server\n")
 	s.Start()

@@ -88,7 +88,7 @@ type EnvServer struct {
 	nameGenerator installer.NameGenerator
 	httpClient    phttp.Client
 	dnsClient     dns.Client
-	Tasks         map[string]tasks.Task
+	Tasks         tasks.TaskManager
 	envInfo       map[string]template.HTML
 	dns           map[string]installer.EnvDNS
 	dnsPublished  map[string]struct{}
@@ -104,6 +104,7 @@ func NewEnvServer(
 	nameGenerator installer.NameGenerator,
 	httpClient phttp.Client,
 	dnsClient dns.Client,
+	tm tasks.TaskManager,
 ) *EnvServer {
 	return &EnvServer{
 		port,
@@ -115,7 +116,7 @@ func NewEnvServer(
 		nameGenerator,
 		httpClient,
 		dnsClient,
-		make(map[string]tasks.Task),
+		tm,
 		make(map[string]template.HTML),
 		make(map[string]installer.EnvDNS),
 		make(map[string]struct{}),
@@ -141,9 +142,9 @@ func (s *EnvServer) monitorTask(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Task key not provided", http.StatusBadRequest)
 		return
 	}
-	t, ok := s.Tasks[key]
-	if !ok {
-		http.Error(w, "Task not found", http.StatusBadRequest)
+	t, err := s.Tasks.Get(key)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 	dnsRecords := ""
@@ -410,7 +411,10 @@ func (s *EnvServer) createEnv(w http.ResponseWriter, r *http.Request) {
 		mgr,
 		infoUpdater,
 	)
-	s.Tasks[key] = t
+	if err := s.Tasks.Add(key, t); err != nil {
+		panic(err)
+	}
+
 	s.dns[key] = dns
 	go t.Start()
 	http.Redirect(w, r, fmt.Sprintf("/env/%s", key), http.StatusSeeOther)

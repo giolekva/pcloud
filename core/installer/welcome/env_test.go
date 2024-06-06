@@ -12,6 +12,7 @@ import (
 	"strings"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/go-git/go-billy/v5"
 	"github.com/go-git/go-billy/v5/memfs"
@@ -21,6 +22,7 @@ import (
 
 	"github.com/giolekva/pcloud/core/installer"
 	"github.com/giolekva/pcloud/core/installer/soft"
+	"github.com/giolekva/pcloud/core/installer/tasks"
 )
 
 type fakeNSCreator struct {
@@ -184,6 +186,24 @@ func (f fakeDnsClient) Lookup(host string) ([]net.IP, error) {
 	return []net.IP{net.ParseIP("1.1.1.1"), net.ParseIP("2.2.2.2")}, nil
 }
 
+type onDoneTaskMap struct {
+	m      tasks.TaskManager
+	onDone tasks.TaskDoneListener
+}
+
+func (m *onDoneTaskMap) Add(name string, task tasks.Task) error {
+	if err := m.m.Add(name, task); err != nil {
+		return err
+	} else {
+		task.OnDone(m.onDone)
+		return nil
+	}
+}
+
+func (m *onDoneTaskMap) Get(name string) (tasks.Task, error) {
+	return m.m.Get(name)
+}
+
 func TestCreateNewEnv(t *testing.T) {
 	apps := installer.NewInMemoryAppRepository(installer.CreateAllApps())
 	infraFS := memfs.New()
@@ -214,6 +234,16 @@ func TestCreateNewEnv(t *testing.T) {
 	cg := fakeClientGetter{t, envFS}
 	httpClient := fakeHttpClient{t, make(map[string]int)}
 	dnsClient := fakeDnsClient{t, make(map[string]int)}
+	var done sync.WaitGroup
+	done.Add(1)
+	var taskErr error
+	tm := &onDoneTaskMap{
+		tasks.NewTaskMap(),
+		func(err error) {
+			taskErr = err
+			done.Done()
+		},
+	}
 	s := NewEnvServer(
 		8181,
 		fakeSoftServeClient{t, envFS},
@@ -224,8 +254,10 @@ func TestCreateNewEnv(t *testing.T) {
 		fixedNameGenerator{},
 		httpClient,
 		dnsClient,
+		tm,
 	)
 	go s.Start()
+	time.Sleep(1 * time.Second) // Let server start
 	req := createEnvReq{
 		Name:           "test",
 		ContactEmail:   "test@test.t",
@@ -238,13 +270,6 @@ func TestCreateNewEnv(t *testing.T) {
 		t.Fatal(err)
 	}
 	resp, err := http.Post("http://localhost:8181/", "application/json", &buf)
-	var done sync.WaitGroup
-	done.Add(1)
-	var taskErr error
-	s.Tasks["test"].OnDone(func(err error) {
-		taskErr = err
-		done.Done()
-	})
 	if err != nil {
 		t.Fatal(err)
 	}
