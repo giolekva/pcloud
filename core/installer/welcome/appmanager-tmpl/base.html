@@ -12,7 +12,7 @@
       </header>
       <main class="container page-index">
           <aside id="menu-nav">
-            <nav class="is-sticky-above-lg" style="--max-height: 800px;">
+            <nav id="menu" class="is-sticky-above-lg">
                 <ul>
                   <li><a href="/" class="{{ if (eq .CurrentPage "ALL") }}outline{{ else }}secondary{{ end }}">All</a></li>
                   <li><a href="/installed" class="{{ if (eq .CurrentPage "INSTALLED") }}outline{{ else }}secondary{{ end }}">Installed</a></li>
@@ -26,5 +26,6 @@
 			  {{ block "content" . }}{{ end }}
 		  </div>
       </main>
+    <script src="/static/app-manager.js"></script>
 	</body>
 </html>

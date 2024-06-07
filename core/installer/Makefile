@@ -35,7 +35,7 @@ rpuppy:
 	./pcloud --kubeconfig=../../priv/kubeconfig install --ssh-key=/Users/lekva/.ssh/id_rsa --app=rpuppy --repo-addr=ssh://localhost:2222/lekva
 
 appmanager:
-	./pcloud --kubeconfig=../../priv/kubeconfig-hetzner appmanager --ssh-key=/Users/tabo/.ssh/id_rsa --repo-addr=ssh://10.43.196.174/config --port=9090 # --app-repo-addr=http://localhost:8080
+	./pcloud --kubeconfig=../../priv/kubeconfig-hetzner appmanager --ssh-key=/Users/lekva/.ssh/id_ed25519 --repo-addr=ssh://localhost:2222/config --port=9090 # --app-repo-addr=http://localhost:8080
 
 dodo-app:
 	./pcloud --kubeconfig=../../priv/kubeconfig-hetzner dodo-app --ssh-key=/Users/lekva/.ssh/id_ed25519 --repo-addr=ssh://localhost:2222/test
