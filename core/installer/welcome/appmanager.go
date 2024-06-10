@@ -12,7 +12,7 @@ import (
 	"time"
 
 	"github.com/Masterminds/sprig/v3"
-	"github.com/labstack/echo/v4"
+	"github.com/gorilla/mux"
 
 	"github.com/giolekva/pcloud/core/installer"
 	"github.com/giolekva/pcloud/core/installer/tasks"
@@ -82,21 +82,21 @@ func NewAppManagerServer(
 }
 
 func (s *AppManagerServer) Start() error {
-	e := echo.New()
-	e.StaticFS("/static", echo.MustSubFS(staticAssets, "static"))
-	e.GET("/api/app-repo", s.handleAppRepo)
-	e.POST("/api/app/:slug/install", s.handleAppInstall)
-	e.GET("/api/app/:slug", s.handleApp)
-	e.GET("/api/instance/:slug", s.handleInstance)
-	e.POST("/api/instance/:slug/update", s.handleAppUpdate)
-	e.POST("/api/instance/:slug/remove", s.handleAppRemove)
-	e.GET("/", s.handleIndex)
-	e.GET("/not-installed", s.handleNotInstalledApps)
-	e.GET("/installed", s.handleInstalledApps)
-	e.GET("/app/:slug", s.handleAppUI)
-	e.GET("/instance/:slug", s.handleInstanceUI)
+	r := mux.NewRouter()
+	r.PathPrefix("/static/").Handler(http.FileServer(http.FS(staticAssets)))
+	r.HandleFunc("/api/app-repo", s.handleAppRepo)
+	r.HandleFunc("/api/app/{slug}/install", s.handleAppInstall).Methods(http.MethodPost)
+	r.HandleFunc("/api/app/{slug}", s.handleApp).Methods(http.MethodGet)
+	r.HandleFunc("/api/instance/{slug}", s.handleInstance).Methods(http.MethodGet)
+	r.HandleFunc("/api/instance/{slug}/update", s.handleAppUpdate).Methods(http.MethodPost)
+	r.HandleFunc("/api/instance/{slug}/remove", s.handleAppRemove).Methods(http.MethodPost)
+	r.HandleFunc("/", s.handleIndex).Methods(http.MethodGet)
+	r.HandleFunc("/not-installed", s.handleNotInstalledApps).Methods(http.MethodGet)
+	r.HandleFunc("/installed", s.handleInstalledApps).Methods(http.MethodGet)
+	r.HandleFunc("/app/{slug}", s.handleAppUI).Methods(http.MethodGet)
+	r.HandleFunc("/instance/{slug}", s.handleInstanceUI).Methods(http.MethodGet)
 	fmt.Printf("Starting HTTP server on port: %d\n", s.port)
-	return e.Start(fmt.Sprintf(":%d", s.port))
+	return http.ListenAndServe(fmt.Sprintf(":%d", s.port), r)
 }
 
 type app struct {
@@ -107,76 +107,113 @@ type app struct {
 	Instances        []installer.AppInstanceConfig `json:"instances,omitempty"`
 }
 
-func (s *AppManagerServer) handleAppRepo(c echo.Context) error {
+func (s *AppManagerServer) handleAppRepo(w http.ResponseWriter, r *http.Request) {
 	all, err := s.r.GetAll()
 	if err != nil {
-		return err
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
 	}
 	resp := make([]app, len(all))
 	for i, a := range all {
 		resp[i] = app{a.Name(), a.Icon(), a.Description(), a.Slug(), nil}
 	}
-	return c.JSON(http.StatusOK, resp)
+	w.Header().Set("Content-Type", "application/json")
+	if err := json.NewEncoder(w).Encode(resp); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
 }
 
-func (s *AppManagerServer) handleApp(c echo.Context) error {
-	slug := c.Param("slug")
+func (s *AppManagerServer) handleApp(w http.ResponseWriter, r *http.Request) {
+	slug, ok := mux.Vars(r)["slug"]
+	if !ok {
+		http.Error(w, "empty slug", http.StatusBadRequest)
+		return
+	}
 	a, err := s.r.Find(slug)
 	if err != nil {
-		return err
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
 	}
 	instances, err := s.m.FindAllAppInstances(slug)
 	if err != nil {
-		return err
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
 	}
-	return c.JSON(http.StatusOK, app{a.Name(), a.Icon(), a.Description(), a.Slug(), instances})
+	resp := app{a.Name(), a.Icon(), a.Description(), a.Slug(), instances}
+	w.Header().Set("Content-Type", "application/json")
+	if err := json.NewEncoder(w).Encode(resp); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
 }
 
-func (s *AppManagerServer) handleInstance(c echo.Context) error {
-	slug := c.Param("slug")
+func (s *AppManagerServer) handleInstance(w http.ResponseWriter, r *http.Request) {
+	slug, ok := mux.Vars(r)["slug"]
+	if !ok {
+		http.Error(w, "empty slug", http.StatusBadRequest)
+		return
+	}
 	instance, err := s.m.FindInstance(slug)
 	if err != nil {
-		return err
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
 	}
 	a, err := s.r.Find(instance.AppId)
 	if err != nil {
-		return err
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
 	}
-	return c.JSON(http.StatusOK, app{a.Name(), a.Icon(), a.Description(), a.Slug(), []installer.AppInstanceConfig{*instance}})
+	resp := app{a.Name(), a.Icon(), a.Description(), a.Slug(), []installer.AppInstanceConfig{*instance}}
+	w.Header().Set("Content-Type", "application/json")
+	if err := json.NewEncoder(w).Encode(resp); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
 }
 
-func (s *AppManagerServer) handleAppInstall(c echo.Context) error {
-	slug := c.Param("slug")
-	contents, err := ioutil.ReadAll(c.Request().Body)
+func (s *AppManagerServer) handleAppInstall(w http.ResponseWriter, r *http.Request) {
+	slug, ok := mux.Vars(r)["slug"]
+	if !ok {
+		http.Error(w, "empty slug", http.StatusBadRequest)
+		return
+	}
+	contents, err := ioutil.ReadAll(r.Body)
 	if err != nil {
-		return err
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
 	}
 	var values map[string]any
 	if err := json.Unmarshal(contents, &values); err != nil {
-		return err
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
 	}
 	log.Printf("Values: %+v\n", values)
 	a, err := installer.FindEnvApp(s.r, slug)
 	if err != nil {
-		return err
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
 	}
 	log.Printf("Found application: %s\n", slug)
 	env, err := s.m.Config()
 	if err != nil {
-		return err
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
 	}
 	log.Printf("Configuration: %+v\n", env)
 	suffixGen := installer.NewFixedLengthRandomSuffixGenerator(3)
 	suffix, err := suffixGen.Generate()
 	if err != nil {
-		return err
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
 	}
 	instanceId := a.Slug() + suffix
 	appDir := fmt.Sprintf("/apps/%s", instanceId)
 	namespace := fmt.Sprintf("%s%s%s", env.NamespacePrefix, a.Namespace(), suffix)
 	rr, err := s.m.Install(a, instanceId, appDir, namespace, values)
 	if err != nil {
-		return err
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
 	}
 	ctx, _ := context.WithTimeout(context.Background(), 2*time.Minute)
 	go s.reconciler.Reconcile(ctx)
@@ -189,33 +226,46 @@ func (s *AppManagerServer) handleAppInstall(c echo.Context) error {
 	})
 	s.tasks[instanceId] = t
 	go t.Start()
-	return c.String(http.StatusOK, fmt.Sprintf("/instance/%s", instanceId))
+	if _, err := fmt.Fprintf(w, "/instance/%s", instanceId); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
 }
 
-func (s *AppManagerServer) handleAppUpdate(c echo.Context) error {
-	slug := c.Param("slug")
+func (s *AppManagerServer) handleAppUpdate(w http.ResponseWriter, r *http.Request) {
+	slug, ok := mux.Vars(r)["slug"]
+	if !ok {
+		http.Error(w, "empty slug", http.StatusBadRequest)
+		return
+	}
 	appConfig, err := s.m.AppConfig(slug)
 	if err != nil {
-		return err
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
 	}
-	contents, err := ioutil.ReadAll(c.Request().Body)
+	contents, err := ioutil.ReadAll(r.Body)
 	if err != nil {
-		return err
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
 	}
 	var values map[string]any
 	if err := json.Unmarshal(contents, &values); err != nil {
-		return err
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
 	}
 	a, err := installer.FindEnvApp(s.r, appConfig.AppId)
 	if err != nil {
-		return err
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
 	}
 	if _, ok := s.tasks[slug]; ok {
-		return fmt.Errorf("Update already in progress")
+		http.Error(w, "Update already in progress", http.StatusBadRequest)
+		return
 	}
 	rr, err := s.m.Update(a, slug, values)
 	if err != nil {
-		return err
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
 	}
 	ctx, _ := context.WithTimeout(context.Background(), 2*time.Minute)
 	go s.reconciler.Reconcile(ctx)
@@ -225,17 +275,28 @@ func (s *AppManagerServer) handleAppUpdate(c echo.Context) error {
 	})
 	s.tasks[slug] = t
 	go t.Start()
-	return c.String(http.StatusOK, fmt.Sprintf("/instance/%s", slug))
+	if _, err := fmt.Fprintf(w, "/instance/%s", slug); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
 }
 
-func (s *AppManagerServer) handleAppRemove(c echo.Context) error {
-	slug := c.Param("slug")
+func (s *AppManagerServer) handleAppRemove(w http.ResponseWriter, r *http.Request) {
+	slug, ok := mux.Vars(r)["slug"]
+	if !ok {
+		http.Error(w, "empty slug", http.StatusBadRequest)
+		return
+	}
 	if err := s.m.Remove(slug); err != nil {
-		return err
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
 	}
 	ctx, _ := context.WithTimeout(context.Background(), 2*time.Minute)
 	go s.reconciler.Reconcile(ctx)
-	return c.String(http.StatusOK, "/")
+	if _, err := fmt.Fprint(w, "/"); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
 }
 
 type PageData struct {
@@ -243,17 +304,19 @@ type PageData struct {
 	CurrentPage string
 }
 
-func (s *AppManagerServer) handleIndex(c echo.Context) error {
+func (s *AppManagerServer) handleIndex(w http.ResponseWriter, r *http.Request) {
 	all, err := s.r.GetAll()
 	if err != nil {
 		log.Printf("all apps: %v", err)
-		return err
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
 	}
 	resp := make([]app, 0)
 	for _, a := range all {
 		instances, err := s.m.FindAllAppInstances(a.Slug())
 		if err != nil {
-			return err
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
 		}
 		resp = append(resp, app{a.Name(), a.Icon(), a.Description(), a.Slug(), instances})
 	}
@@ -261,23 +324,25 @@ func (s *AppManagerServer) handleIndex(c echo.Context) error {
 		Apps:        resp,
 		CurrentPage: "ALL",
 	}
-	if err := s.tmpl.index.Execute(c.Response(), data); err != nil {
+	if err := s.tmpl.index.Execute(w, data); err != nil {
 		log.Printf("executing template: %v", err)
-		return err
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
 	}
-	return nil
 }
 
-func (s *AppManagerServer) handleNotInstalledApps(c echo.Context) error {
+func (s *AppManagerServer) handleNotInstalledApps(w http.ResponseWriter, r *http.Request) {
 	all, err := s.r.GetAll()
 	if err != nil {
-		return err
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
 	}
 	resp := make([]app, 0)
 	for _, a := range all {
 		instances, err := s.m.FindAllAppInstances(a.Slug())
 		if err != nil {
-			return err
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
 		}
 		if len(instances) == 0 {
 			resp = append(resp, app{a.Name(), a.Icon(), a.Description(), a.Slug(), nil})
@@ -287,22 +352,24 @@ func (s *AppManagerServer) handleNotInstalledApps(c echo.Context) error {
 		Apps:        resp,
 		CurrentPage: "NOT_INSTALLED",
 	}
-	if err := s.tmpl.index.Execute(c.Response(), data); err != nil {
-		return err
+	if err := s.tmpl.index.Execute(w, data); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
 	}
-	return nil
 }
 
-func (s *AppManagerServer) handleInstalledApps(c echo.Context) error {
+func (s *AppManagerServer) handleInstalledApps(w http.ResponseWriter, r *http.Request) {
 	all, err := s.r.GetAll()
 	if err != nil {
-		return err
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
 	}
 	resp := make([]app, 0)
 	for _, a := range all {
 		instances, err := s.m.FindAllAppInstances(a.Slug())
 		if err != nil {
-			return err
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
 		}
 		if len(instances) != 0 {
 			resp = append(resp, app{a.Name(), a.Icon(), a.Description(), a.Slug(), instances})
@@ -312,10 +379,10 @@ func (s *AppManagerServer) handleInstalledApps(c echo.Context) error {
 		Apps:        resp,
 		CurrentPage: "INSTALLED",
 	}
-	if err := s.tmpl.index.Execute(c.Response(), data); err != nil {
-		return err
+	if err := s.tmpl.index.Execute(w, data); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
 	}
-	return nil
 }
 
 type appPageData struct {
@@ -327,19 +394,26 @@ type appPageData struct {
 	CurrentPage       string
 }
 
-func (s *AppManagerServer) handleAppUI(c echo.Context) error {
+func (s *AppManagerServer) handleAppUI(w http.ResponseWriter, r *http.Request) {
 	global, err := s.m.Config()
 	if err != nil {
-		return err
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
 	}
-	slug := c.Param("slug")
+	slug, ok := mux.Vars(r)["slug"]
+	if !ok {
+		http.Error(w, "empty slug", http.StatusBadRequest)
+		return
+	}
 	a, err := installer.FindEnvApp(s.r, slug)
 	if err != nil {
-		return err
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
 	}
 	instances, err := s.m.FindAllAppInstances(slug)
 	if err != nil {
-		return err
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
 	}
 	data := appPageData{
 		App:               a,
@@ -347,26 +421,37 @@ func (s *AppManagerServer) handleAppUI(c echo.Context) error {
 		AvailableNetworks: installer.CreateNetworks(global),
 		CurrentPage:       a.Name(),
 	}
-	return s.tmpl.app.Execute(c.Response(), data)
+	if err := s.tmpl.app.Execute(w, data); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
 }
 
-func (s *AppManagerServer) handleInstanceUI(c echo.Context) error {
+func (s *AppManagerServer) handleInstanceUI(w http.ResponseWriter, r *http.Request) {
 	global, err := s.m.Config()
 	if err != nil {
-		return err
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
 	}
-	slug := c.Param("slug")
+	slug, ok := mux.Vars(r)["slug"]
+	if !ok {
+		http.Error(w, "empty slug", http.StatusBadRequest)
+		return
+	}
 	instance, err := s.m.FindInstance(slug)
 	if err != nil {
-		return err
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
 	}
 	a, err := installer.FindEnvApp(s.r, instance.AppId)
 	if err != nil {
-		return err
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
 	}
 	instances, err := s.m.FindAllAppInstances(a.Slug())
 	if err != nil {
-		return err
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
 	}
 	t := s.tasks[slug]
 	data := appPageData{
@@ -377,5 +462,8 @@ func (s *AppManagerServer) handleInstanceUI(c echo.Context) error {
 		Task:              t,
 		CurrentPage:       instance.Id,
 	}
-	return s.tmpl.app.Execute(c.Response(), data)
+	if err := s.tmpl.app.Execute(w, data); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
 }
