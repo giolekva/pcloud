@@ -125,7 +125,7 @@ func NewEnvServer(
 
 func (s *EnvServer) Start() {
 	r := mux.NewRouter()
-	r.PathPrefix("/static/").Handler(http.FileServer(http.FS(staticAssets)))
+	r.PathPrefix("/static/").Handler(cachingHandler{http.FileServer(http.FS(staticAssets))})
 	r.Path("/env/{key}").Methods("GET").HandlerFunc(s.monitorTask)
 	r.Path("/env/{key}").Methods("POST").HandlerFunc(s.publishDNSRecords)
 	r.Path("/").Methods("GET").HandlerFunc(s.createEnvForm)

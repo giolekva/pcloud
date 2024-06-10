@@ -55,7 +55,7 @@ func NewServer(
 
 func (s *Server) Start() {
 	r := mux.NewRouter()
-	r.PathPrefix("/static/").Handler(http.FileServer(http.FS(staticAssets)))
+	r.PathPrefix("/static/").Handler(cachingHandler{http.FileServer(http.FS(staticAssets))})
 	r.Path("/").Methods("POST").HandlerFunc(s.createAccount)
 	r.Path("/").Methods("GET").HandlerFunc(s.createAccountForm)
 	http.Handle("/", r)

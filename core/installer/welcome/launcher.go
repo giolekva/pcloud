@@ -134,7 +134,7 @@ func getLoggedInUser(r *http.Request) (string, error) {
 }
 
 func (s *LauncherServer) Start() {
-	http.Handle("/static/", http.FileServer(http.FS(files)))
+	http.Handle("/static/", cachingHandler{http.FileServer(http.FS(files))})
 	http.HandleFunc("/", s.homeHandler)
 	log.Fatal(http.ListenAndServe(fmt.Sprintf(":%d", s.port), nil))
 }

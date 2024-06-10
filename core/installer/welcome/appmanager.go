@@ -81,9 +81,18 @@ func NewAppManagerServer(
 	}, nil
 }
 
+type cachingHandler struct {
+	h http.Handler
+}
+
+func (h cachingHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Cache-Control", "max-age=604800")
+	h.h.ServeHTTP(w, r)
+}
+
 func (s *AppManagerServer) Start() error {
 	r := mux.NewRouter()
-	r.PathPrefix("/static/").Handler(http.FileServer(http.FS(staticAssets)))
+	r.PathPrefix("/static/").Handler(cachingHandler{http.FileServer(http.FS(staticAssets))})
 	r.HandleFunc("/api/app-repo", s.handleAppRepo)
 	r.HandleFunc("/api/app/{slug}/install", s.handleAppInstall).Methods(http.MethodPost)
 	r.HandleFunc("/api/app/{slug}", s.handleApp).Methods(http.MethodGet)
