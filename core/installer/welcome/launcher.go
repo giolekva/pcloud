@@ -142,6 +142,7 @@ func (s *LauncherServer) Start() {
 type homeHandlerData struct {
 	LoggedInUsername string
 	AllAppsInfo      []AppLauncherInfo
+	LogoutUrl        string
 }
 
 func (s *LauncherServer) homeHandler(w http.ResponseWriter, r *http.Request) {
@@ -157,6 +158,7 @@ func (s *LauncherServer) homeHandler(w http.ResponseWriter, r *http.Request) {
 	data := homeHandlerData{
 		LoggedInUsername: loggedInUsername,
 		AllAppsInfo:      allAppsInfo,
+		LogoutUrl:        s.logoutUrl,
 	}
 	if err := s.homeTmpl.Execute(w, data); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
