@@ -60,7 +60,7 @@ article {
   color: var(--pico-color);
   font-size: 16px;
   font-weight: bold;
-  border: 2px solid var(--pico-color);
+  border: 2px solid var(--pico-color) !important;
   position: absolute;
   top: 14px;
   right: 11px;
