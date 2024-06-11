@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>dodo: Launcher</title>
     <link rel="stylesheet" type="text/css" href="/static/pico.2.0.6.min.css">
-    <link rel="stylesheet" type="text/css" href="/static/launcher.css">
+    <link rel="stylesheet" type="text/css" href="/static/launcher.css?v=0.0.2">
 </head>
 <body class="container-fluid">
     <div id="left-panel">
@@ -21,7 +21,7 @@
         <hr class="separator">
         <div class="app-list">
             {{range .AllAppsInfo}}
-                <div class="app-icon-tooltip" data-app-url="{{ .URL }}">
+                <div class="app-icon-tooltip" data-app-id="{{ .Id }}" data-app-url="{{ .URL }}">
                     <div class="icon">
                         {{.Icon}}
                     </div>
@@ -48,11 +48,11 @@
                                 {{ template "help-menu-template" (dict "Help" .Help "First" true) }}
                             </div>
                             <div class="modal-right" id="modal-right-help-content-{{ CleanAppName .Id }}">
-								<aside>
-									<nav>
-										{{ template "help-content-template" (dict "Help" .Help "First" true) }}
-									</nav>
-								</aside>
+                                <aside>
+                                    <nav>
+                                        {{ template "help-content-template" (dict "Help" .Help "First" true) }}
+                                    </nav>
+                                </aside>
                             </div>
                         </div>
                     </article>
@@ -61,7 +61,7 @@
         </div>
     </div>
     <div id="right-panel">
-        <iframe id="appFrame" width="100%" height="100%" frameborder="0"></iframe>
+        <iframe id="appFrame-default" class="appFrame" style="display: block;"></iframe>
     </div>
     {{ define "help-menu-template" }}
 		{{ $first := .First }}
@@ -81,6 +81,6 @@
             {{ template "help-content-template" (dict "Help" $h.Children "First" false) }}
         {{ end }}
     {{ end }}
-    <script src="/static/launcher.js"></script>
+    <script src="/static/launcher.js?v=0.0.2"></script>
 </body>
 </html>
