@@ -14,7 +14,7 @@
                 <p>{{ GetUserInitials .LoggedInUsername }}</p>
                 <div class="tooltip-user" id="tooltip-user">
                     <p>{{ .LoggedInUsername }}</p>
-                    <button id="logout-button">Log out</button>
+                    <a href="{{ .LogoutUrl }}" role="button" id="logout-button">Log Out</a>
                 </div>
             </div>
         </div>
