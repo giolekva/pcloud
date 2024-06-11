@@ -1,7 +1,7 @@
 {{ define "task" }}
 {{ range . }}
 <li aria-busy="{{ eq .Status 1 }}">
-	{{ if eq .Status 3 }}<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"><g fill="none"><circle cx="12" cy="12" r="8" fill="green" fill-opacity="0.25"/><path stroke="green" stroke-width="1.2" d="m8.5 11l2.894 2.894a.15.15 0 0 0 .212 0L19.5 6"/><path stroke="green" stroke-linecap="round" d="M19.358 10.547a7.5 7.5 0 1 1-3.608-5.042"/></g></svg>{{ end }}{{ .Title }}{{ if .Err }} - {{ .Err.Error }} {{ end }}
+	{{ if eq .Status 3 }}<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"><path fill="black" d="M21 7L9 19l-5.5-5.5l1.41-1.41L9 16.17L19.59 5.59z"/></svg>{{ end }}{{ .Title }}{{ if .Err }} - {{ .Err.Error }} {{ end }}
 	{{ if .Subtasks }}
 	<ul>
    		{{ template "task" .Subtasks }}
@@ -104,7 +104,6 @@
     <ul class="progress">
       {{ template "task" .Task.Subtasks }}
     </ul>
-    <script>setTimeout(() => location.reload(), 3000);</script>
     {{ end }}
   {{ end }}
 
@@ -228,14 +227,40 @@
      {{ end }}
  }
 
- document.getElementById("config-form").addEventListener("submit", (event) => {
-     event.preventDefault();
-     if (event.submitter.id === "submit") {
-         install();
-     } if (event.submitter.id === "uninstall") {
-         uninstall();
-     }
- });
+ const configForm = document.getElementById("config-form");
+ if (configForm) {
+	 configForm.addEventListener("submit", (event) => {
+		 event.preventDefault();
+		 if (event.submitter.id === "submit") {
+			 install();
+		 } if (event.submitter.id === "uninstall") {
+			 uninstall();
+		 }
+	 });
+ }
+
+ {{ if .Task }}
+ async function refresh() {
+	 try {
+		 const resp = await fetch(window.location.href);
+		 if (resp.ok) {
+			 var tmp = document.createElement("html");
+			 tmp.innerHTML = await resp.text();
+			 const progress = tmp.getElementsByClassName("progress")[0];
+			 if (progress) {
+				 document.getElementsByClassName("progress")[0].innerHTML = progress.innerHTML;
+			 } else {
+				 location.reload();
+			 }
+		 }
+	 } catch (error) {
+		 console.log(error);
+	 } finally {
+		 setTimeout(refresh, 3000);
+	 }
+ }
+ setTimeout(refresh, 3000);
+ {{ end }}
 </script>
 
 {{end}}

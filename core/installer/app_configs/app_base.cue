@@ -138,6 +138,7 @@ localCharts: {
 #Helm: {
 	name: string
 	dependsOn: [...#ResourceReference] | *[]
+	info: string | *""
 	...
 }
 
@@ -164,12 +165,16 @@ _helmValidate: {
 	_chart: _
 	_values: _
 	_dependencies: [...#ResourceReference] | *[]
+	_info: string | *""
 
 	apiVersion: "helm.toolkit.fluxcd.io/v2beta1"
 	kind: "HelmRelease"
 	metadata: {
 		name: _name
    		namespace: release.namespace
+        annotations: {
+          "dodo.cloud/installer-info": _info
+        }
 	}
 	spec: {
 		interval: "1m0s"
@@ -186,6 +191,7 @@ output: {
             _chart: localCharts[r.chart.name]
 			_values: r.values
 			_dependencies: r.dependsOn
+			_info: r.info
 		}
 	}
 }

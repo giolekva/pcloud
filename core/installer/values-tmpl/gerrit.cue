@@ -118,6 +118,7 @@ _gerritConfigMapName: "gerrit-config"
 helm: {
 	"oauth2-client": {
 		chart: charts.oauth2Client
+		info: "Creating OAuth2 client"
 		values: {
 			name: "gerrit-oauth2-client"
 			secretName: _oauth2ClientCredentials
@@ -129,6 +130,7 @@ helm: {
 	}
 	"config-renderer": {
 		chart: charts.resourceRenderer
+		info: "Generating Gerrit configuration"
 		values: {
 			name: "config-renderer"
 			secretName: _oauth2ClientCredentials
@@ -205,6 +207,7 @@ data:
 	}
 	gerrit: {
 		chart: charts.gerrit
+		info: "Installing Gerrit server"
 		values: {
 			images: {
 				busybox: {
@@ -306,10 +309,12 @@ data:
 	}
 	"git-volume": {
 		chart: charts.volume
+		info: "Creating disk for Git repositories"
 		values: volumes.git
 	}
 	"log-volume": {
 		chart: charts.volume
+		info: "Creating disk for logging"
 		values: volumes.logs
 	}
 }

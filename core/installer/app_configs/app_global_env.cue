@@ -97,6 +97,7 @@ issuerPublic: "\(global.id)-public"
 			ingress: {
 				chart: charts.ingress
 				_service: service
+                info: "Generating TLS certificate for https://\(_domain)"
 				values: {
 					domain: _domain
 					ingressClassName: network.ingressClass

@@ -65,6 +65,7 @@ portForward: [#PortForward & {
 helm: {
 	softserve: {
 		chart: charts.softserve
+		info: "Installing Git server"
 		values: {
 			serviceType: "ClusterIP"
 			addressPool: ""
@@ -84,6 +85,7 @@ helm: {
 	}
 	"dodo-app": {
 		chart: charts.dodoApp
+		info: "Installing supervisor"
 		values: {
 			image: {
 				repository: images.dodoApp.fullName

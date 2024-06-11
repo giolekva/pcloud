@@ -33,6 +33,7 @@ charts: {
 helm: {
 	vaultwarden: {
 		chart: charts.vaultwarden
+		info: "Installing Vaultwarden server"
 		values: {
 			ingressClassName: input.network.ingressClass
 			certificateIssuer: input.network.certificateIssuer

@@ -56,6 +56,7 @@ portForward: [#PortForward & {
 helm: {
 	softserve: {
 		chart: charts.softserve
+		info: "Installing SoftServe server"
 		values: {
 			serviceType: "ClusterIP"
 			adminKey: input.adminKey

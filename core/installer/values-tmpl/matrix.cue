@@ -52,6 +52,7 @@ _oauth2ClientSecretName: "oauth2-client"
 helm: {
 	"oauth2-client": {
 		chart: charts.oauth2Client
+		info: "Creating OAuth2 client"
 		values: {
 			name: "oauth2-client"
 			secretName: _oauth2ClientSecretName
@@ -68,6 +69,7 @@ helm: {
 			namespace: release.namespace
 		}]
 		chart: charts.matrix
+		info: "Installing Synapse server"
 		values: {
 			domain: global.domain
 			subdomain: input.subdomain
@@ -97,6 +99,7 @@ helm: {
 	}
 	postgres: {
 		chart: charts.postgres
+		info: "Installing PostgreSQL"
 		values: {
 			fullnameOverride: "postgres"
 			image: {

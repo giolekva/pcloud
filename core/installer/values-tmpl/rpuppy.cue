@@ -47,6 +47,7 @@ charts: {
 helm: {
 	rpuppy: {
 		chart: charts.rpuppy
+		info: "Installing rPuppy server"
 		values: {
 			image: {
 				repository: images.rpuppy.fullName

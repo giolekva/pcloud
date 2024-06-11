@@ -48,6 +48,7 @@ charts: {
 helm: {
     "url-shortener": {
         chart: charts.urlShortener
+		info: "Installing server"
         values: {
             storage: {
                 size: "1Gi"

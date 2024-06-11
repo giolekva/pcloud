@@ -1,7 +1,6 @@
 package tasks
 
 import (
-	"fmt"
 	"time"
 
 	"github.com/giolekva/pcloud/core/installer"
@@ -16,7 +15,7 @@ func NewMonitorRelease(mon installer.HelmReleaseMonitor, rr installer.ReleaseRes
 }
 
 func newMonitorHelm(mon installer.HelmReleaseMonitor, h installer.Resource) Task {
-	t := newLeafTask(fmt.Sprintf("%s/%s", h.Namespace, h.Name), func() error {
+	t := newLeafTask(h.Info, func() error {
 		for {
 			if ok, err := mon.IsReleased(h.Namespace, h.Name); err == nil && ok {
 				break

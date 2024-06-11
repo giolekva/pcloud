@@ -201,6 +201,7 @@ func createKustomizationChain(r soft.RepoFS, path string) error {
 type Resource struct {
 	Name      string `json:"name"`
 	Namespace string `json:"namespace"`
+	Info      string `json:"info"`
 }
 
 type ReleaseResources struct {
@@ -366,9 +367,13 @@ func (m *AppManager) Install(
 }
 
 type helmRelease struct {
-	Metadata Resource `json:"metadata"`
-	Kind     string   `json:"kind"`
-	Status   struct {
+	Metadata struct {
+		Name        string            `json:"name"`
+		Namespace   string            `json:"namespace"`
+		Annotations map[string]string `json:"annotations"`
+	} `json:"metadata"`
+	Kind   string `json:"kind"`
+	Status struct {
 		Conditions []struct {
 			Type   string `json:"type"`
 			Status string `json:"status"`
@@ -384,7 +389,18 @@ func extractHelm(resources CueAppData) []Resource {
 			panic(err) // TODO(gio): handle
 		}
 		if h.Kind == "HelmRelease" {
-			ret = append(ret, h.Metadata)
+			res := Resource{
+				Name:      h.Metadata.Name,
+				Namespace: h.Metadata.Namespace,
+				Info:      fmt.Sprintf("%s/%s", h.Metadata.Namespace, h.Metadata.Name),
+			}
+			if h.Metadata.Annotations != nil {
+				info, ok := h.Metadata.Annotations["dodo.cloud/installer-info"]
+				if ok && len(info) != 0 {
+					res.Info = info
+				}
+			}
+			ret = append(ret, res)
 		}
 	}
 	return ret

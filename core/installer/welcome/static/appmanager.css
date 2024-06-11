@@ -220,3 +220,15 @@ main > aside#menu-nav nav {
   margin: 0;
   padding: 0;
 }
+
+.progress {
+  padding-left: 0;
+}
+
+.progress ul {
+  padding-left: 15px;
+}
+
+.progress li {
+  list-style-type: none;
+}

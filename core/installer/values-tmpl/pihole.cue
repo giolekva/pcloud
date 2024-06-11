@@ -48,6 +48,7 @@ charts: {
 helm: {
 	pihole: {
 		chart: charts.pihole
+		info: "Installing Pi-hole server"
 		values: {
 			fullnameOverride: "pihole"
 			persistentVolumeClaim: { // TODO(gio): create volume separately as a dependency

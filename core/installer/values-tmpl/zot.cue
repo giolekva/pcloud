@@ -67,6 +67,7 @@ _httpPort: 80
 helm: {
 	zot: {
 		chart: charts.zot
+		info: "Installing Zot server"
 		values: {
 			image: {
 				repository: images.zot.fullName
@@ -106,6 +107,7 @@ helm: {
 	}
 	volume: {
 		chart: charts.volume
+		info: "Creating disk"
 		values: volumes.zot
 	}
 }

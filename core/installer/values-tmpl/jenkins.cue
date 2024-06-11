@@ -71,6 +71,7 @@ _oauth2ClientSecret: "client_secret"
 helm: {
 	"oauth2-client": {
 		chart: charts.oauth2Client
+		info: "Creating OAuth2 client"
 		values: {
 			name: "oauth2-client"
 			secretName: _oauth2ClientCredentials
@@ -83,6 +84,7 @@ helm: {
 	}
     jenkins: {
         chart: charts.jenkins
+		info: "Installing Jenkins server"
         values: {
 			fullnameOverride: "jenkins"
 			controller: {
@@ -136,6 +138,7 @@ oic:
     }
 	"jenkins-data": {
 		chart: charts.volume
+		info: "Creating disk"
 		values: volumes.jenkins
 	}
 }
