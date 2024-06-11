@@ -14,7 +14,7 @@ import (
 )
 
 var launcherFlags struct {
-	logoutUrl string
+	logoutURL string
 	port      int
 	repoAddr  string
 	sshKey    string
@@ -32,7 +32,7 @@ func launcherCmd() *cobra.Command {
 		"",
 	)
 	cmd.Flags().StringVar(
-		&launcherFlags.logoutUrl,
+		&launcherFlags.logoutURL,
 		"logout-url",
 		"",
 		"",
@@ -80,7 +80,7 @@ func launcherCmdRun(cmd *cobra.Command, args []string) error {
 	}
 	s, err := welcome.NewLauncherServer(
 		launcherFlags.port,
-		launcherFlags.logoutUrl,
+		launcherFlags.logoutURL,
 		&welcome.AppManagerDirectory{AppManager: appManager},
 	)
 	if err != nil {

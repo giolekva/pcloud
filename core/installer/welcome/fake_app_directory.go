@@ -79,7 +79,7 @@ func (s *FakeAppDirectory) GetAllApps() ([]AppLauncherInfo, error) {
 				},
 			},
 		},
-		Url: "https://memberships.p.v1.dodo.cloud",
+		URL: "https://memberships.p.v1.dodo.cloud",
 	}
 	gitInfo := AppLauncherInfo{
 		Name: "Gerrit",
@@ -91,7 +91,7 @@ func (s *FakeAppDirectory) GetAllApps() ([]AppLauncherInfo, error) {
 				Children: nil,
 			},
 		},
-		Url: "https://code.v1.dodo.cloud/dashboard/self",
+		URL: "https://code.v1.dodo.cloud/dashboard/self",
 	}
 	forumge := AppLauncherInfo{
 		Name: "Forum",
@@ -103,7 +103,7 @@ func (s *FakeAppDirectory) GetAllApps() ([]AppLauncherInfo, error) {
 				Children: nil,
 			},
 		},
-		Url: "https://forum.ge",
+		URL: "https://forum.ge",
 	}
 	return []AppLauncherInfo{googleInfo, gitInfo, forumge}, nil
 }

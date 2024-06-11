@@ -14,21 +14,21 @@
                 <p>{{ GetUserInitials .LoggedInUsername }}</p>
                 <div class="tooltip-user" id="tooltip-user">
                     <p>{{ .LoggedInUsername }}</p>
-                    <a href="{{ .LogoutUrl }}" role="button" id="logout-button">Log Out</a>
+                    <a href="{{ .LogoutURL }}" role="button" id="logout-button">Log Out</a>
                 </div>
             </div>
         </div>
         <hr class="separator">
         <div class="app-list">
             {{range .AllAppsInfo}}
-                <div class="app-icon-tooltip" data-app-url="{{ .Url }}">
+                <div class="app-icon-tooltip" data-app-url="{{ .URL }}">
                     <div class="icon">
                         {{.Icon}}
                     </div>
                     <div class="tooltip">
                         <p>{{ .Name }}</p>
-                        {{ if .Url }}
-                            <p>{{ .Url }}</p>
+                        {{ if .DisplayURL }}
+                            <p>{{ .DisplayURL }}</p>
                         {{ end }}
                         {{ if .Help }}
                             <button class="help-button" id="help-button-{{ CleanAppName .Id }}">Help</button>

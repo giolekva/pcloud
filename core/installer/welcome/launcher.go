@@ -22,11 +22,12 @@ var indexHTML embed.FS
 var files embed.FS
 
 type AppLauncherInfo struct {
-	Id   string
-	Name string
-	Icon template.HTML
-	Help []HelpDocumentRendered
-	Url  string
+	Id         string
+	Name       string
+	Icon       template.HTML
+	Help       []HelpDocumentRendered
+	URL        string
+	DisplayURL string
 }
 
 type HelpDocumentRendered struct {
@@ -54,11 +55,12 @@ func (d *AppManagerDirectory) GetAllApps() ([]AppLauncherInfo, error) {
 			continue
 		}
 		ret = append(ret, AppLauncherInfo{
-			Id:   a.Id,
-			Name: a.AppId,
-			Icon: template.HTML(a.Icon),
-			Help: toMarkdown(a.Help),
-			Url:  a.URL,
+			Id:         a.Id,
+			Name:       a.AppId,
+			Icon:       template.HTML(a.Icon),
+			Help:       toMarkdown(a.Help),
+			URL:        a.URL,
+			DisplayURL: shortenURL(a.URL, a.Env.Domain),
 		})
 	}
 	sort.Slice(ret, func(i, j int) bool {
@@ -81,14 +83,14 @@ func (d *AppManagerDirectory) GetAllApps() ([]AppLauncherInfo, error) {
 
 type LauncherServer struct {
 	port         int
-	logoutUrl    string
+	logoutURL    string
 	appDirectory AppDirectory
 	homeTmpl     *template.Template
 }
 
 func NewLauncherServer(
 	port int,
-	logoutUrl string,
+	logoutURL string,
 	appDirectory AppDirectory,
 ) (*LauncherServer, error) {
 	tmpl, err := indexHTML.ReadFile("launcher-tmpl/launcher.html")
@@ -105,7 +107,7 @@ func NewLauncherServer(
 	}
 	return &LauncherServer{
 		port,
-		logoutUrl,
+		logoutURL,
 		appDirectory,
 		t,
 	}, nil
@@ -122,6 +124,10 @@ func cleanAppName(name string) string {
 	cleanName := strings.ToLower(name)
 	cleanName = strings.ReplaceAll(cleanName, " ", "-")
 	return cleanName
+}
+
+func shortenURL(url, domain string) string {
+	return strings.Replace(url, domain, "..", 1)
 }
 
 func getLoggedInUser(r *http.Request) (string, error) {
@@ -142,7 +148,7 @@ func (s *LauncherServer) Start() {
 type homeHandlerData struct {
 	LoggedInUsername string
 	AllAppsInfo      []AppLauncherInfo
-	LogoutUrl        string
+	LogoutURL        string
 }
 
 func (s *LauncherServer) homeHandler(w http.ResponseWriter, r *http.Request) {
@@ -158,7 +164,7 @@ func (s *LauncherServer) homeHandler(w http.ResponseWriter, r *http.Request) {
 	data := homeHandlerData{
 		LoggedInUsername: loggedInUsername,
 		AllAppsInfo:      allAppsInfo,
-		LogoutUrl:        s.logoutUrl,
+		LogoutURL:        s.logoutURL,
 	}
 	if err := s.homeTmpl.Execute(w, data); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
