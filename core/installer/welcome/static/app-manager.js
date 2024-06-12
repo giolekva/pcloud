@@ -4,6 +4,9 @@ document.addEventListener("DOMContentLoaded", function () {
     const nav = document.getElementById("menu");
     const windowHeight = window.innerHeight - headerHeight;
     nav.style.setProperty("--max-height", `${windowHeight}px`);
+    const menu = document.getElementById("menu-nav");
+    const menuHeight = parseFloat(getComputedStyle(document.getElementById('menu-nav')).height.replace("px", "")) + 15;
+    menu.style.setProperty("height", `${menuHeight}px`);
 });
 
 let prevWindowHeight = window.innerHeight;
