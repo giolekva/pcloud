@@ -11,7 +11,7 @@ import (
 	"strings"
 	"text/template"
 
-	"github.com/labstack/echo/v4"
+	"github.com/gorilla/mux"
 )
 
 var port = flag.Int("port", 3000, "Port to listen on")
@@ -53,43 +53,53 @@ func newServer(port int, client *client) *server {
 	}
 }
 
-func (s *server) start() {
-	e := echo.New()
-	e.POST("/user/:user/preauthkey", s.createReusablePreAuthKey)
-	e.POST("/user", s.createUser)
-	e.POST("/routes/:id/enable", s.enableRoute)
-	log.Fatal(e.Start(fmt.Sprintf(":%d", s.port)))
+func (s *server) start() error {
+	r := mux.NewRouter()
+	r.HandleFunc("/user/{user}/preauthkey", s.createReusablePreAuthKey).Methods(http.MethodPost)
+	r.HandleFunc("/user", s.createUser).Methods(http.MethodPost)
+	r.HandleFunc("/routes/{id}/enable", s.enableRoute).Methods(http.MethodPost)
+	return http.ListenAndServe(fmt.Sprintf(":%d", s.port), r)
 }
 
 type createUserReq struct {
 	Name string `json:"name"`
 }
 
-func (s *server) createUser(c echo.Context) error {
+func (s *server) createUser(w http.ResponseWriter, r *http.Request) {
 	var req createUserReq
-	if err := json.NewDecoder(c.Request().Body).Decode(&req); err != nil {
-		return err
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
 	}
 	if err := s.client.createUser(req.Name); err != nil {
-		return err
-	} else {
-		return c.String(http.StatusOK, "")
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
 	}
 }
 
-func (s *server) createReusablePreAuthKey(c echo.Context) error {
-	if key, err := s.client.createPreAuthKey(c.Param("user")); err != nil {
-		return err
+func (s *server) createReusablePreAuthKey(w http.ResponseWriter, r *http.Request) {
+	user, ok := mux.Vars(r)["user"]
+	if !ok {
+		http.Error(w, "no user", http.StatusBadRequest)
+		return
+	}
+	if key, err := s.client.createPreAuthKey(user); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
 	} else {
-		return c.String(http.StatusOK, key)
+		fmt.Fprint(w, key)
 	}
 }
 
-func (s *server) enableRoute(c echo.Context) error {
-	if err := s.client.enableRoute(c.Param("id")); err != nil {
-		return err
-	} else {
-		return c.String(http.StatusOK, "")
+func (s *server) enableRoute(w http.ResponseWriter, r *http.Request) {
+	id, ok := mux.Vars(r)["id"]
+	if !ok {
+		http.Error(w, "no id", http.StatusBadRequest)
+		return
+	}
+	if err := s.client.enableRoute(id); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
 	}
 }
 
@@ -124,5 +134,5 @@ func main() {
 	updateACLs(cidrs, *acls)
 	c := newClient(*config)
 	s := newServer(*port, c)
-	s.start()
+	log.Fatal(s.start())
 }
