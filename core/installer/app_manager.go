@@ -152,7 +152,14 @@ type allocatePortReq struct {
 	SourcePort    int    `json:"sourcePort"`
 	TargetService string `json:"targetService"`
 	TargetPort    int    `json:"targetPort"`
-	Secret        string `json:"secret"`
+	Secret        string `json:"secret,omitempty"`
+}
+
+type removePortReq struct {
+	Protocol      string `json:"protocol"`
+	SourcePort    int    `json:"sourcePort"`
+	TargetService string `json:"targetService"`
+	TargetPort    int    `json:"targetPort"`
 }
 
 type reservePortResp struct {
@@ -209,10 +216,39 @@ func openPorts(ports []PortForward, reservations map[string]reservePortResp, all
 			return err
 		}
 		if resp.StatusCode != http.StatusOK {
-			return fmt.Errorf("Could not allocate port %d, status code: %d", p.SourcePort, resp.StatusCode)
+			var r bytes.Buffer
+			io.Copy(&r, resp.Body)
+			return fmt.Errorf("Could not allocate port %d, status code %d, message: %s", p.SourcePort, resp.StatusCode, r.String())
 		}
 	}
 	return nil
+}
+
+func closePorts(ports []PortForward) error {
+	var retErr error
+	for _, p := range ports {
+		var buf bytes.Buffer
+		req := removePortReq{
+			Protocol:      p.Protocol,
+			SourcePort:    p.SourcePort,
+			TargetService: p.TargetService,
+			TargetPort:    p.TargetPort,
+		}
+		if err := json.NewEncoder(&buf).Encode(req); err != nil {
+			retErr = err
+			continue
+		}
+		resp, err := http.Post(p.RemoveAddr, "application/json", &buf)
+		if err != nil {
+			retErr = err
+			continue
+		}
+		if resp.StatusCode != http.StatusOK {
+			retErr = fmt.Errorf("Could not deallocate port %d, status code: %d", p.SourcePort, resp.StatusCode)
+			continue
+		}
+	}
+	return retErr
 }
 
 func createKustomizationChain(r soft.RepoFS, path string) error {
@@ -419,6 +455,7 @@ func (m *AppManager) Install(
 	}
 	// TODO(gio): add ingress-nginx to release resources
 	if err := openPorts(rendered.Ports, portReservations, allocators); err != nil {
+		fmt.Println(err)
 		return ReleaseResources{}, err
 	}
 	return ReleaseResources{
@@ -489,11 +526,11 @@ func (m *AppManager) Update(
 	if err != nil {
 		return ReleaseResources{}, err
 	}
-	localCharts, err := extractLocalCharts(m.repoIO, filepath.Join(instanceDir, "rendered.json"))
+	renderedCfg, err := readRendered(m.repoIO, filepath.Join(instanceDir, "rendered.json"))
 	if err != nil {
 		return ReleaseResources{}, err
 	}
-	rendered, err := app.Render(config.Release, env, values, localCharts)
+	rendered, err := app.Render(config.Release, env, values, renderedCfg.LocalCharts)
 	if err != nil {
 		return ReleaseResources{}, err
 	}
@@ -504,8 +541,15 @@ func (m *AppManager) Remove(instanceId string) error {
 	if err := m.repoIO.Pull(); err != nil {
 		return err
 	}
-	return m.repoIO.Do(func(r soft.RepoFS) (string, error) {
-		r.RemoveDir(filepath.Join(m.appDirRoot, instanceId))
+	var portForward []PortForward
+	if err := m.repoIO.Do(func(r soft.RepoFS) (string, error) {
+		instanceDir := filepath.Join(m.appDirRoot, instanceId)
+		renderedCfg, err := readRendered(m.repoIO, filepath.Join(instanceDir, "rendered.json"))
+		if err != nil {
+			return "", err
+		}
+		portForward = renderedCfg.PortForward
+		r.RemoveDir(instanceDir)
 		kustPath := filepath.Join(m.appDirRoot, "kustomization.yaml")
 		kust, err := soft.ReadKustomization(r, kustPath)
 		if err != nil {
@@ -514,26 +558,35 @@ func (m *AppManager) Remove(instanceId string) error {
 		kust.RemoveResources(instanceId)
 		soft.WriteYaml(r, kustPath, kust)
 		return fmt.Sprintf("uninstall: %s", instanceId), nil
-	})
+	}); err != nil {
+		return err
+	}
+	if err := closePorts(portForward); err != nil {
+		fmt.Println(err)
+		return err
+	}
+	return nil
 }
 
 // TODO(gio): deduplicate with cue definition in app.go, this one should be removed.
 func CreateNetworks(env EnvConfig) []Network {
 	return []Network{
 		{
-			Name:              "Public",
-			IngressClass:      fmt.Sprintf("%s-ingress-public", env.InfraName),
-			CertificateIssuer: fmt.Sprintf("%s-public", env.Id),
-			Domain:            env.Domain,
-			AllocatePortAddr:  fmt.Sprintf("http://port-allocator.%s-ingress-public.svc.cluster.local/api/allocate", env.InfraName),
-			ReservePortAddr:   fmt.Sprintf("http://port-allocator.%s-ingress-public.svc.cluster.local/api/reserve", env.InfraName),
+			Name:               "Public",
+			IngressClass:       fmt.Sprintf("%s-ingress-public", env.InfraName),
+			CertificateIssuer:  fmt.Sprintf("%s-public", env.Id),
+			Domain:             env.Domain,
+			AllocatePortAddr:   fmt.Sprintf("http://port-allocator.%s-ingress-public.svc.cluster.local/api/allocate", env.InfraName),
+			ReservePortAddr:    fmt.Sprintf("http://port-allocator.%s-ingress-public.svc.cluster.local/api/reserve", env.InfraName),
+			DeallocatePortAddr: fmt.Sprintf("http://port-allocator.%s-ingress-public.svc.cluster.local/api/remove", env.InfraName),
 		},
 		{
-			Name:             "Private",
-			IngressClass:     fmt.Sprintf("%s-ingress-private", env.Id),
-			Domain:           env.PrivateDomain,
-			AllocatePortAddr: fmt.Sprintf("http://port-allocator.%s-ingress-private.svc.cluster.local/api/allocate", env.Id),
-			ReservePortAddr:  fmt.Sprintf("http://port-allocator.%s-ingress-private.svc.cluster.local/api/reserve", env.Id),
+			Name:               "Private",
+			IngressClass:       fmt.Sprintf("%s-ingress-private", env.Id),
+			Domain:             env.PrivateDomain,
+			AllocatePortAddr:   fmt.Sprintf("http://port-allocator.%s-ingress-private.svc.cluster.local/api/allocate", env.Id),
+			ReservePortAddr:    fmt.Sprintf("http://port-allocator.%s-ingress-private.svc.cluster.local/api/reserve", env.Id),
+			DeallocatePortAddr: fmt.Sprintf("http://port-allocator.%s-ingress-private.svc.cluster.local/api/remove", env.Id),
 		},
 	}
 }
@@ -703,11 +756,11 @@ func (m *InfraAppManager) Update(
 	if err != nil {
 		return ReleaseResources{}, err
 	}
-	localCharts, err := extractLocalCharts(m.repoIO, filepath.Join(instanceDir, "rendered.json"))
+	renderedCfg, err := readRendered(m.repoIO, filepath.Join(instanceDir, "rendered.json"))
 	if err != nil {
 		return ReleaseResources{}, err
 	}
-	rendered, err := app.Render(config.Release, env, values, localCharts)
+	rendered, err := app.Render(config.Release, env, values, renderedCfg.LocalCharts)
 	if err != nil {
 		return ReleaseResources{}, err
 	}
@@ -754,19 +807,20 @@ func pullContainerImages(appName string, imgs map[string]ContainerImage, registr
 
 type renderedInstance struct {
 	LocalCharts map[string]helmv2.HelmChartTemplateSpec `json:"localCharts"`
+	PortForward []PortForward                           `json:"portForward"`
 }
 
-func extractLocalCharts(fs soft.RepoFS, path string) (map[string]helmv2.HelmChartTemplateSpec, error) {
+func readRendered(fs soft.RepoFS, path string) (renderedInstance, error) {
 	r, err := fs.Reader(path)
 	if err != nil {
-		return nil, err
+		return renderedInstance{}, err
 	}
 	defer r.Close()
 	var cfg renderedInstance
 	if err := json.NewDecoder(r).Decode(&cfg); err != nil {
-		return nil, err
+		return renderedInstance{}, err
 	}
-	return cfg.LocalCharts, nil
+	return cfg, nil
 }
 
 func findPortFields(scm Schema) []string {

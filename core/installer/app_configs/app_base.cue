@@ -33,6 +33,7 @@ appType: #AppType | *"env"
 	domain: string
 	allocatePortAddr: string
 	reservePortAddr: string
+	deallocatePortAddr: string
 }
 
 #Image: {
@@ -84,6 +85,7 @@ appType: #AppType | *"env"
 #PortForward: {
 	allocator: string
 	reservator: string
+	deallocator: string
 	protocol: "TCP" | "UDP" | *"TCP"
 	sourcePort: int
 	serviceName: string

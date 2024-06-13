@@ -61,6 +61,7 @@ const networkSchema = `
 	domain: string
 	allocatePortAddr: string
 	reservePortAddr: string
+	deallocatePortAddr: string
 }
 
 value: { %s }

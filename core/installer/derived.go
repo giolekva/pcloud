@@ -14,12 +14,13 @@ type Release struct {
 }
 
 type Network struct {
-	Name              string `json:"name,omitempty"`
-	IngressClass      string `json:"ingressClass,omitempty"`
-	CertificateIssuer string `json:"certificateIssuer,omitempty"`
-	Domain            string `json:"domain,omitempty"`
-	AllocatePortAddr  string `json:"allocatePortAddr,omitempty"`
-	ReservePortAddr   string `json:"reservePortAddr,omitempty"`
+	Name               string `json:"name,omitempty"`
+	IngressClass       string `json:"ingressClass,omitempty"`
+	CertificateIssuer  string `json:"certificateIssuer,omitempty"`
+	Domain             string `json:"domain,omitempty"`
+	AllocatePortAddr   string `json:"allocatePortAddr,omitempty"`
+	ReservePortAddr    string `json:"reservePortAddr,omitempty"`
+	DeallocatePortAddr string `json:"deallocatePortAddr,omitempty"`
 }
 
 type InfraAppInstanceConfig struct {

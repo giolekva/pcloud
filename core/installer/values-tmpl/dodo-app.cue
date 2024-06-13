@@ -56,6 +56,7 @@ charts: {
 portForward: [#PortForward & {
 	allocator: input.network.allocatePortAddr
 	reservator: input.network.reservePortAddr
+	deallocator: input.network.deallocatePortAddr
 	sourcePort: input.sshPort
 	serviceName: "soft-serve"
 	targetPort: 22

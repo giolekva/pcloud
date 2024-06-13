@@ -71,8 +71,9 @@ func newServer(port int, client client) *server {
 }
 
 func (s *server) Start() error {
-	s.r.HandleFunc("/api/allocate", s.handleAllocate)
 	s.r.HandleFunc("/api/reserve", s.handleReserve)
+	s.r.HandleFunc("/api/allocate", s.handleAllocate)
+	s.r.HandleFunc("/api/remove", s.handleRemove)
 	if err := s.s.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 		return err
 	}
@@ -91,6 +92,13 @@ type allocateReq struct {
 	Secret        string `json:"secret"`
 }
 
+type removeReq struct {
+	Protocol      string `json:"protocol"`
+	SourcePort    int    `json:"sourcePort"`
+	TargetService string `json:"targetService"`
+	TargetPort    int    `json:"targetPort"`
+}
+
 func extractAllocateReq(r io.Reader) (allocateReq, error) {
 	var req allocateReq
 	if err := json.NewDecoder(r).Decode(&req); err != nil {
@@ -99,6 +107,18 @@ func extractAllocateReq(r io.Reader) (allocateReq, error) {
 	req.Protocol = strings.ToLower(req.Protocol)
 	if req.Protocol != "tcp" && req.Protocol != "udp" {
 		return allocateReq{}, fmt.Errorf("Unexpected protocol %s", req.Protocol)
+	}
+	return req, nil
+}
+
+func extractRemoveReq(r io.Reader) (removeReq, error) {
+	var req removeReq
+	if err := json.NewDecoder(r).Decode(&req); err != nil {
+		return removeReq{}, err
+	}
+	req.Protocol = strings.ToLower(req.Protocol)
+	if req.Protocol != "tcp" && req.Protocol != "udp" {
+		return removeReq{}, fmt.Errorf("Unexpected protocol %s", req.Protocol)
 	}
 	return req, nil
 }
@@ -152,6 +172,15 @@ func addPort(pm map[string]any, req allocateReq) error {
 		return fmt.Errorf("port %d is already taken", req.SourcePort)
 	}
 	pm[sourcePortStr] = fmt.Sprintf("%s:%d", req.TargetService, req.TargetPort)
+	return nil
+}
+
+func removePort(pm map[string]any, req removeReq) error {
+	sourcePortStr := strconv.Itoa(req.SourcePort)
+	if _, ok := pm[sourcePortStr]; !ok {
+		return fmt.Errorf("port %d is not open to remove", req.SourcePort)
+	}
+	delete(pm, sourcePortStr)
 	return nil
 }
 
@@ -264,6 +293,50 @@ func (s *server) handleReserve(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
+}
+
+func (s *server) handleRemove(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "only post method is supported", http.StatusBadRequest)
+		return
+	}
+	req, err := extractRemoveReq(r.Body)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	s.l.Lock()
+	defer s.l.Unlock()
+	ingressRel, err := s.client.ReadRelease()
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	tcp, udp, err := extractPorts(ingressRel)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	switch req.Protocol {
+	case "tcp":
+		if err := removePort(tcp, req); err != nil {
+			http.Error(w, err.Error(), http.StatusConflict)
+			return
+		}
+	case "udp":
+		if err := removePort(udp, req); err != nil {
+			http.Error(w, err.Error(), http.StatusConflict)
+			return
+		}
+	default:
+		panic("MUST NOT REACH")
+	}
+	commitMsg := fmt.Sprintf("ingress: remove port map %d %s", req.SourcePort, req.Protocol)
+	if err := s.client.WriteRelease(ingressRel, commitMsg); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	delete(s.reserve, req.SourcePort)
 }
 
 // TODO(gio): deduplicate

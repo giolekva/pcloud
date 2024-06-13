@@ -83,6 +83,7 @@ type InfraAppRendered struct {
 type PortForward struct {
 	Allocator     string `json:"allocator"`
 	ReserveAddr   string `json:"reservator"`
+	RemoveAddr    string `json:"deallocator"`
 	Protocol      string `json:"protocol"`
 	SourcePort    int    `json:"sourcePort"`
 	TargetService string `json:"targetService"`

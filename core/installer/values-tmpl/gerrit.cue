@@ -106,6 +106,7 @@ _sshPort: 22
 portForward: [#PortForward & {
 	allocator: input.network.allocatePortAddr
 	reservator: input.network.reservePortAddr
+	deallocator: input.network.deallocatePortAddr
 	sourcePort: input.sshPort
 	serviceName: "gerrit-gerrit-service"
 	targetPort: _sshPort
