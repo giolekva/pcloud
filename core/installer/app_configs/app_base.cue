@@ -86,7 +86,8 @@ appType: #AppType | *"env"
 	reservator: string
 	protocol: "TCP" | "UDP" | *"TCP"
 	sourcePort: int
-	targetService: string
+	serviceName: string
+	targetService: "\(release.namespace)/\(serviceName)"
 	targetPort: int
 }
 
