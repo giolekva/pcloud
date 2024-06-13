@@ -4,10 +4,6 @@ replace github.com/giolekva/pcloud/installer => /Users/lekva/dev/src/pcloud/core
 
 go 1.22.0
 
-toolchain go1.22.3
-
-// toolchain go1.21.5
-
 require (
 	cuelang.org/go v0.8.1
 	github.com/Masterminds/sprig/v3 v3.2.3

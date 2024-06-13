@@ -2,7 +2,7 @@ module github.com/giolekva/pcloud/core/port-allocator
 
 replace github.com/giolekva/pcloud/core/installer => /Users/lekva/dev/src/pcloud/core/installer
 
-go 1.21.5
+go 1.22.0
 
 require (
 	github.com/giolekva/pcloud/core/installer v0.0.0-20240403111418-e9c05499ec80

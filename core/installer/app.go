@@ -82,6 +82,7 @@ type InfraAppRendered struct {
 
 type PortForward struct {
 	Allocator     string `json:"allocator"`
+	ReserveAddr   string `json:"reservator"`
 	Protocol      string `json:"protocol"`
 	SourcePort    int    `json:"sourcePort"`
 	TargetService string `json:"targetService"`
@@ -437,7 +438,7 @@ func (a cueEnvApp) Render(release Release, env EnvConfig, values map[string]any,
 	networks := CreateNetworks(env)
 	derived, err := deriveValues(values, a.Schema(), networks)
 	if err != nil {
-		return EnvAppRendered{}, nil
+		return EnvAppRendered{}, err
 	}
 	if charts == nil {
 		charts = make(map[string]helmv2.HelmChartTemplateSpec)

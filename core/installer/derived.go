@@ -19,6 +19,7 @@ type Network struct {
 	CertificateIssuer string `json:"certificateIssuer,omitempty"`
 	Domain            string `json:"domain,omitempty"`
 	AllocatePortAddr  string `json:"allocatePortAddr,omitempty"`
+	ReservePortAddr   string `json:"reservePortAddr,omitempty"`
 }
 
 type InfraAppInstanceConfig struct {
@@ -81,6 +82,8 @@ func deriveValues(values any, schema Schema, networks []Network) (map[string]any
 			ret[k] = v
 		case KindInt:
 			ret[k] = v
+		case KindPort:
+			ret[k] = v
 		case KindArrayString:
 			a, ok := v.([]string)
 			if !ok {
@@ -134,6 +137,8 @@ func derivedToConfig(derived map[string]any, schema Schema) (map[string]any, err
 		case KindString:
 			ret[k] = v
 		case KindInt:
+			ret[k] = v
+		case KindPort:
 			ret[k] = v
 		case KindArrayString:
 			a, ok := v.([]string)

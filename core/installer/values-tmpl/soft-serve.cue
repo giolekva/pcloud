@@ -1,7 +1,7 @@
 input: {
 	network: #Network @name(Network)
 	subdomain: string @name(Subdomain)
-	sshPort: int @name(SSH Port)
+	sshPort: int @name(SSH Port) @role(port)
 	adminKey: string @name(Admin SSH Public Key)
 }
 
@@ -46,6 +46,7 @@ ingress: {
 
 portForward: [#PortForward & {
 	allocator: input.network.allocatePortAddr
+	reservator: input.network.reservePortAddr
 	sourcePort: input.sshPort
 	// TODO(gio): namespace part must be populated by app manager. Otherwise
 	// third-party app developer might point to a service from different namespace.

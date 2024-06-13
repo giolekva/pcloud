@@ -32,6 +32,7 @@ appType: #AppType | *"env"
 	certificateIssuer: string | *""
 	domain: string
 	allocatePortAddr: string
+	reservePortAddr: string
 }
 
 #Image: {
@@ -82,6 +83,7 @@ appType: #AppType | *"env"
 
 #PortForward: {
 	allocator: string
+	reservator: string
 	protocol: "TCP" | "UDP" | *"TCP"
 	sourcePort: int
 	targetService: string

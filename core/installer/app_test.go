@@ -2,13 +2,8 @@ package installer
 
 import (
 	_ "embed"
-	"fmt"
 	"net"
 	"testing"
-
-	"github.com/giolekva/pcloud/core/installer/soft"
-
-	"github.com/go-git/go-billy/v5/memfs"
 )
 
 var env = EnvConfig{
@@ -260,31 +255,9 @@ func TestAppPackages(t *testing.T) {
 	for _, r := range rendered.Resources {
 		t.Log(string(r))
 	}
-	for _, r := range rendered.HelmCharts.Git {
-		t.Log(fmt.Sprintf("%+v\n", r))
-	}
 	for _, r := range rendered.Data {
 		t.Log(string(r))
 	}
-}
-
-func TestPullGitHelmCharts(t *testing.T) {
-	charts := HelmCharts{
-		Git: map[string]HelmChartGitRepo{
-			"rpuppy": HelmChartGitRepo{
-				Address: "https://code.v1.dodo.cloud/pcloud",
-				Branch:  "main",
-				Path:    "charts/rpuppy",
-			},
-		},
-	}
-	fs := soft.NewBillyRepoFS(memfs.New())
-	hf := NewGitHelmFetcher()
-	pulled, err := pullHelmCharts(hf, charts, fs, "/helm-charts")
-	if err != nil {
-		t.Fatal(err)
-	}
-	fmt.Println(pulled)
 }
 
 func TestDNSGateway(t *testing.T) {

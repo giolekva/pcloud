@@ -2,6 +2,7 @@ package installer
 
 import (
 	"fmt"
+	"strings"
 
 	"cuelang.org/go/cue"
 	"cuelang.org/go/cue/cuecontext"
@@ -19,6 +20,7 @@ const (
 	KindSSHKey           = 6
 	KindNumber           = 4
 	KindArrayString      = 8
+	KindPort             = 9
 )
 
 type Field struct {
@@ -58,6 +60,7 @@ const networkSchema = `
 	certificateIssuer: string | *""
 	domain: string
 	allocatePortAddr: string
+	reservePortAddr: string
 }
 
 value: { %s }
@@ -175,6 +178,11 @@ func NewCueSchema(name string, v cue.Value) (Schema, error) {
 	if nameAttr.Err() == nil {
 		name = nameAttr.Contents()
 	}
+	role := ""
+	roleAttr := v.Attribute("role")
+	if roleAttr.Err() == nil {
+		role = strings.ToLower(roleAttr.Contents())
+	}
 	switch v.IncompleteKind() {
 	case cue.StringKind:
 		return basicSchema{name, KindString, false}, nil
@@ -183,7 +191,11 @@ func NewCueSchema(name string, v cue.Value) (Schema, error) {
 	case cue.NumberKind:
 		return basicSchema{name, KindNumber, false}, nil
 	case cue.IntKind:
-		return basicSchema{name, KindInt, false}, nil
+		if role == "port" {
+			return basicSchema{name, KindPort, true}, nil
+		} else {
+			return basicSchema{name, KindInt, false}, nil
+		}
 	case cue.ListKind:
 		return basicSchema{name, KindArrayString, false}, nil
 	case cue.StructKind:
