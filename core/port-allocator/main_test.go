@@ -163,3 +163,11 @@ func TestAllocate443Taken(t *testing.T) {
 		t.Fatalf("Expected %d, got %d", http.StatusConflict, resp.StatusCode)
 	}
 }
+
+func TestGenerateSecret(t *testing.T) {
+	secret, err := generateSecret()
+	if err != nil {
+		t.Fatalf("Error generating secret: %v", err)
+	}
+	t.Logf("Generated secret: %s", secret)
+}

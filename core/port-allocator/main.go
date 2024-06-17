@@ -20,6 +20,10 @@ import (
 	"golang.org/x/crypto/ssh"
 )
 
+const (
+	secretLength = 20
+)
+
 var port = flag.Int("port", 8080, "Port to listen on")
 var repoAddr = flag.String("repo-addr", "", "Git repository address where Helm releases are stored")
 var sshKey = flag.String("ssh-key", "", "Path to SHH key used to connect with Git repository")
@@ -280,7 +284,11 @@ func (s *server) handleReserve(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	secret := generateSecret()
+	secret, err := generateSecret()
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
 	s.reserve[port] = secret
 	go func() {
 		time.Sleep(30 * time.Minute)
@@ -360,9 +368,13 @@ func createRepoClient(addr string, keyPath string) (soft.RepoIO, error) {
 	return soft.NewRepoIO(repo, signer)
 }
 
-func generateSecret() string {
-	// TODO(gio): implement
-	return "foo"
+func generateSecret() (string, error) {
+	b := make([]byte, secretLength)
+	_, err := rand.Read(b)
+	if err != nil {
+		return "", fmt.Errorf("error generating secret: %v", err)
+	}
+	return string(b), nil
 }
 
 func main() {
