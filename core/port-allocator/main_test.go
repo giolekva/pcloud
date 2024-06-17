@@ -171,3 +171,17 @@ func TestGenerateSecret(t *testing.T) {
 	}
 	t.Logf("Generated secret: %s", secret)
 }
+
+func TestReservePort(t *testing.T) {
+	pm := map[string]struct{}{
+		"10000": {},
+	}
+	reserve := make(map[int]string)
+	for i := start; i <= end; i++ {
+		reserve[i] = "reserved"
+	}
+	_, err := reservePort(pm, reserve)
+	if err != nil {
+		t.Fatalf("error: %v", err)
+	}
+}
