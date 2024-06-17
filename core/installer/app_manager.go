@@ -190,19 +190,19 @@ func openPorts(ports []PortForward, reservations map[string]reservePortResp, all
 			TargetService: p.TargetService,
 			TargetPort:    p.TargetPort,
 		}
-		if err := json.NewEncoder(&buf).Encode(req); err != nil {
-			return err
-		}
 		allocator := ""
 		for n, r := range reservations {
 			if p.SourcePort == r.Port {
 				allocator = allocators[n]
-				req.Secret = reservations[n].Secret
+				req.Secret = r.Secret
 				break
 			}
 		}
 		if allocator == "" {
 			return fmt.Errorf("Could not find allocator for: %d", p.SourcePort)
+		}
+		if err := json.NewEncoder(&buf).Encode(req); err != nil {
+			return err
 		}
 		resp, err := http.Post(allocator, "application/json", &buf)
 		if err != nil {

@@ -88,7 +88,7 @@ type allocateReq struct {
 	SourcePort    int    `json:"sourcePort"`
 	TargetService string `json:"targetService"`
 	TargetPort    int    `json:"targetPort"`
-	Secret        string `json:"secret,omitempty"`
+	Secret        string `json:"secret"`
 }
 
 func extractAllocateReq(r io.Reader) (allocateReq, error) {
@@ -181,10 +181,6 @@ func (s *server) handleAllocate(w http.ResponseWriter, r *http.Request) {
 	req, err := extractAllocateReq(r.Body)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
-	}
-	if req.Secret != "" {
-		http.Error(w, "secret missing", http.StatusBadRequest)
 		return
 	}
 	s.l.Lock()
