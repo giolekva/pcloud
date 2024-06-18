@@ -41,10 +41,12 @@ func CloneRepository(addr string, signer ssh.Signer, path string) error {
 				},
 			},
 		},
-		RemoteName:      "origin",
-		ReferenceName:   "refs/heads/master",
-		Depth:           1,
-		InsecureSkipTLS: true,
+		RemoteName:        "origin",
+		ReferenceName:     "refs/heads/master",
+		Depth:             1,
+		RecurseSubmodules: git.DefaultSubmoduleRecursionDepth,
+		ShallowSubmodules: true,
+		InsecureSkipTLS:   true,
 	})
 	return err
 }

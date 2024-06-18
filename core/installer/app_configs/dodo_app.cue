@@ -15,6 +15,20 @@ input: {
 	auth: #Auth
 }
 
+#AppTmpl: {
+	type: string
+	ingress: #AppIngress
+	runConfiguration: [...#Command]
+	...
+}
+
+#Command: {
+	bin: string
+	args: [...string] | *[]
+}
+
+// Go app
+
 _goVer1220: "golang:1.22.0"
 _goVer1200: "golang:1.20.0"
 
@@ -45,7 +59,28 @@ _goVer1200: "golang:1.20.0"
 
 #GoApp: #GoApp1200 | #GoApp1220
 
-app: #GoApp
+// Hugo app
+
+_hugoLatest: "hugo:latest"
+
+#HugoAppTmpl: {
+	type: _hugoLatest
+	ingress: #AppIngress
+
+	runConfiguration: [{
+		bin: "/usr/bin/hugo",
+		args: []
+	}, {
+		bin: "/usr/bin/hugo",
+		args: ["server", "--port=\(_appPort)", "--bind=0.0.0.0"]
+	}]
+}
+
+#HugoApp: #HugoAppTmpl
+
+#App: #GoApp | #HugoApp
+
+app: #App
 
 // output
 
@@ -89,8 +124,8 @@ helm: {
 				tag: images.app.tag
 				pullPolicy: images.app.pullPolicy
 			}
-			appPort: 8080
-			appDir: "/dodo-app"
+			appPort: _appPort
+			appDir: _appDir
 			repoAddr: input.repoAddr
 			sshPrivateKey: base64.Encode(null, input.sshPrivateKey)
 			runCfg: base64.Encode(null, json.Marshal(_app.runConfiguration))
@@ -98,3 +133,6 @@ helm: {
 		}
 	}
 }
+
+_appDir: "/dodo-app"
+_appPort: 8080

@@ -1,0 +1,5 @@
+FROM giolekva/hugo:latest
+
+ARG TARGETARCH
+
+COPY app-runner_${TARGETARCH} /usr/bin/app-runner

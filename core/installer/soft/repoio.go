@@ -188,6 +188,13 @@ func (r *repoIO) CommitAndPush(message string, opts ...PushOption) error {
 	if err := wt.AddGlob("*"); err != nil {
 		return err
 	}
+	st, err := wt.Status()
+	if err != nil {
+		return err
+	}
+	if len(st) == 0 {
+		return nil // TODO(gio): maybe return ErrorNothingToCommit
+	}
 	if _, err := wt.Commit(message, &git.CommitOptions{
 		Author: &object.Signature{
 			Name: "pcloud-installer",

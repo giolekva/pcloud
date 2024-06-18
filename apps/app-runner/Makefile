@@ -33,3 +33,18 @@ push: push_arm64 push_amd64
 	$(podman) manifest create $(repo_name)/app-runner:golang-1.22.0 $(repo_name)/app-runner:golang-1.22.0-arm64 $(repo_name)/app-runner:golang-1.22.0-amd64
 	$(podman) manifest push $(repo_name)/app-runner:golang-1.22.0 $(manifest_dest)
 	$(podman) manifest rm $(repo_name)/app-runner:golang-1.22.0
+
+# Hugo
+
+push_hugo_arm64: clean build_arm64
+	$(podman) build --platform linux/arm64 --tag=$(repo_name)/app-runner:hugo-latest-arm64 -f Dockerfile.hugo .
+	$(podman) push $(repo_name)/app-runner:hugo-latest-arm64
+
+push_hugo_amd64: clean build_amd64
+	$(podman) build --platform linux/amd64 --tag=$(repo_name)/app-runner:hugo-latest-amd64 -f Dockerfile.hugo .
+	$(podman) push $(repo_name)/app-runner:hugo-latest-amd64
+
+push_hugo: push_hugo_arm64 push_hugo_amd64
+	$(podman) manifest create $(repo_name)/app-runner:hugo-latest $(repo_name)/app-runner:hugo-latest-arm64 $(repo_name)/app-runner:hugo-latest-amd64
+	$(podman) manifest push $(repo_name)/app-runner:hugo-latest $(manifest_dest)
+	$(podman) manifest rm $(repo_name)/app-runner:hugo-latest
