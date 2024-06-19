@@ -28,7 +28,7 @@ type Command struct {
 }
 
 func CloneRepository(addr string, signer ssh.Signer, path string) error {
-	_, err := git.Clone(memory.NewStorage(), osfs.New(path, osfs.WithBoundOS()), &git.CloneOptions{
+	c, err := git.Clone(memory.NewStorage(), osfs.New(path, osfs.WithBoundOS()), &git.CloneOptions{
 		URL: addr,
 		Auth: &gitssh.PublicKeys{
 			User:   "git",
@@ -41,13 +41,32 @@ func CloneRepository(addr string, signer ssh.Signer, path string) error {
 				},
 			},
 		},
-		RemoteName:        "origin",
-		ReferenceName:     "refs/heads/master",
-		Depth:             1,
-		RecurseSubmodules: git.DefaultSubmoduleRecursionDepth,
-		ShallowSubmodules: true,
-		InsecureSkipTLS:   true,
+		RemoteName:      "origin",
+		ReferenceName:   "refs/heads/master",
+		SingleBranch:    true,
+		Depth:           1,
+		InsecureSkipTLS: true,
+		Progress:        os.Stdout,
 	})
+	if err != nil {
+		return err
+	}
+	wt, err := c.Worktree()
+	if err != nil {
+		return err
+	}
+	sb, err := wt.Submodules()
+	if err != nil {
+		return err
+	}
+	if err := sb.Init(); err != nil {
+		return err
+	}
+	if err := sb.Update(&git.SubmoduleUpdateOptions{
+		Depth: 1,
+	}); err != nil {
+		return err
+	}
 	return err
 }
 

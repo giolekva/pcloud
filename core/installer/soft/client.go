@@ -205,11 +205,28 @@ func CloneRepository(addr RepositoryAddress, signer ssh.Signer) (*Repository, er
 		},
 		RemoteName:      "origin",
 		ReferenceName:   "refs/heads/master",
+		SingleBranch:    true,
 		Depth:           1,
 		InsecureSkipTLS: true,
 		Progress:        os.Stdout,
 	})
 	if err != nil && !errors.Is(err, transport.ErrEmptyRemoteRepository) {
+		return nil, err
+	}
+	wt, err := c.Worktree()
+	if err != nil {
+		return nil, err
+	}
+	sb, err := wt.Submodules()
+	if err != nil {
+		return nil, err
+	}
+	if err := sb.Init(); err != nil {
+		return nil, err
+	}
+	if err := sb.Update(&git.SubmoduleUpdateOptions{
+		Depth: 1,
+	}); err != nil {
 		return nil, err
 	}
 	return &Repository{

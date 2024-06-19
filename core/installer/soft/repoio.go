@@ -172,7 +172,7 @@ func (r *repoIO) pullWithoutLock() error {
 		return nil
 	}
 	// TODO(gio): check `remote repository is empty`
-	fmt.Println(err)
+	fmt.Printf("-- GIT PULL: %s\n", err.Error())
 	return nil
 }
 
