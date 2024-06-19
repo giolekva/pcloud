@@ -200,7 +200,9 @@ func reservePort(pm map[string]struct{}, reserve map[int]string) (int, error) {
 		p := start + int(r.Int64())
 		ps := strconv.Itoa(p)
 		if _, ok := pm[ps]; !ok {
-			return p, nil
+			if _, ok := reserve[p]; !ok {
+				return p, nil
+			}
 		}
 	}
 	return -1, fmt.Errorf("could not generate random port")
