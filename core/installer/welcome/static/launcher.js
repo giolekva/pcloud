@@ -134,3 +134,13 @@ document.addEventListener("DOMContentLoaded", function () {
     }
   });
 });
+
+function copyToClipboard(elem, text) {
+  navigator.clipboard.writeText(text);
+  elem.setAttribute("data-tooltip", "Copied");
+  elem.setAttribute("data-placement", "bottom");
+  setTimeout(() => {
+	elem.removeAttribute("data-tooltip");
+	elem.removeAttribute("data-placement");
+  }, 500);
+}
