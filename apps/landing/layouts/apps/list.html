@@ -1,0 +1,17 @@
+{{ define "main" }}
+<div class="apps-grid">
+    {{ $pages := .Pages }}
+    {{ $sortedPages := sort $pages "Date" }}
+    {{ range $sortedPages }}
+        <div class="app-card">
+            <a href="{{ .RelPermalink }}" class="app-card-link"></a>
+            <div class="app-header">
+                <h2>{{ .Title }}</h2>
+                <span class="app-icon">{{ .Params.icon | safeHTML }}</span>
+            </div>
+            <p>{{ .Params.description }}</p>
+            <a class="read-more" href="{{ .RelPermalink }}">Read more</a>
+        </div>
+    {{ end }}
+</div>
+{{ end }}

@@ -1,0 +1,34 @@
+{{ define "main" }}
+<div class="facts-content">
+    {{ $facts := where .Site.Pages "Section" "facts" }}
+    {{ $individualFacts := where $facts "Kind" "page" }}
+    {{ $sortedFacts := sort $individualFacts "File.BaseFileName" "asc" }}
+    <!-- 4x4 GRID -->
+    <div class="grid-container" data-facts='[
+        {{ range $i, $fact := $sortedFacts }}
+          {{ if $i }},{{ end }}{
+            "params": {{ jsonify $fact.Params }}
+          }
+        {{ end }}
+      ]'>
+        {{ range $i, $fact := $sortedFacts }}
+            {{ $className := printf "fact-%d" (add $i 1) }}
+            <div id="fact-{{ $i }}" class="facts {{ $className }} {{ if eq $i 0 }}active-fact{{ end }}"
+            onclick="handleImageChange('{{ $fact.Params.image }}', {{ $i }}, '{{ $fact.Title }}')"
+            onmouseover="handleMouseover('{{ $fact.Params.image }}', {{ $i }}, '{{ $fact.Title }}')">
+                <h3 class="fact-title">{{ $fact.Title }}</h3>
+                {{ $fact.Content }}
+            </div>
+        {{ end }}
+        <!-- 1 Large Box 3x3 -->
+        {{ $firstFact := index $sortedFacts 0 }}
+        <div id="factImageBox" class="fact-image-box">
+            <img id="factImage" src="/images/fact-1.png" alt="{{ $firstFact.Title }}" class="fact-image">
+        </div>
+    </div>
+</div>
+<div class="footer-form">
+    {{ partial "register-form.html" . }}
+</div>
+<script src="/js/main.js"></script>
+{{ end }}
