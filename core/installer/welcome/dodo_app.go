@@ -44,6 +44,7 @@ func NewDodoAppServer(
 func (s *DodoAppServer) Start() error {
 	http.HandleFunc("/update", s.handleUpdate)
 	http.HandleFunc("/register-worker", s.handleRegisterWorker)
+	http.HandleFunc("/api/add-admin-key", s.handleAddAdminKey)
 	return http.ListenAndServe(fmt.Sprintf(":%d", s.port), nil)
 }
 
@@ -91,6 +92,22 @@ func (s *DodoAppServer) handleRegisterWorker(w http.ResponseWriter, r *http.Requ
 	}
 	s.workers[req.Address] = struct{}{}
 	fmt.Printf("registered worker: %s\n", req.Address)
+}
+
+type addAdminKeyReq struct {
+	Public string `json:"public"`
+}
+
+func (s *DodoAppServer) handleAddAdminKey(w http.ResponseWriter, r *http.Request) {
+	var req addAdminKeyReq
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	if err := s.client.AddPublicKey("admin", req.Public); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
 }
 
 func UpdateDodoApp(client soft.Client, namespace string, sshKey string, jc installer.JobCreator, env *installer.EnvConfig) error {
