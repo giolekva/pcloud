@@ -424,10 +424,10 @@ func NewCueEnvApp(data CueAppData) (EnvApp, error) {
 
 func NewDodoApp(appCfg []byte) (EnvApp, error) {
 	return NewCueEnvApp(CueAppData{
-		"app.cue":        appCfg,
-		"base.cue":       []byte(cueBaseConfig),
-		"pcloud_app.cue": dodoAppCue,
-		"env_app.cue":    []byte(cueEnvAppGlobal),
+		"app.cue":  appCfg,
+		"base.cue": []byte(cueBaseConfig),
+		"dodo.cue": dodoAppCue,
+		"env.cue":  []byte(cueEnvAppGlobal),
 	})
 }
 

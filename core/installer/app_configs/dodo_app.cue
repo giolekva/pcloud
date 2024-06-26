@@ -13,6 +13,9 @@ input: {
 	network: string
 	subdomain: string
 	auth: #Auth
+
+	_network: networks[strings.ToLower(network)]
+	baseURL: "https://\(subdomain).\(_network.domain)"
 }
 
 #AppTmpl: {
@@ -72,7 +75,14 @@ _hugoLatest: "hugo:latest"
 		args: []
 	}, {
 		bin: "/usr/bin/hugo",
-		args: ["server", "--port=\(_appPort)", "--bind=0.0.0.0"]
+		args: [
+			"server",
+			"--watch=false",
+			"--bind=0.0.0.0",
+			"--port=\(_appPort)",
+			"--baseURL=\(ingress.baseURL)",
+			"--appendPort=false",
+    	]
 	}]
 }
 

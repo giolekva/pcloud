@@ -303,12 +303,6 @@ func TestDNSGateway(t *testing.T) {
 //go:embed app_configs/testapp.cue
 var testAppCue []byte
 
-type appInput struct {
-	RepoAddr string  `json:"repoAddr"`
-	SSHKey   string  `json:"sshKey"`
-	Network  Network `json:"network"`
-}
-
 func TestPCloudApp(t *testing.T) {
 	_, err := NewDodoApp(testAppCue)
 	if err != nil {
