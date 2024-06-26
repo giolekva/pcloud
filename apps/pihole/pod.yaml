@@ -1,9 +1,0 @@
-apiVersion: v1
-kind: Pod
-metadata:
-  name: pihole
-spec:
-  containers:
-  - name: pihole
-    image: giolekva/pihole:latest
-    imagePullPolicy: Always
