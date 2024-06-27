@@ -336,7 +336,6 @@ func debugFS(bfs billy.Filesystem, t *testing.T, files ...string) {
 	}
 	t.Log("----- START ------")
 	err := util.Walk(bfs, "/", func(path string, info fs.FileInfo, err error) error {
-		t.Logf("%s %t\n", path, info.IsDir())
 		if _, ok := f[path]; ok && !info.IsDir() {
 			contents, err := util.ReadFile(bfs, path)
 			if err != nil {

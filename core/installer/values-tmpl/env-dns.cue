@@ -38,12 +38,6 @@ charts: {
 		branch: "main"
 		path: "charts/dns-api"
 	}
-	volume: {
-		kind: "GitRepository"
-		address: "https://github.com/giolekva/pcloud.git"
-		branch: "main"
-		path: "charts/volumes"
-	}
 	service: {
 		kind: "GitRepository"
 		address: "https://github.com/giolekva/pcloud.git"
@@ -58,12 +52,9 @@ charts: {
 	}
 }
 
-volumes: {
-	data: {
-		name: "data"
-		accessMode: "ReadWriteMany"
-		size: "5Gi"
-	}
+volumes: data: {
+	accessMode: "ReadWriteMany"
+	size: "5Gi"
 }
 
 helm: {
@@ -173,10 +164,6 @@ helm: {
 				mountPath: _mountPath
 			}
 		}
-	}
-	"data-volume": {
-		chart: charts.volume
-		values: volumes.data
 	}
 	"coredns-svc-cluster": {
 		chart: charts.service

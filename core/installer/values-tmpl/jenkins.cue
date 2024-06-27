@@ -42,12 +42,6 @@ charts: {
 		branch: "main"
 		path: "charts/jenkins"
     }
-	volume: {
-		kind: "GitRepository"
-		address: "https://github.com/giolekva/pcloud.git"
-		branch: "main"
-		path: "charts/volumes"
-	}
 	oauth2Client: {
 		kind: "GitRepository"
 		address: "https://github.com/giolekva/pcloud.git"
@@ -56,13 +50,7 @@ charts: {
 	}
 }
 
-volumes: {
-	jenkins: {
-		name: "jenkins"
-		accessMode: "ReadWriteOnce"
-		size: "10Gi"
-	}
-}
+volumes: jenkins: size: "10Gi"
 
 _oauth2ClientCredentials:  "oauth2-credentials"
 _oauth2ClientId: "client_id"
@@ -136,9 +124,4 @@ oic:
 			}
         }
     }
-	"jenkins-data": {
-		chart: charts.volume
-		info: "Creating disk"
-		values: volumes.jenkins
-	}
 }

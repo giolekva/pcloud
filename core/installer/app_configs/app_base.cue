@@ -47,6 +47,25 @@ appType: #AppType | *"env"
 	fullNameWithTag: "\(fullName):\(tag)"
 }
 
+#Volume: {
+	size: string
+	accessMode: "ReadWriteOnce" | "ReadOnlyMany" | "ReadWriteMany" | "ReadWriteOncePod" | *"ReadWriteOnce"
+}
+
+#volume: {
+	#Volume
+	name: string
+}
+
+volumes: {}
+volumes: {
+	for key, value in volumes {
+		"\(key)": #volume & value & {
+			name: key
+		}
+	}
+}
+
 #Chart: #GitRepositoryRef | #HelmRepositoryRef
 
 #GitRepositoryRef: {
@@ -112,7 +131,6 @@ images: {
 }
 
 charts: {}
-
 charts: {
 	for key, value in charts {
 		"\(key)": #Chart & value & {
@@ -126,6 +144,14 @@ charts: {
             }
         }
     }
+}
+charts: {
+	volume: {
+		kind: "GitRepository"
+		address: "https://github.com/giolekva/pcloud.git"
+		branch: "main"
+		path: "charts/volumes"
+	}
 }
 
 localCharts: {
@@ -151,6 +177,13 @@ _helmValidate: {
 	for key, value in helm {
 		"\(key)": #Helm & value & {
 			name: key
+		}
+	}
+	for key, value in volumes {
+		"\(key)-volume": #Helm & {
+			chart: charts.volume
+			info: "Creating disk for \(key)"
+			values: value
 		}
 	}
 	for key, value in _ingressValidate {

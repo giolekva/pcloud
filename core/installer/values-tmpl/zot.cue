@@ -46,21 +46,9 @@ charts: {
 		branch: "main"
 		path: "charts/zot"
 	}
-	volume: {
-		kind: "GitRepository"
-		address: "https://github.com/giolekva/pcloud.git"
-		branch: "main"
-		path: "charts/volumes"
-	}
 }
 
-volumes: {
-	zot: {
-		name: "zot"
-		accessMode: "ReadWriteOnce"
-		size: "100Gi"
-	}
-}
+volumes: zot: size: "100Gi"
 
 _httpPort: 80
 
@@ -104,10 +92,5 @@ helm: {
 			}
 			startupProbe: {}
 		}
-	}
-	volume: {
-		chart: charts.volume
-		info: "Creating disk"
-		values: volumes.zot
 	}
 }

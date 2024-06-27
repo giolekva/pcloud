@@ -56,12 +56,6 @@ charts: {
 		branch: "main"
 		path: "charts/ingress"
 	}
-	volume: {
-		kind: "GitRepository"
-		address: "https://github.com/giolekva/pcloud.git"
-		branch: "main"
-		path: "charts/volumes"
-	}
 	gerrit: {
 		kind: "GitRepository"
 		address: "https://github.com/giolekva/pcloud.git"
@@ -84,12 +78,10 @@ charts: {
 
 volumes: {
 	git: {
-		name: "git"
 		accessMode: "ReadWriteMany"
 		size: "50Gi"
 	}
 	logs: {
-		name: "logs"
 		accessMode: "ReadWriteMany"
 		size: "5Gi"
 	}
@@ -306,15 +298,5 @@ data:
 				}
 			}
 		}
-	}
-	"git-volume": {
-		chart: charts.volume
-		info: "Creating disk for Git repositories"
-		values: volumes.git
-	}
-	"log-volume": {
-		chart: charts.volume
-		info: "Creating disk for logging"
-		values: volumes.logs
 	}
 }
