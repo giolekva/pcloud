@@ -299,12 +299,16 @@ func installApp(
 		i(&o)
 	}
 	dopts := []soft.DoOption{}
+	// NOTE(gio): Expects caller to have pulled already
+	dopts = append(dopts, soft.WithNoPull())
 	if o.Branch != "" {
-		dopts = append(dopts, soft.WithForce())
 		dopts = append(dopts, soft.WithCommitToBranch(o.Branch))
 	}
 	if o.NoPublish {
 		dopts = append(dopts, soft.WithNoCommit())
+	}
+	if o.Force {
+		dopts = append(dopts, soft.WithForce())
 	}
 	return ReleaseResources{}, repo.Do(func(r soft.RepoFS) (string, error) {
 		if err := r.RemoveDir(appDir); err != nil {
@@ -432,17 +436,11 @@ func (m *AppManager) Install(
 			return ReleaseResources{}, err
 		}
 	}
-	var localCharts map[string]helmv2.HelmChartTemplateSpec
-	if err := m.repoIO.Do(func(rfs soft.RepoFS) (string, error) {
-		charts, err := pullHelmCharts(m.hf, rendered.HelmCharts, rfs, "/helm-charts")
-		if err != nil {
-			return "", err
-		}
-		localCharts = generateLocalCharts(lg, charts)
-		return "pull helm charts", nil
-	}); err != nil {
+	charts, err := pullHelmCharts(m.hf, rendered.HelmCharts, m.repoIO, "/helm-charts")
+	if err != nil {
 		return ReleaseResources{}, err
 	}
+	localCharts := generateLocalCharts(lg, charts)
 	if o.FetchContainerImages {
 		release.ImageRegistry = imageRegistry
 	}
@@ -597,6 +595,7 @@ type installOptions struct {
 	Branch               string
 	LG                   LocalChartGenerator
 	FetchContainerImages bool
+	Force                bool
 }
 
 type InstallOption func(*installOptions)
@@ -610,6 +609,12 @@ func WithConfig(env *EnvConfig) InstallOption {
 func WithBranch(branch string) InstallOption {
 	return func(o *installOptions) {
 		o.Branch = branch
+	}
+}
+
+func WithForce() InstallOption {
+	return func(o *installOptions) {
+		o.Force = true
 	}
 }
 
@@ -711,17 +716,11 @@ func (m *InfraAppManager) Install(app InfraApp, appDir string, namespace string,
 	if err != nil {
 		return ReleaseResources{}, err
 	}
-	var localCharts map[string]helmv2.HelmChartTemplateSpec
-	if err := m.repoIO.Do(func(rfs soft.RepoFS) (string, error) {
-		charts, err := pullHelmCharts(m.hf, rendered.HelmCharts, rfs, "/helm-charts")
-		if err != nil {
-			return "", err
-		}
-		localCharts = generateLocalCharts(m.lg, charts)
-		return "pull helm charts", nil
-	}); err != nil {
+	charts, err := pullHelmCharts(m.hf, rendered.HelmCharts, m.repoIO, "/helm-charts")
+	if err != nil {
 		return ReleaseResources{}, err
 	}
+	localCharts := generateLocalCharts(m.lg, charts)
 	rendered, err = app.Render(release, infra, values, localCharts)
 	if err != nil {
 		return ReleaseResources{}, err

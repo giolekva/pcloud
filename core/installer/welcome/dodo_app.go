@@ -134,10 +134,20 @@ func UpdateDodoApp(client soft.Client, namespace string, sshKey string, jc insta
 		return err
 	}
 	lg := installer.GitRepositoryLocalChartGenerator{"app", namespace}
-	if _, err := m.Install(app, "app", "/.dodo/app", namespace, map[string]any{
-		"repoAddr":      repo.FullAddress(),
-		"sshPrivateKey": sshKey,
-	}, installer.WithConfig(env), installer.WithBranch("dodo"), installer.WithLocalChartGenerator(lg)); err != nil {
+	if _, err := m.Install(
+		app,
+		"app",
+		"/.dodo/app",
+		namespace,
+		map[string]any{
+			"repoAddr":      repo.FullAddress(),
+			"sshPrivateKey": sshKey,
+		},
+		installer.WithConfig(env),
+		installer.WithLocalChartGenerator(lg),
+		installer.WithBranch("dodo"),
+		installer.WithForce(),
+	); err != nil {
 		return err
 	}
 	return nil

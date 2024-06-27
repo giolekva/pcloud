@@ -36,12 +36,19 @@ type RepoFS interface {
 type DoFn func(r RepoFS) (string, error)
 
 type doOptions struct {
+	NoPull   bool
 	NoCommit bool
 	Force    bool
 	ToBranch string
 }
 
 type DoOption func(*doOptions)
+
+func WithNoPull() DoOption {
+	return func(o *doOptions) {
+		o.NoPull = true
+	}
+}
 
 func WithNoCommit() DoOption {
 	return func(o *doOptions) {
@@ -219,12 +226,14 @@ func (r *repoIO) CommitAndPush(message string, opts ...PushOption) error {
 func (r *repoIO) Do(op DoFn, opts ...DoOption) error {
 	r.l.Lock()
 	defer r.l.Unlock()
-	if err := r.pullWithoutLock(); err != nil {
-		return err
-	}
 	o := &doOptions{}
 	for _, i := range opts {
 		i(o)
+	}
+	if !o.NoPull {
+		if err := r.pullWithoutLock(); err != nil {
+			return err
+		}
 	}
 	if msg, err := op(r); err != nil {
 		return err
