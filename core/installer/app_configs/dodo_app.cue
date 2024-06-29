@@ -18,16 +18,24 @@ input: {
 	baseURL: "https://\(subdomain).\(_network.domain)"
 }
 
-#AppTmpl: {
-	type: string
-	ingress: #AppIngress
-	runConfiguration: [...#Command]
+#Volumes: {
 	...
+}
+
+app: {
+	volumes: {
+		for key, value in volumes {
+			"\(key)": #volume & value & {
+				name: key
+			}
+		}
+	}
 }
 
 #Command: {
 	bin: string
 	args: [...string] | *[]
+	env: [...string] | *[]
 }
 
 // Go app
@@ -39,6 +47,7 @@ _goVer1200: "golang:1.20.0"
 	type: _goVer1220 | _goVer1200
 	run: string
 	ingress: #AppIngress
+	volumes: #Volumes
 
 	runConfiguration: [{
 		bin: "/usr/local/go/bin/go",
@@ -48,7 +57,12 @@ _goVer1200: "golang:1.20.0"
 		args: ["build", "-o", ".app", run]
 	}, {
 		bin: ".app",
-		args: []
+		args: [],
+		env: [
+			for k, v in volumes {
+				"DODO_VOLUME_\(strings.ToUpper(k))=/dodo-volume/\(v.name)"
+			}
+	    ]
 	}]
 }
 
@@ -69,6 +83,7 @@ _hugoLatest: "hugo:latest"
 #HugoAppTmpl: {
 	type: _hugoLatest
 	ingress: #AppIngress
+	volumes: {}
 
 	runConfiguration: [{
 		bin: "/usr/bin/hugo",
@@ -125,6 +140,8 @@ charts: {
 	}
 }
 
+volumes: app.volumes
+
 helm: {
 	app: {
 		chart: charts.app
@@ -140,6 +157,12 @@ helm: {
 			sshPrivateKey: base64.Encode(null, input.sshPrivateKey)
 			runCfg: base64.Encode(null, json.Marshal(_app.runConfiguration))
 			manager: "http://dodo-app.\(release.namespace).svc.cluster.local/register-worker"
+			volumes: [
+				for key, value in _app.volumes {
+					name: value.name
+					mountPath: "/dodo-volume/\(key)"
+				}
+            ]
 		}
 	}
 }

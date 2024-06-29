@@ -8,3 +8,4 @@ runCfg: ""
 appDir: /dodo-app
 appPort: 8080
 manager: ""
+volumes: []

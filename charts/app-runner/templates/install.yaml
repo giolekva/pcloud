@@ -68,6 +68,11 @@ spec:
       - name: run-cfg
         configMap:
           name: app-run-cfg
+      {{- range .Values.volumes }}
+      - name: volume-{{ .name }}
+        persistentVolumeClaim:
+          claimName: {{ .name }}
+      {{- end }}
       containers:
       - name: app
         image: {{ .Values.image.repository }}:{{ .Values.image.tag }}
@@ -99,3 +104,7 @@ spec:
         - name: run-cfg
           readOnly: true
           mountPath: /pcloud/config
+        {{- range .Values.volumes }}
+        - name: volume-{{ .name }}
+          mountPath: {{ .mountPath }}
+        {{- end }}

@@ -25,6 +25,7 @@ var manager = flag.String("manager", "", "Address of the manager")
 type Command struct {
 	Bin  string   `json:"bin"`
 	Args []string `json:"args"`
+	Env  []string `json:"env"`
 }
 
 func CloneRepository(addr string, signer ssh.Signer, path string) error {

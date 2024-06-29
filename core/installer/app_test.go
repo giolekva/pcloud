@@ -304,7 +304,20 @@ func TestDNSGateway(t *testing.T) {
 var testAppCue []byte
 
 func TestPCloudApp(t *testing.T) {
-	_, err := NewDodoApp(testAppCue)
+	app, err := NewDodoApp(testAppCue)
+	if err != nil {
+		t.Fatal(err)
+	}
+	release := Release{
+		Namespace:     "foo",
+		AppInstanceId: "foo-bar",
+		RepoAddr:      "ssh://192.168.100.210:22/config",
+		AppDir:        "/foo/bar",
+	}
+	_, err = app.Render(release, env, map[string]any{
+		"repoAddr":      "",
+		"sshPrivateKey": "",
+	}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
