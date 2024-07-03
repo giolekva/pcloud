@@ -16,6 +16,7 @@ import (
 type Server struct {
 	l           sync.Locker
 	port        int
+	appId       string
 	ready       bool
 	cmd         *exec.Cmd
 	repoAddr    string
@@ -26,11 +27,12 @@ type Server struct {
 	manager     string
 }
 
-func NewServer(port int, repoAddr string, signer ssh.Signer, appDir string, runCommands []Command, self string, manager string) *Server {
+func NewServer(port int, appId string, repoAddr string, signer ssh.Signer, appDir string, runCommands []Command, self string, manager string) *Server {
 	return &Server{
 		l:           &sync.Mutex{},
 		port:        port,
 		ready:       false,
+		appId:       appId,
 		repoAddr:    repoAddr,
 		signer:      signer,
 		appDir:      appDir,
@@ -118,6 +120,7 @@ func (s *Server) run() error {
 }
 
 type pingReq struct {
+	AppId   string `json:"appId"`
 	Address string `json:"address"`
 }
 
@@ -128,7 +131,7 @@ func (s *Server) pingManager() {
 			s.pingManager()
 		}()
 	}()
-	buf, err := json.Marshal(pingReq{s.self})
+	buf, err := json.Marshal(pingReq{s.appId, s.self})
 	if err != nil {
 		return
 	}

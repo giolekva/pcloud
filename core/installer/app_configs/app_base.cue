@@ -173,6 +173,7 @@ localCharts: {
 	...
 }
 
+helm: {}
 _helmValidate: {
 	for key, value in helm {
 		"\(key)": #Helm & value & {

@@ -15,12 +15,14 @@ import (
 )
 
 var dodoAppFlags struct {
-	port      int
-	sshKey    string
-	repoAddr  string
-	self      string
-	namespace string
-	envConfig string
+	port             int
+	sshKey           string
+	repoAddr         string
+	self             string
+	namespace        string
+	envConfig        string
+	appAdminKey      string
+	gitRepoPublicKey string
 }
 
 func dodoAppCmd() *cobra.Command {
@@ -64,6 +66,18 @@ func dodoAppCmd() *cobra.Command {
 		"",
 		"",
 	)
+	cmd.Flags().StringVar(
+		&dodoAppFlags.appAdminKey,
+		"app-admin-key",
+		"",
+		"",
+	)
+	cmd.Flags().StringVar(
+		&dodoAppFlags.gitRepoPublicKey,
+		"git-repo-public-key",
+		"",
+		"",
+	)
 	return cmd
 }
 
@@ -89,6 +103,53 @@ func dodoAppCmdRun(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
+	if err := softClient.AddRepository("config"); err == nil {
+		repo, err := softClient.GetRepo("config")
+		if err != nil {
+			return err
+		}
+		appRepo := installer.NewInMemoryAppRepository(installer.CreateAllApps())
+		app, err := installer.FindEnvApp(appRepo, "dodo-app-instance")
+		if err != nil {
+			return err
+		}
+		nsc := installer.NewNoOpNamespaceCreator()
+		if err != nil {
+			return err
+		}
+		hf := installer.NewGitHelmFetcher()
+		m, err := installer.NewAppManager(repo, nsc, jc, hf, "/")
+		if err != nil {
+			return err
+		}
+		if _, err := m.Install(app, "app", "/app", dodoAppFlags.namespace, map[string]any{
+			"appName":          "app",
+			"repoAddr":         softClient.GetRepoAddress("app"),
+			"gitRepoPublicKey": dodoAppFlags.gitRepoPublicKey,
+		}, installer.WithConfig(&env)); err != nil {
+			return err
+		}
+		if cfg, err := m.FindInstance("app"); err != nil {
+			return err
+		} else {
+			fluxKeys, ok := cfg.Input["fluxKeys"]
+			if !ok {
+				return fmt.Errorf("Fluxcd keys not found")
+			}
+			fluxPublicKey, ok := fluxKeys.(map[string]any)["public"]
+			if !ok {
+				return fmt.Errorf("Fluxcd keys not found")
+			}
+			if err := softClient.AddUser("fluxcd", fluxPublicKey.(string)); err != nil {
+				return err
+			}
+			if err := softClient.AddReadOnlyCollaborator("app", "fluxcd"); err != nil {
+				return err
+			}
+		}
+	} else if !errors.Is(err, soft.ErrorAlreadyExists) {
+		return err
+	}
 	if err := softClient.AddRepository("app"); err == nil {
 		repo, err := softClient.GetRepo("app")
 		if err != nil {
@@ -97,10 +158,16 @@ func dodoAppCmdRun(cmd *cobra.Command, args []string) error {
 		if err := initRepo(repo); err != nil {
 			return err
 		}
-		if err := welcome.UpdateDodoApp(softClient, dodoAppFlags.namespace, string(sshKey), jc, &env); err != nil {
+		if err := welcome.UpdateDodoApp("app", softClient, dodoAppFlags.namespace, string(sshKey), jc, &env); err != nil {
 			return err
 		}
 		if err := softClient.AddWebhook("app", fmt.Sprintf("http://%s/update", dodoAppFlags.self), "--active=true", "--events=push", "--content-type=json"); err != nil {
+			return err
+		}
+		if err := softClient.AddUser("app", dodoAppFlags.appAdminKey); err != nil {
+			return err
+		}
+		if err := softClient.AddReadWriteCollaborator("app", "app"); err != nil {
 			return err
 		}
 	} else if !errors.Is(err, soft.ErrorAlreadyExists) {

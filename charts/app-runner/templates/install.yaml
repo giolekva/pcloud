@@ -92,6 +92,7 @@ spec:
         command:
         - app-runner
         - --port=3000
+        - --app-id={{ .Values.appId }}
         - --app-dir=/dodo-app
         - --repo-addr={{ .Values.repoAddr }}
         - --ssh-key=/pcloud/ssh-key/private

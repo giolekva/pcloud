@@ -8,6 +8,7 @@ import (
 	"net"
 	"os"
 	"regexp"
+	"slices"
 	"strings"
 	"time"
 
@@ -93,7 +94,7 @@ func (ss *realClient) Signer() ssh.Signer {
 
 func (ss *realClient) AddUser(name, pubKey string) error {
 	log.Printf("Adding user %s", name)
-	if err := ss.RunCommand("user", "create", name); err != nil {
+	if _, err := ss.RunCommand("user", "create", name); err != nil {
 		return err
 	}
 	return ss.AddPublicKey(name, pubKey)
@@ -101,61 +102,83 @@ func (ss *realClient) AddUser(name, pubKey string) error {
 
 func (ss *realClient) MakeUserAdmin(name string) error {
 	log.Printf("Making user %s admin", name)
-	return ss.RunCommand("user", "set-admin", name, "true")
+	_, err := ss.RunCommand("user", "set-admin", name, "true")
+	return err
 }
 
 func (ss *realClient) AddPublicKey(user string, pubKey string) error {
 	log.Printf("Adding public key: %s %s\n", user, pubKey)
-	return ss.RunCommand("user", "add-pubkey", user, pubKey)
+	_, err := ss.RunCommand("user", "add-pubkey", user, pubKey)
+	return err
 }
 
 func (ss *realClient) RemovePublicKey(user string, pubKey string) error {
 	log.Printf("Removing public key: %s %s\n", user, pubKey)
-	return ss.RunCommand("user", "remove-pubkey", user, pubKey)
+	_, err := ss.RunCommand("user", "remove-pubkey", user, pubKey)
+	return err
 }
 
-func (ss *realClient) RunCommand(args ...string) error {
+func (ss *realClient) RunCommand(args ...string) (string, error) {
 	cmd := strings.Join(args, " ")
 	log.Printf("Running command %s", cmd)
 	client, err := ssh.Dial("tcp", ss.addr, ss.sshClientConfig())
 	if err != nil {
-		return err
+		return "", err
 	}
 	defer client.Close()
 	session, err := client.NewSession()
 	if err != nil {
-		return err
+		return "", err
 	}
 	defer session.Close()
-	session.Stdout = os.Stdout
+	var buf strings.Builder
+	session.Stdout = &buf
 	session.Stderr = os.Stderr
-	return session.Run(cmd)
+	err = session.Run(cmd)
+	return buf.String(), err
+}
+
+func (ss *realClient) repoExists(name string) (bool, error) {
+	// if err := ss.RunCommand("repo", "info", name); err == nil {
+	// 	return ErrorAlreadyExists
+	// }
+	out, err := ss.RunCommand("repo", "list")
+	if err != nil {
+		return false, err
+	}
+	return slices.Contains(strings.Fields(out), name), nil
 }
 
 func (ss *realClient) AddRepository(name string) error {
 	log.Printf("Adding repository %s", name)
-	if err := ss.RunCommand("repo", "info", name); err == nil {
+	if ok, err := ss.repoExists(name); ok {
 		return ErrorAlreadyExists
+	} else if err != nil {
+		return err
 	}
-	return ss.RunCommand("repo", "create", name)
+	_, err := ss.RunCommand("repo", "create", name)
+	return err
 }
 
 func (ss *realClient) AddReadWriteCollaborator(repo, user string) error {
 	log.Printf("Adding read-write collaborator %s %s", repo, user)
-	return ss.RunCommand("repo", "collab", "add", repo, user, "read-write")
+	_, err := ss.RunCommand("repo", "collab", "add", repo, user, "read-write")
+	return err
 }
 
 func (ss *realClient) AddReadOnlyCollaborator(repo, user string) error {
 	log.Printf("Adding read-only collaborator %s %s", repo, user)
-	return ss.RunCommand("repo", "collab", "add", repo, user, "read-only")
+	_, err := ss.RunCommand("repo", "collab", "add", repo, user, "read-only")
+	return err
 }
 
 func (ss *realClient) AddWebhook(repo, url string, opts ...string) error {
 	log.Printf("Adding webhook %s %s", repo, url)
-	return ss.RunCommand(append(
+	_, err := ss.RunCommand(append(
 		[]string{"repo", "webhook", "create", repo, url},
 		opts...,
 	)...)
+	return err
 }
 
 type Repository struct {

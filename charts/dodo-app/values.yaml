@@ -7,3 +7,5 @@ sshPrivateKey: key
 self: ""
 namespace: ""
 envConfig: ""
+appAdminKey: ""
+gitRepoPublicKey: ""

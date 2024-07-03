@@ -19,7 +19,7 @@ type DodoAppServer struct {
 	namespace string
 	env       installer.EnvConfig
 	jc        installer.JobCreator
-	workers   map[string]struct{}
+	workers   map[string]map[string]struct{}
 }
 
 func NewDodoAppServer(
@@ -37,7 +37,7 @@ func NewDodoAppServer(
 		namespace,
 		env,
 		jc,
-		map[string]struct{}{},
+		map[string]map[string]struct{}{},
 	}
 }
 
@@ -49,7 +49,10 @@ func (s *DodoAppServer) Start() error {
 }
 
 type updateReq struct {
-	Ref string `json:"ref"`
+	Ref        string `json:"ref"`
+	Repository struct {
+		Name string `json:"name"`
+	} `json:"repository"`
 }
 
 func (s *DodoAppServer) handleUpdate(w http.ResponseWriter, r *http.Request) {
@@ -63,16 +66,16 @@ func (s *DodoAppServer) handleUpdate(w http.ResponseWriter, r *http.Request) {
 		fmt.Println(err)
 		return
 	}
-	if req.Ref != "refs/heads/master" {
+	if req.Ref != "refs/heads/master" || strings.HasPrefix(req.Repository.Name, "dodo") {
 		return
 	}
 	go func() {
 		time.Sleep(20 * time.Second)
-		if err := UpdateDodoApp(s.client, s.namespace, s.sshKey, s.jc, &s.env); err != nil {
+		if err := UpdateDodoApp(req.Repository.Name, s.client, s.namespace, s.sshKey, s.jc, &s.env); err != nil {
 			fmt.Println(err)
 		}
 	}()
-	for addr, _ := range s.workers {
+	for addr, _ := range s.workers[req.Repository.Name] {
 		go func() {
 			// TODO(gio): make port configurable
 			http.Get(fmt.Sprintf("http://%s:3000/update", addr))
@@ -81,6 +84,7 @@ func (s *DodoAppServer) handleUpdate(w http.ResponseWriter, r *http.Request) {
 }
 
 type registerWorkerReq struct {
+	AppId   string `json:"appId"`
 	Address string `json:"address"`
 }
 
@@ -90,8 +94,10 @@ func (s *DodoAppServer) handleRegisterWorker(w http.ResponseWriter, r *http.Requ
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	s.workers[req.Address] = struct{}{}
-	fmt.Printf("registered worker: %s\n", req.Address)
+	if _, ok := s.workers[req.AppId]; !ok {
+		s.workers[req.AppId] = map[string]struct{}{}
+	}
+	s.workers[req.AppId][req.Address] = struct{}{}
 }
 
 type addAdminKeyReq struct {
@@ -110,8 +116,8 @@ func (s *DodoAppServer) handleAddAdminKey(w http.ResponseWriter, r *http.Request
 	}
 }
 
-func UpdateDodoApp(client soft.Client, namespace string, sshKey string, jc installer.JobCreator, env *installer.EnvConfig) error {
-	repo, err := client.GetRepo("app")
+func UpdateDodoApp(name string, client soft.Client, namespace string, sshKey string, jc installer.JobCreator, env *installer.EnvConfig) error {
+	repo, err := client.GetRepo(name)
 	if err != nil {
 		return err
 	}
@@ -141,6 +147,7 @@ func UpdateDodoApp(client soft.Client, namespace string, sshKey string, jc insta
 		namespace,
 		map[string]any{
 			"repoAddr":      repo.FullAddress(),
+			"appId":         name,
 			"sshPrivateKey": sshKey,
 		},
 		installer.WithConfig(env),

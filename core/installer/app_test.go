@@ -316,9 +316,36 @@ func TestPCloudApp(t *testing.T) {
 	}
 	_, err = app.Render(release, env, map[string]any{
 		"repoAddr":      "",
+		"appId":         "",
 		"sshPrivateKey": "",
 	}, nil)
 	if err != nil {
 		t.Fatal(err)
+	}
+}
+
+func TestDodoAppInstance(t *testing.T) {
+	r := NewInMemoryAppRepository(CreateAllApps())
+	a, err := FindEnvApp(r, "dodo-app-instance")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if a == nil {
+		t.Fatal("returned app is nil")
+	}
+	release := Release{
+		Namespace: "foo",
+	}
+	values := map[string]any{
+		"appName":          "",
+		"repoAddr":         "",
+		"gitRepoPublicKey": "",
+	}
+	rendered, err := a.Render(release, env, values, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, r := range rendered.Resources {
+		t.Log(string(r))
 	}
 }

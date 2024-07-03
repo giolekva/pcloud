@@ -16,6 +16,7 @@ import (
 )
 
 var port = flag.Int("port", 3000, "Port to listen on")
+var appId = flag.String("app-id", "", "Application ID")
 var repoAddr = flag.String("repo-addr", "", "Git repository address")
 var sshKey = flag.String("ssh-key", "", "Private SSH key to access Git repository")
 var appDir = flag.String("app-dir", "", "Path to store application repository locally")
@@ -97,6 +98,6 @@ func main() {
 	if err := json.NewDecoder(r).Decode(&cmds); err != nil {
 		panic(err)
 	}
-	s := NewServer(*port, *repoAddr, signer, *appDir, cmds, self, *manager)
+	s := NewServer(*port, *appId, *repoAddr, signer, *appDir, cmds, self, *manager)
 	s.Start()
 }

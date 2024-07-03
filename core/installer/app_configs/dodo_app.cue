@@ -6,6 +6,7 @@ import (
 
 input: {
 	repoAddr: string
+	appId: string
 	sshPrivateKey: string
 }
 
@@ -153,6 +154,7 @@ helm: {
 			}
 			appPort: _appPort
 			appDir: _appDir
+			appId: input.appId
 			repoAddr: input.repoAddr
 			sshPrivateKey: base64.Encode(null, input.sshPrivateKey)
 			runCfg: base64.Encode(null, json.Marshal(_app.runConfiguration))

@@ -70,7 +70,7 @@ helm: {
 			serviceType: "ClusterIP"
 			addressPool: ""
 			reservedIP: ""
-			adminKey: strings.Join([input.adminKey, input.fluxKeys.public, input.dAppKeys.public], "\n")
+			adminKey: strings.Join([input.fluxKeys.public, input.dAppKeys.public], "\n")
 			privateKey: input.ssKeys.private
 			publicKey: input.ssKeys.public
 			ingress: {
@@ -97,6 +97,8 @@ helm: {
 			self: "dodo-app.\(release.namespace).svc.cluster.local"
 			namespace: release.namespace
 			envConfig: base64.Encode(null, json.Marshal(global))
+			appAdminKey: input.adminKey
+			gitRepoPublicKey: input.ssKeys.public
 		}
 	}
 }
@@ -106,15 +108,15 @@ resources: {
 		apiVersion: "kustomize.toolkit.fluxcd.io/v1"
 		kind: "Kustomization"
 		metadata: {
-			name: "app"
+			name: "config"
 			namespace: release.namespace
 		}
 		spec: {
 			interval: "1m"
-			path: "./.dodo"
+			path: "./"
 			sourceRef: {
 				kind: "GitRepository"
-				name: "app"
+				name: "config"
 				namespace: release.namespace
 			}
 			prune: true
@@ -125,7 +127,7 @@ resources: {
 		kind: "Secret"
 		type: "Opaque"
 		metadata: {
-			name: "app"
+			name: "config"
 			namespace: release.namespace
 		}
 		data: {
@@ -138,15 +140,15 @@ resources: {
 		apiVersion: "source.toolkit.fluxcd.io/v1"
 		kind: "GitRepository"
 		metadata: {
-			name: "app"
+			name: "config"
 			namespace: release.namespace
 		}
 		spec: {
 			interval: "1m0s"
-			ref: branch: "dodo"
-			secretRef: name: "app"
+			ref: branch: "master"
+			secretRef: name: "config"
 			timeout: "60s"
-			url: "ssh://soft-serve.\(release.namespace).svc.cluster.local:22/app"
+			url: "ssh://soft-serve.\(release.namespace).svc.cluster.local:22/config"
 		}
 	}
 }
