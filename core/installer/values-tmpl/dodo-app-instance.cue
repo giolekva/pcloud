@@ -3,8 +3,8 @@ import (
 )
 
 input: {
-	appName: string
 	repoAddr: string
+	repoHost: string
 	gitRepoPublicKey: string
 	// TODO(gio): auto generate
 	fluxKeys: #SSHKey
@@ -22,7 +22,7 @@ resources: {
 		apiVersion: "kustomize.toolkit.fluxcd.io/v1"
 		kind: "Kustomization"
 		metadata: {
-			name: input.appName
+			name: "app"
 			namespace: release.namespace
 		}
 		spec: {
@@ -41,26 +41,26 @@ resources: {
 		kind: "Secret"
 		type: "Opaque"
 		metadata: {
-			name: input.appName
+			name: "app"
 			namespace: release.namespace
 		}
 		data: {
 			identity: base64.Encode(null, input.fluxKeys.private)
 			"identity.pub": base64.Encode(null, input.fluxKeys.public)
-			known_hosts: base64.Encode(null, "soft-serve.\(release.namespace).svc.cluster.local \(input.gitRepoPublicKey)")
+			known_hosts: base64.Encode(null, "\(input.repoHost) \(input.gitRepoPublicKey)")
 		}
 	}
 	"config-source": {
 		apiVersion: "source.toolkit.fluxcd.io/v1"
 		kind: "GitRepository"
 		metadata: {
-			name: input.appName
+			name: "app"
 			namespace: release.namespace
 		}
 		spec: {
 			interval: "1m0s"
 			ref: branch: "dodo"
-			secretRef: name: input.appName
+			secretRef: name: "app"
 			timeout: "60s"
 			url: input.repoAddr
 		}

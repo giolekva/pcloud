@@ -109,6 +109,10 @@ func (f fakeSoftServeClient) GetPublicKeys() ([]string, error) {
 	return []string{}, nil
 }
 
+func (f fakeSoftServeClient) RepoExists(name string) (bool, error) {
+	return false, nil
+}
+
 func (f fakeSoftServeClient) GetRepo(name string) (soft.RepoIO, error) {
 	var l sync.Mutex
 	return mockRepoIO{soft.NewBillyRepoFS(f.envFS), "foo.bar", f.t, &l}, nil
@@ -120,6 +124,13 @@ func (f fakeSoftServeClient) GetRepoAddress(name string) string {
 
 func (f fakeSoftServeClient) AddRepository(name string) error {
 	return nil
+}
+
+func (f fakeSoftServeClient) UserExists(name string) (bool, error) {
+	return false, nil
+}
+func (f fakeSoftServeClient) FindUser(pubKey string) (string, error) {
+	return "", nil
 }
 
 func (f fakeSoftServeClient) AddUser(name, pubKey string) error {

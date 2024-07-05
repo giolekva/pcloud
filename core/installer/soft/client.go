@@ -26,9 +26,12 @@ type Client interface {
 	Address() string
 	Signer() ssh.Signer
 	GetPublicKeys() ([]string, error)
+	RepoExists(name string) (bool, error)
 	GetRepo(name string) (RepoIO, error)
 	GetRepoAddress(name string) string
 	AddRepository(name string) error
+	UserExists(name string) (bool, error)
+	FindUser(pubKey string) (string, error)
 	AddUser(name, pubKey string) error
 	AddPublicKey(user string, pubKey string) error
 	RemovePublicKey(user string, pubKey string) error
@@ -92,6 +95,34 @@ func (ss *realClient) Signer() ssh.Signer {
 	return ss.signer
 }
 
+func (ss *realClient) UserExists(name string) (bool, error) {
+	log.Printf("Adding user %s", name)
+	out, err := ss.RunCommand("user", "list")
+	if err != nil {
+		return false, err
+	}
+	return slices.Contains(strings.Fields(out), name), nil
+}
+
+func (ss *realClient) FindUser(pubKey string) (string, error) {
+	log.Printf("Finding user %s", pubKey)
+	pk := strings.Join(strings.Fields(pubKey)[:2], " ")
+	out, err := ss.RunCommand("user", "list")
+	if err != nil {
+		return "", err
+	}
+	for _, user := range strings.Fields(out) {
+		info, err := ss.RunCommand("user", "info", user)
+		if err != nil {
+			return "", err
+		}
+		if strings.Contains(info, pk) {
+			return user, nil
+		}
+	}
+	return "", nil
+}
+
 func (ss *realClient) AddUser(name, pubKey string) error {
 	log.Printf("Adding user %s", name)
 	if _, err := ss.RunCommand("user", "create", name); err != nil {
@@ -138,10 +169,7 @@ func (ss *realClient) RunCommand(args ...string) (string, error) {
 	return buf.String(), err
 }
 
-func (ss *realClient) repoExists(name string) (bool, error) {
-	// if err := ss.RunCommand("repo", "info", name); err == nil {
-	// 	return ErrorAlreadyExists
-	// }
+func (ss *realClient) RepoExists(name string) (bool, error) {
 	out, err := ss.RunCommand("repo", "list")
 	if err != nil {
 		return false, err
@@ -151,7 +179,7 @@ func (ss *realClient) repoExists(name string) (bool, error) {
 
 func (ss *realClient) AddRepository(name string) error {
 	log.Printf("Adding repository %s", name)
-	if ok, err := ss.repoExists(name); ok {
+	if ok, err := ss.RepoExists(name); ok {
 		return ErrorAlreadyExists
 	} else if err != nil {
 		return err

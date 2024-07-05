@@ -6,6 +6,7 @@ import (
 
 input: {
 	repoAddr: string
+	registerWorkerAddr: string
 	appId: string
 	sshPrivateKey: string
 }
@@ -158,7 +159,7 @@ helm: {
 			repoAddr: input.repoAddr
 			sshPrivateKey: base64.Encode(null, input.sshPrivateKey)
 			runCfg: base64.Encode(null, json.Marshal(_app.runConfiguration))
-			manager: "http://dodo-app.\(release.namespace).svc.cluster.local/register-worker"
+			manager: input.registerWorkerAddr
 			volumes: [
 				for key, value in _app.volumes {
 					name: value.name
