@@ -40,9 +40,16 @@ type doOptions struct {
 	NoCommit bool
 	Force    bool
 	ToBranch string
+	NoLock   bool
 }
 
 type DoOption func(*doOptions)
+
+func WithNoLock() DoOption {
+	return func(o *doOptions) {
+		o.NoLock = true
+	}
+}
 
 func WithNoPull() DoOption {
 	return func(o *doOptions) {
@@ -108,7 +115,7 @@ func (r *repoFS) Reader(path string) (io.ReadCloser, error) {
 }
 
 func (r *repoFS) Writer(path string) (io.WriteCloser, error) {
-	if err := r.fs.MkdirAll(filepath.Dir(path), fs.ModePerm); err != nil {
+	if err := r.CreateDir(filepath.Dir(path)); err != nil {
 		return nil, err
 	}
 	return r.fs.Create(path)
@@ -224,32 +231,34 @@ func (r *repoIO) CommitAndPush(message string, opts ...PushOption) error {
 }
 
 func (r *repoIO) Do(op DoFn, opts ...DoOption) error {
-	r.l.Lock()
-	defer r.l.Unlock()
 	o := &doOptions{}
 	for _, i := range opts {
 		i(o)
+	}
+	if o.NoLock {
+		r.l.Lock()
+		defer r.l.Unlock()
 	}
 	if !o.NoPull {
 		if err := r.pullWithoutLock(); err != nil {
 			return err
 		}
 	}
-	if msg, err := op(r); err != nil {
+	msg, err := op(r)
+	if err != nil {
 		return err
-	} else {
-		if !o.NoCommit {
-			popts := []PushOption{}
-			if o.Force {
-				popts = append(popts, PushWithForce())
-			}
-			if o.ToBranch != "" {
-				popts = append(popts, WithToBranch(o.ToBranch))
-			}
-			return r.CommitAndPush(msg, popts...)
-		}
 	}
-	return nil
+	if o.NoCommit {
+		return nil
+	}
+	popts := []PushOption{}
+	if o.Force {
+		popts = append(popts, PushWithForce())
+	}
+	if o.ToBranch != "" {
+		popts = append(popts, WithToBranch(o.ToBranch))
+	}
+	return r.CommitAndPush(msg, popts...)
 }
 
 func auth(signer ssh.Signer) *gitssh.PublicKeys {

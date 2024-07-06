@@ -106,7 +106,7 @@ func dodoAppCmdRun(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-	s := welcome.NewDodoAppServer(
+	s, err := welcome.NewDodoAppServer(
 		dodoAppFlags.port,
 		dodoAppFlags.self,
 		string(sshKey),
@@ -117,6 +117,9 @@ func dodoAppCmdRun(cmd *cobra.Command, args []string) error {
 		jc,
 		env,
 	)
+	if err != nil {
+		return err
+	}
 	if dodoAppFlags.appAdminKey != "" {
 		if err := s.CreateApp("app", dodoAppFlags.appAdminKey); err != nil {
 			return err

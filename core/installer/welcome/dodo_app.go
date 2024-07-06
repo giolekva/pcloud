@@ -2,10 +2,13 @@ package welcome
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
+	"io/fs"
 	"net/http"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/giolekva/pcloud/core/installer"
@@ -14,7 +17,13 @@ import (
 	"github.com/gorilla/mux"
 )
 
+const (
+	configRepoName = "config"
+	namespacesFile = "/namespaces.json"
+)
+
 type DodoAppServer struct {
+	l                sync.Locker
 	port             int
 	self             string
 	sshKey           string
@@ -39,8 +48,16 @@ func NewDodoAppServer(
 	nsc installer.NamespaceCreator,
 	jc installer.JobCreator,
 	env installer.EnvConfig,
-) *DodoAppServer {
-	return &DodoAppServer{
+) (*DodoAppServer, error) {
+	if ok, err := client.RepoExists(configRepoName); err != nil {
+		return nil, err
+	} else if !ok {
+		if err := client.AddRepository(configRepoName); err != nil {
+			return nil, err
+		}
+	}
+	s := &DodoAppServer{
+		&sync.Mutex{},
 		port,
 		self,
 		sshKey,
@@ -53,6 +70,20 @@ func NewDodoAppServer(
 		map[string]map[string]struct{}{},
 		map[string]string{},
 	}
+	config, err := client.GetRepo(configRepoName)
+	if err != nil {
+		return nil, err
+	}
+	r, err := config.Reader(namespacesFile)
+	if err == nil {
+		defer r.Close()
+		if err := json.NewDecoder(r).Decode(&s.appNs); err != nil {
+			return nil, err
+		}
+	} else if !errors.Is(err, fs.ErrNotExist) {
+		return nil, err
+	}
+	return s, nil
 }
 
 func (s *DodoAppServer) Start() error {
@@ -82,7 +113,7 @@ func (s *DodoAppServer) handleUpdate(w http.ResponseWriter, r *http.Request) {
 		fmt.Println(err)
 		return
 	}
-	if req.Ref != "refs/heads/master" || strings.HasPrefix(req.Repository.Name, "config") {
+	if req.Ref != "refs/heads/master" || strings.HasPrefix(req.Repository.Name, configRepoName) {
 		return
 	}
 	go func() {
@@ -148,6 +179,8 @@ func (s *DodoAppServer) handleCreateApp(w http.ResponseWriter, r *http.Request) 
 }
 
 func (s *DodoAppServer) CreateApp(appName, adminPublicKey string) error {
+	s.l.Lock()
+	defer s.l.Unlock()
 	fmt.Printf("Creating app: %s\n", appName)
 	if ok, err := s.client.RepoExists(appName); err != nil {
 		return err
@@ -179,14 +212,7 @@ func (s *DodoAppServer) CreateApp(appName, adminPublicKey string) error {
 	if err := s.updateDodoApp(appName, namespace); err != nil {
 		return err
 	}
-	if ok, err := s.client.RepoExists("config"); err != nil {
-		return err
-	} else if !ok {
-		if err := s.client.AddRepository("config"); err != nil {
-			return err
-		}
-	}
-	repo, err := s.client.GetRepo("config")
+	repo, err := s.client.GetRepo(configRepoName)
 	if err != nil {
 		return err
 	}
@@ -195,11 +221,33 @@ func (s *DodoAppServer) CreateApp(appName, adminPublicKey string) error {
 	if err != nil {
 		return err
 	}
-	if _, err := m.Install(app, appName, "/"+appName, namespace, map[string]any{
-		"repoAddr":         s.client.GetRepoAddress(appName),
-		"repoHost":         strings.Split(s.client.Address(), ":")[0],
-		"gitRepoPublicKey": s.gitRepoPublicKey,
-	}, installer.WithConfig(&s.env)); err != nil {
+	if err := repo.Do(func(fs soft.RepoFS) (string, error) {
+		w, err := fs.Writer(namespacesFile)
+		if err != nil {
+			return "", err
+		}
+		defer w.Close()
+		if err := json.NewEncoder(w).Encode(s.appNs); err != nil {
+			return "", err
+		}
+		if _, err := m.Install(
+			app,
+			appName,
+			"/"+appName,
+			namespace,
+			map[string]any{
+				"repoAddr":         s.client.GetRepoAddress(appName),
+				"repoHost":         strings.Split(s.client.Address(), ":")[0],
+				"gitRepoPublicKey": s.gitRepoPublicKey,
+			},
+			installer.WithConfig(&s.env),
+			installer.WithNoPublish(),
+			installer.WithNoLock(),
+		); err != nil {
+			return "", err
+		}
+		return fmt.Sprintf("Installed app: %s", appName), nil
+	}); err != nil {
 		return err
 	}
 	cfg, err := m.FindInstance(appName)

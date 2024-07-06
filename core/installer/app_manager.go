@@ -310,6 +310,9 @@ func installApp(
 	if o.Force {
 		dopts = append(dopts, soft.WithForce())
 	}
+	if o.NoLock {
+		dopts = append(dopts, soft.WithNoLock())
+	}
 	return ReleaseResources{}, repo.Do(func(r soft.RepoFS) (string, error) {
 		if err := r.RemoveDir(appDir); err != nil {
 			return "", err
@@ -596,6 +599,7 @@ type installOptions struct {
 	LG                   LocalChartGenerator
 	FetchContainerImages bool
 	Force                bool
+	NoLock               bool
 }
 
 type InstallOption func(*installOptions)
@@ -633,6 +637,12 @@ func WithFetchContainerImages() InstallOption {
 func WithNoPublish() InstallOption {
 	return func(o *installOptions) {
 		o.NoPublish = true
+	}
+}
+
+func WithNoLock() InstallOption {
+	return func(o *installOptions) {
+		o.NoLock = true
 	}
 }
 
