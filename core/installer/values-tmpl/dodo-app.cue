@@ -53,6 +53,20 @@ charts: {
 	}
 }
 
+volumes: db: size: "10Gi"
+
+ingress: {
+	"dodo-app": {
+		auth: enabled: false
+		network: input.network
+		subdomain: input.subdomain
+		service: {
+			name: "web"
+			port: name: "http"
+		}
+	}
+}
+
 portForward: [#PortForward & {
 	allocator: input.network.allocatePortAddr
 	reservator: input.network.reservePortAddr
@@ -92,13 +106,16 @@ helm: {
 				tag: images.dodoApp.tag
 				pullPolicy: images.dodoApp.pullPolicy
 			}
+			port: 8080
+			apiPort: 8081
 			repoAddr: "soft-serve.\(release.namespace).svc.cluster.local:22"
 			sshPrivateKey: base64.Encode(null, input.dAppKeys.private)
-			self: "dodo-app.\(release.namespace).svc.cluster.local"
+			self: "api.\(release.namespace).svc.cluster.local"
 			namespace: release.namespace
 			envConfig: base64.Encode(null, json.Marshal(global))
 			appAdminKey: input.adminKey
 			gitRepoPublicKey: input.ssKeys.public
+			persistentVolumeClaimName: volumes.db.name
 		}
 	}
 }

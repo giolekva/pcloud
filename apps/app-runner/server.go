@@ -24,7 +24,7 @@ type Server struct {
 	appDir      string
 	runCommands []Command
 	self        string
-	manager     string
+	managerAddr string
 }
 
 func NewServer(port int, appId string, repoAddr string, signer ssh.Signer, appDir string, runCommands []Command, self string, manager string) *Server {
@@ -38,7 +38,7 @@ func NewServer(port int, appId string, repoAddr string, signer ssh.Signer, appDi
 		appDir:      appDir,
 		runCommands: runCommands,
 		self:        self,
-		manager:     manager,
+		managerAddr: manager,
 	}
 }
 
@@ -120,7 +120,6 @@ func (s *Server) run() error {
 }
 
 type pingReq struct {
-	AppId   string `json:"appId"`
 	Address string `json:"address"`
 }
 
@@ -131,9 +130,12 @@ func (s *Server) pingManager() {
 			s.pingManager()
 		}()
 	}()
-	buf, err := json.Marshal(pingReq{s.appId, s.self})
+	buf, err := json.Marshal(pingReq{
+		Address: fmt.Sprintf("%s:%d", s.self, s.port),
+	})
 	if err != nil {
 		return
 	}
-	http.Post(s.manager, "application/json", bytes.NewReader(buf))
+	registerWorkerAddr := fmt.Sprintf("%s/api/apps/%s/workers", s.managerAddr, s.appId)
+	http.Post(registerWorkerAddr, "application/json", bytes.NewReader(buf))
 }

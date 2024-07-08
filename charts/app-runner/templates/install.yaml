@@ -97,7 +97,7 @@ spec:
         - --repo-addr={{ .Values.repoAddr }}
         - --ssh-key=/pcloud/ssh-key/private
         - --run-cfg=/pcloud/config/run
-        - --manager={{ .Values.manager }}
+        - --manager-addr={{ .Values.managerAddr }}
         volumeMounts:
         - name: ssh-key
           readOnly: true

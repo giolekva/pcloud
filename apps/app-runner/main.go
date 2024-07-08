@@ -21,7 +21,7 @@ var repoAddr = flag.String("repo-addr", "", "Git repository address")
 var sshKey = flag.String("ssh-key", "", "Private SSH key to access Git repository")
 var appDir = flag.String("app-dir", "", "Path to store application repository locally")
 var runCfg = flag.String("run-cfg", "", "Run configuration")
-var manager = flag.String("manager", "", "Address of the manager")
+var managerAddr = flag.String("manager-addr", "", "Address of the manager")
 
 type Command struct {
 	Bin  string   `json:"bin"`
@@ -98,6 +98,6 @@ func main() {
 	if err := json.NewDecoder(r).Decode(&cmds); err != nil {
 		panic(err)
 	}
-	s := NewServer(*port, *appId, *repoAddr, signer, *appDir, cmds, self, *manager)
+	s := NewServer(*port, *appId, *repoAddr, signer, *appDir, cmds, self, *managerAddr)
 	s.Start()
 }

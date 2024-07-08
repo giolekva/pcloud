@@ -1,6 +1,7 @@
 package main
 
 import (
+	"database/sql"
 	"encoding/json"
 	"log"
 	"os"
@@ -9,11 +10,15 @@ import (
 	"github.com/giolekva/pcloud/core/installer/soft"
 	"github.com/giolekva/pcloud/core/installer/welcome"
 
+	_ "github.com/ncruces/go-sqlite3"
+	_ "github.com/ncruces/go-sqlite3/driver"
+	_ "github.com/ncruces/go-sqlite3/embed"
 	"github.com/spf13/cobra"
 )
 
 var dodoAppFlags struct {
 	port             int
+	apiPort          int
 	sshKey           string
 	repoAddr         string
 	self             string
@@ -21,6 +26,7 @@ var dodoAppFlags struct {
 	envConfig        string
 	appAdminKey      string
 	gitRepoPublicKey string
+	db               string
 }
 
 func dodoAppCmd() *cobra.Command {
@@ -32,6 +38,18 @@ func dodoAppCmd() *cobra.Command {
 		&dodoAppFlags.port,
 		"port",
 		8080,
+		"",
+	)
+	cmd.Flags().IntVar(
+		&dodoAppFlags.apiPort,
+		"api-port",
+		8081,
+		"",
+	)
+	cmd.Flags().StringVar(
+		&dodoAppFlags.db,
+		"db",
+		"",
 		"",
 	)
 	cmd.Flags().StringVar(
@@ -80,6 +98,10 @@ func dodoAppCmd() *cobra.Command {
 }
 
 func dodoAppCmdRun(cmd *cobra.Command, args []string) error {
+	sshKey, err := os.ReadFile(dodoAppFlags.sshKey)
+	if err != nil {
+		return err
+	}
 	envConfig, err := os.Open(dodoAppFlags.envConfig)
 	if err != nil {
 		return err
@@ -87,10 +109,6 @@ func dodoAppCmdRun(cmd *cobra.Command, args []string) error {
 	defer envConfig.Close()
 	var env installer.EnvConfig
 	if err := json.NewDecoder(envConfig).Decode(&env); err != nil {
-		return err
-	}
-	sshKey, err := os.ReadFile(dodoAppFlags.sshKey)
-	if err != nil {
 		return err
 	}
 	cg := soft.RealClientGetter{}
@@ -106,8 +124,29 @@ func dodoAppCmdRun(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
+	if ok, err := softClient.RepoExists(welcome.ConfigRepoName); err != nil {
+		return err
+	} else if !ok {
+		if err := softClient.AddRepository(welcome.ConfigRepoName); err != nil {
+			return err
+		}
+	}
+	configRepo, err := softClient.GetRepo(welcome.ConfigRepoName)
+	if err != nil {
+		return err
+	}
+	db, err := sql.Open("sqlite3", dodoAppFlags.db)
+	if err != nil {
+		return err
+	}
+	st, err := welcome.NewStore(configRepo, db)
+	if err != nil {
+		return err
+	}
 	s, err := welcome.NewDodoAppServer(
+		st,
 		dodoAppFlags.port,
+		dodoAppFlags.apiPort,
 		dodoAppFlags.self,
 		string(sshKey),
 		dodoAppFlags.gitRepoPublicKey,

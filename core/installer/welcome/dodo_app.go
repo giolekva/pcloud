@@ -9,7 +9,6 @@ import (
 	"net/http"
 	"strings"
 	"sync"
-	"time"
 
 	"github.com/giolekva/pcloud/core/installer"
 	"github.com/giolekva/pcloud/core/installer/soft"
@@ -18,13 +17,15 @@ import (
 )
 
 const (
-	configRepoName = "config"
+	ConfigRepoName = "config"
 	namespacesFile = "/namespaces.json"
 )
 
 type DodoAppServer struct {
 	l                sync.Locker
+	st               Store
 	port             int
+	apiPort          int
 	self             string
 	sshKey           string
 	gitRepoPublicKey string
@@ -39,7 +40,9 @@ type DodoAppServer struct {
 
 // TODO(gio): Initialize appNs on startup
 func NewDodoAppServer(
+	st Store,
 	port int,
+	apiPort int,
 	self string,
 	sshKey string,
 	gitRepoPublicKey string,
@@ -49,16 +52,11 @@ func NewDodoAppServer(
 	jc installer.JobCreator,
 	env installer.EnvConfig,
 ) (*DodoAppServer, error) {
-	if ok, err := client.RepoExists(configRepoName); err != nil {
-		return nil, err
-	} else if !ok {
-		if err := client.AddRepository(configRepoName); err != nil {
-			return nil, err
-		}
-	}
 	s := &DodoAppServer{
 		&sync.Mutex{},
+		st,
 		port,
+		apiPort,
 		self,
 		sshKey,
 		gitRepoPublicKey,
@@ -70,7 +68,7 @@ func NewDodoAppServer(
 		map[string]map[string]struct{}{},
 		map[string]string{},
 	}
-	config, err := client.GetRepo(configRepoName)
+	config, err := client.GetRepo(ConfigRepoName)
 	if err != nil {
 		return nil, err
 	}
@@ -87,12 +85,50 @@ func NewDodoAppServer(
 }
 
 func (s *DodoAppServer) Start() error {
-	r := mux.NewRouter()
-	r.HandleFunc("/update", s.handleUpdate)
-	r.HandleFunc("/register-worker", s.handleRegisterWorker).Methods(http.MethodPost)
-	r.HandleFunc("/api/apps", s.handleCreateApp).Methods(http.MethodPost)
-	r.HandleFunc("/api/add-admin-key", s.handleAddAdminKey).Methods(http.MethodPost)
-	return http.ListenAndServe(fmt.Sprintf(":%d", s.port), r)
+	e := make(chan error)
+	go func() {
+		r := mux.NewRouter()
+		r.HandleFunc("/status/{app-name}", s.handleAppStatus).Methods(http.MethodGet)
+		r.HandleFunc("/status", s.handleStatus).Methods(http.MethodGet)
+		e <- http.ListenAndServe(fmt.Sprintf(":%d", s.port), r)
+	}()
+	go func() {
+		r := mux.NewRouter()
+		r.HandleFunc("/update", s.handleUpdate)
+		r.HandleFunc("/api/apps/{app-name}/workers", s.handleRegisterWorker).Methods(http.MethodPost)
+		r.HandleFunc("/api/apps", s.handleCreateApp).Methods(http.MethodPost)
+		r.HandleFunc("/api/add-admin-key", s.handleAddAdminKey).Methods(http.MethodPost)
+		e <- http.ListenAndServe(fmt.Sprintf(":%d", s.apiPort), r)
+	}()
+	return <-e
+}
+
+func (s *DodoAppServer) handleStatus(w http.ResponseWriter, r *http.Request) {
+	apps, err := s.st.GetApps()
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	for _, a := range apps {
+		fmt.Fprintf(w, "%s\n", a)
+	}
+}
+
+func (s *DodoAppServer) handleAppStatus(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	appName, ok := vars["app-name"]
+	if !ok || appName == "" {
+		http.Error(w, "missing app-name", http.StatusBadRequest)
+		return
+	}
+	commits, err := s.st.GetCommitHistory(appName)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	for _, c := range commits {
+		fmt.Fprintf(w, "%s %s\n", c.Hash, c.Message)
+	}
 }
 
 type updateReq struct {
@@ -100,6 +136,7 @@ type updateReq struct {
 	Repository struct {
 		Name string `json:"name"`
 	} `json:"repository"`
+	After string `json:"after"`
 }
 
 func (s *DodoAppServer) handleUpdate(w http.ResponseWriter, r *http.Request) {
@@ -113,38 +150,49 @@ func (s *DodoAppServer) handleUpdate(w http.ResponseWriter, r *http.Request) {
 		fmt.Println(err)
 		return
 	}
-	if req.Ref != "refs/heads/master" || strings.HasPrefix(req.Repository.Name, configRepoName) {
+	if req.Ref != "refs/heads/master" || req.Repository.Name == ConfigRepoName {
 		return
 	}
+	// TODO(gio): Create commit record on app init as well
 	go func() {
-		time.Sleep(20 * time.Second)
 		if err := s.updateDodoApp(req.Repository.Name, s.appNs[req.Repository.Name]); err != nil {
-			fmt.Println(err)
+			if err := s.st.CreateCommit(req.Repository.Name, req.After, err.Error()); err != nil {
+				fmt.Printf("Error: %s\n", err.Error())
+				return
+			}
+		}
+		if err := s.st.CreateCommit(req.Repository.Name, req.After, "OK"); err != nil {
+			fmt.Printf("Error: %s\n", err.Error())
+		}
+		for addr, _ := range s.workers[req.Repository.Name] {
+			go func() {
+				// TODO(gio): make port configurable
+				http.Get(fmt.Sprintf("http://%s/update", addr))
+			}()
 		}
 	}()
-	for addr, _ := range s.workers[req.Repository.Name] {
-		go func() {
-			// TODO(gio): make port configurable
-			http.Get(fmt.Sprintf("http://%s:3000/update", addr))
-		}()
-	}
 }
 
 type registerWorkerReq struct {
-	AppId   string `json:"appId"`
 	Address string `json:"address"`
 }
 
 func (s *DodoAppServer) handleRegisterWorker(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	appName, ok := vars["app-name"]
+	if !ok || appName == "" {
+		http.Error(w, "missing app-name", http.StatusBadRequest)
+		return
+	}
 	var req registerWorkerReq
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	if _, ok := s.workers[req.AppId]; !ok {
-		s.workers[req.AppId] = map[string]struct{}{}
+	if _, ok := s.workers[appName]; !ok {
+		s.workers[appName] = map[string]struct{}{}
 	}
-	s.workers[req.AppId][req.Address] = struct{}{}
+	s.workers[appName][req.Address] = struct{}{}
 }
 
 type createAppReq struct {
@@ -187,6 +235,9 @@ func (s *DodoAppServer) CreateApp(appName, adminPublicKey string) error {
 	} else if ok {
 		return nil
 	}
+	if err := s.st.CreateApp(appName); err != nil {
+		return err
+	}
 	if err := s.client.AddRepository(appName); err != nil {
 		return err
 	}
@@ -212,7 +263,7 @@ func (s *DodoAppServer) CreateApp(appName, adminPublicKey string) error {
 	if err := s.updateDodoApp(appName, namespace); err != nil {
 		return err
 	}
-	repo, err := s.client.GetRepo(configRepoName)
+	repo, err := s.client.GetRepo(ConfigRepoName)
 	if err != nil {
 		return err
 	}
@@ -337,10 +388,10 @@ func (s *DodoAppServer) updateDodoApp(name, namespace string) error {
 		"/.dodo/app",
 		namespace,
 		map[string]any{
-			"repoAddr":           repo.FullAddress(),
-			"registerWorkerAddr": fmt.Sprintf("http://%s/register-worker", s.self),
-			"appId":              name,
-			"sshPrivateKey":      s.sshKey,
+			"repoAddr":      repo.FullAddress(),
+			"managerAddr":   fmt.Sprintf("http://%s", s.self),
+			"appId":         name,
+			"sshPrivateKey": s.sshKey,
 		},
 		installer.WithConfig(&s.env),
 		installer.WithLocalChartGenerator(lg),

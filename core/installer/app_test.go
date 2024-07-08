@@ -315,10 +315,10 @@ func TestPCloudApp(t *testing.T) {
 		AppDir:        "/foo/bar",
 	}
 	_, err = app.Render(release, env, map[string]any{
-		"repoAddr":           "",
-		"registerWorkerAddr": "",
-		"appId":              "",
-		"sshPrivateKey":      "",
+		"repoAddr":      "",
+		"managerAddr":   "",
+		"appId":         "",
+		"sshPrivateKey": "",
 	}, nil)
 	if err != nil {
 		t.Fatal(err)

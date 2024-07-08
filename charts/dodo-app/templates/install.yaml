@@ -46,7 +46,21 @@ data:
 apiVersion: v1
 kind: Service
 metadata:
-  name: dodo-app
+  name: api
+spec:
+  type: ClusterIP
+  selector:
+    app: dodo-app
+  ports:
+  - name: http
+    port: 80
+    targetPort: api
+    protocol: TCP
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: web
 spec:
   type: ClusterIP
   selector:
@@ -78,25 +92,40 @@ spec:
       - name: env-config
         secret:
           secretName: env-config
+      - name: db
+        persistentVolumeClaim:
+          claimName: {{ .Values.persistentVolumeClaimName }}
+      initContainers:
+      - name: volume-permissions
+        image: busybox:latest
+        command: ["sh", "-c", "chmod -Rv 777 /dodo-app/db"]
+        volumeMounts:
+        - name: db
+          mountPath: /dodo-app/db
       containers:
       - name: dodo-app
         image: {{ .Values.image.repository }}:{{ .Values.image.tag }}
         imagePullPolicy: {{ .Values.image.pullPolicy }}
         ports:
         - name: http
-          containerPort: 8080
+          containerPort: {{ .Values.port }}
+          protocol: TCP
+        - name: api
+          containerPort: {{ .Values.apiPort }}
           protocol: TCP
         command:
         - pcloud-installer
         - dodo-app
         - --repo-addr={{ .Values.repoAddr }}
         - --ssh-key=/pcloud/ssh-key/private
-        - --port=8080
+        - --port={{ .Values.port }}
+        - --api-port={{ .Values.apiPort }}
         - --self={{ .Values.self }}
         - --namespace={{ .Values.namespace }} # TODO(gio): maybe use .Release.Namespace ?
         - --env-config=/pcloud/env-config/config.json
         - --app-admin-key={{ .Values.appAdminKey }}
         - --git-repo-public-key={{ .Values.gitRepoPublicKey }}
+        - --db=/dodo-app/db/apps.db
         volumeMounts:
         - name: ssh-key
           readOnly: true
@@ -104,6 +133,8 @@ spec:
         - name: env-config
           readOnly: true
           mountPath: /pcloud/env-config
+        - name: db
+          mountPath: /dodo-app/db
 ---
 apiVersion: v1
 kind: Secret

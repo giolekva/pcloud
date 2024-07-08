@@ -6,7 +6,7 @@ import (
 
 input: {
 	repoAddr: string
-	registerWorkerAddr: string
+	managerAddr: string
 	appId: string
 	sshPrivateKey: string
 }
@@ -159,7 +159,7 @@ helm: {
 			repoAddr: input.repoAddr
 			sshPrivateKey: base64.Encode(null, input.sshPrivateKey)
 			runCfg: base64.Encode(null, json.Marshal(_app.runConfiguration))
-			manager: input.registerWorkerAddr
+			managerAddr: input.managerAddr
 			volumes: [
 				for key, value in _app.volumes {
 					name: value.name
