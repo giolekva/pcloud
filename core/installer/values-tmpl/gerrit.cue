@@ -31,19 +31,19 @@ _images: {
 	gerrit: #Image & {
 		repository: "k8sgerrit"
 		name: "gerrit"
-		tag: _latest
+		tag: _version
 		pullPolicy: "Always"
 	}
 	gerritInit: #Image & {
 		repository: "k8sgerrit"
 		name: "gerrit-init"
-		tag: _latest
+		tag: _version
 		pullPolicy: "Always"
 	}
 	gitGC: #Image & {
 		repository: "k8sgerrit"
 		name: "git-gc"
-		tag: _latest
+		tag: _version
 		pullPolicy: "Always"
 	}
 }
@@ -88,7 +88,7 @@ volumes: {
 }
 
 _dockerIO: "docker.io"
-_latest: "latest"
+_version: "v0.1-598-g769d7ce4-3.9.1"
 
 _longhorn: "longhorn"
 
@@ -204,14 +204,14 @@ data:
 			images: {
 				busybox: {
 					registry: _dockerIO
-					tag: _latest
+					tag: "latest"
 				}
 				registry: {
 					name: _dockerIO
 					ImagePullSecret: create: false
-					version: _latest
 					imagePullPolicy: "Always"
 				}
+				version: _version
 			}
 			storageClasses: {
 				default: {
