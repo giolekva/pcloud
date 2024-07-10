@@ -160,7 +160,7 @@ func dodoAppCmdRun(cmd *cobra.Command, args []string) error {
 		return err
 	}
 	if dodoAppFlags.appAdminKey != "" {
-		if err := s.CreateApp("app", dodoAppFlags.appAdminKey); err != nil {
+		if _, err := s.CreateApp("app", dodoAppFlags.appAdminKey); err != nil {
 			return err
 		}
 	}

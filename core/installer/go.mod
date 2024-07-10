@@ -14,6 +14,7 @@ require (
 	github.com/go-git/go-git/v5 v5.12.0
 	github.com/gomarkdown/markdown v0.0.0-20240328165702-4d01890c35c0
 	github.com/gorilla/mux v1.8.1
+	github.com/gorilla/securecookie v1.1.2
 	github.com/libdns/gandi v1.0.3
 	github.com/libdns/libdns v0.2.2
 	github.com/miekg/dns v1.1.58

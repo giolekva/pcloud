@@ -1,9 +1,11 @@
 package welcome
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"golang.org/x/crypto/bcrypt"
 	"io"
 	"io/fs"
 	"net/http"
@@ -14,11 +16,16 @@ import (
 	"github.com/giolekva/pcloud/core/installer/soft"
 
 	"github.com/gorilla/mux"
+	"github.com/gorilla/securecookie"
 )
 
 const (
 	ConfigRepoName = "config"
 	namespacesFile = "/namespaces.json"
+	loginPath      = "/login"
+	logoutPath     = "/logout"
+	sessionCookie  = "dodo-app-session"
+	userCtx        = "user"
 )
 
 type DodoAppServer struct {
@@ -36,6 +43,7 @@ type DodoAppServer struct {
 	jc               installer.JobCreator
 	workers          map[string]map[string]struct{}
 	appNs            map[string]string
+	sc               *securecookie.SecureCookie
 }
 
 // TODO(gio): Initialize appNs on startup
@@ -52,6 +60,10 @@ func NewDodoAppServer(
 	jc installer.JobCreator,
 	env installer.EnvConfig,
 ) (*DodoAppServer, error) {
+	sc := securecookie.New(
+		securecookie.GenerateRandomKey(64),
+		securecookie.GenerateRandomKey(32),
+	)
 	s := &DodoAppServer{
 		&sync.Mutex{},
 		st,
@@ -67,6 +79,7 @@ func NewDodoAppServer(
 		jc,
 		map[string]map[string]struct{}{},
 		map[string]string{},
+		sc,
 	}
 	config, err := client.GetRepo(ConfigRepoName)
 	if err != nil {
@@ -88,23 +101,132 @@ func (s *DodoAppServer) Start() error {
 	e := make(chan error)
 	go func() {
 		r := mux.NewRouter()
-		r.HandleFunc("/status/{app-name}", s.handleAppStatus).Methods(http.MethodGet)
-		r.HandleFunc("/status", s.handleStatus).Methods(http.MethodGet)
+		r.Use(s.mwAuth)
+		r.HandleFunc(logoutPath, s.handleLogout).Methods(http.MethodGet)
+		r.HandleFunc("/{app-name}"+loginPath, s.handleLoginForm).Methods(http.MethodGet)
+		r.HandleFunc("/{app-name}"+loginPath, s.handleLogin).Methods(http.MethodPost)
+		r.HandleFunc("/{app-name}", s.handleAppStatus).Methods(http.MethodGet)
+		r.HandleFunc("/", s.handleStatus).Methods(http.MethodGet)
 		e <- http.ListenAndServe(fmt.Sprintf(":%d", s.port), r)
 	}()
 	go func() {
 		r := mux.NewRouter()
-		r.HandleFunc("/update", s.handleUpdate)
-		r.HandleFunc("/api/apps/{app-name}/workers", s.handleRegisterWorker).Methods(http.MethodPost)
-		r.HandleFunc("/api/apps", s.handleCreateApp).Methods(http.MethodPost)
-		r.HandleFunc("/api/add-admin-key", s.handleAddAdminKey).Methods(http.MethodPost)
+		r.HandleFunc("/update", s.handleApiUpdate)
+		r.HandleFunc("/api/apps/{app-name}/workers", s.handleApiRegisterWorker).Methods(http.MethodPost)
+		r.HandleFunc("/api/apps", s.handleApiCreateApp).Methods(http.MethodPost)
+		r.HandleFunc("/api/add-admin-key", s.handleApiAddAdminKey).Methods(http.MethodPost)
 		e <- http.ListenAndServe(fmt.Sprintf(":%d", s.apiPort), r)
 	}()
 	return <-e
 }
 
+func (s *DodoAppServer) mwAuth(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if strings.HasSuffix(r.URL.Path, loginPath) || strings.HasPrefix(r.URL.Path, logoutPath) {
+			next.ServeHTTP(w, r)
+			return
+		}
+		cookie, err := r.Cookie(sessionCookie)
+		if err != nil {
+			vars := mux.Vars(r)
+			appName, ok := vars["app-name"]
+			if !ok || appName == "" {
+				http.Error(w, "missing app-name", http.StatusBadRequest)
+				return
+			}
+			http.Redirect(w, r, fmt.Sprintf("/%s%s", appName, loginPath), http.StatusSeeOther)
+			return
+		}
+		var user string
+		if err := s.sc.Decode(sessionCookie, cookie.Value, &user); err != nil {
+			http.Error(w, "unauthorized", http.StatusUnauthorized)
+			return
+		}
+		next.ServeHTTP(w, r.WithContext(context.WithValue(r.Context(), userCtx, user)))
+	})
+}
+
+func (s *DodoAppServer) handleLogout(w http.ResponseWriter, r *http.Request) {
+	http.SetCookie(w, &http.Cookie{
+		Name:     sessionCookie,
+		Value:    "",
+		Path:     "/",
+		HttpOnly: true,
+		Secure:   true,
+	})
+	http.Redirect(w, r, "/", http.StatusSeeOther)
+}
+
+func (s *DodoAppServer) handleLoginForm(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	appName, ok := vars["app-name"]
+	if !ok || appName == "" {
+		http.Error(w, "missing app-name", http.StatusBadRequest)
+		return
+	}
+	fmt.Fprint(w, `
+<!DOCTYPE html>
+<html lang='en'>
+	<head>
+		<title>dodo: app - login</title>
+		<meta charset='utf-8'>
+	</head>
+	<body>
+        <form action="" method="POST">
+          <input type="password" placeholder="Password" name="password" required />
+          <button type="submit">Login</button>
+        </form>
+	</body>
+</html>
+`)
+}
+
+func (s *DodoAppServer) handleLogin(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	appName, ok := vars["app-name"]
+	if !ok || appName == "" {
+		http.Error(w, "missing app-name", http.StatusBadRequest)
+		return
+	}
+	password := r.FormValue("password")
+	if password == "" {
+		http.Error(w, "missing password", http.StatusBadRequest)
+		return
+	}
+	user, err := s.st.GetAppOwner(appName)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	hashed, err := s.st.GetUserPassword(user)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	if err := bcrypt.CompareHashAndPassword(hashed, []byte(password)); err != nil {
+		http.Redirect(w, r, r.URL.Path, http.StatusSeeOther)
+		return
+	}
+	if encoded, err := s.sc.Encode(sessionCookie, user); err == nil {
+		cookie := &http.Cookie{
+			Name:     sessionCookie,
+			Value:    encoded,
+			Path:     "/",
+			Secure:   true,
+			HttpOnly: true,
+		}
+		http.SetCookie(w, cookie)
+	}
+	http.Redirect(w, r, fmt.Sprintf("/%s", appName), http.StatusSeeOther)
+}
+
 func (s *DodoAppServer) handleStatus(w http.ResponseWriter, r *http.Request) {
-	apps, err := s.st.GetApps()
+	user := r.Context().Value(userCtx)
+	if user == nil {
+		http.Error(w, "unauthorized", http.StatusUnauthorized)
+		return
+	}
+	apps, err := s.st.GetUserApps(user.(string))
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -131,7 +253,7 @@ func (s *DodoAppServer) handleAppStatus(w http.ResponseWriter, r *http.Request) 
 	}
 }
 
-type updateReq struct {
+type apiUpdateReq struct {
 	Ref        string `json:"ref"`
 	Repository struct {
 		Name string `json:"name"`
@@ -139,9 +261,9 @@ type updateReq struct {
 	After string `json:"after"`
 }
 
-func (s *DodoAppServer) handleUpdate(w http.ResponseWriter, r *http.Request) {
+func (s *DodoAppServer) handleApiUpdate(w http.ResponseWriter, r *http.Request) {
 	fmt.Println("update")
-	var req updateReq
+	var req apiUpdateReq
 	var contents strings.Builder
 	io.Copy(&contents, r.Body)
 	c := contents.String()
@@ -173,18 +295,18 @@ func (s *DodoAppServer) handleUpdate(w http.ResponseWriter, r *http.Request) {
 	}()
 }
 
-type registerWorkerReq struct {
+type apiRegisterWorkerReq struct {
 	Address string `json:"address"`
 }
 
-func (s *DodoAppServer) handleRegisterWorker(w http.ResponseWriter, r *http.Request) {
+func (s *DodoAppServer) handleApiRegisterWorker(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	appName, ok := vars["app-name"]
 	if !ok || appName == "" {
 		http.Error(w, "missing app-name", http.StatusBadRequest)
 		return
 	}
-	var req registerWorkerReq
+	var req apiRegisterWorkerReq
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -195,16 +317,17 @@ func (s *DodoAppServer) handleRegisterWorker(w http.ResponseWriter, r *http.Requ
 	s.workers[appName][req.Address] = struct{}{}
 }
 
-type createAppReq struct {
+type apiCreateAppReq struct {
 	AdminPublicKey string `json:"adminPublicKey"`
 }
 
-type createAppResp struct {
-	AppName string `json:"appName"`
+type apiCreateAppResp struct {
+	AppName  string `json:"appName"`
+	Password string `json:"password"`
 }
 
-func (s *DodoAppServer) handleCreateApp(w http.ResponseWriter, r *http.Request) {
-	var req createAppReq
+func (s *DodoAppServer) handleApiCreateApp(w http.ResponseWriter, r *http.Request) {
+	var req apiCreateAppReq
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
@@ -215,62 +338,96 @@ func (s *DodoAppServer) handleCreateApp(w http.ResponseWriter, r *http.Request) 
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	if err := s.CreateApp(appName, req.AdminPublicKey); err != nil {
+	password, err := s.CreateApp(appName, req.AdminPublicKey)
+	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	resp := createAppResp{appName}
+	resp := apiCreateAppResp{
+		AppName:  appName,
+		Password: password,
+	}
 	if err := json.NewEncoder(w).Encode(resp); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 }
 
-func (s *DodoAppServer) CreateApp(appName, adminPublicKey string) error {
+func (s *DodoAppServer) CreateApp(appName, adminPublicKey string) (string, error) {
 	s.l.Lock()
 	defer s.l.Unlock()
 	fmt.Printf("Creating app: %s\n", appName)
 	if ok, err := s.client.RepoExists(appName); err != nil {
-		return err
+		return "", err
 	} else if ok {
-		return nil
+		return "", nil
 	}
-	if err := s.st.CreateApp(appName); err != nil {
-		return err
+	user, err := s.client.FindUser(adminPublicKey)
+	if err != nil {
+		return "", err
+	}
+	if user != "" {
+		if err := s.client.AddPublicKey(user, adminPublicKey); err != nil {
+			return "", err
+		}
+	} else {
+		user = appName
+		if err := s.client.AddUser(user, adminPublicKey); err != nil {
+			return "", err
+		}
+	}
+	password := generatePassword()
+	// TODO(gio): take admin password for initial application as input
+	if appName == "app" {
+		password = "app"
+	}
+	hashed, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+	if err != nil {
+		return "", err
+	}
+	if err := s.st.CreateUser(user, hashed); err != nil {
+		if !errors.Is(err, ErrorAlreadyExists) {
+			return "", err
+		} else {
+			password = ""
+		}
+	}
+	if err := s.st.CreateApp(appName, user); err != nil {
+		return "", err
 	}
 	if err := s.client.AddRepository(appName); err != nil {
-		return err
+		return "", err
 	}
 	appRepo, err := s.client.GetRepo(appName)
 	if err != nil {
-		return err
+		return "", err
 	}
 	if err := InitRepo(appRepo); err != nil {
-		return err
+		return "", err
 	}
 	apps := installer.NewInMemoryAppRepository(installer.CreateAllApps())
 	app, err := installer.FindEnvApp(apps, "dodo-app-instance")
 	if err != nil {
-		return err
+		return "", err
 	}
 	suffixGen := installer.NewFixedLengthRandomSuffixGenerator(3)
 	suffix, err := suffixGen.Generate()
 	if err != nil {
-		return err
+		return "", err
 	}
 	namespace := fmt.Sprintf("%s%s%s", s.env.NamespacePrefix, app.Namespace(), suffix)
 	s.appNs[appName] = namespace
 	if err := s.updateDodoApp(appName, namespace); err != nil {
-		return err
+		return "", err
 	}
 	repo, err := s.client.GetRepo(ConfigRepoName)
 	if err != nil {
-		return err
+		return "", err
 	}
 	hf := installer.NewGitHelmFetcher()
 	m, err := installer.NewAppManager(repo, s.nsc, s.jc, hf, "/")
 	if err != nil {
-		return err
+		return "", err
 	}
 	if err := repo.Do(func(fs soft.RepoFS) (string, error) {
 		w, err := fs.Writer(namespacesFile)
@@ -299,60 +456,49 @@ func (s *DodoAppServer) CreateApp(appName, adminPublicKey string) error {
 		}
 		return fmt.Sprintf("Installed app: %s", appName), nil
 	}); err != nil {
-		return err
+		return "", err
 	}
 	cfg, err := m.FindInstance(appName)
 	if err != nil {
-		return err
+		return "", err
 	}
 	fluxKeys, ok := cfg.Input["fluxKeys"]
 	if !ok {
-		return fmt.Errorf("Fluxcd keys not found")
+		return "", fmt.Errorf("Fluxcd keys not found")
 	}
 	fluxPublicKey, ok := fluxKeys.(map[string]any)["public"]
 	if !ok {
-		return fmt.Errorf("Fluxcd keys not found")
+		return "", fmt.Errorf("Fluxcd keys not found")
 	}
 	if ok, err := s.client.UserExists("fluxcd"); err != nil {
-		return err
+		return "", err
 	} else if ok {
 		if err := s.client.AddPublicKey("fluxcd", fluxPublicKey.(string)); err != nil {
-			return err
+			return "", err
 		}
 	} else {
 		if err := s.client.AddUser("fluxcd", fluxPublicKey.(string)); err != nil {
-			return err
+			return "", err
 		}
 	}
 	if err := s.client.AddReadOnlyCollaborator(appName, "fluxcd"); err != nil {
-		return err
+		return "", err
 	}
 	if err := s.client.AddWebhook(appName, fmt.Sprintf("http://%s/update", s.self), "--active=true", "--events=push", "--content-type=json"); err != nil {
-		return err
+		return "", err
 	}
-	if user, err := s.client.FindUser(adminPublicKey); err != nil {
-		return err
-	} else if user != "" {
-		if err := s.client.AddReadWriteCollaborator(appName, user); err != nil {
-			return err
-		}
-	} else {
-		if err := s.client.AddUser(appName, adminPublicKey); err != nil {
-			return err
-		}
-		if err := s.client.AddReadWriteCollaborator(appName, appName); err != nil {
-			return err
-		}
+	if err := s.client.AddReadWriteCollaborator(appName, user); err != nil {
+		return "", err
 	}
-	return nil
+	return password, nil
 }
 
-type addAdminKeyReq struct {
+type apiAddAdminKeyReq struct {
 	Public string `json:"public"`
 }
 
-func (s *DodoAppServer) handleAddAdminKey(w http.ResponseWriter, r *http.Request) {
-	var req addAdminKeyReq
+func (s *DodoAppServer) handleApiAddAdminKey(w http.ResponseWriter, r *http.Request) {
+	var req apiAddAdminKeyReq
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
@@ -469,4 +615,8 @@ func InitRepo(repo soft.RepoIO) error {
 		}
 		return "go web app template", nil
 	})
+}
+
+func generatePassword() string {
+	return "foo"
 }
