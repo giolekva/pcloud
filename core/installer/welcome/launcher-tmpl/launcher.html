@@ -5,13 +5,14 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>dodo: Launcher</title>
     <link rel="stylesheet" type="text/css" href="/static/pico.2.0.6.min.css">
-    <link rel="stylesheet" type="text/css" href="/static/launcher.css?v=0.0.2">
+    <link rel="stylesheet" type="text/css" href="/static/launcher.css?v=0.0.13">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/hack-font/3.3.0/web/hack.min.css">
 </head>
 <body class="container-fluid">
     <div id="left-panel">
         <div class="user-circle">
             <div class="circle">
-                <p>{{ GetUserInitials .LoggedInUsername }}</p>
+                <p id="user-initial">{{ GetUserInitials .LoggedInUsername }}</p>
                 <div class="tooltip-user" id="tooltip-user">
                     <p>{{ .LoggedInUsername }}</p>
                     <a href="{{ .LogoutURL }}" role="button" id="logout-button">Log Out</a>
@@ -19,28 +20,26 @@
             </div>
         </div>
         <hr class="separator">
-        <div class="app-list">
+        <div class="app-list scrollbar-custom">
             {{range .AllAppsInfo}}
-                <div class="app-icon-tooltip" data-app-id="{{ .Id }}" data-app-url="{{ .URL }}">
-                    <div class="icon">
-                        {{.Icon}}
-                    </div>
-                    <div class="tooltip">
-                        <p>{{ .Name }}</p>
-                        {{ if .DisplayURL }}
-                            <p>{{ .DisplayURL }}</p>
-                        {{ end }}
-                        {{ if .Help }}
-                            <button class="help-button" id="help-button-{{ CleanAppName .Id }}">Help</button>
-                        {{ end }}
-                    </div>
-                </div>
+            <div class="app-icon" data-app-id="{{ .Id }}" data-app-url="{{ .URL }}" {{ if not .URL }}data-modal-id="modal-{{ CleanAppName .Id }}"{{ end }}>
+                {{.Icon}}
+            </div>
+            <div class="tooltip">
+                <p>{{ .Name }}</p>
+                {{ if .DisplayURL }}
+                    <p>{{ .DisplayURL }}</p>
+                {{ end }}
+                {{ if .Help }}
+                    <button class="help-button" id="help-button-{{ CleanAppName .Id }}">Help</button>
+                {{ end }}
+            </div>
                 <dialog class="app-help-modal" id="modal-{{ CleanAppName .Id }}" close>
                     <article class="modal-article">
                         <header>
                             <h4>{{ .Name }}</h4>
                             <button class="close-button" id="close-help-{{ CleanAppName .Id }}">
-                                <svg xmlns="http://www.w3.org/2000/svg" width="1.5em" height="1.5em" viewBox="0 0 32 32"><path fill="black" d="M16 2C8.2 2 2 8.2 2 16s6.2 14 14 14s14-6.2 14-14S23.8 2 16 2m5.4 21L16 17.6L10.6 23L9 21.4l5.4-5.4L9 10.6L10.6 9l5.4 5.4L21.4 9l1.6 1.6l-5.4 5.4l5.4 5.4z"/></svg>
+                                <svg xmlns="http://www.w3.org/2000/svg" width="1.5em" height="1.5em" viewBox="0 0 32 32"><path fill="#d4888d" d="M16 2C8.2 2 2 8.2 2 16s6.2 14 14 14s14-6.2 14-14S23.8 2 16 2m5.4 21L16 17.6L10.6 23L9 21.4l5.4-5.4L9 10.6L10.6 9l5.4 5.4L21.4 9l1.6 1.6l-5.4 5.4l5.4 5.4z"/></svg>
                             </button>
                         </header>
                         <div class="app-help-modal-article">
@@ -81,6 +80,6 @@
             {{ template "help-content-template" (dict "Help" $h.Children "First" false) }}
         {{ end }}
     {{ end }}
-    <script src="/static/launcher.js?v=0.0.3"></script>
+    <script src="/static/launcher.js?v=0.0.13"></script>
 </body>
 </html>

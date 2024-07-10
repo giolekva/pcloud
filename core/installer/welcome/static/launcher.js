@@ -1,73 +1,91 @@
+function showTooltip(obj) {
+  obj.style.visibility = 'visible';
+  obj.style.opacity = '1';
+}
+function hideTooltip(obj) {
+  obj.style.visibility = 'hidden';
+  obj.style.opacity = '0';
+}
+
 document.addEventListener("DOMContentLoaded", function () {
   document.getElementById('appFrame-default').contentDocument.write("Welcome to the dodo: application launcher, think of it as your desktop environment. You can launch applications from left-hand side dock. You should setup VPN clients on your devices, so you can install applications from Application Manager and access your private network. Instructions on how to do that can be viewed by clicking <b>Help</b> button after hovering over <b>Headscale</b> icon in the dock.");
-
-  function showTooltip(obj) {
-    obj.style.visibility = 'visible';
-    obj.style.opacity = '1';
-  }
-  function hideTooltip(obj) {
-    obj.style.visibility = 'hidden';
-    obj.style.opacity = '0';
-  }
-
+  document.getElementById('appFrame-default').style.backgroundColor = '#d6d6d6';
+  const icons = document.querySelectorAll(".app-icon");
   const circle = document.querySelector(".user-circle");
   const tooltipUser = document.querySelector("#tooltip-user");
-  [
-    ['mouseenter', () => showTooltip(tooltipUser)],
-    ['mouseleave', () => hideTooltip(tooltipUser)],
-  ].forEach(([event, listener]) => {
-    circle.addEventListener(event, listener);
+  const initial = document.getElementById('user-initial');
+
+  circle.addEventListener('mouseenter', () => {
+    icons.forEach(icon => {
+      const tooltip = icon.nextElementSibling;
+      hideTooltip(tooltip);
+    });
+    showTooltip(tooltipUser);
+    initial.style.color = "#7f9f7f";
   });
 
-  const iframes = {};
-  const rightPanel = document.getElementById('right-panel');
+  circle.addEventListener('mouseleave', () => {
+    hideTooltip(tooltipUser);
+    initial.style.color = "#d4888d";
+  });
 
-  function showIframe(appId) {
-    document.querySelectorAll('.appFrame').forEach(iframe => {
-      iframe.style.display = iframe.id === `appFrame-${appId}` ? 'block' : 'none';
-    });
-  }
+  let hideTimeout;
+  let activeTooltip;
 
-  function createIframe(appId, appUrl) {
-    const iframe = document.createElement('iframe');
-    iframe.id = `appFrame-${appId}`;
-    iframe.className = 'appFrame';
-    iframe.src = appUrl;
-    iframe.style.display = 'none';
-    rightPanel.appendChild(iframe);
-    iframes[appId] = iframe;
-  }
-
-  const icons = document.querySelectorAll(".app-icon-tooltip");
   icons.forEach(function (icon) {
     icon.addEventListener("click", function (event) {
       event.stopPropagation();
       const appUrl = this.getAttribute("data-app-url");
       const appId = this.getAttribute("data-app-id");
-      if (!appUrl) {
-        const modalId = `modal-${this.querySelector('.help-button').id.replace('help-button-', '')}`;
+      const modalId = this.getAttribute("data-modal-id");
+
+      if (!appUrl && modalId) {
         openModal(document.getElementById(modalId));
       } else {
         if (!iframes[appId]) createIframe(appId, appUrl);
         showIframe(appId);
-      }
-      document.querySelectorAll(".app-icon-tooltip .background-glow").forEach((e) => e.remove());
-      const glow = document.createElement('div');
-      glow.classList.add("background-glow");
-      glow.setAttribute("style", "transform: none; transform-origin: 50% 50% 0px;")
-      this.appendChild(glow);
+        document.querySelectorAll(".app-icon").forEach((icon) => {
+          icon.style.color = "var(--bodyBg)";
+        });
+        this.style.color = "var(--button)";
+      };
     });
-    const tooltip = icon.querySelector('.tooltip');
-    tooltip.addEventListener("click", function (event) {
-      event.stopPropagation();
-    });
+
+    const tooltip = icon.nextElementSibling;
     [
-      ['mouseenter', () => showTooltip(tooltip)],
-      ['mouseleave', () => hideTooltip(tooltip)],
-      ['focus', () => showTooltip(tooltip)],
-      ['blur', () => hideTooltip(tooltip)],
+      ['mouseenter', () => {
+        clearTimeout(hideTimeout);
+        if (activeTooltip && activeTooltip !== tooltip) {
+          hideTooltip(activeTooltip);
+        };
+        const rect = icon.getBoundingClientRect();
+        tooltip.style.top = `${rect.top + 26}px`;
+        showTooltip(tooltip);
+        activeTooltip = tooltip;
+      }],
+      ['mouseleave', () => {
+        hideTimeout = setTimeout(() => {
+          hideTooltip(tooltip);
+          if (activeTooltip === tooltip) {
+            activeTooltip = null;
+          };
+        }, 200);
+      }],
     ].forEach(([event, listener]) => {
       icon.addEventListener(event, listener);
+    });
+
+    tooltip.addEventListener('mouseenter', () => {
+      clearTimeout(hideTimeout);
+    });
+
+    tooltip.addEventListener('mouseleave', () => {
+      hideTimeout = setTimeout(() => {
+        hideTooltip(tooltip);
+        if (activeTooltip === tooltip) {
+          activeTooltip = null;
+        };
+      }, 200);
     });
   });
 
@@ -77,6 +95,7 @@ document.addEventListener("DOMContentLoaded", function () {
     modal.setAttribute("open", true);
     visibleModal = modal;
   };
+
   const closeModal = function (modal) {
     modal.removeAttribute("open");
     modal.setAttribute("close", true);
@@ -84,6 +103,7 @@ document.addEventListener("DOMContentLoaded", function () {
   };
 
   const helpButtons = document.querySelectorAll('.help-button');
+
   helpButtons.forEach(function (button) {
     button.addEventListener('click', function (event) {
       event.stopPropagation();
@@ -101,19 +121,33 @@ document.addEventListener("DOMContentLoaded", function () {
   });
 
   const modalHelpButtons = document.querySelectorAll('.title-menu');
+
   modalHelpButtons.forEach(function (button) {
     button.addEventListener('click', function (event) {
       event.stopPropagation();
       const helpTitle = button.getAttribute('id');
       const helpTitleId = helpTitle.substring('title-'.length);
       const helpContentId = 'help-content-' + helpTitleId;
-      const allContentElements = document.querySelectorAll('.help-content');
+      let clDiv = document.getElementById(helpContentId).parentNode;
+      const allContentElements = clDiv.querySelectorAll('.help-content');
+
       allContentElements.forEach(function (contentElement) {
         contentElement.style.display = "none";
       });
-      modalHelpButtons.forEach(function (button) {
+
+      let currentHelpTitle = button;
+      while (currentHelpTitle && !currentHelpTitle.classList.contains('modal-left')) {
+        currentHelpTitle = currentHelpTitle.parentNode;
+        if (currentHelpTitle === document.body) {
+          currentHelpTitle = null;
+          break;
+        }
+      }
+
+      currentHelpTitle.querySelectorAll('.title-menu').forEach(function (button) {
         button.removeAttribute("aria-current");
       });
+
       document.getElementById(helpContentId).style.display = 'block';
       button.setAttribute("aria-current", "page");
     });
@@ -126,13 +160,32 @@ document.addEventListener("DOMContentLoaded", function () {
   });
 
   document.addEventListener("click", (event) => {
-    if (visibleModal === null) return;
+    if (visibleModal === null || visibleModal === undefined) return;
     const modalContent = visibleModal.querySelector("article");
     const closeButton = visibleModal.querySelector(".close-button");
     if (!modalContent.contains(event.target) || closeButton.contains(event.target)) {
       closeModal(visibleModal);
     }
   });
+
+  const iframes = {};
+  const rightPanel = document.getElementById('right-panel');
+
+  function showIframe(appId) {
+    document.querySelectorAll('.appFrame').forEach(iframe => {
+      iframe.style.display = iframe.id === `appFrame-${appId}` ? 'block' : 'none';
+    });
+  };
+
+  function createIframe(appId, appUrl) {
+    const iframe = document.createElement('iframe');
+    iframe.id = `appFrame-${appId}`;
+    iframe.className = 'appFrame';
+    iframe.src = appUrl;
+    iframe.style.display = 'none';
+    rightPanel.appendChild(iframe);
+    iframes[appId] = iframe;
+  };
 });
 
 function copyToClipboard(elem, text) {
@@ -140,7 +193,7 @@ function copyToClipboard(elem, text) {
   elem.setAttribute("data-tooltip", "Copied");
   elem.setAttribute("data-placement", "bottom");
   setTimeout(() => {
-	elem.removeAttribute("data-tooltip");
-	elem.removeAttribute("data-placement");
+    elem.removeAttribute("data-tooltip");
+    elem.removeAttribute("data-placement");
   }, 500);
-}
+};

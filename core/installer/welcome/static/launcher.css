@@ -3,23 +3,32 @@
   --pico-color: unset;
 }
 
+:root {
+  --bg: #d6d6d6;
+  --bodyBg: #3a3a3a;
+  --text: #3a3a3a;
+  --formText: #d6d6d6;
+  --button: #7f9f7f;
+  --logo: #d4888d;
+  --fontSize: 14px;
+}
+
 body {
   margin: 0;
   padding: 0;
-  font-family: Arial, sans-serif;
+  font-family: Hack, monospace;
   display: flex;
   height: 100vh;
-  padding-left: 10px !important;
-  padding-right: 10px !important;
-  background-color: black;
+  padding-left: 5px !important;
+  padding-right: 5px !important;
+  background-color: var(--bodyBg);
+  overflow-x: hidden;
+  overflow-y: hidden;
 }
 
 #left-panel {
   width: 80px;
-  background-color: #f0f0f0;
-  border-radius: 10px;
-  border-width: 1px;
-  border-color: black;
+  background-color: var(--bg);
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -31,15 +40,50 @@ body {
   display: flex;
   flex-direction: column;
   align-items: center;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding-top: 3px;
+  width: 95% !important;
+  /* scrollbar-width: thin;
+  scrollbar-color: var(--bodyBg) var(--bg); */
 }
+
+.scrollbar-custom {
+  scrollbar-width: thin;
+  scrollbar-color: var(--bodyBg) var(--bg);
+}
+
+/* .app-list:hover::-webkit-scrollbar {
+  width: 6px;
+  scrollbar-color: var(--bodyBg) var(--bg);
+} */
+
+.scrollbar-custom::-webkit-scrollbar {
+  width: 6px;
+}
+
+.scrollbar-custom::-webkit-scrollbar-track {
+  background-color: var(--bg) !important;
+}
+
+.scrollbar-custom::-webkit-scrollbar-thumb {
+  background-color: var(--bodyBg) !important;
+  border-radius: 4px !important;
+}
+
+.scrollbar-custom::-webkit-scrollbar-thumb:hover {
+  background-color: var(--bodyBg);
+}
+
+/* .layout-scrollbar::-webkit-scrollbar-thumb:active {
+  background-color: var(--bodyBg);
+} */
 
 #right-panel {
   flex: 1;
-  background-color: #f0f0f0;
-  margin: 5px;
+  background-color: none !important;
+  margin: 5px 0 5px 5px;
   padding: 2px;
-  border-radius: 10px;
-  border-color: black;
 }
 
 .appFrame {
@@ -49,30 +93,28 @@ body {
   border: 0;
 }
 
-.app-icon-tooltip {
-  position: relative;
-  display: inline-block;
-  align-items: flex-start;
+.app-icon {
+  /* position: relative; */
+  /* display: inline-block; */
+  display: flex;
+  flex-direction: column;
+  align-items: center;
   justify-content: center;
-  cursor: initial;
+  /* cursor: initial; */
   width: 80px !important;
   height: 50px !important;
   margin-bottom: 10px !important;
   cursor: pointer !important;
-  --pico-background-color: unset !important;
-  --pico-color: unset !important;
+  /* --pico-background-color: unset !important;
+  --pico-color: unset !important; */
 }
 
 .tooltip {
   position: absolute;
   width: 200px;
-  border-radius: 0 10px 10px 0;
-  top: 70%;
-  left: 98%;
+  left: 90px;
   transform: translateY(-50%);
-  background-color: black;
-  color: white;
-  box-shadow: 0 0 5px rgba(0, 0, 0, 0.2);
+  background-color: var(--bodyBg);
   padding: 5px;
   z-index: 1;
   display: flex;
@@ -88,56 +130,45 @@ body {
   margin-top: 5px !important;
   padding: 0 !important;
   border: 0 !important;
-  margin-bottom: 5px !important;
+  margin-bottom: 1px !important;
   width: 100% !important;
-  color: white !important;
+  background-color: var(--button) !important;
+  color: var(--bodyBg) !important;
+  border-radius: 0 !important;
   cursor: pointer !important;
   font-size: 16px !important;
 }
 
-.icon {
-  display: flex;
-  justify-content: center;
-  align-items: center !important;
-}
-
 .tooltip p {
-  color: white;
+  color: var(--formText);
   margin: 0;
   cursor: auto;
+  font-size: var(--fontSize);
 }
 
-.app-icon-tooltip:hover {
+.app-icon:hover {
   transform: scale(1.15);
 }
 
-.app-icon-tooltip .background-glow {
-  position: absolute;
-  top: 0;
-  left: 4px;
-  right: 4px;
-  bottom: 0;
-  background: rgba(0, 0, 0, 0);
-  pointer-events: none;
-  border-radius: 5px;
-  box-shadow: 0px 0px 7px 7px black;
-}
-
 .modal-left {
-  width: 30%;
   overflow-y: auto;
   float: left;
   margin-left: 0px;
+  padding-right: 10px;
   background-color: #fbfcfc;
   border-radius: 2px;
 }
 
 .modal-right {
-  /* flex: 1; */
-  width: 70%;
+  flex: 1;
+  /* width: 70%; */
   overflow-y: auto;
   float: right;
   margin-left: 2px;
+  color: var(--bg);
+  padding-left: 10px;
+  padding-right: 10px;
+  font-size: 16px !important;
 }
 
 .app-help-modal {
@@ -173,6 +204,12 @@ header {
   align-items: center;
   position: relative;
   margin-bottom: 2px !important;
+  background-color: var(--bodyBg) !important;
+}
+
+header h4 {
+  color: var(--formText) !important;
+  padding-left: 10px;
 }
 
 .close-button {
@@ -185,7 +222,7 @@ header {
   height: 1.5em;
   position: absolute;
   top: 11px;
-  right: 5px;
+  right: 28px;
 }
 
 .modal-article {
@@ -194,6 +231,8 @@ header {
   min-height: 90% !important;
   max-height: 90% !important;
   overflow: hidden;
+  padding-left: 5px !important;
+  padding-right: 5px !important;
 }
 
 .help-content {
@@ -204,19 +243,21 @@ header {
   width: 50px;
   height: 50px;
   border-radius: 50%;
-  background-color: #ccc;
+  background-color: var(--bodyBg);
   display: flex;
   justify-content: center;
   align-items: center;
+  margin-top: 2px;
 }
 
-.circle p {
+#user-initial {
   font-size: 24px;
   text-align: center;
   line-height: 50px;
   margin: 0;
   position: relative;
   display: inline-block;
+  color: var(--logo);
 }
 
 .user-circle {
@@ -232,7 +273,7 @@ header {
   margin-top: 2px !important;
   margin-bottom: 4px !important;
   border-width: 2px !important;
-  border-color: black !important;
+  border-color: var(--bodyBg) !important;
   width: 100% !important;
 }
 
@@ -245,7 +286,7 @@ header {
 
 .modal-left ul li {
   list-style: none !important;
-  padding-inline-start: 19px !important;
+  padding-inline-start: 10px !important;
   margin-bottom: 0px;
   font-size: 16px !important;
 }
@@ -254,19 +295,17 @@ header {
   --pico-text-decoration: none;
   cursor: pointer;
 }
-
 .modal-left ul li a[aria-current] {
   color: var(--pico-primary);
 }
 
 .tooltip-user {
   position: absolute;
-  top: 54px;
-  left: 90px;
+  top: 45px;
+  left: 85.5px;
   transform: translateY(-50%);
   width: 234px;
-  background-color: black;
-  box-shadow: 0 0 5px rgba(0, 0, 0, 0.2);
+  background-color: var(--bodyBg);
   padding: 5px;
   z-index: 1;
   display: flex;
@@ -274,7 +313,6 @@ header {
   align-items: center;
   visibility: hidden;
   opacity: 0;
-  border-radius: 0 0 10px 0;
   cursor: auto;
 }
 
@@ -284,9 +322,11 @@ header {
   border: 0 !important;
   margin-bottom: 5px !important;
   width: 100% !important;
-  color: white !important;
   cursor: pointer !important;
   font-size: 19px !important;
+  border-radius: 0;
+  background-color: var(--button);
+  color: var(--text) !important;
 }
 
 .tooltip-user p {
@@ -294,4 +334,5 @@ header {
   margin: 0;
   cursor: auto;
   font-size: 19px;
+  color: var(--logo);
 }
