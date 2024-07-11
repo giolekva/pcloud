@@ -2,13 +2,16 @@ package welcome
 
 import (
 	"context"
+	"embed"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"golang.org/x/crypto/bcrypt"
+	"html/template"
 	"io"
 	"io/fs"
 	"net/http"
+	"slices"
 	"strings"
 	"sync"
 
@@ -19,6 +22,9 @@ import (
 	"github.com/gorilla/securecookie"
 )
 
+//go:embed dodo-app-tmpl/*
+var dodoAppTmplFS embed.FS
+
 const (
 	ConfigRepoName = "config"
 	namespacesFile = "/namespaces.json"
@@ -27,6 +33,18 @@ const (
 	sessionCookie  = "dodo-app-session"
 	userCtx        = "user"
 )
+
+type dodoAppTmplts struct {
+	index *template.Template
+}
+
+func parseTemplatesDodoApp(fs embed.FS) (dodoAppTmplts, error) {
+	index, err := template.New("index.html").ParseFS(fs, "dodo-app-tmpl/index.html")
+	if err != nil {
+		return dodoAppTmplts{}, err
+	}
+	return dodoAppTmplts{index}, nil
+}
 
 type DodoAppServer struct {
 	l                 sync.Locker
@@ -39,12 +57,14 @@ type DodoAppServer struct {
 	client            soft.Client
 	namespace         string
 	envAppManagerAddr string
+	networks          []string
 	env               installer.EnvConfig
 	nsc               installer.NamespaceCreator
 	jc                installer.JobCreator
 	workers           map[string]map[string]struct{}
 	appNs             map[string]string
 	sc                *securecookie.SecureCookie
+	tmplts            dodoAppTmplts
 }
 
 // TODO(gio): Initialize appNs on startup
@@ -58,10 +78,15 @@ func NewDodoAppServer(
 	client soft.Client,
 	namespace string,
 	envAppManagerAddr string,
+	networks []string,
 	nsc installer.NamespaceCreator,
 	jc installer.JobCreator,
 	env installer.EnvConfig,
 ) (*DodoAppServer, error) {
+	tmplts, err := parseTemplatesDodoApp(dodoAppTmplFS)
+	if err != nil {
+		return nil, err
+	}
 	sc := securecookie.New(
 		securecookie.GenerateRandomKey(64),
 		securecookie.GenerateRandomKey(32),
@@ -77,12 +102,14 @@ func NewDodoAppServer(
 		client,
 		namespace,
 		envAppManagerAddr,
+		networks,
 		env,
 		nsc,
 		jc,
 		map[string]map[string]struct{}{},
 		map[string]string{},
 		sc,
+		tmplts,
 	}
 	config, err := client.GetRepo(ConfigRepoName)
 	if err != nil {
@@ -223,6 +250,10 @@ func (s *DodoAppServer) handleLogin(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, fmt.Sprintf("/%s", appName), http.StatusSeeOther)
 }
 
+type statusData struct {
+	Apps []string
+}
+
 func (s *DodoAppServer) handleStatus(w http.ResponseWriter, r *http.Request) {
 	user := r.Context().Value(userCtx)
 	if user == nil {
@@ -234,8 +265,10 @@ func (s *DodoAppServer) handleStatus(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	for _, a := range apps {
-		fmt.Fprintf(w, "%s\n", a)
+	data := statusData{apps}
+	if err := s.tmplts.index.Execute(w, data); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
 	}
 }
 
@@ -272,7 +305,7 @@ func (s *DodoAppServer) handleApiUpdate(w http.ResponseWriter, r *http.Request) 
 	c := contents.String()
 	fmt.Println(c)
 	if err := json.NewDecoder(strings.NewReader(c)).Decode(&req); err != nil {
-		fmt.Println(err)
+		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 	if req.Ref != "refs/heads/master" || req.Repository.Name == ConfigRepoName {
@@ -280,7 +313,7 @@ func (s *DodoAppServer) handleApiUpdate(w http.ResponseWriter, r *http.Request) 
 	}
 	// TODO(gio): Create commit record on app init as well
 	go func() {
-		networks, err := getNetworks(fmt.Sprintf("%s/api/networks", s.envAppManagerAddr))
+		networks, err := s.getNetworks()
 		if err != nil {
 			return
 		}
@@ -326,6 +359,7 @@ func (s *DodoAppServer) handleApiRegisterWorker(w http.ResponseWriter, r *http.R
 
 type apiCreateAppReq struct {
 	AdminPublicKey string `json:"adminPublicKey"`
+	NetworkName    string `json:"networkName"`
 }
 
 type apiCreateAppResp struct {
@@ -345,7 +379,7 @@ func (s *DodoAppServer) handleApiCreateApp(w http.ResponseWriter, r *http.Reques
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	password, err := s.CreateApp(appName, req.AdminPublicKey)
+	password, err := s.CreateApp(appName, req.AdminPublicKey, req.NetworkName)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -360,7 +394,7 @@ func (s *DodoAppServer) handleApiCreateApp(w http.ResponseWriter, r *http.Reques
 	}
 }
 
-func (s *DodoAppServer) CreateApp(appName, adminPublicKey string) (string, error) {
+func (s *DodoAppServer) CreateApp(appName, adminPublicKey, networkName string) (string, error) {
 	s.l.Lock()
 	defer s.l.Unlock()
 	fmt.Printf("Creating app: %s\n", appName)
@@ -373,11 +407,7 @@ func (s *DodoAppServer) CreateApp(appName, adminPublicKey string) (string, error
 	if err != nil {
 		return "", err
 	}
-	if user != "" {
-		if err := s.client.AddPublicKey(user, adminPublicKey); err != nil {
-			return "", err
-		}
-	} else {
+	if user == "" {
 		user = appName
 		if err := s.client.AddUser(user, adminPublicKey); err != nil {
 			return "", err
@@ -409,7 +439,7 @@ func (s *DodoAppServer) CreateApp(appName, adminPublicKey string) (string, error
 	if err != nil {
 		return "", err
 	}
-	if err := InitRepo(appRepo); err != nil {
+	if err := InitRepo(appRepo, networkName); err != nil {
 		return "", err
 	}
 	apps := installer.NewInMemoryAppRepository(installer.CreateAllApps())
@@ -424,7 +454,7 @@ func (s *DodoAppServer) CreateApp(appName, adminPublicKey string) (string, error
 	}
 	namespace := fmt.Sprintf("%s%s%s", s.env.NamespacePrefix, app.Namespace(), suffix)
 	s.appNs[appName] = namespace
-	networks, err := getNetworks(fmt.Sprintf("%s/api/networks", s.envAppManagerAddr))
+	networks, err := s.getNetworks()
 	if err != nil {
 		return "", err
 	}
@@ -460,7 +490,7 @@ func (s *DodoAppServer) CreateApp(appName, adminPublicKey string) (string, error
 				"gitRepoPublicKey": s.gitRepoPublicKey,
 			},
 			installer.WithConfig(&s.env),
-			installer.WithNetworks(networks),
+			installer.WithNoNetworks(),
 			installer.WithNoPublish(),
 			installer.WithNoLock(),
 		); err != nil {
@@ -593,14 +623,14 @@ const appCue = `app: {
 	type: "golang:1.22.0"
 	run: "main.go"
 	ingress: {
-		network: "Private" // or Public
+		network: "%s"
 		subdomain: "testapp"
 		auth: enabled: false
 	}
 }
 `
 
-func InitRepo(repo soft.RepoIO) error {
+func InitRepo(repo soft.RepoIO, networkName string) error {
 	return repo.Do(func(fs soft.RepoFS) (string, error) {
 		{
 			w, err := fs.Writer("go.mod")
@@ -624,7 +654,7 @@ func InitRepo(repo soft.RepoIO) error {
 				return "", err
 			}
 			defer w.Close()
-			fmt.Fprint(w, appCue)
+			fmt.Fprintf(w, appCue, networkName)
 		}
 		return "go web app template", nil
 	})
@@ -634,14 +664,24 @@ func generatePassword() string {
 	return "foo"
 }
 
-func getNetworks(addr string) ([]installer.Network, error) {
+func (s *DodoAppServer) getNetworks() ([]installer.Network, error) {
+	addr := fmt.Sprintf("%s/api/networks", s.envAppManagerAddr)
 	resp, err := http.Get(addr)
 	if err != nil {
 		return nil, err
 	}
-	ret := []installer.Network{}
-	if json.NewDecoder(resp.Body).Decode(&ret); err != nil {
+	networks := []installer.Network{}
+	if json.NewDecoder(resp.Body).Decode(&networks); err != nil {
 		return nil, err
+	}
+	if len(s.networks) == 0 {
+		return networks, nil
+	}
+	ret := []installer.Network{}
+	for _, n := range networks {
+		if slices.Contains(s.networks, n.Name) {
+			ret = append(ret, n)
+		}
 	}
 	return ret, nil
 }

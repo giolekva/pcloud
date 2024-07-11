@@ -15,7 +15,6 @@ namespace: "dodo-app-instance"
 readme: "Deploy app by pushing to Git repository"
 description: "Deploy app by pushing to Git repository"
 icon: ""
-_domain: "\(input.subdomain).\(input.network.domain)"
 
 resources: {
 	"config-kustomization": {

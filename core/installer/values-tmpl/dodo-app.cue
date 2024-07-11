@@ -8,7 +8,8 @@ input: {
 	network: #Network @name(Network)
 	subdomain: string @name(Subdomain)
 	sshPort: int @name(SSH Port) @role(port)
-	adminKey: string @name(Admin SSH Public Key)
+	adminKey: string | *"" @name(Admin SSH Public Key)
+	allowedNetworks: string | *"" @name(Allowed Networks)
 
 	// TODO(gio): auto generate
 	ssKeys: #SSHKey
@@ -117,6 +118,7 @@ helm: {
 			appAdminKey: input.adminKey
 			gitRepoPublicKey: input.ssKeys.public
 			persistentVolumeClaimName: volumes.db.name
+			allowedNetworks: input.allowedNetworks
 		}
 	}
 }

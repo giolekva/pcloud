@@ -28,6 +28,7 @@ var dodoAppFlags struct {
 	appAdminKey       string
 	gitRepoPublicKey  string
 	db                string
+	networks          []string
 }
 
 func dodoAppCmd() *cobra.Command {
@@ -101,6 +102,12 @@ func dodoAppCmd() *cobra.Command {
 		"",
 		"",
 	)
+	cmd.Flags().StringSliceVar(
+		&dodoAppFlags.networks,
+		"networks",
+		[]string{},
+		"",
+	)
 	return cmd
 }
 
@@ -160,6 +167,7 @@ func dodoAppCmdRun(cmd *cobra.Command, args []string) error {
 		softClient,
 		dodoAppFlags.namespace,
 		dodoAppFlags.envAppManagerAddr,
+		dodoAppFlags.networks,
 		nsc,
 		jc,
 		env,
@@ -168,7 +176,7 @@ func dodoAppCmdRun(cmd *cobra.Command, args []string) error {
 		return err
 	}
 	if dodoAppFlags.appAdminKey != "" {
-		if _, err := s.CreateApp("app", dodoAppFlags.appAdminKey); err != nil {
+		if _, err := s.CreateApp("app", dodoAppFlags.appAdminKey, "Private"); err != nil {
 			return err
 		}
 	}

@@ -11,21 +11,7 @@
 	network: #EnvNetwork
 }
 
-networks: {
-	public: #Network & {
-		name: "Public"
-		ingressClass: "\(global.pcloudEnvName)-ingress-public"
-		certificateIssuer: "\(global.id)-public"
-		domain: global.domain
-		allocatePortAddr: "http://port-allocator.\(global.pcloudEnvName)-ingress-public.svc.cluster.local/api/allocate"
-	}
-	private: #Network & {
-		name: "Private"
-		ingressClass: "\(global.id)-ingress-private"
-		domain: global.privateDomain
-		allocatePortAddr: "http://port-allocator.\(global.id)-ingress-private.svc.cluster.local/api/allocate"
-	}
-}
+networks: {}
 
 // TODO(gio): remove
 ingressPrivate: "\(global.id)-ingress-private"

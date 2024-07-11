@@ -127,6 +127,7 @@ spec:
         - --app-admin-key={{ .Values.appAdminKey }}
         - --git-repo-public-key={{ .Values.gitRepoPublicKey }}
         - --db=/dodo-app/db/apps.db
+        - --networks={{ .Values.allowedNetworks }}
         volumeMounts:
         - name: ssh-key
           readOnly: true

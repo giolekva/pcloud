@@ -649,6 +649,10 @@ func WithNetworks(networks []Network) InstallOption {
 	}
 }
 
+func WithNoNetworks() InstallOption {
+	return WithNetworks([]Network{})
+}
+
 func WithBranch(branch string) InstallOption {
 	return func(o *installOptions) {
 		o.Branch = branch
