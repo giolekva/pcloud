@@ -87,7 +87,11 @@ func (m *AppManager) FindAllInstances() ([]AppInstanceConfig, error) {
 func (m *AppManager) FindAllAppInstances(name string) ([]AppInstanceConfig, error) {
 	kust, err := soft.ReadKustomization(m.repoIO, filepath.Join(m.appDirRoot, "kustomization.yaml"))
 	if err != nil {
-		return nil, err
+		if errors.Is(err, fs.ErrNotExist) {
+			return nil, nil
+		} else {
+			return nil, err
+		}
 	}
 	ret := make([]AppInstanceConfig, 0)
 	for _, app := range kust.Resources {
@@ -404,6 +408,16 @@ func (m *AppManager) Install(
 			return ReleaseResources{}, err
 		}
 	}
+	var networks []Network
+	if o.Networks != nil {
+		networks = o.Networks
+	} else {
+		var err error
+		networks, err = m.CreateNetworks(env)
+		if err != nil {
+			return ReleaseResources{}, err
+		}
+	}
 	var lg LocalChartGenerator
 	if o.LG != nil {
 		lg = o.LG
@@ -416,7 +430,7 @@ func (m *AppManager) Install(
 		RepoAddr:      m.repoIO.FullAddress(),
 		AppDir:        appDir,
 	}
-	rendered, err := app.Render(release, env, values, nil)
+	rendered, err := app.Render(release, env, networks, values, nil)
 	if err != nil {
 		return ReleaseResources{}, err
 	}
@@ -447,7 +461,7 @@ func (m *AppManager) Install(
 	if o.FetchContainerImages {
 		release.ImageRegistry = imageRegistry
 	}
-	rendered, err = app.Render(release, env, values, localCharts)
+	rendered, err = app.Render(release, env, networks, values, localCharts)
 	if err != nil {
 		return ReleaseResources{}, err
 	}
@@ -456,7 +470,6 @@ func (m *AppManager) Install(
 	}
 	// TODO(gio): add ingress-nginx to release resources
 	if err := openPorts(rendered.Ports, portReservations, allocators); err != nil {
-		fmt.Println(err)
 		return ReleaseResources{}, err
 	}
 	return ReleaseResources{
@@ -531,7 +544,11 @@ func (m *AppManager) Update(
 	if err != nil {
 		return ReleaseResources{}, err
 	}
-	rendered, err := app.Render(config.Release, env, values, renderedCfg.LocalCharts)
+	networks, err := m.CreateNetworks(env)
+	if err != nil {
+		return ReleaseResources{}, err
+	}
+	rendered, err := app.Render(config.Release, env, networks, values, renderedCfg.LocalCharts)
 	if err != nil {
 		return ReleaseResources{}, err
 	}
@@ -563,15 +580,14 @@ func (m *AppManager) Remove(instanceId string) error {
 		return err
 	}
 	if err := closePorts(portForward); err != nil {
-		fmt.Println(err)
 		return err
 	}
 	return nil
 }
 
 // TODO(gio): deduplicate with cue definition in app.go, this one should be removed.
-func CreateNetworks(env EnvConfig) []Network {
-	return []Network{
+func (m *AppManager) CreateNetworks(env EnvConfig) ([]Network, error) {
+	ret := []Network{
 		{
 			Name:               "Public",
 			IngressClass:       fmt.Sprintf("%s-ingress-public", env.InfraName),
@@ -590,11 +606,28 @@ func CreateNetworks(env EnvConfig) []Network {
 			DeallocatePortAddr: fmt.Sprintf("http://port-allocator.%s-ingress-private.svc.cluster.local/api/remove", env.Id),
 		},
 	}
+	n, err := m.FindAllAppInstances("network")
+	if err != nil {
+		return nil, err
+	}
+	for _, a := range n {
+		ret = append(ret, Network{
+			Name:               a.Input["name"].(string),
+			IngressClass:       fmt.Sprintf("%s-ingress-public", env.InfraName),
+			CertificateIssuer:  fmt.Sprintf("%s-public", env.Id),
+			Domain:             a.Input["domain"].(string),
+			AllocatePortAddr:   fmt.Sprintf("http://port-allocator.%s-ingress-public.svc.cluster.local/api/allocate", env.InfraName),
+			ReservePortAddr:    fmt.Sprintf("http://port-allocator.%s-ingress-public.svc.cluster.local/api/reserve", env.InfraName),
+			DeallocatePortAddr: fmt.Sprintf("http://port-allocator.%s-ingress-public.svc.cluster.local/api/remove", env.InfraName),
+		})
+	}
+	return ret, nil
 }
 
 type installOptions struct {
 	NoPublish            bool
 	Env                  *EnvConfig
+	Networks             []Network
 	Branch               string
 	LG                   LocalChartGenerator
 	FetchContainerImages bool
@@ -607,6 +640,12 @@ type InstallOption func(*installOptions)
 func WithConfig(env *EnvConfig) InstallOption {
 	return func(o *installOptions) {
 		o.Env = env
+	}
+}
+
+func WithNetworks(networks []Network) InstallOption {
+	return func(o *installOptions) {
+		o.Networks = networks
 	}
 }
 

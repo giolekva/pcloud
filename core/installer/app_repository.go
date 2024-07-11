@@ -33,6 +33,7 @@ var storeEnvAppConfigs = []string{
 	// "values-tmpl/qbittorrent.cue",
 	// "values-tmpl/jellyfin.cue",
 	"values-tmpl/rpuppy.cue",
+	"values-tmpl/certificate-issuer-custom.cue",
 }
 
 var envAppConfigs = []string{

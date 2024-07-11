@@ -29,21 +29,22 @@ const (
 )
 
 type DodoAppServer struct {
-	l                sync.Locker
-	st               Store
-	port             int
-	apiPort          int
-	self             string
-	sshKey           string
-	gitRepoPublicKey string
-	client           soft.Client
-	namespace        string
-	env              installer.EnvConfig
-	nsc              installer.NamespaceCreator
-	jc               installer.JobCreator
-	workers          map[string]map[string]struct{}
-	appNs            map[string]string
-	sc               *securecookie.SecureCookie
+	l                 sync.Locker
+	st                Store
+	port              int
+	apiPort           int
+	self              string
+	sshKey            string
+	gitRepoPublicKey  string
+	client            soft.Client
+	namespace         string
+	envAppManagerAddr string
+	env               installer.EnvConfig
+	nsc               installer.NamespaceCreator
+	jc                installer.JobCreator
+	workers           map[string]map[string]struct{}
+	appNs             map[string]string
+	sc                *securecookie.SecureCookie
 }
 
 // TODO(gio): Initialize appNs on startup
@@ -56,6 +57,7 @@ func NewDodoAppServer(
 	gitRepoPublicKey string,
 	client soft.Client,
 	namespace string,
+	envAppManagerAddr string,
 	nsc installer.NamespaceCreator,
 	jc installer.JobCreator,
 	env installer.EnvConfig,
@@ -74,6 +76,7 @@ func NewDodoAppServer(
 		gitRepoPublicKey,
 		client,
 		namespace,
+		envAppManagerAddr,
 		env,
 		nsc,
 		jc,
@@ -277,7 +280,11 @@ func (s *DodoAppServer) handleApiUpdate(w http.ResponseWriter, r *http.Request) 
 	}
 	// TODO(gio): Create commit record on app init as well
 	go func() {
-		if err := s.updateDodoApp(req.Repository.Name, s.appNs[req.Repository.Name]); err != nil {
+		networks, err := getNetworks(fmt.Sprintf("%s/api/networks", s.envAppManagerAddr))
+		if err != nil {
+			return
+		}
+		if err := s.updateDodoApp(req.Repository.Name, s.appNs[req.Repository.Name], networks); err != nil {
 			if err := s.st.CreateCommit(req.Repository.Name, req.After, err.Error()); err != nil {
 				fmt.Printf("Error: %s\n", err.Error())
 				return
@@ -417,7 +424,11 @@ func (s *DodoAppServer) CreateApp(appName, adminPublicKey string) (string, error
 	}
 	namespace := fmt.Sprintf("%s%s%s", s.env.NamespacePrefix, app.Namespace(), suffix)
 	s.appNs[appName] = namespace
-	if err := s.updateDodoApp(appName, namespace); err != nil {
+	networks, err := getNetworks(fmt.Sprintf("%s/api/networks", s.envAppManagerAddr))
+	if err != nil {
+		return "", err
+	}
+	if err := s.updateDodoApp(appName, namespace, networks); err != nil {
 		return "", err
 	}
 	repo, err := s.client.GetRepo(ConfigRepoName)
@@ -449,6 +460,7 @@ func (s *DodoAppServer) CreateApp(appName, adminPublicKey string) (string, error
 				"gitRepoPublicKey": s.gitRepoPublicKey,
 			},
 			installer.WithConfig(&s.env),
+			installer.WithNetworks(networks),
 			installer.WithNoPublish(),
 			installer.WithNoLock(),
 		); err != nil {
@@ -509,7 +521,7 @@ func (s *DodoAppServer) handleApiAddAdminKey(w http.ResponseWriter, r *http.Requ
 	}
 }
 
-func (s *DodoAppServer) updateDodoApp(name, namespace string) error {
+func (s *DodoAppServer) updateDodoApp(name, namespace string, networks []installer.Network) error {
 	repo, err := s.client.GetRepo(name)
 	if err != nil {
 		return err
@@ -540,6 +552,7 @@ func (s *DodoAppServer) updateDodoApp(name, namespace string) error {
 			"sshPrivateKey": s.sshKey,
 		},
 		installer.WithConfig(&s.env),
+		installer.WithNetworks(networks),
 		installer.WithLocalChartGenerator(lg),
 		installer.WithBranch("dodo"),
 		installer.WithForce(),
@@ -619,4 +632,16 @@ func InitRepo(repo soft.RepoIO) error {
 
 func generatePassword() string {
 	return "foo"
+}
+
+func getNetworks(addr string) ([]installer.Network, error) {
+	resp, err := http.Get(addr)
+	if err != nil {
+		return nil, err
+	}
+	ret := []installer.Network{}
+	if json.NewDecoder(resp.Body).Decode(&ret); err != nil {
+		return nil, err
+	}
+	return ret, nil
 }

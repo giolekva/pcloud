@@ -112,6 +112,7 @@ helm: {
 			sshPrivateKey: base64.Encode(null, input.dAppKeys.private)
 			self: "api.\(release.namespace).svc.cluster.local"
 			namespace: release.namespace
+			envAppManagerAddr: "http://appmanager.\(global.namespacePrefix)appmanager.svc.cluster.local"
 			envConfig: base64.Encode(null, json.Marshal(global))
 			appAdminKey: input.adminKey
 			gitRepoPublicKey: input.ssKeys.public
