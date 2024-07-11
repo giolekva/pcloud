@@ -49,7 +49,7 @@ helm: {
 			namespace: "\(global.namespacePrefix)core-auth"
 		}]
 		values: {
-			name: "oauth2-client"
+			name: "\(release.namespace)-headscale"
 			secretName: _oauth2ClientSecretName
 			grantTypes: ["authorization_code"]
 			responseTypes: ["code"]

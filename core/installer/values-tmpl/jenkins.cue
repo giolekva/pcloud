@@ -61,7 +61,7 @@ helm: {
 		chart: charts.oauth2Client
 		info: "Creating OAuth2 client"
 		values: {
-			name: "oauth2-client"
+			name: "\(release.namespace)-jenkins"
 			secretName: _oauth2ClientCredentials
 			grantTypes: ["authorization_code"]
 			scope: "openid profile email offline offline_access"

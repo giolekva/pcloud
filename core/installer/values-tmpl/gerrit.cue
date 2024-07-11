@@ -112,7 +112,7 @@ helm: {
 		chart: charts.oauth2Client
 		info: "Creating OAuth2 client"
 		values: {
-			name: "gerrit-oauth2-client"
+			name: "\(release.namespace)-gerrit"
 			secretName: _oauth2ClientCredentials
 			grantTypes: ["authorization_code"]
 			scope: "openid profile email"
