@@ -54,7 +54,7 @@ helm: {
 		chart: charts.oauth2Client
 		info: "Creating OAuth2 client"
 		values: {
-			name: "oauth2-client"
+			name: "\(release.namespace)-matrix"
 			secretName: _oauth2ClientSecretName
 			grantTypes: ["authorization_code"]
 			responseTypes: ["code"]

@@ -66,7 +66,7 @@ helm: {
 	"oauth2-client": {
 		chart: charts.oauth2Client
 		values: {
-			name: "penpot"
+			name: "\(release.namespace)-penpot"
 			secretName: _oauth2SecretName
 			grantTypes: ["authorization_code"]
 			responseTypes: ["code"]
