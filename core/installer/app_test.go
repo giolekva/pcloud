@@ -2,28 +2,51 @@ package installer
 
 import (
 	_ "embed"
+	"fmt"
 	"net"
 	"testing"
 )
 
-var env = EnvConfig{
-	InfraName:       "dodo",
-	Id:              "id",
-	ContactEmail:    "foo@bar.ge",
-	Domain:          "bar.ge",
-	PrivateDomain:   "p.bar.ge",
-	PublicIP:        []net.IP{net.ParseIP("1.2.3.4")},
-	NameserverIP:    []net.IP{net.ParseIP("1.2.3.4")},
-	NamespacePrefix: "id-",
-	Network: EnvNetwork{
-		DNS:            net.ParseIP("1.1.1.1"),
-		DNSInClusterIP: net.ParseIP("2.2.2.2"),
-		Ingress:        net.ParseIP("3.3.3.3"),
-		Headscale:      net.ParseIP("4.4.4.4"),
-		ServicesFrom:   net.ParseIP("5.5.5.5"),
-		ServicesTo:     net.ParseIP("6.6.6.6"),
-	},
-}
+var (
+	env = EnvConfig{
+		InfraName:       "dodo",
+		Id:              "id",
+		ContactEmail:    "foo@bar.ge",
+		Domain:          "bar.ge",
+		PrivateDomain:   "p.bar.ge",
+		PublicIP:        []net.IP{net.ParseIP("1.2.3.4")},
+		NameserverIP:    []net.IP{net.ParseIP("1.2.3.4")},
+		NamespacePrefix: "id-",
+		Network: EnvNetwork{
+			DNS:            net.ParseIP("1.1.1.1"),
+			DNSInClusterIP: net.ParseIP("2.2.2.2"),
+			Ingress:        net.ParseIP("3.3.3.3"),
+			Headscale:      net.ParseIP("4.4.4.4"),
+			ServicesFrom:   net.ParseIP("5.5.5.5"),
+			ServicesTo:     net.ParseIP("6.6.6.6"),
+		},
+	}
+
+	networks = []Network{
+		{
+			Name:               "Public",
+			IngressClass:       fmt.Sprintf("%s-ingress-public", env.InfraName),
+			CertificateIssuer:  fmt.Sprintf("%s-public", env.Id),
+			Domain:             env.Domain,
+			AllocatePortAddr:   fmt.Sprintf("http://port-allocator.%s-ingress-public.svc.cluster.local/api/allocate", env.InfraName),
+			ReservePortAddr:    fmt.Sprintf("http://port-allocator.%s-ingress-public.svc.cluster.local/api/reserve", env.InfraName),
+			DeallocatePortAddr: fmt.Sprintf("http://port-allocator.%s-ingress-public.svc.cluster.local/api/remove", env.InfraName),
+		},
+		{
+			Name:               "Private",
+			IngressClass:       fmt.Sprintf("%s-ingress-private", env.Id),
+			Domain:             env.PrivateDomain,
+			AllocatePortAddr:   fmt.Sprintf("http://port-allocator.%s-ingress-private.svc.cluster.local/api/allocate", env.Id),
+			ReservePortAddr:    fmt.Sprintf("http://port-allocator.%s-ingress-private.svc.cluster.local/api/reserve", env.Id),
+			DeallocatePortAddr: fmt.Sprintf("http://port-allocator.%s-ingress-private.svc.cluster.local/api/remove", env.Id),
+		},
+	}
+)
 
 func TestAuthProxyEnabled(t *testing.T) {
 	r := NewInMemoryAppRepository(CreateAllApps())
@@ -46,7 +69,7 @@ func TestAuthProxyEnabled(t *testing.T) {
 				"groups":  "a,b",
 			},
 		}
-		rendered, err := a.Render(release, env, values, nil)
+		rendered, err := a.Render(release, env, networks, values, nil)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -76,7 +99,7 @@ func TestAuthProxyDisabled(t *testing.T) {
 				"enabled": false,
 			},
 		}
-		rendered, err := a.Render(release, env, values, nil)
+		rendered, err := a.Render(release, env, networks, values, nil)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -101,7 +124,7 @@ func TestGroupMemberships(t *testing.T) {
 	values := map[string]any{
 		"authGroups": "foo,bar",
 	}
-	rendered, err := a.Render(release, env, values, nil)
+	rendered, err := a.Render(release, env, networks, values, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -131,7 +154,7 @@ func TestGerrit(t *testing.T) {
 		},
 		"sshPort": 22,
 	}
-	rendered, err := a.Render(release, env, values, nil)
+	rendered, err := a.Render(release, env, networks, values, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -156,7 +179,7 @@ func TestJenkins(t *testing.T) {
 		"subdomain": "jenkins",
 		"network":   "Private",
 	}
-	rendered, err := a.Render(release, env, values, nil)
+	rendered, err := a.Render(release, env, networks, values, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -215,7 +238,7 @@ func TestPrivateNetwork(t *testing.T) {
 		},
 		"sshPrivateKey": "private",
 	}
-	rendered, err := a.Render(release, env, values, nil)
+	rendered, err := a.Render(release, env, networks, values, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -248,7 +271,7 @@ func TestAppPackages(t *testing.T) {
 			"groups":  "a,b",
 		},
 	}
-	rendered, err := app.Render(release, env, values, nil)
+	rendered, err := app.Render(release, env, networks, values, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -314,7 +337,7 @@ func TestPCloudApp(t *testing.T) {
 		RepoAddr:      "ssh://192.168.100.210:22/config",
 		AppDir:        "/foo/bar",
 	}
-	_, err = app.Render(release, env, map[string]any{
+	_, err = app.Render(release, env, networks, map[string]any{
 		"repoAddr":      "",
 		"managerAddr":   "",
 		"appId":         "",
@@ -342,7 +365,7 @@ func TestDodoAppInstance(t *testing.T) {
 		"repoHost":         "",
 		"gitRepoPublicKey": "",
 	}
-	rendered, err := a.Render(release, env, values, nil)
+	rendered, err := a.Render(release, env, networks, values, nil)
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -17,16 +17,17 @@ import (
 )
 
 var dodoAppFlags struct {
-	port             int
-	apiPort          int
-	sshKey           string
-	repoAddr         string
-	self             string
-	namespace        string
-	envConfig        string
-	appAdminKey      string
-	gitRepoPublicKey string
-	db               string
+	port              int
+	apiPort           int
+	sshKey            string
+	repoAddr          string
+	self              string
+	namespace         string
+	envAppManagerAddr string
+	envConfig         string
+	appAdminKey       string
+	gitRepoPublicKey  string
+	db                string
 }
 
 func dodoAppCmd() *cobra.Command {
@@ -73,6 +74,12 @@ func dodoAppCmd() *cobra.Command {
 	cmd.Flags().StringVar(
 		&dodoAppFlags.namespace,
 		"namespace",
+		"",
+		"",
+	)
+	cmd.Flags().StringVar(
+		&dodoAppFlags.envAppManagerAddr,
+		"env-app-manager-addr",
 		"",
 		"",
 	)
@@ -152,6 +159,7 @@ func dodoAppCmdRun(cmd *cobra.Command, args []string) error {
 		dodoAppFlags.gitRepoPublicKey,
 		softClient,
 		dodoAppFlags.namespace,
+		dodoAppFlags.envAppManagerAddr,
 		nsc,
 		jc,
 		env,

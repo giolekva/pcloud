@@ -93,6 +93,7 @@ func (h cachingHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 func (s *AppManagerServer) Start() error {
 	r := mux.NewRouter()
 	r.PathPrefix("/static/").Handler(cachingHandler{http.FileServer(http.FS(staticAssets))})
+	r.HandleFunc("/api/networks", s.handleNetworks).Methods(http.MethodGet)
 	r.HandleFunc("/api/app-repo", s.handleAppRepo)
 	r.HandleFunc("/api/app/{slug}/install", s.handleAppInstall).Methods(http.MethodPost)
 	r.HandleFunc("/api/app/{slug}", s.handleApp).Methods(http.MethodGet)
@@ -114,6 +115,23 @@ type app struct {
 	ShortDescription string                        `json:"shortDescription"`
 	Slug             string                        `json:"slug"`
 	Instances        []installer.AppInstanceConfig `json:"instances,omitempty"`
+}
+
+func (s *AppManagerServer) handleNetworks(w http.ResponseWriter, r *http.Request) {
+	env, err := s.m.Config()
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	networks, err := s.m.CreateNetworks(env)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	if err := json.NewEncoder(w).Encode(networks); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
 }
 
 func (s *AppManagerServer) handleAppRepo(w http.ResponseWriter, r *http.Request) {
@@ -414,10 +432,15 @@ func (s *AppManagerServer) handleAppUI(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
+	networks, err := s.m.CreateNetworks(global)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
 	data := appPageData{
 		App:               a,
 		Instances:         instances,
-		AvailableNetworks: installer.CreateNetworks(global),
+		AvailableNetworks: networks,
 		CurrentPage:       a.Name(),
 	}
 	if err := s.tmpl.app.Execute(w, data); err != nil {
@@ -452,12 +475,17 @@ func (s *AppManagerServer) handleInstanceUI(w http.ResponseWriter, r *http.Reque
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
+	networks, err := s.m.CreateNetworks(global)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
 	t := s.tasks[slug]
 	data := appPageData{
 		App:               a,
 		Instance:          instance,
 		Instances:         instances,
-		AvailableNetworks: installer.CreateNetworks(global),
+		AvailableNetworks: networks,
 		Task:              t,
 		CurrentPage:       instance.Id,
 	}

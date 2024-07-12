@@ -122,6 +122,7 @@ spec:
         - --api-port={{ .Values.apiPort }}
         - --self={{ .Values.self }}
         - --namespace={{ .Values.namespace }} # TODO(gio): maybe use .Release.Namespace ?
+        - --env-app-manager-addr={{ .Values.envAppManagerAddr }}
         - --env-config=/pcloud/env-config/config.json
         - --app-admin-key={{ .Values.appAdminKey }}
         - --git-repo-public-key={{ .Values.gitRepoPublicKey }}

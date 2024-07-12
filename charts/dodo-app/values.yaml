@@ -9,6 +9,7 @@ repoAddr: 192.168.0.11
 sshPrivateKey: key
 self: ""
 namespace: ""
+envAppManagerAddr: ""
 envConfig: ""
 appAdminKey: ""
 gitRepoPublicKey: ""

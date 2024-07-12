@@ -186,7 +186,7 @@ type EnvConfig struct {
 
 type EnvApp interface {
 	App
-	Render(release Release, env EnvConfig, values map[string]any, charts map[string]helmv2.HelmChartTemplateSpec) (EnvAppRendered, error)
+	Render(release Release, env EnvConfig, networks []Network, values map[string]any, charts map[string]helmv2.HelmChartTemplateSpec) (EnvAppRendered, error)
 }
 
 type cueApp struct {
@@ -435,8 +435,13 @@ func (a cueEnvApp) Type() AppType {
 	return AppTypeEnv
 }
 
-func (a cueEnvApp) Render(release Release, env EnvConfig, values map[string]any, charts map[string]helmv2.HelmChartTemplateSpec) (EnvAppRendered, error) {
-	networks := CreateNetworks(env)
+func (a cueEnvApp) Render(
+	release Release,
+	env EnvConfig,
+	networks []Network,
+	values map[string]any,
+	charts map[string]helmv2.HelmChartTemplateSpec,
+) (EnvAppRendered, error) {
 	derived, err := deriveValues(values, a.Schema(), networks)
 	if err != nil {
 		return EnvAppRendered{}, err
