@@ -37,7 +37,7 @@ spec:
           containerPort: 8080
           protocol: TCP
         command:
-        - rpuppy
+        - /usr/bin/rpuppy
         - --port=8080
         resources:
           requests:
