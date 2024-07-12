@@ -1,18 +1,29 @@
 {{ define "title" }}Sign in{{ end }}
 {{ define "main" }}
-<form action="" method="POST">
-	<input type="text" name="username" placeholder="Username" autofocus required />
-	<input type="password" name="password" placeholder="Password" required />
-	<input type="hidden" name="csrf_token" value="{{ .csrfToken }}" />
-	<button type="submit">Sign In</button>
-</form>
-{{- if .enableRegistration -}}
-<nav>
-	<ul>
-		<li>
-			<a href="/register">Create Account</a>
-		</li>
-	</ul>
-</nav>
+<div>
+	<div class="logo">
+		<span>do</span><span>do:</span>
+	</div>
+	<form action="" method="POST">
+		<label>
+			username
+			<input type="text" name="username" autofocus required />
+		</label>
+		<label>
+			password
+			<input type="password" name="password" required />
+		</label>
+		<input type="hidden" name="csrf_token" value="{{ .csrfToken }}" />
+		<button class="subbmit-button" type="submit">login</button>
+	</form>
+	{{- if .enableRegistration -}}
+	<nav>
+		<ul>
+			<li>
+				<a href="/register">Create Account</a>
+			</li>
+		</ul>
+	</nav>
+</div>
 {{- end -}}
 {{ end }}
