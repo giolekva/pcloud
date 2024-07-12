@@ -1,11 +1,19 @@
 <div class="form-container-footer">
-    <form method="POST" action="/register">
-        <div class="form-group-footer input-area">
-            <label for="public-key">SSH Public Key</label>
-            <textarea id="public-key" name="public-key" rows="4" required></textarea>
-        </div>
-        <div class="form-group-footer">
-            <button type="submit">register</button>
-        </div>
+    <form method="POST" action="/register" class="form-group-footer">
+		<label>
+			domain
+			<select name="domain">
+				<option value="dodoapp.xyz">dodoapp.xyz</option>
+			</select>
+		</label>
+		<label>
+			subdomain
+			<input type="text" name="subdomain" />
+		</label>
+        <label>
+			ssh public key
+			<textarea id="public-key" name="public-key" rows="2" required></textarea>
+		</label>
+        <button type="submit">create first app</button>
     </form>
 </div>

@@ -18,6 +18,11 @@ body {
   font-size: var(--fontSize);
 }
 
+input, textarea, select {
+  font-family: Hack, monospace;
+  font-size: var(--fontSize);
+}
+
 a {
   color: inherit;
   text-decoration: none;
@@ -311,17 +316,17 @@ a {
 .form-group-footer label {
   display: block;
   margin-bottom: 5px;
+  padding-bottom: 10px;
   color: var(--formText);
   margin-right: auto;
-}
-.input-area {
-  margin-bottom: 15px;
+  width: 100%;
 }
 
 .form-group-footer input,
 .form-group-footer textarea {
   width: 100%;
   padding: 10px;
+  margin-top: 5px;
   border: 1px solid var(--formText);
   box-sizing: border-box;
   color: var(--formText);
@@ -329,7 +334,7 @@ a {
   resize: vertical;
 }
 
-.form-group-footer input,
+.form-group-footer input:focus,
 .form-group-footer textarea:focus {
   outline: none !important;
   border: 1px solid var(--button);
