@@ -10,7 +10,7 @@ import (
 )
 
 const (
-	errorUniqueConstraintViolation = 2067
+	errorConstraintPrimaryKeyViolation = 1555
 )
 
 var (
@@ -23,8 +23,10 @@ type Commit struct {
 }
 
 type Store interface {
-	CreateUser(username string, password []byte) error
+	// TODO(gio): Remove publicKey once auto user sync is implemented
+	CreateUser(username string, password []byte, publicKey, network string) error
 	GetUserPassword(username string) ([]byte, error)
+	GetUserNetwork(username string) (string, error)
 	GetApps() ([]string, error)
 	GetUserApps(username string) ([]string, error)
 	CreateApp(name, username string) error
@@ -50,7 +52,9 @@ func (s *storeImpl) init() error {
 	_, err := s.db.Exec(`
 		CREATE TABLE IF NOT EXISTS users (
 			username TEXT PRIMARY KEY,
-            password BLOB
+            password BLOB,
+            public_key TEXT,
+            network TEXT
 		);
 		CREATE TABLE IF NOT EXISTS apps (
 			name TEXT PRIMARY KEY,
@@ -66,12 +70,12 @@ func (s *storeImpl) init() error {
 
 }
 
-func (s *storeImpl) CreateUser(username string, password []byte) error {
-	query := `INSERT INTO users (username, password) VALUES (?, ?)`
-	_, err := s.db.Exec(query, username, password)
+func (s *storeImpl) CreateUser(username string, password []byte, publicKey, network string) error {
+	query := `INSERT INTO users (username, password, public_key, network) VALUES (?, ?, ?, ?)`
+	_, err := s.db.Exec(query, username, password, publicKey, network)
 	if err != nil {
 		sqliteErr, ok := err.(*sqlite3.Error)
-		if ok && sqliteErr.ExtendedCode() == errorUniqueConstraintViolation {
+		if ok && sqliteErr.ExtendedCode() == errorConstraintPrimaryKeyViolation {
 			return ErrorAlreadyExists
 		}
 	}
@@ -87,6 +91,22 @@ func (s *storeImpl) GetUserPassword(username string) ([]byte, error) {
 	ret := []byte{}
 	if err := row.Scan(&ret); err != nil {
 		return nil, err
+	}
+	return ret, nil
+}
+
+func (s *storeImpl) GetUserNetwork(username string) (string, error) {
+	query := `SELECT network FROM users WHERE username = ?`
+	row := s.db.QueryRow(query, username)
+	if err := row.Err(); err != nil {
+		return "", err
+	}
+	var ret string
+	if err := row.Scan(&ret); err != nil {
+		if errors.Is(sql.ErrNoRows, err) {
+			return "", nil
+		}
+		return "", err
 	}
 	return ret, nil
 }

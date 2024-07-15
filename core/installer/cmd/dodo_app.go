@@ -17,15 +17,16 @@ import (
 )
 
 var dodoAppFlags struct {
+	external          bool
 	port              int
 	apiPort           int
 	sshKey            string
 	repoAddr          string
 	self              string
+	repoPublicAddr    string
 	namespace         string
 	envAppManagerAddr string
 	envConfig         string
-	appAdminKey       string
 	gitRepoPublicKey  string
 	db                string
 	networks          []string
@@ -36,6 +37,12 @@ func dodoAppCmd() *cobra.Command {
 		Use:  "dodo-app",
 		RunE: dodoAppCmdRun,
 	}
+	cmd.Flags().BoolVar(
+		&dodoAppFlags.external,
+		"external",
+		false,
+		"",
+	)
 	cmd.Flags().IntVar(
 		&dodoAppFlags.port,
 		"port",
@@ -73,6 +80,12 @@ func dodoAppCmd() *cobra.Command {
 		"",
 	)
 	cmd.Flags().StringVar(
+		&dodoAppFlags.repoPublicAddr,
+		"repo-public-addr",
+		"",
+		"",
+	)
+	cmd.Flags().StringVar(
 		&dodoAppFlags.namespace,
 		"namespace",
 		"",
@@ -87,12 +100,6 @@ func dodoAppCmd() *cobra.Command {
 	cmd.Flags().StringVar(
 		&dodoAppFlags.envConfig,
 		"env-config",
-		"",
-		"",
-	)
-	cmd.Flags().StringVar(
-		&dodoAppFlags.appAdminKey,
-		"app-admin-key",
 		"",
 		"",
 	)
@@ -157,28 +164,40 @@ func dodoAppCmdRun(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
+	var nf welcome.NetworkFilter
+	if len(dodoAppFlags.networks) == 0 {
+		nf = welcome.NewNoNetworkFilter()
+	} else {
+		nf = welcome.NewAllowListFilter(dodoAppFlags.networks)
+	}
+	if dodoAppFlags.external {
+		nf = welcome.NewCombinedFilter(welcome.NewNetworkFilterByOwner(st), nf)
+	}
+	var ug welcome.UserGetter
+	if dodoAppFlags.external {
+		ug = welcome.NewExternalUserGetter()
+	} else {
+		ug = welcome.NewInternalUserGetter()
+	}
 	s, err := welcome.NewDodoAppServer(
 		st,
+		nf,
+		ug,
 		dodoAppFlags.port,
 		dodoAppFlags.apiPort,
 		dodoAppFlags.self,
+		dodoAppFlags.repoPublicAddr,
 		string(sshKey),
 		dodoAppFlags.gitRepoPublicKey,
 		softClient,
 		dodoAppFlags.namespace,
 		dodoAppFlags.envAppManagerAddr,
-		dodoAppFlags.networks,
 		nsc,
 		jc,
 		env,
 	)
 	if err != nil {
 		return err
-	}
-	if dodoAppFlags.appAdminKey != "" {
-		if _, err := s.CreateApp("app", dodoAppFlags.appAdminKey, "Private"); err != nil {
-			return err
-		}
 	}
 	return s.Start()
 }

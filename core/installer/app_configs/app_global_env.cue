@@ -65,6 +65,7 @@ issuerPublic: "\(global.id)-public"
 			if auth.enabled {
 				"auth-proxy": {
 					chart: charts.authProxy
+					info: "Installing authentication proxy"
 					values: {
 						image: {
 							repository: images.authProxy.fullName

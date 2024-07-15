@@ -49,15 +49,17 @@ func parseTemplatesDodoApp(fs embed.FS) (dodoAppTmplts, error) {
 type DodoAppServer struct {
 	l                 sync.Locker
 	st                Store
+	nf                NetworkFilter
+	ug                UserGetter
 	port              int
 	apiPort           int
 	self              string
+	repoPublicAddr    string
 	sshKey            string
 	gitRepoPublicKey  string
 	client            soft.Client
 	namespace         string
 	envAppManagerAddr string
-	networks          []string
 	env               installer.EnvConfig
 	nsc               installer.NamespaceCreator
 	jc                installer.JobCreator
@@ -70,15 +72,17 @@ type DodoAppServer struct {
 // TODO(gio): Initialize appNs on startup
 func NewDodoAppServer(
 	st Store,
+	nf NetworkFilter,
+	ug UserGetter,
 	port int,
 	apiPort int,
 	self string,
+	repoPublicAddr string,
 	sshKey string,
 	gitRepoPublicKey string,
 	client soft.Client,
 	namespace string,
 	envAppManagerAddr string,
-	networks []string,
 	nsc installer.NamespaceCreator,
 	jc installer.JobCreator,
 	env installer.EnvConfig,
@@ -94,15 +98,17 @@ func NewDodoAppServer(
 	s := &DodoAppServer{
 		&sync.Mutex{},
 		st,
+		nf,
+		ug,
 		port,
 		apiPort,
 		self,
+		repoPublicAddr,
 		sshKey,
 		gitRepoPublicKey,
 		client,
 		namespace,
 		envAppManagerAddr,
-		networks,
 		env,
 		nsc,
 		jc,
@@ -137,6 +143,7 @@ func (s *DodoAppServer) Start() error {
 		r.HandleFunc("/{app-name}"+loginPath, s.handleLogin).Methods(http.MethodPost)
 		r.HandleFunc("/{app-name}", s.handleAppStatus).Methods(http.MethodGet)
 		r.HandleFunc("/", s.handleStatus).Methods(http.MethodGet)
+		r.HandleFunc("/", s.handleCreateApp).Methods(http.MethodPost)
 		e <- http.ListenAndServe(fmt.Sprintf(":%d", s.port), r)
 	}()
 	go func() {
@@ -150,14 +157,48 @@ func (s *DodoAppServer) Start() error {
 	return <-e
 }
 
+type UserGetter interface {
+	Get(r *http.Request) string
+}
+
+type externalUserGetter struct {
+	sc *securecookie.SecureCookie
+}
+
+func NewExternalUserGetter() UserGetter {
+	return &externalUserGetter{}
+}
+
+func (ug *externalUserGetter) Get(r *http.Request) string {
+	cookie, err := r.Cookie(sessionCookie)
+	if err != nil {
+		return ""
+	}
+	var user string
+	if err := ug.sc.Decode(sessionCookie, cookie.Value, &user); err != nil {
+		return ""
+	}
+	return user
+}
+
+type internalUserGetter struct{}
+
+func NewInternalUserGetter() UserGetter {
+	return internalUserGetter{}
+}
+
+func (ug internalUserGetter) Get(r *http.Request) string {
+	return r.Header.Get("X-User")
+}
+
 func (s *DodoAppServer) mwAuth(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if strings.HasSuffix(r.URL.Path, loginPath) || strings.HasPrefix(r.URL.Path, logoutPath) {
 			next.ServeHTTP(w, r)
 			return
 		}
-		cookie, err := r.Cookie(sessionCookie)
-		if err != nil {
+		user := s.ug.Get(r)
+		if user == "" {
 			vars := mux.Vars(r)
 			appName, ok := vars["app-name"]
 			if !ok || appName == "" {
@@ -165,11 +206,6 @@ func (s *DodoAppServer) mwAuth(next http.Handler) http.Handler {
 				return
 			}
 			http.Redirect(w, r, fmt.Sprintf("/%s%s", appName, loginPath), http.StatusSeeOther)
-			return
-		}
-		var user string
-		if err := s.sc.Decode(sessionCookie, cookie.Value, &user); err != nil {
-			http.Error(w, "unauthorized", http.StatusUnauthorized)
 			return
 		}
 		next.ServeHTTP(w, r.WithContext(context.WithValue(r.Context(), userCtx, user)))
@@ -251,7 +287,8 @@ func (s *DodoAppServer) handleLogin(w http.ResponseWriter, r *http.Request) {
 }
 
 type statusData struct {
-	Apps []string
+	Apps     []string
+	Networks []installer.Network
 }
 
 func (s *DodoAppServer) handleStatus(w http.ResponseWriter, r *http.Request) {
@@ -265,7 +302,12 @@ func (s *DodoAppServer) handleStatus(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	data := statusData{apps}
+	networks, err := s.getNetworks(user.(string))
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	data := statusData{apps, networks}
 	if err := s.tmplts.index.Execute(w, data); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -279,6 +321,7 @@ func (s *DodoAppServer) handleAppStatus(w http.ResponseWriter, r *http.Request) 
 		http.Error(w, "missing app-name", http.StatusBadRequest)
 		return
 	}
+	fmt.Fprintf(w, "git clone %s/%s\n\n\n", s.repoPublicAddr, appName)
 	commits, err := s.st.GetCommitHistory(appName)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -313,7 +356,11 @@ func (s *DodoAppServer) handleApiUpdate(w http.ResponseWriter, r *http.Request) 
 	}
 	// TODO(gio): Create commit record on app init as well
 	go func() {
-		networks, err := s.getNetworks()
+		owner, err := s.st.GetAppOwner(req.Repository.Name)
+		if err != nil {
+			return
+		}
+		networks, err := s.getNetworks(owner)
 		if err != nil {
 			return
 		}
@@ -357,9 +404,60 @@ func (s *DodoAppServer) handleApiRegisterWorker(w http.ResponseWriter, r *http.R
 	s.workers[appName][req.Address] = struct{}{}
 }
 
+func (s *DodoAppServer) handleCreateApp(w http.ResponseWriter, r *http.Request) {
+	u := r.Context().Value(userCtx)
+	if u == nil {
+		http.Error(w, "unauthorized", http.StatusUnauthorized)
+		return
+	}
+	user, ok := u.(string)
+	if !ok {
+		http.Error(w, "could not get user", http.StatusInternalServerError)
+		return
+	}
+	network := r.FormValue("network")
+	if network == "" {
+		http.Error(w, "missing network", http.StatusBadRequest)
+		return
+	}
+	adminPublicKey := r.FormValue("admin-public-key")
+	if network == "" {
+		http.Error(w, "missing admin public key", http.StatusBadRequest)
+		return
+	}
+	g := installer.NewFixedLengthRandomNameGenerator(3)
+	appName, err := g.Generate()
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	if ok, err := s.client.UserExists(user); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	} else if !ok {
+		if err := s.client.AddUser(user, adminPublicKey); err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+	}
+	if err := s.st.CreateUser(user, nil, adminPublicKey, network); err != nil && !errors.Is(err, ErrorAlreadyExists) {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	if err := s.st.CreateApp(appName, user); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	if err := s.CreateApp(user, appName, adminPublicKey, network); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	http.Redirect(w, r, fmt.Sprintf("/%s", appName), http.StatusSeeOther)
+}
+
 type apiCreateAppReq struct {
 	AdminPublicKey string `json:"adminPublicKey"`
-	NetworkName    string `json:"networkName"`
+	Network        string `json:"network"`
 }
 
 type apiCreateAppResp struct {
@@ -379,8 +477,35 @@ func (s *DodoAppServer) handleApiCreateApp(w http.ResponseWriter, r *http.Reques
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	password, err := s.CreateApp(appName, req.AdminPublicKey, req.NetworkName)
+	user, err := s.client.FindUser(req.AdminPublicKey)
 	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	if user != "" {
+		http.Error(w, "public key already registered", http.StatusBadRequest)
+		return
+	}
+	user = appName
+	if err := s.client.AddUser(user, req.AdminPublicKey); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	password := generatePassword()
+	hashed, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	if err := s.st.CreateUser(user, hashed, req.AdminPublicKey, req.Network); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	if err := s.st.CreateApp(appName, user); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	if err := s.CreateApp(user, appName, req.AdminPublicKey, req.Network); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -394,81 +519,52 @@ func (s *DodoAppServer) handleApiCreateApp(w http.ResponseWriter, r *http.Reques
 	}
 }
 
-func (s *DodoAppServer) CreateApp(appName, adminPublicKey, networkName string) (string, error) {
+func (s *DodoAppServer) CreateApp(user, appName, adminPublicKey, network string) error {
 	s.l.Lock()
 	defer s.l.Unlock()
 	fmt.Printf("Creating app: %s\n", appName)
 	if ok, err := s.client.RepoExists(appName); err != nil {
-		return "", err
+		return err
 	} else if ok {
-		return "", nil
-	}
-	user, err := s.client.FindUser(adminPublicKey)
-	if err != nil {
-		return "", err
-	}
-	if user == "" {
-		user = appName
-		if err := s.client.AddUser(user, adminPublicKey); err != nil {
-			return "", err
-		}
-	}
-	password := generatePassword()
-	// TODO(gio): take admin password for initial application as input
-	if appName == "app" {
-		password = "app"
-	}
-	hashed, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
-	if err != nil {
-		return "", err
-	}
-	if err := s.st.CreateUser(user, hashed); err != nil {
-		if !errors.Is(err, ErrorAlreadyExists) {
-			return "", err
-		} else {
-			password = ""
-		}
-	}
-	if err := s.st.CreateApp(appName, user); err != nil {
-		return "", err
+		return nil
 	}
 	if err := s.client.AddRepository(appName); err != nil {
-		return "", err
+		return err
 	}
 	appRepo, err := s.client.GetRepo(appName)
 	if err != nil {
-		return "", err
+		return err
 	}
-	if err := InitRepo(appRepo, networkName); err != nil {
-		return "", err
+	if err := InitRepo(appRepo, network); err != nil {
+		return err
 	}
 	apps := installer.NewInMemoryAppRepository(installer.CreateAllApps())
 	app, err := installer.FindEnvApp(apps, "dodo-app-instance")
 	if err != nil {
-		return "", err
+		return err
 	}
 	suffixGen := installer.NewFixedLengthRandomSuffixGenerator(3)
 	suffix, err := suffixGen.Generate()
 	if err != nil {
-		return "", err
+		return err
 	}
 	namespace := fmt.Sprintf("%s%s%s", s.env.NamespacePrefix, app.Namespace(), suffix)
 	s.appNs[appName] = namespace
-	networks, err := s.getNetworks()
+	networks, err := s.getNetworks(user)
 	if err != nil {
-		return "", err
+		return err
 	}
 	if err := s.updateDodoApp(appName, namespace, networks); err != nil {
-		return "", err
+		return err
 	}
 	repo, err := s.client.GetRepo(ConfigRepoName)
 	if err != nil {
-		return "", err
+		return err
 	}
 	hf := installer.NewGitHelmFetcher()
 	m, err := installer.NewAppManager(repo, s.nsc, s.jc, hf, "/")
 	if err != nil {
-		return "", err
+		return err
 	}
 	if err := repo.Do(func(fs soft.RepoFS) (string, error) {
 		w, err := fs.Writer(namespacesFile)
@@ -498,41 +594,41 @@ func (s *DodoAppServer) CreateApp(appName, adminPublicKey, networkName string) (
 		}
 		return fmt.Sprintf("Installed app: %s", appName), nil
 	}); err != nil {
-		return "", err
+		return err
 	}
 	cfg, err := m.FindInstance(appName)
 	if err != nil {
-		return "", err
+		return err
 	}
 	fluxKeys, ok := cfg.Input["fluxKeys"]
 	if !ok {
-		return "", fmt.Errorf("Fluxcd keys not found")
+		return fmt.Errorf("Fluxcd keys not found")
 	}
 	fluxPublicKey, ok := fluxKeys.(map[string]any)["public"]
 	if !ok {
-		return "", fmt.Errorf("Fluxcd keys not found")
+		return fmt.Errorf("Fluxcd keys not found")
 	}
 	if ok, err := s.client.UserExists("fluxcd"); err != nil {
-		return "", err
+		return err
 	} else if ok {
 		if err := s.client.AddPublicKey("fluxcd", fluxPublicKey.(string)); err != nil {
-			return "", err
+			return err
 		}
 	} else {
 		if err := s.client.AddUser("fluxcd", fluxPublicKey.(string)); err != nil {
-			return "", err
+			return err
 		}
 	}
 	if err := s.client.AddReadOnlyCollaborator(appName, "fluxcd"); err != nil {
-		return "", err
+		return err
 	}
 	if err := s.client.AddWebhook(appName, fmt.Sprintf("http://%s/update", s.self), "--active=true", "--events=push", "--content-type=json"); err != nil {
-		return "", err
+		return err
 	}
 	if err := s.client.AddReadWriteCollaborator(appName, user); err != nil {
-		return "", err
+		return err
 	}
-	return password, nil
+	return nil
 }
 
 type apiAddAdminKeyReq struct {
@@ -630,7 +726,7 @@ const appCue = `app: {
 }
 `
 
-func InitRepo(repo soft.RepoIO, networkName string) error {
+func InitRepo(repo soft.RepoIO, network string) error {
 	return repo.Do(func(fs soft.RepoFS) (string, error) {
 		{
 			w, err := fs.Writer("go.mod")
@@ -654,7 +750,7 @@ func InitRepo(repo soft.RepoIO, networkName string) error {
 				return "", err
 			}
 			defer w.Close()
-			fmt.Fprintf(w, appCue, networkName)
+			fmt.Fprintf(w, appCue, network)
 		}
 		return "go web app template", nil
 	})
@@ -664,7 +760,7 @@ func generatePassword() string {
 	return "foo"
 }
 
-func (s *DodoAppServer) getNetworks() ([]installer.Network, error) {
+func (s *DodoAppServer) getNetworks(user string) ([]installer.Network, error) {
 	addr := fmt.Sprintf("%s/api/networks", s.envAppManagerAddr)
 	resp, err := http.Get(addr)
 	if err != nil {
@@ -674,13 +770,87 @@ func (s *DodoAppServer) getNetworks() ([]installer.Network, error) {
 	if json.NewDecoder(resp.Body).Decode(&networks); err != nil {
 		return nil, err
 	}
-	if len(s.networks) == 0 {
-		return networks, nil
+	return s.nf.Filter(user, networks)
+}
+
+func pickNetwork(networks []installer.Network, network string) []installer.Network {
+	for _, n := range networks {
+		if n.Name == network {
+			return []installer.Network{n}
+		}
+	}
+	return []installer.Network{}
+}
+
+type NetworkFilter interface {
+	Filter(user string, networks []installer.Network) ([]installer.Network, error)
+}
+
+type noNetworkFilter struct{}
+
+func NewNoNetworkFilter() NetworkFilter {
+	return noNetworkFilter{}
+}
+
+func (f noNetworkFilter) Filter(app string, networks []installer.Network) ([]installer.Network, error) {
+	return networks, nil
+}
+
+type filterByOwner struct {
+	st Store
+}
+
+func NewNetworkFilterByOwner(st Store) NetworkFilter {
+	return &filterByOwner{st}
+}
+
+func (f *filterByOwner) Filter(user string, networks []installer.Network) ([]installer.Network, error) {
+	network, err := f.st.GetUserNetwork(user)
+	if err != nil {
+		return nil, err
 	}
 	ret := []installer.Network{}
 	for _, n := range networks {
-		if slices.Contains(s.networks, n.Name) {
+		if n.Name == network {
 			ret = append(ret, n)
+		}
+	}
+	return ret, nil
+}
+
+type allowListFilter struct {
+	allowed []string
+}
+
+func NewAllowListFilter(allowed []string) NetworkFilter {
+	return &allowListFilter{allowed}
+}
+
+func (f *allowListFilter) Filter(app string, networks []installer.Network) ([]installer.Network, error) {
+	ret := []installer.Network{}
+	for _, n := range networks {
+		if slices.Contains(f.allowed, n.Name) {
+			ret = append(ret, n)
+		}
+	}
+	return ret, nil
+}
+
+type combinedNetworkFilter struct {
+	filters []NetworkFilter
+}
+
+func NewCombinedFilter(filters ...NetworkFilter) NetworkFilter {
+	return &combinedNetworkFilter{filters}
+}
+
+func (f *combinedNetworkFilter) Filter(app string, networks []installer.Network) ([]installer.Network, error) {
+	ret := networks
+	var err error
+	for _, f := range f.filters {
+		ret, err = f.Filter(app, ret)
+		if err != nil {
+			return nil, err
 		}
 	}
 	return ret, nil

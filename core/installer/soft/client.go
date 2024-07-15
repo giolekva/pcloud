@@ -96,7 +96,7 @@ func (ss *realClient) Signer() ssh.Signer {
 }
 
 func (ss *realClient) UserExists(name string) (bool, error) {
-	log.Printf("Adding user %s", name)
+	log.Printf("Checking user exists %s", name)
 	out, err := ss.RunCommand("user", "list")
 	if err != nil {
 		return false, err

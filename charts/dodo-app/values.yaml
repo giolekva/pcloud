@@ -8,10 +8,11 @@ clusterRoleName: dodo-app-creator
 repoAddr: 192.168.0.11
 sshPrivateKey: key
 self: ""
+repoPublicAddr: ""
 namespace: ""
 envAppManagerAddr: ""
 envConfig: ""
-appAdminKey: ""
 gitRepoPublicKey: ""
 persistentVolumeClaimName: ""
 allowedNetworks: ""
+external: false
