@@ -1,7 +1,110 @@
-@media screen and (min-width: 801px) {
-  #main {
-    width: 600px;
+[data-theme="light"],
+:root:not([data-theme="dark"]) {
+  --pico-font-family: Hack, monospace;
+  --pico-font-size: 14px;
+  --pico-header-height: 56px;
+  --pico-border-radius: 0;
+  --pico-background-color: #d6d6d6;
+  --pico-form-element-border-color: #3a3a3a;
+  --pico-form-element-active-border-color: #7f9f7f;
+  --pico-form-element-focus-color: #7f9f7f;
+  --pico-form-element-background-color: #d6d6d6;
+  --pico-form-element-active-background-color: #d6d6d6;
+  --pico-form-element-selected-background-color: #d6d6d6;
+  --pico-primary: #7f9f7f;
+  --pico-primary-background: #7f9f7f;
+  --pico-primary-hover: #d4888d;
+  --pico-primary-hover-background: #d4888d;
+  --pico-grid-spacing-horizontal: 0;
+  --search-background-color: #d6d6d6;
+  --pico-color: #3a3a3a;
+  --pico-form-element-color: var(--pico-muted-color);
+  --pico-primary-inverse: #3a3a3a;
+  h3,
+  p {
+    color: var(--pico-accordion-open-summary-color);
   }
+  label {
+    color: var(--pico-secondary);
+  }
+  input:is([type="checkbox"]) {
+    --pico-form-element-focus-color: none;
+    --pico-border-color: var(--pico-secondary);
+  }
+}
+
+@media (max-width: 768px) {
+  body > main {
+    grid-template-columns: 9rem 1fr !important;
+    column-gap: 0 !important;
+  }
+
+  .container-fluid {
+    padding-left: 1px;
+    padding-right: 1px;
+    margin-left: 0;
+    margin-right: 0;
+  }
+}
+
+body > header {
+  z-index: 4;
+  position: relative;
+}
+
+html {
+  scroll-behavior: smooth;
+  overflow-x: hidden;
+}
+
+body > header.is-fixed-above-lg + main {
+  --pico-main-top-offset: var(--pico-header-height);
+}
+
+body > header.is-fixed-above-lg {
+  height: var(--pico-header-height);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2;
+  position: sticky;
+  top: 0;
+  -webkit-backdrop-filter: blur(1rem);
+  backdrop-filter: blur(1rem);
+  background-color: var(--pico-form-element-border-color);
+  transition: border-top-color 0.4s ease-in-out, box-shadow 0.4s ease-in-out;
+}
+
+body > main > aside > nav.is-sticky-above-lg {
+  position: sticky;
+  top: calc(
+    var(--pico-main-top-offset) + var(--pico-block-spacing-vertical) / 2
+  );
+  max-height: calc(var(--max-height) - var(--pico-spacing));
+  overflow: auto;
+  transition: top var(--pico-transition);
+  transition-delay: 50ms;
+}
+
+body > main {
+  display: grid;
+  grid-template-rows: auto auto 1fr;
+  grid-template-columns: 11rem 1fr;
+  grid-template-areas: "menu content";
+  column-gap: 2rem;
+  margin-top: 1rem;
+  padding: 0;
+}
+
+header > h1,
+header > svg {
+  margin-bottom: 2.5px;
+  color: var(--pico-primary-hover);
+}
+
+.search-bar {
+  max-width: 616px;
+  width: 100%;
 }
 
 article {
@@ -14,8 +117,9 @@ article {
 }
 
 .icon {
-  margin-right: 10px;
+  margin: 0 6px;
   flex-shrink: 0;
+  color: var(--pico-accordion-open-summary-color);
 }
 
 .app-details {
@@ -35,11 +139,16 @@ article {
   margin-bottom: 2px;
   margin-top: 0px;
   margin-left: 5px;
+  font-weight: bold;
+  font-size: 16px;
+}
+
+.app-link:hover h3.app,
+.app-link:hover .icon {
+  color: var(--pico-primary-hover);
 }
 
 .description {
-  --pico-color: var(--pico-secondary);
-  font-size: medium;
   margin-bottom: 3px;
   margin-left: 5px;
   text-decoration: none !important;
@@ -53,17 +162,14 @@ article {
   display: flex;
   justify-content: center;
   align-items: center;
-  width: 24px;
-  height: 24px;
+  width: 22px;
+  height: 22px;
   border-radius: 50%;
-  background-color: white;
-  color: var(--pico-color);
-  font-size: 16px;
   font-weight: bold;
   border: 2px solid var(--pico-color) !important;
   position: absolute;
-  top: 14px;
-  right: 11px;
+  top: 10px;
+  right: 10px;
   transform: translate(50%, -50%);
 }
 
@@ -95,6 +201,8 @@ pre {
   padding-top: 0px;
   padding-bottom: 2px;
   text-decoration: none;
+  width: 100%;
+  padding-right: 0;
 }
 
 nav li {
@@ -104,17 +212,13 @@ nav li {
 
 input[type="search"] {
   margin-bottom: 0;
+  height: 100%;
 }
 
 .page {
   display: flex;
   align-items: center;
   flex-direction: column;
-}
-
-.search-bar {
-  max-width: 616px;
-  min-width: 500px;
 }
 
 .card-content {
@@ -125,64 +229,22 @@ input[type="search"] {
   margin-bottom: 6px;
 }
 
-header {
-  height: 80px !important;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-header > h1 {
-  margin-bottom: 0px;
-}
-
 nav {
   height: 100%;
 }
 
 #config-form label {
   width: auto !important;
+  padding: 0 5px 0 5px;
 }
 
-html {
-  scroll-behavior: smooth;
-  --pico-header-height: 80px;
+#config-form > label:nth-of-type(2) label {
+  padding-left: 0;
+  padding-right: 0;
 }
 
-body > header.is-fixed-above-lg + main {
-  --pico-main-top-offset: var(--pico-header-height);
-}
-
-body > header.is-fixed-above-lg {
-  z-index: 2;
-  position: sticky;
-  top: 0;
-  -webkit-backdrop-filter: blur(1rem);
-  backdrop-filter: blur(1rem);
-  background-color: var(--pico-header-background);
-  transition: border-top-color 0.4s ease-in-out, box-shadow 0.4s ease-in-out;
-}
-
-body > header.is-fixed-above-lg.is-fixed {
-  border-bottom-color: var(--pico-header-border-color);
-  box-shadow: var(--pico-card-box-shadow);
-}
-
-body > header {
-  z-index: 4;
-  position: relative;
-  padding: 0.5rem 0;
-  border-bottom: var(--pico-border-width) solid transparent;
-}
-
-body > main {
-  display: grid;
-  grid-template-rows: auto auto 1fr;
-  grid-template-columns: 11rem 1fr;
-  grid-template-areas: "menu content";
-  column-gap: 2rem;
-  margin-top: 1rem;
-  padding: 0;
+input[type="checkbox"]:checked {
+  border-color: var(--pico-form-element-focus-color) !important;
 }
 
 #menu-nav {
@@ -191,22 +253,6 @@ body > main {
 
 #content {
   grid-area: content;
-}
-
-main > aside {
-  --pico-font-size: 16px;
-  font-size: var(--pico-font-size);
-}
-
-body > main > aside > nav.is-sticky-above-lg {
-  position: sticky;
-  top: calc(
-    var(--pico-main-top-offset) + var(--pico-block-spacing-vertical) / 2
-  );
-  max-height: calc(var(--max-height) - var(--pico-spacing));
-  overflow: auto;
-  transition: top var(--pico-transition);
-  transition-delay: 50ms;
 }
 
 main > aside#menu-nav nav {

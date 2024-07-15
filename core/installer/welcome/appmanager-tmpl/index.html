@@ -13,14 +13,12 @@
                     <a href="/app/{{ .Slug }}" class="app-link">
                         <article>
                             <div class="icon">
-                                <div>
-                                    {{ .Icon }}
-                                </div>
+                                {{ .Icon }}
                             </div>
                             <div class="card-content">
                                 <div class="app-details">
                                     <div class="app-name-container">
-                                        <p class="app">{{ .Name }}</p>
+                                        <h3 class="app">{{ .Name }}</h3>
                                         <span class="instance-count" data-tooltip="Instances {{ len .Instances }}" data-placement="bottom">{{ len .Instances }}</span>
                                     </div>
                                     <p class="description">{{ .ShortDescription }}</p>

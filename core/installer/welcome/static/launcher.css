@@ -32,8 +32,6 @@ body {
   display: flex;
   flex-direction: column;
   align-items: center;
-  margin-top: 5px;
-  margin-bottom: 5px;
 }
 
 .app-list {
@@ -44,19 +42,12 @@ body {
   overflow-x: hidden;
   padding-top: 3px;
   width: 95% !important;
-  /* scrollbar-width: thin;
-  scrollbar-color: var(--bodyBg) var(--bg); */
 }
 
 .scrollbar-custom {
   scrollbar-width: thin;
   scrollbar-color: var(--bodyBg) var(--bg);
 }
-
-/* .app-list:hover::-webkit-scrollbar {
-  width: 6px;
-  scrollbar-color: var(--bodyBg) var(--bg);
-} */
 
 .scrollbar-custom::-webkit-scrollbar {
   width: 6px;
@@ -75,38 +66,28 @@ body {
   background-color: var(--bodyBg);
 }
 
-/* .layout-scrollbar::-webkit-scrollbar-thumb:active {
-  background-color: var(--bodyBg);
-} */
-
 #right-panel {
   flex: 1;
   background-color: none !important;
-  margin: 5px 0 5px 5px;
-  padding: 2px;
+  padding: 0 0 0 2px;
 }
 
 .appFrame {
-  border-radius: 10px;
+  border-radius: 0;
   width: 100%;
   height: 100%;
   border: 0;
 }
 
 .app-icon {
-  /* position: relative; */
-  /* display: inline-block; */
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  /* cursor: initial; */
   width: 80px !important;
   height: 50px !important;
   margin-bottom: 10px !important;
   cursor: pointer !important;
-  /* --pico-background-color: unset !important;
-  --pico-color: unset !important; */
 }
 
 .tooltip {
@@ -161,7 +142,6 @@ body {
 
 .modal-right {
   flex: 1;
-  /* width: 70%; */
   overflow-y: auto;
   float: right;
   margin-left: 2px;
