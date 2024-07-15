@@ -5,8 +5,8 @@ replace github.com/giolekva/pcloud/core/installer => ../installer
 go 1.22.0
 
 require (
-	github.com/giolekva/pcloud/core/installer v0.0.0-20240403111418-e9c05499ec80
-	golang.org/x/crypto v0.22.0
+	github.com/giolekva/pcloud/core/installer v0.0.0-00010101000000-000000000000
+	golang.org/x/crypto v0.24.0
 )
 
 require (
@@ -29,10 +29,10 @@ require (
 	github.com/xanzy/ssh-agent v0.3.3 // indirect
 	golang.org/x/exp v0.0.0-20240404231335-c0f41cb1a7a0 // indirect
 	golang.org/x/mod v0.17.0 // indirect
-	golang.org/x/net v0.24.0 // indirect
+	golang.org/x/net v0.25.0 // indirect
 	golang.org/x/sync v0.7.0 // indirect
-	golang.org/x/sys v0.19.0 // indirect
-	golang.org/x/tools v0.20.0 // indirect
+	golang.org/x/sys v0.22.0 // indirect
+	golang.org/x/tools v0.21.1-0.20240508182429-e35e4ccd0d2d // indirect
 	gopkg.in/warnings.v0 v0.1.2 // indirect
 	sigs.k8s.io/yaml v1.4.0 // indirect
 )

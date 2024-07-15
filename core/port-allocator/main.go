@@ -2,6 +2,7 @@ package main
 
 import (
 	"crypto/rand"
+	"encoding/base64"
 	"encoding/json"
 	"flag"
 	"fmt"
@@ -376,7 +377,7 @@ func generateSecret() (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("error generating secret: %v", err)
 	}
-	return string(b), nil
+	return base64.StdEncoding.EncodeToString(b), nil
 }
 
 func main() {
