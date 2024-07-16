@@ -86,9 +86,9 @@
 {{ end }}
 
 {{ define "extra_menu" }}
-  <li><a href="/app/{{ .App.Slug }}" class="{{ if eq $.CurrentPage .App.Name }}outline{{ else }}secondary{{ end }}">{{ .App.Name }}</a></li>
+  <li><a href="/app/{{ .App.Slug }}" class="{{ if eq $.CurrentPage .App.Name }}primary{{ end }}">{{ .App.Name }}</a></li>
   {{ range .Instances }}
-  <li><a href="/instance/{{ .Id }}" class="{{ if eq $.CurrentPage .Id }}outline{{ else }}secondary{{ end }}">{{ .Id }}</a></li>
+  <li><a href="/instance/{{ .Id }}" class="{{ if eq $.CurrentPage .Id }}primary{{ end }}">{{ .Id }}</a></li>
   {{ end }}
 {{ end }}
 

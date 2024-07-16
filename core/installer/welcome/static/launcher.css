@@ -19,8 +19,8 @@ body {
   font-family: Hack, monospace;
   display: flex;
   height: 100vh;
-  padding-left: 5px !important;
-  padding-right: 5px !important;
+  padding-left: 0 !important;
+  padding-right: 0 !important;
   background-color: var(--bodyBg);
   overflow-x: hidden;
   overflow-y: hidden;
@@ -93,7 +93,7 @@ body {
 .tooltip {
   position: absolute;
   width: 200px;
-  left: 90px;
+  left: 80px;
   transform: translateY(-50%);
   background-color: var(--bodyBg);
   padding: 5px;
@@ -105,6 +105,7 @@ body {
   opacity: 0;
   cursor: auto;
   font-size: 16px;
+  box-shadow: 2px 2px 5px var(--bodyBg);
 }
 
 .help-button {
@@ -281,8 +282,8 @@ header h4 {
 
 .tooltip-user {
   position: absolute;
-  top: 45px;
-  left: 85.5px;
+  top: 38.7px;
+  left: 80px;
   transform: translateY(-50%);
   width: 234px;
   background-color: var(--bodyBg);
@@ -294,6 +295,7 @@ header h4 {
   visibility: hidden;
   opacity: 0;
   cursor: auto;
+  box-shadow: 2px 2px 5px var(--bodyBg);
 }
 
 #logout-button {

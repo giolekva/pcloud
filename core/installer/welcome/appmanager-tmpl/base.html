@@ -3,7 +3,7 @@
 	<head>
 		<meta charset="utf-8" />
         <link rel="stylesheet" href="/static/pico.2.0.6.min.css">
-        <link rel="stylesheet" type="text/css" href="/static/appmanager.css?v=0.0.8">
+        <link rel="stylesheet" type="text/css" href="/static/appmanager.css?v=0.0.11">
 		<meta name="viewport" content="width=device-width, initial-scale=1" />
 	</head>
 	<body>
@@ -14,9 +14,9 @@
           <aside id="menu-nav">
             <nav id="menu" class="is-sticky-above-lg">
                 <ul>
-                  <li><a href="/" class="{{ if (eq .CurrentPage "ALL") }}outline{{ else }}secondary{{ end }}">All</a></li>
-                  <li><a href="/installed" class="{{ if (eq .CurrentPage "INSTALLED") }}outline{{ else }}secondary{{ end }}">Installed</a></li>
-                  <li><a href="/not-installed" class="{{ if (eq .CurrentPage "NOT_INSTALLED") }}outline{{ else }}secondary{{ end }}">Not Installed</a></li>
+                  <li><a href="/" class="{{ if (eq .CurrentPage "ALL") }}primary{{ end }}">All</a></li>
+                  <li><a href="/installed" class="{{ if (eq .CurrentPage "INSTALLED") }}primary{{ end }}">Installed</a></li>
+                  <li><a href="/not-installed" class="{{ if (eq .CurrentPage "NOT_INSTALLED") }}primary{{ end }}">Not Installed</a></li>
                   <hr>
                   {{ block "extra_menu" . }}{{ end }}
                 </ul>
