@@ -107,6 +107,7 @@ helm: {
 				tag: images.dodoApp.tag
 				pullPolicy: images.dodoApp.pullPolicy
 			}
+			clusterRoleName: "\(release.namespace)-dodo-app"
 			port: 8080
 			apiPort: 8081
 			repoAddr: "soft-serve.\(release.namespace).svc.cluster.local:22"
