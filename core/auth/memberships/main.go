@@ -124,7 +124,7 @@ func (s *SQLiteStore) Init(owner string, groups []string) error {
 		return err
 	}
 	if count != 0 {
-		return fmt.Errorf("store already initialised")
+		return fmt.Errorf("Store already initialised")
 	}
 	for _, g := range groups {
 		query := `INSERT INTO groups (name, description) VALUES (?, '')`
@@ -289,21 +289,21 @@ func (s *SQLiteStore) DoesGroupExist(group string) (bool, error) {
 
 func (s *SQLiteStore) AddChildGroup(parent, child string) error {
 	if parent == child {
-		return fmt.Errorf("parent and child groups can not have same name")
+		return fmt.Errorf("Parent and child groups can not have same name")
 	}
 	exists, err := s.DoesGroupExist(parent)
 	if err != nil {
-		return fmt.Errorf("error checking parent group existence: %v", err)
+		return fmt.Errorf("Error checking parent group existence: %v", err)
 	}
 	if !exists {
-		return fmt.Errorf("parent group with name %s does not exist", parent)
+		return fmt.Errorf("Parent group with name %s does not exist", parent)
 	}
 	exists, err = s.DoesGroupExist(child)
 	if err != nil {
-		return fmt.Errorf("error checking child group existence: %v", err)
+		return fmt.Errorf("Error checking child group existence: %v", err)
 	}
 	if !exists {
-		return fmt.Errorf("child group with name %s does not exist", child)
+		return fmt.Errorf("Child group with name %s does not exist", child)
 	}
 	parentGroups, err := s.GetAllTransitiveGroupsForGroup(parent)
 	if err != nil {
@@ -311,14 +311,14 @@ func (s *SQLiteStore) AddChildGroup(parent, child string) error {
 	}
 	for _, group := range parentGroups {
 		if group.Name == child {
-			return fmt.Errorf("circular reference detected: group %s is already a parent of group %s", child, parent)
+			return fmt.Errorf("Circular reference detected: group %s is already a parent of group %s", child, parent)
 		}
 	}
 	_, err = s.db.Exec(`INSERT INTO group_to_group (parent_group, child_group) VALUES (?, ?)`, parent, child)
 	if err != nil {
 		sqliteErr, ok := err.(*sqlite3.Error)
 		if ok && sqliteErr.ExtendedCode() == ErrorUniqueConstraintViolation {
-			return fmt.Errorf("child group name %s already exists in group %s", child, parent)
+			return fmt.Errorf("Child group name %s already exists in group %s", child, parent)
 		}
 		return err
 	}
@@ -426,7 +426,7 @@ func (s *SQLiteStore) RemoveFromGroupToGroup(parent, child string) error {
 		return err
 	}
 	if rowDeletedNumber == 0 {
-		return fmt.Errorf("pair of parent '%s' and child '%s' groups not found", parent, child)
+		return fmt.Errorf("Pair of parent '%s' and child '%s' groups not found", parent, child)
 	}
 	return nil
 }
@@ -438,7 +438,7 @@ func (s *SQLiteStore) RemoveUserFromTable(username, groupName, tableName string)
 			return err
 		}
 		if len(owners) == 1 {
-			return fmt.Errorf("cannot remove the last owner of the group")
+			return fmt.Errorf("Cannot remove the last owner of the group")
 		}
 	}
 	query := fmt.Sprintf("DELETE FROM %s WHERE username = ? AND group_name = ?", tableName)
@@ -451,34 +451,34 @@ func (s *SQLiteStore) RemoveUserFromTable(username, groupName, tableName string)
 		return err
 	}
 	if rowDeletedNumber == 0 {
-		return fmt.Errorf("pair of group '%s' and user '%s' not found", groupName, username)
+		return fmt.Errorf("Pair of group '%s' and user '%s' not found", groupName, username)
 	}
 	return nil
 }
 
 func (s *SQLiteStore) AddOwnerGroup(owner_group, owned_group string) error {
 	if owned_group == owner_group {
-		return fmt.Errorf("group can not own itself")
+		return fmt.Errorf("Group can not own itself")
 	}
 	exists, err := s.DoesGroupExist(owned_group)
 	if err != nil {
-		return fmt.Errorf("error checking owned group existence: %v", err)
+		return fmt.Errorf("Error checking owned group existence: %v", err)
 	}
 	if !exists {
-		return fmt.Errorf("owned group with name %s does not exist", owned_group)
+		return fmt.Errorf("Owned group with name %s does not exist", owned_group)
 	}
 	exists, err = s.DoesGroupExist(owner_group)
 	if err != nil {
-		return fmt.Errorf("error checking owner group existence: %v", err)
+		return fmt.Errorf("Error checking owner group existence: %v", err)
 	}
 	if !exists {
-		return fmt.Errorf("owner group with name %s does not exist", owner_group)
+		return fmt.Errorf("Owner group with name %s does not exist", owner_group)
 	}
 	_, err = s.db.Exec(`INSERT INTO owner_groups (owner_group, owned_group) VALUES (?, ?)`, owner_group, owned_group)
 	if err != nil {
 		sqliteErr, ok := err.(*sqlite3.Error)
 		if ok && sqliteErr.ExtendedCode() == ErrorUniqueConstraintViolation {
-			return fmt.Errorf("group named %s is already owner of a group %s", owner_group, owned_group)
+			return fmt.Errorf("Group named %s is already owner of a group %s", owner_group, owned_group)
 		}
 		return err
 	}
@@ -519,6 +519,7 @@ func getLoggedInUser(r *http.Request) (string, error) {
 	} else {
 		return "", fmt.Errorf("unauthenticated")
 	}
+	// return "user", nil
 }
 
 type Status int
@@ -573,7 +574,7 @@ func (s *Server) checkIsOwner(w http.ResponseWriter, user, group string) error {
 		return err
 	}
 	if !isMemberOfOwnerGroup {
-		return fmt.Errorf("you are not the owner or a member of any owner group of the group %s", group)
+		return fmt.Errorf("You are not the owner or a member of any owner group of the group %s", group)
 	}
 	return nil
 }
@@ -1057,11 +1058,11 @@ func convertStatus(status string) (Status, error) {
 
 func isValidGroupName(group string) error {
 	if strings.TrimSpace(group) == "" {
-		return fmt.Errorf("group name can't be empty or contain only whitespaces")
+		return fmt.Errorf("Group name can't be empty or contain only whitespaces")
 	}
 	validGroupName := regexp.MustCompile(`^[a-z0-9\-_:.\/ ]+$`)
 	if !validGroupName.MatchString(group) {
-		return fmt.Errorf("group name should contain only lowercase letters, digits, -, _, :, ., /")
+		return fmt.Errorf("Group name should contain only lowercase letters, digits, -, _, :, ., /")
 	}
 	return nil
 }

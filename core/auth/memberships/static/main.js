@@ -2,7 +2,30 @@ const confirmationDialog = document.getElementById("confirmation");
 const cancelButton = document.getElementById("cancel-button");
 const confirmButton = document.getElementById("confirm-button");
 
+const errorCancelButton = document.getElementById("error-cancel-button");
+const errorMessageDialog = document.getElementById("error-message");
+
+let activeModalStatus = false;
+let activeModal = '';
+
+function keydownHandler(event) {
+    if (event.key === "Escape" && activeModalStatus && activeModal === "confirmation") {
+        hideConfirmationDialog();
+    }
+}
+
+function oustideModalHandler(event) {
+    if (activeModalStatus && confirmationDialog === event.target) {
+        hideConfirmationDialog();
+        errorMessageDialog.close();
+    }
+}
+
 function showConfirmationDialog(form) {
+    activeModalStatus = true;
+    activeModal = "confirmation";
+    document.addEventListener("keydown", keydownHandler);
+    document.addEventListener("click", oustideModalHandler);
     const message = form.dataset.confirmationMessage;
     document.getElementById("confirmation-message").innerHTML = message;
     confirmationDialog.showModal();
@@ -21,6 +44,10 @@ function showConfirmationDialog(form) {
 }
 
 function hideConfirmationDialog() {
+    activeModalStatus = false;
+    activeModal = '';
+    document.removeEventListener("keydown", keydownHandler);
+    document.removeEventListener("click", oustideModalHandler);
     confirmationDialog.close();
 }
 
@@ -44,12 +71,19 @@ document.addEventListener("DOMContentLoaded", function () {
             }
         });
     });
-});
 
-document.addEventListener("DOMContentLoaded", function () {
-    var errorCancelButton = document.getElementById("error-cancel-button");
-    var errorMessageDialog = document.getElementById("error-message");
     errorCancelButton.addEventListener("click", function () {
         errorMessageDialog.close();
+    });
+
+    document.addEventListener("keydown", function (event) {
+        if (event.key === "Escape") {
+            errorMessageDialog.close();
+        }
+    });
+    document.addEventListener("click", function (event) {
+        if (errorMessageDialog === event.target) {
+            errorMessageDialog.close();
+        }
     });
 });

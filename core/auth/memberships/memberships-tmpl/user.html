@@ -2,53 +2,46 @@
     User - {{ .CurrentUser }}
 {{ end }}
 {{- define "content" -}}
-    <h1>User: {{ .CurrentUser }}</h1>
+    <h1 class="headline">User: {{ .CurrentUser }}</h1>
     {{ if .LoggedInUserPage }}
     <form action="/create-group" method="post">
-        <label for="group-name">Group Name:</label>
-        <input type="text" id="group-name" name="group-name" required>
-        <label for="description">Group Description:</label>
-        <input type="text" id="description" name="description">
-        <button type="submit">Create Group</button>
+        <fieldset class="grid first">
+            <input type="text" id="group-name" name="group-name" placeholder="Group name" required>
+            <input type="text" id="description" name="description" placeholder="Description">
+            <button type="submit">Create Group</button>
+        </fieldset>
     </form>
     {{ end }}
-    <h4>Owner</h4>
-    <table>
-        <tr>
-            <th>Name</th>
-            <th>Description</th>
-        </tr>
-        {{- range .OwnerGroups -}}
-        <tr>
-            <td><a href="/group/{{ .Name }}">{{ .Name }}</a></td>
-            <td>{{ .Description }}</td>
-        </tr>
-        {{- end -}}
-    </table>
-    <h4>Member</h4>
-    <table>
-        <tr>
-            <th>Name</th>
-            <th>Description</th>
-        </tr>
-        {{- range .MembershipGroups -}}
-        <tr>
-            <td><a href="/group/{{ .Name }}">{{ .Name }}</a></td>
-            <td>{{ .Description }}</td>
-        </tr>
-        {{- end -}}
-    </table>
-    <h4>Transitive Groups</h4>
-    <table>
-        <tr>
-            <th>Name</th>
-            <th>Description</th>
-        </tr>
+
+    <h3>Owner of groups</h3>
+    <div class="user-remove">
+        {{- range .OwnerGroups }}
+            <a href="/group/{{ .Name }}" role="button" 
+                {{ if ne .Description "" }} data-tooltip="{{ .Description }}" data-placement="bottom" {{ end }}>
+                {{ .Name }}
+            </a>
+        {{- end }}
+    </div>
+    <hr class="divider">
+
+    <h3>Direct member of groups</h3>
+    <div class="user-remove">
+        {{- range .MembershipGroups }}
+            <a href="/group/{{ .Name }}" role="button" 
+                {{ if ne .Description "" }} data-tooltip="{{ .Description }}" data-placement="bottom" {{ end }}>
+                {{ .Name }}
+            </a>
+        {{- end }}
+    </div>
+    <hr class="divider">
+
+    <h3>Transitive member of groups</h3>
+    <div class="user-remove">
         {{- range .TransitiveGroups -}}
-        <tr>
-            <td><a href="/group/{{ .Name }}">{{ .Name }}</a></td>
-            <td>{{ .Description }}</td>
-        </tr>
-        {{- end -}}
-    </table>
+            <a href="/group/{{ .Name }}" role="button" 
+               {{ if ne .Description "" }} data-tooltip="{{ .Description }}" data-placement="bottom" {{ end }}>
+               {{ .Name }}
+            </a>
+        {{- end }}
+    </div>
 {{- end }}

@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{{ block "title" . }}{{ end }}</title>
     <link rel="stylesheet" href="/static/pico.2.0.6.min.css">
-    <link rel="stylesheet" href="/static/main.css">
+    <link rel="stylesheet" href="/static/main.css?v=0.0.1">
 </head>
 <body class="container">
     {{- block "content" . }}
@@ -13,7 +13,7 @@
     {{ if ne .ErrorMessage "" }}
     <dialog id="error-message" open>
         <article>
-            <h2>Error</h2>
+            <h3>Error</h3>
             <p id="error-message-content">{{ .ErrorMessage }}</p>
             <footer>
                 <button id="error-cancel-button" class="secondary error-cancel-button">Close</button>
