@@ -11,7 +11,29 @@ name: "URL Shortener"
 namespace: "app-url-shortener"
 readme: "URL shortener application will be installed on \(input.network.name) network and be accessible at https://\(_domain)"
 description: "Provides URL shortening service. Can be configured to be reachable only from private network or publicly."
-icon: "<svg xmlns='http://www.w3.org/2000/svg' width='50' height='50' viewBox='0 0 13 16'><circle cx='2' cy='10' r='1' fill='currentColor'/><circle cx='2' cy='6' r='1' fill='currentColor'/><path fill='currentColor' d='M4.5 14c-.06 0-.11 0-.17-.03a.501.501 0 0 1-.3-.64l4-11a.501.501 0 0 1 .94.34l-4 11c-.07.2-.27.33-.47.33m3 0c-.06 0-.11 0-.17-.03a.501.501 0 0 1-.3-.64l4-11a.501.501 0 0 1 .94.34l-4 11c-.07.2-.27.33-.47.33'/></svg>"
+icon: """
+<svg width='50px' height='50px' xmlns='http://www.w3.org/2000/svg' viewBox='0 0 36.43807123 39.68503937'>
+  <defs>
+    <style>
+      .cls-1 {
+        fill: currentColor;
+      }
+
+      .cls-2 {
+        fill: none;
+        stroke: #3a3a3a;
+        stroke-miterlimit: 10;
+        stroke-width: .98133445px;
+      }
+    </style>
+  </defs>
+  <rect class='cls-2' x='-11.59787432' y='-9.97439025' width='59.63381987' height='59.63381987'/>
+  <g>
+    <circle class='cls-1' cx='3.31578123' cy='26.42191445' r='3.31578123'/>
+    <circle class='cls-1' cx='3.31578123' cy='13.15878954' r='3.31578123'/>
+    <path class='cls-1' d='m11.6052343,39.68503937c-.19894668,0-.36473638,0-.56368306-.09947255-.85909349-.31306169-1.30368349-1.26152142-.994735-2.12210113L23.30994116.98987217c.37099907-.83910142,1.3519786-1.21857512,2.19107766-.84757764.75807463.33517241,1.1530841,1.1778629.92575531,1.97494297l-13.26312492,36.47359431c-.23210526.66315561-.89526087,1.09420755-1.55841648,1.09420755m9.94734369,0c-.19894668,0-.36473638,0-.56368306-.09947255-.85909349-.31306169-1.3036827-1.26152142-.994735-2.12210113L33.25728168.98987217c.37099907-.83910142,1.3519786-1.21857512,2.19107766-.84757764.75807463.33517241,1.1530841,1.1778629.92575531,1.97494297l-13.26312492,36.47359431c-.23210526.66315561-.89526087,1.09420755-1.55841648,1.09420755'/>
+  </g>
+</svg>"""
 
 _httpPortName: "http"
 
