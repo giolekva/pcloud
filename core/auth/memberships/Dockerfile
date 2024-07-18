@@ -1,6 +1,5 @@
-FROM alpine:latest
+FROM gcr.io/distroless/static:nonroot
 
 ARG TARGETARCH
 
 COPY memberships_${TARGETARCH} /usr/bin/memberships
-RUN chmod +x /usr/bin/memberships

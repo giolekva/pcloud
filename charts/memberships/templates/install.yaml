@@ -54,7 +54,7 @@ spec:
           containerPort: 8081
           protocol: TCP
         command:
-        - memberships
+        - /usr/bin/memberships
         - --port=8080
         - --api-port=8081
         - --db-path=/data/memberships.db
