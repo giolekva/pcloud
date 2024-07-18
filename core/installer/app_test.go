@@ -373,3 +373,19 @@ func TestDodoAppInstance(t *testing.T) {
 		t.Log(string(r))
 	}
 }
+
+func TestDodoApp(t *testing.T) {
+	contents, err := valuesTmpls.ReadFile("values-tmpl/dodo-app.cue")
+	if err != nil {
+		t.Fatal(err)
+	}
+	app, err := NewCueEnvApp(CueAppData{
+		"base.cue":   []byte(cueBaseConfig),
+		"app.cue":    []byte(contents),
+		"global.cue": []byte(cueEnvAppGlobal),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Log(app.Schema())
+}

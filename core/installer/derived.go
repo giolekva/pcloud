@@ -92,11 +92,33 @@ func deriveValues(values any, schema Schema, networks []Network) (map[string]any
 			}
 			ret[k] = a
 		case KindNetwork:
-			n, err := findNetwork(networks, v.(string)) // TODO(giolekva): validate
+			name, ok := v.(string)
+			if !ok {
+				return nil, fmt.Errorf("not a string")
+			}
+			n, err := findNetwork(networks, name)
 			if err != nil {
 				return nil, err
 			}
 			ret[k] = n
+		case KindMultiNetwork:
+			vv, ok := v.([]any)
+			if !ok {
+				return nil, fmt.Errorf("not an array")
+			}
+			picked := []Network{}
+			for _, nn := range vv {
+				name, ok := nn.(string)
+				if !ok {
+					return nil, fmt.Errorf("not a string")
+				}
+				n, err := findNetwork(networks, name)
+				if err != nil {
+					return nil, err
+				}
+				picked = append(picked, n)
+			}
+			ret[k] = picked
 		case KindAuth:
 			r, err := deriveValues(v, AuthSchema, networks)
 			if err != nil {
@@ -157,6 +179,24 @@ func derivedToConfig(derived map[string]any, schema Schema) (map[string]any, err
 				return nil, fmt.Errorf("expected network name")
 			}
 			ret[k] = name
+		case KindMultiNetwork:
+			nl, ok := v.([]any)
+			if !ok {
+				return nil, fmt.Errorf("expected map")
+			}
+			names := []string{}
+			for _, n := range nl {
+				i, ok := n.(map[string]any)
+				if !ok {
+					return nil, fmt.Errorf("expected map")
+				}
+				name, ok := i["name"]
+				if !ok {
+					return nil, fmt.Errorf("expected network name")
+				}
+				names = append(names, name.(string))
+			}
+			ret[k] = names
 		case KindAuth:
 			vm, ok := v.(map[string]any)
 			if !ok {

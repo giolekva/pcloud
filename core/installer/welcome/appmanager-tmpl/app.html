@@ -42,11 +42,36 @@
       <label {{ if $schema.Advanced }}hidden{{ end }}>
           {{ $schema.Name }}
 		  <select name="{{ $name }}" oninput="valueChanged({{ $name }}, this.value)" {{ if $readonly }}disabled{{ end }} >
-			  {{ if not $readonly }}<option disabled selected value>Available networks</option>{{ end }}
+			  {{ if not $readonly }}<option disabled selected value></option>{{ end }}
 			  {{ range $networks }}
 			  <option {{if eq .Name (index $data $name) }}selected{{ end }}>{{ .Name }}</option>
 			  {{ end }}
 		  </select>
+      </label>
+	{{ else if eq $schema.Kind 10 }}
+      <label {{ if $schema.Advanced }}hidden{{ end }}>
+          {{ $schema.Name }}
+		  <details class="dropdown">
+			  {{ $selectedNetworks := index $data $name }}
+			  <summary id="{{ $name }}">{{ $selectedNetworks | join "," }}</summary>
+			  <ul>
+				  {{ range $networks }}
+					  {{ $networkName := .Name }}
+					  {{ $selected := false }}
+					  {{ range $selectedNetworks }}
+						  {{ if eq . $networkName }}
+							  {{ $selected = true }}
+						  {{ end }}
+				      {{ end }}
+					  <li>
+						  <label>
+							  <input type="checkbox" name="{{ $networkName }}" oninput="multiNetworkSelected('{{ $name }}', '{{ $networkName }}', this.checked)" {{ if $selected }}checked{{ end }} />
+							  {{ .Name }}
+						  </label>
+					  </li>
+				  {{ end }}
+			  </ul>
+		  </details>
       </label>
 	{{ else if eq $schema.Kind 5 }}
 	  {{ $auth := index $data $name }}
@@ -146,9 +171,35 @@
     config = config[items[i]];
   }
   config[items[items.length - 1]] = value;
-}
+ }
+
+ function getValue(name, value) {
+  let items = name.split(".")
+  for (let i = 0; i < items.length - 1; i++) {
+    if (!(items[i] in config)) {
+      config[items[i]] = {}
+    }
+    config = config[items[i]];
+  }
+  return config[items[items.length - 1]];
+ }
+
  function valueChanged(name, value) {
 	 setValue(name, value, config);
+ }
+
+ function multiNetworkSelected(name, network, selected) {
+	 let v = getValue(name, config);
+	 if (v === undefined) {
+		 v = [];
+	 }
+	 if (selected) {
+		 v.push(network);
+	 } else {
+		 v = v.filter((n) => n != network);
+	 }
+	 setValue(name, v, config);
+	 document.getElementById(name).innerHTML = v.join(",");
  }
 
  function disableForm() {

@@ -8,7 +8,7 @@ input: {
 	network: #Network @name(Network)
 	subdomain: string @name(Subdomain)
 	sshPort: int @name(SSH Port) @role(port)
-	allowedNetworks: string | *"" @name(Allowed Networks)
+	allowedNetworks: [...#Network] | *[] @name(Allowed Networks)
 	external: bool | *false @name(External)
 
 	// TODO(gio): auto generate
@@ -127,7 +127,7 @@ helm: {
 			envConfig: base64.Encode(null, json.Marshal(global))
 			gitRepoPublicKey: input.ssKeys.public
 			persistentVolumeClaimName: volumes.db.name
-			allowedNetworks: input.allowedNetworks
+			allowedNetworks: strings.Join([for n in input.allowedNetworks { n.name }], ",")
 			external: input.external
 		}
 	}

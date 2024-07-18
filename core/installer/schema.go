@@ -11,16 +11,17 @@ import (
 type Kind int
 
 const (
-	KindBoolean     Kind = 0
-	KindInt              = 7
-	KindString           = 1
-	KindStruct           = 2
-	KindNetwork          = 3
-	KindAuth             = 5
-	KindSSHKey           = 6
-	KindNumber           = 4
-	KindArrayString      = 8
-	KindPort             = 9
+	KindBoolean      Kind = 0
+	KindInt               = 7
+	KindString            = 1
+	KindStruct            = 2
+	KindNetwork           = 3
+	KindMultiNetwork      = 10
+	KindAuth              = 5
+	KindSSHKey            = 6
+	KindNumber            = 4
+	KindArrayString       = 8
+	KindPort              = 9
 )
 
 type Field struct {
@@ -77,6 +78,37 @@ func isNetwork(v cue.Value) bool {
 	network := u.LookupPath(cue.ParsePath("#Network"))
 	vv := u.LookupPath(cue.ParsePath("value"))
 	if err := network.Subsume(vv); err == nil {
+		return true
+	}
+	return false
+}
+
+const multiNetworkSchema = `
+#Network: {
+    name: string
+	ingressClass: string
+	certificateIssuer: string | *""
+	domain: string
+	allocatePortAddr: string
+	reservePortAddr: string
+	deallocatePortAddr: string
+}
+
+#Networks: [...#Network]
+
+value: %s
+`
+
+func isMultiNetwork(v cue.Value) bool {
+	if v.Value().IncompleteKind() != cue.ListKind {
+		return false
+	}
+	s := fmt.Sprintf(multiNetworkSchema, fmt.Sprintf("%#v", v))
+	c := cuecontext.New()
+	u := c.CompileString(s)
+	networks := u.LookupPath(cue.ParsePath("#Networks"))
+	vv := u.LookupPath(cue.ParsePath("value"))
+	if err := networks.Subsume(vv); err == nil {
 		return true
 	}
 	return false
@@ -198,6 +230,9 @@ func NewCueSchema(name string, v cue.Value) (Schema, error) {
 			return basicSchema{name, KindInt, false}, nil
 		}
 	case cue.ListKind:
+		if isMultiNetwork(v) {
+			return basicSchema{name, KindMultiNetwork, false}, nil
+		}
 		return basicSchema{name, KindArrayString, false}, nil
 	case cue.StructKind:
 		if isNetwork(v) {

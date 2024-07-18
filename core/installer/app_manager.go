@@ -897,6 +897,8 @@ func findPortFields(scm Schema) []string {
 		return ret
 	case KindNetwork:
 		return []string{}
+	case KindMultiNetwork:
+		return []string{}
 	case KindAuth:
 		return []string{}
 	case KindSSHKey:
