@@ -130,7 +130,7 @@ body > main {
 header > h1,
 header > svg {
   margin-bottom: 2.5px;
-  color: var(--pico-primary-hover);
+  color: white;
 }
 
 header > svg {
