@@ -4,34 +4,37 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>URL Shortener</title>
-    <link rel="stylesheet" href="/static/pico.min.css">
+    <link rel="stylesheet" href="/static/pico.2.0.6.min.css">
+    <link rel="stylesheet" href="/static/main.css?v=0.0.2">
     <script type="application/javascript" src="/static/main.js"></script>
 </head>
 <body class="container">
-    <h1>URL Shortener</h1>
+    <h1 class="headline">URL Shortener</h1>
     <form action="/" method="post">
         <label for="address">Address:</label>
         <input type="text" id="address" name="address" required>
-        <label for="custom">Custom Name (optional):</label>
+        <label for="custom">Short Name (optional):</label>
         <input type="text" id="custom" name="custom">
         <button type="submit">Shorten URL</button>
     </form>
-    <h2>Named Addresses:</h2>
-    <table>
-        <tr>
-            <th>Name</th>
-            <th>Address</th>
-            <th>Active</th>
-        </tr>
-        {{- range .NamedAddresses -}}
-        <tr>
-            <td><a href="{{ .Name }}" target="_blank">{{ .Name }}</a></td>
-            <td>{{ .Address }}</td>
-            <td>
+    <hr>
+    <div class="grid">
+        <div class="grid-cell">Active</div>
+        <div class="grid-cell">Short Name</div>
+        <div class="grid-cell">Address</div>
+        {{- range .NamedAddresses }}
+            <div class="grid-cell active">
                 <input type="checkbox" role="switch" {{ if .Active }}checked{{ end }} onclick="toggle('{{ .Name }}', {{ not .Active }});">
-            </td>
-        </tr>
-        {{- end -}}
-    </table>
+            </div>
+            <div class="grid-cell">
+                {{ if .Active }}
+                    <a href="{{ .Name }}" target="_blank">{{ .Name }}</a>
+                {{ else }}
+                    {{ .Name }}
+                {{ end }}
+            </div>
+            <div class="grid-cell">{{ .Address }}</div>
+        {{- end }}
+    </div>
 </body>
 </html>
