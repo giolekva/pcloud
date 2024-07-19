@@ -10,3 +10,4 @@ appDir: /dodo-app
 appPort: 8080
 managerAddr: ""
 volumes: []
+runtimeClassName: ""

@@ -153,6 +153,7 @@ helm: {
 				tag: images.app.tag
 				pullPolicy: images.app.pullPolicy
 			}
+			runtimeClassName: "untrusted-external" // TODO(gio): make this part of the infra config
 			appPort: _appPort
 			appDir: _appDir
 			appId: input.appId
