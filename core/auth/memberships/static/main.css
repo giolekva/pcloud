@@ -89,6 +89,30 @@
   display: contents;
 }
 
+.ssh-key-grid {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 10px;
+}
+
+.ssh-key-item {
+  display: contents;
+}
+
+.ssh-key {
+  box-sizing: border-box;
+  word-wrap: break-word;
+  word-break: break-all;
+}
+
+.ssh-key-grid button {
+  height: 16px;
+}
+
+.ssh-key-grid button:focus {
+  --pico-primary-focus: var(--pico-primary-hover);
+}
+
 .headline {
   margin-top: 15px;
 }
@@ -101,8 +125,6 @@
 .remove {
   margin-bottom: 0;
   background-color: var(--pico-primary-hover);
-  /* border-top-right-radius: 0.25rem;
-  border-bottom-right-radius: 0.25rem; */
   border: none;
   outline: none;
   padding: 0;
@@ -113,8 +135,8 @@
 }
 
 .remove svg {
-  height: 20px;
-  width: 20px;
+  height: 16px;
+  width: 16px;
 }
 
 .test {

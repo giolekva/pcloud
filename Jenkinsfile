@@ -13,12 +13,17 @@ pipeline {
 		}
     }
     stages {
-        stage('/core/installer') {
+        stage('installer auth') {
             steps {
 				container('golang') {
                 	dir('core/installer') {
                 		sh 'go mod tidy'
                 		sh 'go build cmd/*.go'
+                		sh 'go test ./...'
+					}
+                    dir('core/auth/memberships') {
+                        sh 'go mod tidy'
+                		sh 'go build *.go'
                 		sh 'go test ./...'
 					}
 				}

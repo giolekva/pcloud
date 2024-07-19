@@ -1,4 +1,5 @@
-FROM gcr.io/distroless/static:nonroot
+# FROM gcr.io/distroless/static:nonroot
+FROM alpine:latest
 
 ARG TARGETARCH
 

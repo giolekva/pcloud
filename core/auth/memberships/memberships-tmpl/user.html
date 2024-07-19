@@ -2,8 +2,40 @@
     User - {{ .CurrentUser }}
 {{ end }}
 {{- define "content" -}}
+    {{ $currentUser := .CurrentUser }}
+    {{ $isLoggedInUser := .LoggedInUserPage}}
     <h1 class="headline">User: {{ .CurrentUser }}</h1>
+    <p>{{ .Email }}</p>
+    <hr class="divider">
+    <h3>SSH Public keys</h3>
+    <div class="ssh-key-grid">
+        {{ if eq (len .SSHPublicKeys) 0 }}
+            <p>No SSH keys configured.</p>
+        {{ else }}
+            {{ range .SSHPublicKeys }}
+                <div class="ssh-key-item">
+                    {{ if $isLoggedInUser }}
+                        <form action="/user/{{ $currentUser }}/remove-ssh-key" method="post" class="remove-form" data-confirmation-message="Are you sure you want to remove SSH key?">
+                            <input type="hidden" name="ssh-key" value="{{ . }}">
+                            <button class="remove ssh-remove" type="submit">
+                                <div>{{ template "svgIcon" }}</div>
+                            </button>
+                        </form>
+                    {{ end }}
+                    <div class="ssh-key">{{ . }}</div>
+                </div>
+            {{ end }}
+        {{ end }}
+    </div>
     {{ if .LoggedInUserPage }}
+    <hr class="divider">
+    <form action="/user/{{ .CurrentUser }}/ssh-key" method="post">
+        <fieldset class="grid twoone">
+            <input type="text" id="ssh-hey" name="ssh-key" placeholder="Add SSH public key..." required>
+            <button type="submit">Add SSH public key</button>
+        </fieldset>
+    </form>
+    <hr class="divider">
     <form action="/create-group" method="post">
         <fieldset class="grid first">
             <input type="text" id="group-name" name="group-name" placeholder="Group name" required>
@@ -12,6 +44,7 @@
         </fieldset>
     </form>
     {{ end }}
+    <hr class="divider">
 
     <h3>Owner of groups</h3>
     <div class="user-remove">
@@ -44,4 +77,15 @@
             </a>
         {{- end }}
     </div>
+
+    <dialog id="confirmation" close>
+        <article>
+            <h3>Attention</h3>
+            <p id="confirmation-message">Are you sure?</p>
+            <footer>
+                <button id="cancel-button" class="secondary cancel-button">Cancel</button>
+                <button id="confirm-button">Confirm</button>
+            </footer>
+        </article>
+    </dialog>
 {{- end }}

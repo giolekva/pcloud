@@ -12,6 +12,7 @@ import (
 	"net/url"
 	"regexp"
 	"strings"
+	"sync"
 
 	"github.com/ncruces/go-sqlite3"
 	_ "github.com/ncruces/go-sqlite3/driver"
@@ -54,15 +55,28 @@ type Store interface {
 	RemoveFromGroupToGroup(parent, child string) error
 	RemoveUserFromTable(username, groupName, tableName string) error
 	GetAllGroups() ([]Group, error)
+	GetAllUsers() ([]User, error)
+	GetUser(username string) (User, error)
+	AddSSHKeyForUser(username, sshKey string) error
+	RemoveSSHKeyForUser(username, sshKey string) error
+	CreateUser(user, email string) error
 }
 
 type Server struct {
-	store Store
+	store         Store
+	syncAddresses map[string]struct{}
+	mu            sync.Mutex
 }
 
 type Group struct {
 	Name        string
 	Description string
+}
+
+type User struct {
+	Username      string   `json:"username"`
+	Email         string   `json:"email"`
+	SSHPublicKeys []string `json:"sshPublicKeys,omitempty"`
 }
 
 type SQLiteStore struct {
@@ -105,6 +119,17 @@ func NewSQLiteStore(db *sql.DB) (*SQLiteStore, error) {
 			group_name TEXT,
 			FOREIGN KEY(group_name) REFERENCES groups(name),
 			UNIQUE (username, group_name)
+		);
+		CREATE TABLE IF NOT EXISTS users (
+			username TEXT PRIMARY KEY,
+			email TEXT,
+			UNIQUE (email)
+		);
+		CREATE TABLE IF NOT EXISTS user_ssh_keys (
+			username TEXT,
+			ssh_key TEXT,
+			UNIQUE (ssh_key),
+			FOREIGN KEY(username) REFERENCES users(username)
 		);`)
 	if err != nil {
 		return nil, err
@@ -513,13 +538,110 @@ func (s *SQLiteStore) GetAllGroups() ([]Group, error) {
 	return s.queryGroups(query)
 }
 
+func (s *SQLiteStore) AddSSHKeyForUser(username, sshKey string) error {
+	_, err := s.db.Exec(`INSERT INTO user_ssh_keys (username, ssh_key) VALUES (?, ?)`, username, sshKey)
+	if err != nil {
+		sqliteErr, ok := err.(*sqlite3.Error)
+		if ok && sqliteErr.ExtendedCode() == ErrorUniqueConstraintViolation {
+			return fmt.Errorf("%s such SSH public key already exists", sshKey)
+		}
+		return err
+	}
+	return nil
+}
+
+func (s *SQLiteStore) RemoveSSHKeyForUser(username, sshKey string) error {
+	_, err := s.db.Exec(`DELETE FROM user_ssh_keys WHERE username = ? AND ssh_key = ?`, username, sshKey)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *SQLiteStore) GetAllUsers() ([]User, error) {
+	rows, err := s.db.Query(`
+		SELECT users.username, users.email, GROUP_CONCAT(user_ssh_keys.ssh_key, ',')
+		FROM users
+		LEFT JOIN user_ssh_keys ON users.username = user_ssh_keys.username
+		GROUP BY users.username
+	`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var userInfos []User
+	for rows.Next() {
+		var username, email string
+		var sshKeys sql.NullString
+		if err := rows.Scan(&username, &email, &sshKeys); err != nil {
+			return nil, err
+		}
+		user := User{
+			Username: username,
+			Email:    email,
+		}
+		if sshKeys.Valid {
+			user.SSHPublicKeys = strings.Split(sshKeys.String, ",")
+		}
+		userInfos = append(userInfos, user)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return userInfos, nil
+}
+
+func (s *SQLiteStore) GetUser(username string) (User, error) {
+	var user User
+	user.Username = username
+	query := `
+		SELECT users.email, GROUP_CONCAT(user_ssh_keys.ssh_key, ',')
+		FROM users
+		LEFT JOIN user_ssh_keys ON users.username = user_ssh_keys.username
+		WHERE users.username = ?
+		GROUP BY users.username
+	`
+	row := s.db.QueryRow(query, username)
+	var sshKeys sql.NullString
+	err := row.Scan(&user.Email, &sshKeys)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return User{}, fmt.Errorf("no user found with username %s", username)
+		}
+		return User{}, err
+	}
+	if sshKeys.Valid {
+		user.SSHPublicKeys = strings.Split(sshKeys.String, ",")
+	}
+	return user, nil
+}
+
+func (s *SQLiteStore) CreateUser(user, email string) error {
+	_, err := s.db.Exec(`INSERT INTO users (username, email) VALUES (?, ?)`, user, email)
+	if err != nil {
+		sqliteErr, ok := err.(*sqlite3.Error)
+		if ok {
+			if sqliteErr.ExtendedCode() == ErrorUniqueConstraintViolation {
+				if strings.Contains(err.Error(), "UNIQUE constraint failed: users.username") {
+					return fmt.Errorf("username %s already exists", user)
+				}
+				if strings.Contains(err.Error(), "UNIQUE constraint failed: users.email") {
+					return fmt.Errorf("email %s already exists", email)
+				}
+			}
+		}
+		return err
+	}
+	return nil
+}
+
 func getLoggedInUser(r *http.Request) (string, error) {
 	if user := r.Header.Get("X-User"); user != "" {
 		return user, nil
 	} else {
 		return "", fmt.Errorf("unauthenticated")
 	}
-	// return "user", nil
+	// return "tabo", nil
 }
 
 type Status int
@@ -534,15 +656,17 @@ func (s *Server) Start() error {
 	go func() {
 		r := mux.NewRouter()
 		r.PathPrefix("/static/").Handler(http.FileServer(http.FS(staticResources)))
-		r.HandleFunc("/group/{group-name}/add-user/", s.addUserToGroupHandler)
-		r.HandleFunc("/group/{parent-group}/add-child-group", s.addChildGroupHandler)
-		r.HandleFunc("/group/{owned-group}/add-owner-group", s.addOwnerGroupHandler)
-		r.HandleFunc("/group/{parent-group}/remove-child-group/{child-group}", s.removeChildGroupHandler)
-		r.HandleFunc("/group/{group-name}/remove-owner/{username}", s.removeOwnerFromGroupHandler)
-		r.HandleFunc("/group/{group-name}/remove-member/{username}", s.removeMemberFromGroupHandler)
+		r.HandleFunc("/group/{group-name}/add-user/", s.addUserToGroupHandler).Methods(http.MethodPost)
+		r.HandleFunc("/group/{parent-group}/add-child-group", s.addChildGroupHandler).Methods(http.MethodPost)
+		r.HandleFunc("/group/{owned-group}/add-owner-group", s.addOwnerGroupHandler).Methods(http.MethodPost)
+		r.HandleFunc("/group/{parent-group}/remove-child-group/{child-group}", s.removeChildGroupHandler).Methods(http.MethodPost)
+		r.HandleFunc("/group/{group-name}/remove-owner/{username}", s.removeOwnerFromGroupHandler).Methods(http.MethodPost)
+		r.HandleFunc("/group/{group-name}/remove-member/{username}", s.removeMemberFromGroupHandler).Methods(http.MethodPost)
 		r.HandleFunc("/group/{group-name}", s.groupHandler)
+		r.HandleFunc("/user/{username}/ssh-key", s.addSSHKeyForUserHandler).Methods(http.MethodPost)
+		r.HandleFunc("/user/{username}/remove-ssh-key", s.removeSSHKeyForUserHandler).Methods(http.MethodPost)
 		r.HandleFunc("/user/{username}", s.userHandler)
-		r.HandleFunc("/create-group", s.createGroupHandler)
+		r.HandleFunc("/create-group", s.createGroupHandler).Methods(http.MethodPost)
 		r.HandleFunc("/", s.homePageHandler)
 		e <- http.ListenAndServe(fmt.Sprintf(":%d", *port), r)
 	}()
@@ -550,6 +674,8 @@ func (s *Server) Start() error {
 		r := mux.NewRouter()
 		r.HandleFunc("/api/init", s.apiInitHandler)
 		r.HandleFunc("/api/user/{username}", s.apiMemberOfHandler)
+		r.HandleFunc("/api/users", s.apiGetAllUsers).Methods(http.MethodGet)
+		r.HandleFunc("/api/users", s.apiCreateUser).Methods(http.MethodPost)
 		e <- http.ListenAndServe(fmt.Sprintf(":%d", *apiPort), r)
 	}()
 	return <-e
@@ -616,6 +742,17 @@ func (s *Server) homePageHandler(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, "/user/"+loggedInUser, http.StatusSeeOther)
 }
 
+type UserPageData struct {
+	OwnerGroups      []Group
+	MembershipGroups []Group
+	TransitiveGroups []Group
+	LoggedInUserPage bool
+	CurrentUser      string
+	SSHPublicKeys    []string
+	Email            string
+	ErrorMessage     string
+}
+
 func (s *Server) userHandler(w http.ResponseWriter, r *http.Request) {
 	loggedInUser, err := getLoggedInUser(r)
 	if err != nil {
@@ -642,19 +779,19 @@ func (s *Server) userHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	data := struct {
-		OwnerGroups      []Group
-		MembershipGroups []Group
-		TransitiveGroups []Group
-		LoggedInUserPage bool
-		CurrentUser      string
-		ErrorMessage     string
-	}{
+	userInfo, err := s.store.GetUser(user)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	data := UserPageData{
 		OwnerGroups:      ownerGroups,
 		MembershipGroups: membershipGroups,
 		TransitiveGroups: transitiveGroups,
 		LoggedInUserPage: loggedInUserPage,
 		CurrentUser:      user,
+		SSHPublicKeys:    userInfo.SSHPublicKeys,
+		Email:            userInfo.Email,
 		ErrorMessage:     errorMsg,
 	}
 	templates, err := parseTemplates(tmpls)
@@ -672,10 +809,6 @@ func (s *Server) createGroupHandler(w http.ResponseWriter, r *http.Request) {
 	loggedInUser, err := getLoggedInUser(r)
 	if err != nil {
 		http.Error(w, "User Not Logged In", http.StatusUnauthorized)
-		return
-	}
-	if r.Method != http.MethodPost {
-		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
 	if err := r.ParseForm(); err != nil {
@@ -698,6 +831,18 @@ func (s *Server) createGroupHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	http.Redirect(w, r, "/", http.StatusSeeOther)
+}
+
+type GroupPageData struct {
+	GroupName        string
+	Description      string
+	Owners           []string
+	Members          []string
+	AllGroups        []Group
+	TransitiveGroups []Group
+	ChildGroups      []Group
+	OwnerGroups      []Group
+	ErrorMessage     string
 }
 
 func (s *Server) groupHandler(w http.ResponseWriter, r *http.Request) {
@@ -758,17 +903,7 @@ func (s *Server) groupHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	data := struct {
-		GroupName        string
-		Description      string
-		Owners           []string
-		Members          []string
-		AllGroups        []Group
-		TransitiveGroups []Group
-		ChildGroups      []Group
-		OwnerGroups      []Group
-		ErrorMessage     string
-	}{
+	data := GroupPageData{
 		GroupName:        groupName,
 		Description:      description,
 		Owners:           owners,
@@ -796,31 +931,29 @@ func (s *Server) removeChildGroupHandler(w http.ResponseWriter, r *http.Request)
 		http.Error(w, "User Not Logged In", http.StatusUnauthorized)
 		return
 	}
-	if r.Method == http.MethodPost {
-		vars := mux.Vars(r)
-		parentGroup := vars["parent-group"]
-		childGroup := vars["child-group"]
-		if err := isValidGroupName(parentGroup); err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
-			return
-		}
-		if err := isValidGroupName(childGroup); err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
-			return
-		}
-		if err := s.checkIsOwner(w, loggedInUser, parentGroup); err != nil {
-			redirectURL := fmt.Sprintf("/group/%s?errorMessage=%s", parentGroup, url.QueryEscape(err.Error()))
-			http.Redirect(w, r, redirectURL, http.StatusSeeOther)
-			return
-		}
-		err := s.store.RemoveFromGroupToGroup(parentGroup, childGroup)
-		if err != nil {
-			redirectURL := fmt.Sprintf("/group/%s?errorMessage=%s", parentGroup, url.QueryEscape(err.Error()))
-			http.Redirect(w, r, redirectURL, http.StatusFound)
-			return
-		}
-		http.Redirect(w, r, "/group/"+parentGroup, http.StatusSeeOther)
+	vars := mux.Vars(r)
+	parentGroup := vars["parent-group"]
+	childGroup := vars["child-group"]
+	if err := isValidGroupName(parentGroup); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
 	}
+	if err := isValidGroupName(childGroup); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	if err := s.checkIsOwner(w, loggedInUser, parentGroup); err != nil {
+		redirectURL := fmt.Sprintf("/group/%s?errorMessage=%s", parentGroup, url.QueryEscape(err.Error()))
+		http.Redirect(w, r, redirectURL, http.StatusSeeOther)
+		return
+	}
+	err = s.store.RemoveFromGroupToGroup(parentGroup, childGroup)
+	if err != nil {
+		redirectURL := fmt.Sprintf("/group/%s?errorMessage=%s", parentGroup, url.QueryEscape(err.Error()))
+		http.Redirect(w, r, redirectURL, http.StatusFound)
+		return
+	}
+	http.Redirect(w, r, "/group/"+parentGroup, http.StatusSeeOther)
 }
 
 func (s *Server) removeOwnerFromGroupHandler(w http.ResponseWriter, r *http.Request) {
@@ -829,28 +962,26 @@ func (s *Server) removeOwnerFromGroupHandler(w http.ResponseWriter, r *http.Requ
 		http.Error(w, "User Not Logged In", http.StatusUnauthorized)
 		return
 	}
-	if r.Method == http.MethodPost {
-		vars := mux.Vars(r)
-		username := vars["username"]
-		groupName := vars["group-name"]
-		tableName := "owners"
-		if err := isValidGroupName(groupName); err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
-			return
-		}
-		if err := s.checkIsOwner(w, loggedInUser, groupName); err != nil {
-			redirectURL := fmt.Sprintf("/group/%s?errorMessage=%s", groupName, url.QueryEscape(err.Error()))
-			http.Redirect(w, r, redirectURL, http.StatusSeeOther)
-			return
-		}
-		err := s.store.RemoveUserFromTable(username, groupName, tableName)
-		if err != nil {
-			redirectURL := fmt.Sprintf("/group/%s?errorMessage=%s", groupName, url.QueryEscape(err.Error()))
-			http.Redirect(w, r, redirectURL, http.StatusFound)
-			return
-		}
-		http.Redirect(w, r, "/group/"+groupName, http.StatusSeeOther)
+	vars := mux.Vars(r)
+	username := vars["username"]
+	groupName := vars["group-name"]
+	tableName := "owners"
+	if err := isValidGroupName(groupName); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
 	}
+	if err := s.checkIsOwner(w, loggedInUser, groupName); err != nil {
+		redirectURL := fmt.Sprintf("/group/%s?errorMessage=%s", groupName, url.QueryEscape(err.Error()))
+		http.Redirect(w, r, redirectURL, http.StatusSeeOther)
+		return
+	}
+	err = s.store.RemoveUserFromTable(username, groupName, tableName)
+	if err != nil {
+		redirectURL := fmt.Sprintf("/group/%s?errorMessage=%s", groupName, url.QueryEscape(err.Error()))
+		http.Redirect(w, r, redirectURL, http.StatusFound)
+		return
+	}
+	http.Redirect(w, r, "/group/"+groupName, http.StatusSeeOther)
 }
 
 func (s *Server) removeMemberFromGroupHandler(w http.ResponseWriter, r *http.Request) {
@@ -859,35 +990,29 @@ func (s *Server) removeMemberFromGroupHandler(w http.ResponseWriter, r *http.Req
 		http.Error(w, "User Not Logged In", http.StatusUnauthorized)
 		return
 	}
-	if r.Method == http.MethodPost {
-		vars := mux.Vars(r)
-		username := vars["username"]
-		groupName := vars["group-name"]
-		tableName := "user_to_group"
-		if err := isValidGroupName(groupName); err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
-			return
-		}
-		if err := s.checkIsOwner(w, loggedInUser, groupName); err != nil {
-			redirectURL := fmt.Sprintf("/group/%s?errorMessage=%s", groupName, url.QueryEscape(err.Error()))
-			http.Redirect(w, r, redirectURL, http.StatusSeeOther)
-			return
-		}
-		err := s.store.RemoveUserFromTable(username, groupName, tableName)
-		if err != nil {
-			redirectURL := fmt.Sprintf("/group/%s?errorMessage=%s", groupName, url.QueryEscape(err.Error()))
-			http.Redirect(w, r, redirectURL, http.StatusFound)
-			return
-		}
-		http.Redirect(w, r, "/group/"+groupName, http.StatusSeeOther)
+	vars := mux.Vars(r)
+	username := vars["username"]
+	groupName := vars["group-name"]
+	tableName := "user_to_group"
+	if err := isValidGroupName(groupName); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
 	}
+	if err := s.checkIsOwner(w, loggedInUser, groupName); err != nil {
+		redirectURL := fmt.Sprintf("/group/%s?errorMessage=%s", groupName, url.QueryEscape(err.Error()))
+		http.Redirect(w, r, redirectURL, http.StatusSeeOther)
+		return
+	}
+	err = s.store.RemoveUserFromTable(username, groupName, tableName)
+	if err != nil {
+		redirectURL := fmt.Sprintf("/group/%s?errorMessage=%s", groupName, url.QueryEscape(err.Error()))
+		http.Redirect(w, r, redirectURL, http.StatusFound)
+		return
+	}
+	http.Redirect(w, r, "/group/"+groupName, http.StatusSeeOther)
 }
 
 func (s *Server) addUserToGroupHandler(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost {
-		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-		return
-	}
 	loggedInUser, err := getLoggedInUser(r)
 	if err != nil {
 		http.Error(w, "User Not Logged In", http.StatusUnauthorized)
@@ -933,10 +1058,6 @@ func (s *Server) addUserToGroupHandler(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) addChildGroupHandler(w http.ResponseWriter, r *http.Request) {
 	// TODO(dtabidze): In future we might need to make one group OWNER of another and not just a member.
-	if r.Method != http.MethodPost {
-		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-		return
-	}
 	loggedInUser, err := getLoggedInUser(r)
 	if err != nil {
 		http.Error(w, "User Not Logged In", http.StatusUnauthorized)
@@ -967,10 +1088,6 @@ func (s *Server) addChildGroupHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) addOwnerGroupHandler(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost {
-		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-		return
-	}
 	loggedInUser, err := getLoggedInUser(r)
 	if err != nil {
 		http.Error(w, "User Not Logged In", http.StatusUnauthorized)
@@ -998,6 +1115,62 @@ func (s *Server) addOwnerGroupHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	http.Redirect(w, r, "/group/"+ownedGroup, http.StatusSeeOther)
+}
+
+func (s *Server) addSSHKeyForUserHandler(w http.ResponseWriter, r *http.Request) {
+	defer s.pingAllSyncAddresses()
+	loggedInUser, err := getLoggedInUser(r)
+	if err != nil {
+		http.Error(w, "User Not Logged In", http.StatusUnauthorized)
+		return
+	}
+	vars := mux.Vars(r)
+	username := vars["username"]
+	if loggedInUser != username {
+		http.Error(w, "You are not allowed to add SSH key for someone else", http.StatusUnauthorized)
+		return
+	}
+	sshKey := r.FormValue("ssh-key")
+	if sshKey == "" {
+		http.Error(w, "SSH key not present", http.StatusBadRequest)
+		return
+	}
+	if err := s.store.AddSSHKeyForUser(username, sshKey); err != nil {
+		redirectURL := fmt.Sprintf("/user/%s?errorMessage=%s", loggedInUser, url.QueryEscape(err.Error()))
+		http.Redirect(w, r, redirectURL, http.StatusFound)
+		return
+	}
+	http.Redirect(w, r, "/user/"+loggedInUser, http.StatusSeeOther)
+}
+
+func (s *Server) removeSSHKeyForUserHandler(w http.ResponseWriter, r *http.Request) {
+	defer s.pingAllSyncAddresses()
+	loggedInUser, err := getLoggedInUser(r)
+	if err != nil {
+		http.Error(w, "User Not Logged In", http.StatusUnauthorized)
+		return
+	}
+	vars := mux.Vars(r)
+	username := vars["username"]
+	if loggedInUser != username {
+		http.Error(w, "You are not allowed to remove SSH key for someone else", http.StatusUnauthorized)
+		return
+	}
+	if err := r.ParseForm(); err != nil {
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+	sshKey := r.FormValue("ssh-key")
+	if sshKey == "" {
+		http.Error(w, "SSH key not present", http.StatusBadRequest)
+		return
+	}
+	if err := s.store.RemoveSSHKeyForUser(username, sshKey); err != nil {
+		redirectURL := fmt.Sprintf("/user/%s?errorMessage=%s", loggedInUser, url.QueryEscape(err.Error()))
+		http.Redirect(w, r, redirectURL, http.StatusFound)
+		return
+	}
+	http.Redirect(w, r, "/user/"+loggedInUser, http.StatusSeeOther)
 }
 
 type initRequest struct {
@@ -1045,6 +1218,76 @@ func (s *Server) apiMemberOfHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+func (s *Server) apiGetAllUsers(w http.ResponseWriter, r *http.Request) {
+	defer s.pingAllSyncAddresses()
+	selfAddress := r.FormValue("selfAddress")
+	if selfAddress != "" {
+		s.addSyncAddress(selfAddress)
+	}
+	users, err := s.store.GetAllUsers()
+	if err != nil {
+		http.Error(w, "Failed to retrieve SSH keys", http.StatusInternalServerError)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if err := json.NewEncoder(w).Encode(users); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+}
+
+func (s *Server) apiCreateUser(w http.ResponseWriter, r *http.Request) {
+	defer s.pingAllSyncAddresses()
+	selfAddress := r.FormValue("selfAddress")
+	if selfAddress != "" {
+		s.addSyncAddress(selfAddress)
+	}
+	if err := r.ParseForm(); err != nil {
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+	username := r.FormValue("username")
+	email := r.FormValue("email")
+	if username == "" {
+		http.Error(w, "Username cannot be empty", http.StatusBadRequest)
+		return
+	}
+	if email == "" {
+		http.Error(w, "Email cannot be empty", http.StatusBadRequest)
+		return
+	}
+	username = strings.ToLower(username)
+	email = strings.ToLower(email)
+	err := s.store.CreateUser(username, email)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	w.WriteHeader(http.StatusOK)
+}
+
+func (s *Server) pingAllSyncAddresses() {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	for address := range s.syncAddresses {
+		resp, err := http.Get(address)
+		if err != nil {
+			log.Printf("Failed to ping %s: %v", address, err)
+			continue
+		}
+		resp.Body.Close()
+		if resp.StatusCode != http.StatusOK {
+			log.Printf("Ping to %s returned status %d", address, resp.StatusCode)
+		}
+	}
+}
+
+func (s *Server) addSyncAddress(address string) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.syncAddresses[address] = struct{}{}
+}
+
 func convertStatus(status string) (Status, error) {
 	switch status {
 	case "Owner":
@@ -1077,6 +1320,10 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	s := Server{store}
+	s := Server{
+		store:         store,
+		syncAddresses: make(map[string]struct{}),
+		mu:            sync.Mutex{},
+	}
 	log.Fatal(s.Start())
 }
