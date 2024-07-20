@@ -1,0 +1,10 @@
+{{ define "title" }}
+dodo app: {{ .Name }}
+{{ end }}
+{{- define "content" -}}
+{{ .GitCloneCommand }}
+<hr class="divider">
+{{- range .Commits -}}
+{{ .Hash }} {{ .Message }}<br/>
+{{- end -}}
+{{- end -}}

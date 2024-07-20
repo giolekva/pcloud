@@ -15,3 +15,4 @@ main
 *_arm64
 *_amd64
 .vscode/
+.hugo_build.lock

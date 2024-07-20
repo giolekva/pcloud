@@ -454,7 +454,7 @@ func (a cueEnvApp) Render(
 		"release":     release,
 		"input":       derived,
 		"localCharts": charts,
-		"networks":    networkMap(networks),
+		"networks":    NetworkMap(networks),
 	})
 	if err != nil {
 		return EnvAppRendered{}, err
@@ -529,7 +529,7 @@ func join[T fmt.Stringer](items []T, sep string) string {
 	return strings.Join(tmp, ",")
 }
 
-func networkMap(networks []Network) map[string]Network {
+func NetworkMap(networks []Network) map[string]Network {
 	ret := make(map[string]Network)
 	for _, n := range networks {
 		ret[strings.ToLower(n.Name)] = n

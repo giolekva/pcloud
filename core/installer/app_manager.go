@@ -19,8 +19,12 @@ import (
 	"sigs.k8s.io/yaml"
 )
 
-const configFileName = "config.yaml"
-const kustomizationFileName = "kustomization.yaml"
+const (
+	configFileName        = "config.yaml"
+	kustomizationFileName = "kustomization.yaml"
+	gitIgnoreFileName     = ".gitignore"
+	includeEverything     = "!*"
+)
 
 var ErrorNotFound = errors.New("not found")
 
@@ -326,6 +330,9 @@ func installApp(
 			return "", err
 		}
 		{
+			if err := soft.WriteFile(r, path.Join(appDir, gitIgnoreFileName), includeEverything); err != nil {
+				return "", err
+			}
 			if err := soft.WriteYaml(r, path.Join(appDir, configFileName), config); err != nil {
 				return "", err
 			}

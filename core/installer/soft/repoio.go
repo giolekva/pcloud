@@ -343,3 +343,13 @@ func ReadFile(repo RepoFS, path string) ([]byte, error) {
 	defer r.Close()
 	return io.ReadAll(r)
 }
+
+func WriteFile(repo RepoFS, path, contents string) error {
+	w, err := repo.Writer(path)
+	if err != nil {
+		return err
+	}
+	defer w.Close()
+	_, err = io.WriteString(w, contents)
+	return err
+}
