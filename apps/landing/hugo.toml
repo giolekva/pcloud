@@ -1,3 +1,9 @@
 baseURL = 'https://example.org/'
 languageCode = 'en-us'
 title = 'Dodo'
+[[headers]]
+  for = '/**'
+  [headers.values]
+    Content-Security-Policy = 'connect-src app.v1.dodo.cloud'
+    Referrer-Policy = 'strict-origin-when-cross-origin'
+    X-Content-Type-Options = 'nosniff'

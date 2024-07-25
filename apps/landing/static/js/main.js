@@ -139,3 +139,55 @@ document.addEventListener("DOMContentLoaded", function () {
         fact.addEventListener("mouseover", () => handleMouseover(facts[index].params.image, index, facts[index].params.title));
     });
 });
+
+async function loadPublicData() {
+  let networkSelect = document.querySelector("select#network");
+  if (networkSelect === undefined) {
+	return;
+  }
+  networkSelect.innerHTML = "";
+  let appTypeSelect = document.querySelector("select#app-type");
+  if (appTypeSelect === undefined) {
+	return;
+  }
+  appTypeSelect.innerHTML = "";
+  let resp = await fetch("https://app.v1.dodo.cloud/api/public-data");
+  if (!resp.ok) {
+	return;
+  }
+  let data = await resp.json();
+  data.networks.forEach((network) => {
+	let opt = document.createElement("option");
+	opt.setAttribute("value", network.domain);
+	opt.innerHTML = network.domain;
+	networkSelect.appendChild(opt);
+  });
+  data.types.forEach((t) => {
+	let opt = document.createElement("option");
+	opt.setAttribute("value", t);
+	opt.innerHTML = t;
+	appTypeSelect.appendChild(opt);
+  });
+}
+
+function register() {
+  var data = {
+	type: document.getElementById("app-type").value,
+	adminPublicKey: document.getElementById("public-key").value,
+	network: document.getElementById("network").value,
+	subdomain: document.getElementById("subdomain").value,
+  };
+  fetch("https://app.v1.dodo.cloud/api/apps", {
+	method: "POST",
+	body: JSON.stringify(data),
+  }).then((resp) => {
+	resp.json().then((r) => {
+	  console.log(r);
+	});
+  });
+  return false;
+}
+
+document.addEventListener("DOMContentLoaded", () => {
+  loadPublicData();
+});

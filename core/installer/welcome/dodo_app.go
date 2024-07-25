@@ -37,6 +37,8 @@ const (
 	loginPath      = "/login"
 	logoutPath     = "/logout"
 	staticPath     = "/static"
+	apiPublicData  = "/api/public-data"
+	apiCreateApp   = "/api/apps"
 	sessionCookie  = "dodo-app-session"
 	userCtx        = "user"
 )
@@ -90,7 +92,6 @@ type DodoAppServer struct {
 	jc                installer.JobCreator
 	workers           map[string]map[string]struct{}
 	appNs             map[string]string
-	sc                *securecookie.SecureCookie
 	tmplts            dodoAppTmplts
 	appTmpls          AppTmplStore
 }
@@ -117,10 +118,6 @@ func NewDodoAppServer(
 	if err != nil {
 		return nil, err
 	}
-	sc := securecookie.New(
-		securecookie.GenerateRandomKey(64),
-		securecookie.GenerateRandomKey(32),
-	)
 	apps, err := fs.Sub(appTmplsFS, "app-tmpl")
 	if err != nil {
 		return nil, err
@@ -148,7 +145,6 @@ func NewDodoAppServer(
 		jc,
 		map[string]map[string]struct{}{},
 		map[string]string{},
-		sc,
 		tmplts,
 		appTmpls,
 	}
@@ -175,6 +171,8 @@ func (s *DodoAppServer) Start() error {
 		r.Use(s.mwAuth)
 		r.PathPrefix(staticPath).Handler(http.FileServer(http.FS(staticResources)))
 		r.HandleFunc(logoutPath, s.handleLogout).Methods(http.MethodGet)
+		r.HandleFunc(apiPublicData, s.handleAPIPublicData)
+		r.HandleFunc(apiCreateApp, s.handleAPICreateApp).Methods(http.MethodPost)
 		r.HandleFunc("/{app-name}"+loginPath, s.handleLoginForm).Methods(http.MethodGet)
 		r.HandleFunc("/{app-name}"+loginPath, s.handleLogin).Methods(http.MethodPost)
 		r.HandleFunc("/{app-name}", s.handleAppStatus).Methods(http.MethodGet)
@@ -184,10 +182,9 @@ func (s *DodoAppServer) Start() error {
 	}()
 	go func() {
 		r := mux.NewRouter()
-		r.HandleFunc("/update", s.handleApiUpdate)
-		r.HandleFunc("/api/apps/{app-name}/workers", s.handleApiRegisterWorker).Methods(http.MethodPost)
-		r.HandleFunc("/api/apps", s.handleApiCreateApp).Methods(http.MethodPost)
-		r.HandleFunc("/api/add-admin-key", s.handleApiAddAdminKey).Methods(http.MethodPost)
+		r.HandleFunc("/update", s.handleAPIUpdate)
+		r.HandleFunc("/api/apps/{app-name}/workers", s.handleAPIRegisterWorker).Methods(http.MethodPost)
+		r.HandleFunc("/api/add-admin-key", s.handleAPIAddAdminKey).Methods(http.MethodPost)
 		e <- http.ListenAndServe(fmt.Sprintf(":%d", s.apiPort), r)
 	}()
 	return <-e
@@ -195,6 +192,7 @@ func (s *DodoAppServer) Start() error {
 
 type UserGetter interface {
 	Get(r *http.Request) string
+	Encode(w http.ResponseWriter, user string) error
 }
 
 type externalUserGetter struct {
@@ -202,7 +200,10 @@ type externalUserGetter struct {
 }
 
 func NewExternalUserGetter() UserGetter {
-	return &externalUserGetter{}
+	return &externalUserGetter{securecookie.New(
+		securecookie.GenerateRandomKey(64),
+		securecookie.GenerateRandomKey(32),
+	)}
 }
 
 func (ug *externalUserGetter) Get(r *http.Request) string {
@@ -217,6 +218,22 @@ func (ug *externalUserGetter) Get(r *http.Request) string {
 	return user
 }
 
+func (ug *externalUserGetter) Encode(w http.ResponseWriter, user string) error {
+	if encoded, err := ug.sc.Encode(sessionCookie, user); err == nil {
+		cookie := &http.Cookie{
+			Name:     sessionCookie,
+			Value:    encoded,
+			Path:     "/",
+			Secure:   true,
+			HttpOnly: true,
+		}
+		http.SetCookie(w, cookie)
+		return nil
+	} else {
+		return err
+	}
+}
+
 type internalUserGetter struct{}
 
 func NewInternalUserGetter() UserGetter {
@@ -227,9 +244,17 @@ func (ug internalUserGetter) Get(r *http.Request) string {
 	return r.Header.Get("X-User")
 }
 
+func (ug internalUserGetter) Encode(w http.ResponseWriter, user string) error {
+	return nil
+}
+
 func (s *DodoAppServer) mwAuth(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if strings.HasSuffix(r.URL.Path, loginPath) || strings.HasPrefix(r.URL.Path, logoutPath) || strings.HasPrefix(r.URL.Path, staticPath) {
+		if strings.HasSuffix(r.URL.Path, loginPath) ||
+			strings.HasPrefix(r.URL.Path, logoutPath) ||
+			strings.HasPrefix(r.URL.Path, staticPath) ||
+			strings.HasPrefix(r.URL.Path, apiPublicData) ||
+			strings.HasPrefix(r.URL.Path, apiCreateApp) {
 			next.ServeHTTP(w, r)
 			return
 		}
@@ -249,6 +274,7 @@ func (s *DodoAppServer) mwAuth(next http.Handler) http.Handler {
 }
 
 func (s *DodoAppServer) handleLogout(w http.ResponseWriter, r *http.Request) {
+	// TODO(gio): move to UserGetter
 	http.SetCookie(w, &http.Cookie{
 		Name:     sessionCookie,
 		Value:    "",
@@ -309,15 +335,9 @@ func (s *DodoAppServer) handleLogin(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, r.URL.Path, http.StatusSeeOther)
 		return
 	}
-	if encoded, err := s.sc.Encode(sessionCookie, user); err == nil {
-		cookie := &http.Cookie{
-			Name:     sessionCookie,
-			Value:    encoded,
-			Path:     "/",
-			Secure:   true,
-			HttpOnly: true,
-		}
-		http.SetCookie(w, cookie)
+	if err := s.ug.Encode(w, user); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
 	}
 	http.Redirect(w, r, fmt.Sprintf("/%s", appName), http.StatusSeeOther)
 }
@@ -388,7 +408,7 @@ type apiUpdateReq struct {
 	After string `json:"after"`
 }
 
-func (s *DodoAppServer) handleApiUpdate(w http.ResponseWriter, r *http.Request) {
+func (s *DodoAppServer) handleAPIUpdate(w http.ResponseWriter, r *http.Request) {
 	fmt.Println("update")
 	var req apiUpdateReq
 	var contents strings.Builder
@@ -434,7 +454,7 @@ type apiRegisterWorkerReq struct {
 	Address string `json:"address"`
 }
 
-func (s *DodoAppServer) handleApiRegisterWorker(w http.ResponseWriter, r *http.Request) {
+func (s *DodoAppServer) handleAPIRegisterWorker(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	appName, ok := vars["app-name"]
 	if !ok || appName == "" {
@@ -525,7 +545,7 @@ type apiCreateAppResp struct {
 	Password string `json:"password"`
 }
 
-func (s *DodoAppServer) handleApiCreateApp(w http.ResponseWriter, r *http.Request) {
+func (s *DodoAppServer) handleAPICreateApp(w http.ResponseWriter, r *http.Request) {
 	var req apiCreateAppReq
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
@@ -573,6 +593,7 @@ func (s *DodoAppServer) handleApiCreateApp(w http.ResponseWriter, r *http.Reques
 		AppName:  appName,
 		Password: password,
 	}
+	w.Header().Set("Access-Control-Allow-Origin", "*")
 	if err := json.NewEncoder(w).Encode(resp); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -699,7 +720,7 @@ type apiAddAdminKeyReq struct {
 	Public string `json:"public"`
 }
 
-func (s *DodoAppServer) handleApiAddAdminKey(w http.ResponseWriter, r *http.Request) {
+func (s *DodoAppServer) handleAPIAddAdminKey(w http.ResponseWriter, r *http.Request) {
 	var req apiAddAdminKeyReq
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
@@ -783,6 +804,36 @@ func (s *DodoAppServer) getNetworks(user string) ([]installer.Network, error) {
 	return s.nf.Filter(user, networks)
 }
 
+type publicNetworkData struct {
+	Name   string `json:"name"`
+	Domain string `json:"domain"`
+}
+
+type publicData struct {
+	Networks []publicNetworkData `json:"networks"`
+	Types    []string            `json:"types"`
+}
+
+func (s *DodoAppServer) handleAPIPublicData(w http.ResponseWriter, r *http.Request) {
+	networks, err := s.getNetworks("")
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	var ret publicData
+	for _, n := range networks {
+		ret.Networks = append(ret.Networks, publicNetworkData{n.Name, n.Domain})
+	}
+	for _, t := range s.appTmpls.Types() {
+		ret.Types = append(ret.Types, strings.ReplaceAll(t, "-", ":"))
+	}
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+	if err := json.NewEncoder(w).Encode(ret); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+}
+
 func pickNetwork(networks []installer.Network, network string) []installer.Network {
 	for _, n := range networks {
 		if n.Name == network {
@@ -802,7 +853,7 @@ func NewNoNetworkFilter() NetworkFilter {
 	return noNetworkFilter{}
 }
 
-func (f noNetworkFilter) Filter(app string, networks []installer.Network) ([]installer.Network, error) {
+func (f noNetworkFilter) Filter(user string, networks []installer.Network) ([]installer.Network, error) {
 	return networks, nil
 }
 
@@ -815,6 +866,9 @@ func NewNetworkFilterByOwner(st Store) NetworkFilter {
 }
 
 func (f *filterByOwner) Filter(user string, networks []installer.Network) ([]installer.Network, error) {
+	if user == "" {
+		return networks, nil
+	}
 	network, err := f.st.GetUserNetwork(user)
 	if err != nil {
 		return nil, err
@@ -836,7 +890,7 @@ func NewAllowListFilter(allowed []string) NetworkFilter {
 	return &allowListFilter{allowed}
 }
 
-func (f *allowListFilter) Filter(app string, networks []installer.Network) ([]installer.Network, error) {
+func (f *allowListFilter) Filter(user string, networks []installer.Network) ([]installer.Network, error) {
 	ret := []installer.Network{}
 	for _, n := range networks {
 		if slices.Contains(f.allowed, n.Name) {
@@ -854,11 +908,11 @@ func NewCombinedFilter(filters ...NetworkFilter) NetworkFilter {
 	return &combinedNetworkFilter{filters}
 }
 
-func (f *combinedNetworkFilter) Filter(app string, networks []installer.Network) ([]installer.Network, error) {
+func (f *combinedNetworkFilter) Filter(user string, networks []installer.Network) ([]installer.Network, error) {
 	ret := networks
 	var err error
 	for _, f := range f.filters {
-		ret, err = f.Filter(app, ret)
+		ret, err = f.Filter(user, ret)
 		if err != nil {
 			return nil, err
 		}

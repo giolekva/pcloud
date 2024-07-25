@@ -1,14 +1,19 @@
 <div class="form-container-footer">
-    <form method="POST" action="/register" class="form-group-footer">
+    <form id="register-form" method="POST" action="/register" class="form-group-footer" onsubmit="return register()">
 		<label>
 			domain
-			<select name="domain">
+			<select id="network" name="domain">
 				<option value="dodoapp.xyz">dodoapp.xyz</option>
 			</select>
 		</label>
 		<label>
 			subdomain
-			<input type="text" name="subdomain" />
+			<input id="subdomain" type="text" name="subdomain" />
+		</label>
+		<label>
+			application type
+			<select id="app-type" name="app-type">
+			</select>
 		</label>
         <label>
 			ssh public key

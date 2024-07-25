@@ -14,6 +14,7 @@ import (
 const tmplSuffix = ".gotmpl"
 
 type AppTmplStore interface {
+	Types() []string
 	Find(appType string) (AppTmpl, error)
 }
 
@@ -38,6 +39,14 @@ func NewAppTmplStoreFS(fsys fs.FS) (AppTmplStore, error) {
 		apps[e.Name()] = app
 	}
 	return &appTmplStoreFS{apps}, nil
+}
+
+func (s *appTmplStoreFS) Types() []string {
+	var ret []string
+	for t := range s.tmpls {
+		ret = append(ret, t)
+	}
+	return ret
 }
 
 func (s *appTmplStoreFS) Find(appType string) (AppTmpl, error) {
