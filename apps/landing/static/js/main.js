@@ -105,5 +105,37 @@ document.addEventListener("DOMContentLoaded", function () {
 
     checkAddRemoveScrollListener();
 
-    window.addEventListener("resize", checkAddRemoveScrollListener);
+    let resizing = false;
+    const resizeDelayTime = 1000;
+    let resizeTimeout;
+
+    const startResizing = () => {
+        clearTimeout(resizeTimeout);
+        resizing = true;
+        document.querySelectorAll(".facts").forEach(fact => {
+            fact.removeEventListener("mouseover", handleMouseover);
+        });
+    };
+
+    const stopResizing = () => {
+        clearTimeout(resizeTimeout);
+        resizeTimeout = setTimeout(() => {
+            resizing = false;
+            checkAddRemoveScrollListener();
+            document.querySelectorAll(".facts").forEach((fact, index) => {
+                fact.addEventListener("mouseover", () => handleMouseover(facts[index].params.image, index, facts[index].params.title));
+            });
+        }, resizeDelayTime);
+    };
+
+    window.addEventListener("resize", () => {
+        if (!resizing) {
+            startResizing();
+        }
+        stopResizing();
+    });
+
+    document.querySelectorAll(".facts").forEach((fact, index) => {
+        fact.addEventListener("mouseover", () => handleMouseover(facts[index].params.image, index, facts[index].params.title));
+    });
 });

@@ -23,12 +23,12 @@
         <!-- 1 Large Box 3x3 -->
         {{ $firstFact := index $sortedFacts 0 }}
         <div id="factImageBox" class="fact-image-box">
-            <img id="factImage" src="/images/fact-1.png" alt="{{ $firstFact.Title }}" class="fact-image">
+            <img id="factImage" src="/images/fact-1.png" alt="{{ $firstFact.Title }}" class="fact-image" loading="lazy">
         </div>
     </div>
 </div>
 <div class="footer-form">
     {{ partial "register-form.html" . }}
 </div>
-<script src="/js/main.js"></script>
+<script src="/js/main.js?v=0.0.2"></script>
 {{ end }}
