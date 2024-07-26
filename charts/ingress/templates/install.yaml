@@ -1,13 +1,18 @@
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
-  name: ingress
+  name: ingress-{{ .Values.domain }}
   namespace: {{ .Release.Namespace }}
-  {{- if .Values.certificateIssuer }}
+  {{- if or .Values.certificateIssuer .Values.appRoot }}
   annotations:
+    {{- if .Values.certificateIssuer }}
     acme.cert-manager.io/http01-edit-in-place: "true"
     cert-manager.io/cluster-issuer: {{ .Values.certificateIssuer }}
     # nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
+    {{- end }}
+    {{- if .Values.appRoot }}
+    nginx.ingress.kubernetes.io/app-root: {{ .Values.appRoot }}
+    {{- end }}
   {{- end }}
 spec:
   ingressClassName: {{ .Values.ingressClassName }}
@@ -15,7 +20,7 @@ spec:
   tls:
   - hosts:
     - {{ .Values.domain }}
-    secretName: cert-rpuppy
+    secretName: cert-{{ .Values.domain }}
   {{- end }}
   rules:
   - host: {{ .Values.domain }}

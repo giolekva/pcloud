@@ -41,6 +41,7 @@ type rendered struct {
 	URL             string
 	Help            []HelpDocument
 	Icon            string
+	Raw             []byte
 }
 
 type HelpDocument struct {
@@ -318,6 +319,7 @@ func (a cueApp) render(values map[string]any) (rendered, error) {
 	if err != nil {
 		return rendered{}, err
 	}
+	ret.Raw = full
 	ret.Data["rendered.json"] = full
 	readme, err := res.LookupPath(cue.ParsePath("readme")).String()
 	if err != nil {

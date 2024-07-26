@@ -23,12 +23,14 @@ issuerPublic: "\(global.id)-public"
 	auth: #Auth
 	network: #Network
 	subdomain: string
+	appRoot: string | *""
 	service: close({
 		name: string
 		port: close({ name: string }) | close({ number: int & > 0 })
 	})
 
 	_domain: "\(subdomain).\(network.domain)"
+	_appRoot: appRoot
     _authProxyHTTPPortName: "http"
 
 	out: {
@@ -81,12 +83,13 @@ issuerPublic: "\(global.id)-public"
 					}
 				}
 			}
-			ingress: {
+			"\(_domain)": {
 				chart: charts.ingress
 				_service: service
                 info: "Generating TLS certificate for https://\(_domain)"
 				values: {
 					domain: _domain
+					appRoot: _appRoot
 					ingressClassName: network.ingressClass
 					certificateIssuer: network.certificateIssuer
 					service: {

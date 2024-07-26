@@ -295,6 +295,7 @@ func WriteYaml(repo RepoFS, path string, data any) error {
 	if err != nil {
 		return err
 	}
+	defer out.Close()
 	serialized, err := yaml.Marshal(data)
 	if err != nil {
 		return err

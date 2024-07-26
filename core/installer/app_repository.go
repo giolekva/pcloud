@@ -38,6 +38,7 @@ var storeEnvAppConfigs = []string{
 
 var envAppConfigs = []string{
 	"values-tmpl/dodo-app-instance.cue",
+	"values-tmpl/dodo-app-instance-status.cue",
 	"values-tmpl/certificate-issuer-private.cue",
 	"values-tmpl/certificate-issuer-public.cue",
 	"values-tmpl/appmanager.cue",

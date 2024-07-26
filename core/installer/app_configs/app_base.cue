@@ -189,11 +189,8 @@ _helmValidate: {
 	}
 	for key, value in _ingressValidate {
 		for ing, ingValue in value.out.helm {
-            // TODO(gio): support multiple ingresses
-			// "\(key)-\(ing)": #Helm & ingValue & {
-			"\(ing)": #Helm & ingValue & {
-				// name: "\(key)-\(ing)"
-				name: ing
+			"\(key)-\(ing)": #Helm & ingValue & {
+				name: "\(key)-\(ing)"
 			}
 		}
 	}

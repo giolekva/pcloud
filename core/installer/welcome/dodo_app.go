@@ -1,6 +1,7 @@
 package welcome
 
 import (
+	"bytes"
 	"context"
 	"embed"
 	"encoding/json"
@@ -392,6 +393,25 @@ func (s *DodoAppServer) handleAppStatus(w http.ResponseWriter, r *http.Request) 
 		http.Error(w, "missing app-name", http.StatusBadRequest)
 		return
 	}
+	u := r.Context().Value(userCtx)
+	if u == nil {
+		http.Error(w, "unauthorized", http.StatusUnauthorized)
+		return
+	}
+	user, ok := u.(string)
+	if !ok {
+		http.Error(w, "could not get user", http.StatusInternalServerError)
+		return
+	}
+	owner, err := s.st.GetAppOwner(appName)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	if owner != user {
+		http.Error(w, "unauthorized", http.StatusUnauthorized)
+		return
+	}
 	commits, err := s.st.GetCommitHistory(appName)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -440,7 +460,12 @@ func (s *DodoAppServer) handleAPIUpdate(w http.ResponseWriter, r *http.Request) 
 		if err != nil {
 			return
 		}
-		if err := s.updateDodoApp(req.Repository.Name, s.appConfigs[req.Repository.Name].Namespace, networks); err != nil {
+		apps := installer.NewInMemoryAppRepository(installer.CreateAllApps())
+		instanceAppStatus, err := installer.FindEnvApp(apps, "dodo-app-instance-status")
+		if err != nil {
+			return
+		}
+		if err := s.updateDodoApp(instanceAppStatus, req.Repository.Name, s.appConfigs[req.Repository.Name].Namespace, networks); err != nil {
 			if err := s.st.CreateCommit(req.Repository.Name, req.After, err.Error()); err != nil {
 				fmt.Printf("Error: %s\n", err.Error())
 				return
@@ -652,7 +677,11 @@ func (s *DodoAppServer) createApp(user, appName, appType, network, subdomain str
 		return err
 	}
 	apps := installer.NewInMemoryAppRepository(installer.CreateAllApps())
-	app, err := installer.FindEnvApp(apps, "dodo-app-instance")
+	instanceApp, err := installer.FindEnvApp(apps, "dodo-app-instance")
+	if err != nil {
+		return err
+	}
+	instanceAppStatus, err := installer.FindEnvApp(apps, "dodo-app-instance-status")
 	if err != nil {
 		return err
 	}
@@ -661,9 +690,9 @@ func (s *DodoAppServer) createApp(user, appName, appType, network, subdomain str
 	if err != nil {
 		return err
 	}
-	namespace := fmt.Sprintf("%s%s%s", s.env.NamespacePrefix, app.Namespace(), suffix)
+	namespace := fmt.Sprintf("%s%s%s", s.env.NamespacePrefix, instanceApp.Namespace(), suffix)
 	s.appConfigs[appName] = appConfig{namespace, network}
-	if err := s.updateDodoApp(appName, namespace, networks); err != nil {
+	if err := s.updateDodoApp(instanceAppStatus, appName, namespace, networks); err != nil {
 		return err
 	}
 	configRepo, err := s.client.GetRepo(ConfigRepoName)
@@ -685,7 +714,7 @@ func (s *DodoAppServer) createApp(user, appName, appType, network, subdomain str
 			return "", err
 		}
 		if _, err := m.Install(
-			app,
+			instanceApp,
 			appName,
 			"/"+appName,
 			namespace,
@@ -756,7 +785,19 @@ func (s *DodoAppServer) handleAPIAddAdminKey(w http.ResponseWriter, r *http.Requ
 	}
 }
 
-func (s *DodoAppServer) updateDodoApp(name, namespace string, networks []installer.Network) error {
+type dodoAppRendered struct {
+	App struct {
+		Ingress struct {
+			Network   string `json:"network"`
+			Subdomain string `json:"subdomain"`
+		} `json:"ingress"`
+	} `json:"app"`
+	Input struct {
+		AppId string `json:"appId"`
+	} `json:"input"`
+}
+
+func (s *DodoAppServer) updateDodoApp(appStatus installer.EnvApp, name, namespace string, networks []installer.Network) error {
 	repo, err := s.client.GetRepo(name)
 	if err != nil {
 		return err
@@ -775,26 +816,56 @@ func (s *DodoAppServer) updateDodoApp(name, namespace string, networks []install
 		return err
 	}
 	lg := installer.GitRepositoryLocalChartGenerator{"app", namespace}
-	if _, err := m.Install(
-		app,
-		"app",
-		"/.dodo/app",
-		namespace,
-		map[string]any{
-			"repoAddr":      repo.FullAddress(),
-			"managerAddr":   fmt.Sprintf("http://%s", s.self),
-			"appId":         name,
-			"sshPrivateKey": s.sshKey,
-		},
-		installer.WithConfig(&s.env),
-		installer.WithNetworks(networks),
-		installer.WithLocalChartGenerator(lg),
-		installer.WithBranch("dodo"),
-		installer.WithForce(),
-	); err != nil {
-		return err
-	}
-	return nil
+	return repo.Do(func(r soft.RepoFS) (string, error) {
+		res, err := m.Install(
+			app,
+			"app",
+			"/.dodo/app",
+			namespace,
+			map[string]any{
+				"repoAddr":      repo.FullAddress(),
+				"managerAddr":   fmt.Sprintf("http://%s", s.self),
+				"appId":         name,
+				"sshPrivateKey": s.sshKey,
+			},
+			installer.WithNoPull(),
+			installer.WithNoPublish(),
+			installer.WithConfig(&s.env),
+			installer.WithNetworks(networks),
+			installer.WithLocalChartGenerator(lg),
+			installer.WithNoLock(),
+		)
+		if err != nil {
+			return "", err
+		}
+		var rendered dodoAppRendered
+		if err := json.NewDecoder(bytes.NewReader(res.RenderedRaw)).Decode(&rendered); err != nil {
+			return "", nil
+		}
+		if _, err := m.Install(
+			appStatus,
+			"status",
+			"/.dodo/status",
+			s.namespace,
+			map[string]any{
+				"appName":      rendered.Input.AppId,
+				"network":      rendered.App.Ingress.Network,
+				"appSubdomain": rendered.App.Ingress.Subdomain,
+			},
+			installer.WithNoPull(),
+			installer.WithNoPublish(),
+			installer.WithConfig(&s.env),
+			installer.WithNetworks(networks),
+			installer.WithLocalChartGenerator(lg),
+			installer.WithNoLock(),
+		); err != nil {
+			return "", err
+		}
+		return "install app", nil
+	},
+		soft.WithCommitToBranch("dodo"),
+		soft.WithForce(),
+	)
 }
 
 func (s *DodoAppServer) initRepo(repo soft.RepoIO, appType string, network installer.Network, subdomain string) error {

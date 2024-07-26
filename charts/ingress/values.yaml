@@ -1,6 +1,7 @@
 ingressClassName: ingress-public
 certificateIssuer: example-public
 domain: woof.example.com
+appRoot: ""
 service:
   name: woof
   port:

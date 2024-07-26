@@ -288,7 +288,9 @@ type Resource struct {
 }
 
 type ReleaseResources struct {
-	Helm []Resource
+	Release     Release
+	Helm        []Resource
+	RenderedRaw []byte
 }
 
 // TODO(gio): rename to CommitApp
@@ -297,20 +299,20 @@ func installApp(
 	appDir string,
 	name string,
 	config any,
-	ports []PortForward,
 	resources CueAppData,
 	data CueAppData,
 	opts ...InstallOption,
-) (ReleaseResources, error) {
+) error {
 	var o installOptions
 	for _, i := range opts {
 		i(&o)
 	}
 	dopts := []soft.DoOption{}
-	// NOTE(gio): Expects caller to have pulled already
-	dopts = append(dopts, soft.WithNoPull())
 	if o.Branch != "" {
 		dopts = append(dopts, soft.WithCommitToBranch(o.Branch))
+	}
+	if o.NoPull {
+		dopts = append(dopts, soft.WithNoPull())
 	}
 	if o.NoPublish {
 		dopts = append(dopts, soft.WithNoCommit())
@@ -321,7 +323,7 @@ func installApp(
 	if o.NoLock {
 		dopts = append(dopts, soft.WithNoLock())
 	}
-	return ReleaseResources{}, repo.Do(func(r soft.RepoFS) (string, error) {
+	return repo.Do(func(r soft.RepoFS) (string, error) {
 		if err := r.RemoveDir(appDir); err != nil {
 			return "", err
 		}
@@ -329,49 +331,55 @@ func installApp(
 		if err := r.CreateDir(resourcesDir); err != nil {
 			return "", err
 		}
-		{
+		if err := func() error {
 			if err := soft.WriteFile(r, path.Join(appDir, gitIgnoreFileName), includeEverything); err != nil {
-				return "", err
+				return err
 			}
 			if err := soft.WriteYaml(r, path.Join(appDir, configFileName), config); err != nil {
-				return "", err
+				return err
 			}
 			if err := soft.WriteJson(r, path.Join(appDir, "config.json"), config); err != nil {
-				return "", err
+				return err
 			}
 			for name, contents := range data {
 				if name == "config.json" || name == "kustomization.yaml" || name == "resources" {
-					return "", fmt.Errorf("%s is forbidden", name)
+					return fmt.Errorf("%s is forbidden", name)
 				}
 				w, err := r.Writer(path.Join(appDir, name))
 				if err != nil {
-					return "", err
+					return err
 				}
 				defer w.Close()
 				if _, err := w.Write(contents); err != nil {
-					return "", err
+					return err
 				}
 			}
+			return nil
+		}(); err != nil {
+			return "", err
 		}
-		{
+		if err := func() error {
 			if err := createKustomizationChain(r, resourcesDir); err != nil {
-				return "", err
+				return err
 			}
 			appKust := gio.NewKustomization()
 			for name, contents := range resources {
 				appKust.AddResources(name)
 				w, err := r.Writer(path.Join(resourcesDir, name))
 				if err != nil {
-					return "", err
+					return err
 				}
 				defer w.Close()
 				if _, err := w.Write(contents); err != nil {
-					return "", err
+					return err
 				}
 			}
 			if err := soft.WriteYaml(r, path.Join(resourcesDir, "kustomization.yaml"), appKust); err != nil {
-				return "", err
+				return err
 			}
+			return nil
+		}(); err != nil {
+			return "", err
 		}
 		return fmt.Sprintf("install: %s", name), nil
 	}, dopts...)
@@ -399,9 +407,12 @@ func (m *AppManager) Install(
 		i(o)
 	}
 	appDir = filepath.Clean(appDir)
-	if err := m.repoIO.Pull(); err != nil {
-		return ReleaseResources{}, err
+	if !o.NoPull {
+		if err := m.repoIO.Pull(); err != nil {
+			return ReleaseResources{}, err
+		}
 	}
+	opts = append(opts, WithNoPull())
 	if err := m.nsc.Create(namespace); err != nil {
 		return ReleaseResources{}, err
 	}
@@ -472,7 +483,7 @@ func (m *AppManager) Install(
 	if err != nil {
 		return ReleaseResources{}, err
 	}
-	if _, err := installApp(m.repoIO, appDir, rendered.Name, rendered.Config, rendered.Ports, rendered.Resources, rendered.Data, opts...); err != nil {
+	if err := installApp(m.repoIO, appDir, rendered.Name, rendered.Config, rendered.Resources, rendered.Data, opts...); err != nil {
 		return ReleaseResources{}, err
 	}
 	// TODO(gio): add ingress-nginx to release resources
@@ -480,7 +491,9 @@ func (m *AppManager) Install(
 		return ReleaseResources{}, err
 	}
 	return ReleaseResources{
-		Helm: extractHelm(rendered.Resources),
+		Release:     rendered.Config.Release,
+		RenderedRaw: rendered.Raw,
+		Helm:        extractHelm(rendered.Resources),
 	}, nil
 }
 
@@ -559,7 +572,14 @@ func (m *AppManager) Update(
 	if err != nil {
 		return ReleaseResources{}, err
 	}
-	return installApp(m.repoIO, instanceDir, rendered.Name, rendered.Config, rendered.Ports, rendered.Resources, rendered.Data, opts...)
+	if err := installApp(m.repoIO, instanceDir, rendered.Name, rendered.Config, rendered.Resources, rendered.Data, opts...); err != nil {
+		return ReleaseResources{}, err
+	}
+	return ReleaseResources{
+		Release:     rendered.Config.Release,
+		RenderedRaw: rendered.Raw,
+		Helm:        extractHelm(rendered.Resources),
+	}, nil
 }
 
 func (m *AppManager) Remove(instanceId string) error {
@@ -632,6 +652,7 @@ func (m *AppManager) CreateNetworks(env EnvConfig) ([]Network, error) {
 }
 
 type installOptions struct {
+	NoPull               bool
 	NoPublish            bool
 	Env                  *EnvConfig
 	Networks             []Network
@@ -687,6 +708,12 @@ func WithFetchContainerImages() InstallOption {
 func WithNoPublish() InstallOption {
 	return func(o *installOptions) {
 		o.NoPublish = true
+	}
+}
+
+func WithNoPull() InstallOption {
+	return func(o *installOptions) {
+		o.NoPull = true
 	}
 }
 
@@ -785,7 +812,14 @@ func (m *InfraAppManager) Install(app InfraApp, appDir string, namespace string,
 	if err != nil {
 		return ReleaseResources{}, err
 	}
-	return installApp(m.repoIO, appDir, rendered.Name, rendered.Config, rendered.Ports, rendered.Resources, rendered.Data)
+	if err := installApp(m.repoIO, appDir, rendered.Name, rendered.Config, rendered.Resources, rendered.Data); err != nil {
+		return ReleaseResources{}, err
+	}
+	return ReleaseResources{
+		Release:     rendered.Config.Release,
+		RenderedRaw: rendered.Raw,
+		Helm:        extractHelm(rendered.Resources),
+	}, nil
 }
 
 // TODO(gio): take app configuration from the repo
@@ -823,7 +857,14 @@ func (m *InfraAppManager) Update(
 	if err != nil {
 		return ReleaseResources{}, err
 	}
-	return installApp(m.repoIO, instanceDir, rendered.Name, rendered.Config, rendered.Ports, rendered.Resources, rendered.Data, opts...)
+	if err := installApp(m.repoIO, instanceDir, rendered.Name, rendered.Config, rendered.Resources, rendered.Data, opts...); err != nil {
+		return ReleaseResources{}, err
+	}
+	return ReleaseResources{
+		Release:     rendered.Config.Release,
+		RenderedRaw: rendered.Raw,
+		Helm:        extractHelm(rendered.Resources),
+	}, nil
 }
 
 func pullHelmCharts(hf HelmFetcher, charts HelmCharts, rfs soft.RepoFS, root string) (map[string]string, error) {
