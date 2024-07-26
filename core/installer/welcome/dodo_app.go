@@ -33,7 +33,7 @@ var staticResources embed.FS
 
 const (
 	ConfigRepoName = "config"
-	namespacesFile = "/namespaces.json"
+	appConfigsFile = "/apps.json"
 	loginPath      = "/login"
 	logoutPath     = "/logout"
 	staticPath     = "/static"
@@ -91,9 +91,15 @@ type DodoAppServer struct {
 	nsc               installer.NamespaceCreator
 	jc                installer.JobCreator
 	workers           map[string]map[string]struct{}
-	appNs             map[string]string
+	appConfigs        map[string]appConfig
 	tmplts            dodoAppTmplts
 	appTmpls          AppTmplStore
+	allowNetworkReuse bool
+}
+
+type appConfig struct {
+	Namespace string `json:"namespace"`
+	Network   string `json:"network"`
 }
 
 // TODO(gio): Initialize appNs on startup
@@ -113,6 +119,7 @@ func NewDodoAppServer(
 	nsc installer.NamespaceCreator,
 	jc installer.JobCreator,
 	env installer.EnvConfig,
+	allowNetworkReuse bool,
 ) (*DodoAppServer, error) {
 	tmplts, err := parseTemplatesDodoApp(dodoAppTmplFS)
 	if err != nil {
@@ -144,18 +151,19 @@ func NewDodoAppServer(
 		nsc,
 		jc,
 		map[string]map[string]struct{}{},
-		map[string]string{},
+		map[string]appConfig{},
 		tmplts,
 		appTmpls,
+		allowNetworkReuse,
 	}
 	config, err := client.GetRepo(ConfigRepoName)
 	if err != nil {
 		return nil, err
 	}
-	r, err := config.Reader(namespacesFile)
+	r, err := config.Reader(appConfigsFile)
 	if err == nil {
 		defer r.Close()
-		if err := json.NewDecoder(r).Decode(&s.appNs); err != nil {
+		if err := json.NewDecoder(r).Decode(&s.appConfigs); err != nil {
 			return nil, err
 		}
 	} else if !errors.Is(err, fs.ErrNotExist) {
@@ -432,7 +440,7 @@ func (s *DodoAppServer) handleAPIUpdate(w http.ResponseWriter, r *http.Request) 
 		if err != nil {
 			return
 		}
-		if err := s.updateDodoApp(req.Repository.Name, s.appNs[req.Repository.Name], networks); err != nil {
+		if err := s.updateDodoApp(req.Repository.Name, s.appConfigs[req.Repository.Name].Namespace, networks); err != nil {
 			if err := s.st.CreateCommit(req.Repository.Name, req.After, err.Error()); err != nil {
 				fmt.Printf("Error: %s\n", err.Error())
 				return
@@ -526,7 +534,7 @@ func (s *DodoAppServer) handleCreateApp(w http.ResponseWriter, r *http.Request) 
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	if err := s.CreateApp(user, appName, appType, adminPublicKey, network, subdomain); err != nil {
+	if err := s.createApp(user, appName, appType, network, subdomain); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -546,6 +554,7 @@ type apiCreateAppResp struct {
 }
 
 func (s *DodoAppServer) handleAPICreateApp(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Access-Control-Allow-Origin", "*")
 	var req apiCreateAppReq
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
@@ -585,7 +594,7 @@ func (s *DodoAppServer) handleAPICreateApp(w http.ResponseWriter, r *http.Reques
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	if err := s.CreateApp(user, appName, req.AppType, req.AdminPublicKey, req.Network, req.Subdomain); err != nil {
+	if err := s.createApp(user, appName, req.AppType, req.Network, req.Subdomain); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -593,17 +602,32 @@ func (s *DodoAppServer) handleAPICreateApp(w http.ResponseWriter, r *http.Reques
 		AppName:  appName,
 		Password: password,
 	}
-	w.Header().Set("Access-Control-Allow-Origin", "*")
 	if err := json.NewEncoder(w).Encode(resp); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 }
 
-func (s *DodoAppServer) CreateApp(user, appName, appType, adminPublicKey, network, subdomain string) error {
+func (s *DodoAppServer) isNetworkUseAllowed(network string) bool {
+	if s.allowNetworkReuse {
+		return true
+	}
+	for _, cfg := range s.appConfigs {
+		if strings.ToLower(cfg.Network) == network {
+			return false
+		}
+	}
+	return true
+}
+
+func (s *DodoAppServer) createApp(user, appName, appType, network, subdomain string) error {
 	s.l.Lock()
 	defer s.l.Unlock()
 	fmt.Printf("Creating app: %s\n", appName)
+	network = strings.ToLower(network)
+	if !s.isNetworkUseAllowed(network) {
+		return fmt.Errorf("network already used: %s", network)
+	}
 	if ok, err := s.client.RepoExists(appName); err != nil {
 		return err
 	} else if ok {
@@ -613,7 +637,7 @@ func (s *DodoAppServer) CreateApp(user, appName, appType, adminPublicKey, networ
 	if err != nil {
 		return err
 	}
-	n, ok := installer.NetworkMap(networks)[strings.ToLower(network)]
+	n, ok := installer.NetworkMap(networks)[network]
 	if !ok {
 		return fmt.Errorf("network not found: %s\n", network)
 	}
@@ -638,26 +662,26 @@ func (s *DodoAppServer) CreateApp(user, appName, appType, adminPublicKey, networ
 		return err
 	}
 	namespace := fmt.Sprintf("%s%s%s", s.env.NamespacePrefix, app.Namespace(), suffix)
-	s.appNs[appName] = namespace
+	s.appConfigs[appName] = appConfig{namespace, network}
 	if err := s.updateDodoApp(appName, namespace, networks); err != nil {
 		return err
 	}
-	repo, err := s.client.GetRepo(ConfigRepoName)
+	configRepo, err := s.client.GetRepo(ConfigRepoName)
 	if err != nil {
 		return err
 	}
 	hf := installer.NewGitHelmFetcher()
-	m, err := installer.NewAppManager(repo, s.nsc, s.jc, hf, "/")
+	m, err := installer.NewAppManager(configRepo, s.nsc, s.jc, hf, "/")
 	if err != nil {
 		return err
 	}
-	if err := repo.Do(func(fs soft.RepoFS) (string, error) {
-		w, err := fs.Writer(namespacesFile)
+	if err := configRepo.Do(func(fs soft.RepoFS) (string, error) {
+		w, err := fs.Writer(appConfigsFile)
 		if err != nil {
 			return "", err
 		}
 		defer w.Close()
-		if err := json.NewEncoder(w).Encode(s.appNs); err != nil {
+		if err := json.NewEncoder(w).Encode(s.appConfigs); err != nil {
 			return "", err
 		}
 		if _, err := m.Install(
@@ -815,6 +839,9 @@ type publicData struct {
 }
 
 func (s *DodoAppServer) handleAPIPublicData(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+	s.l.Lock()
+	defer s.l.Unlock()
 	networks, err := s.getNetworks("")
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -822,7 +849,9 @@ func (s *DodoAppServer) handleAPIPublicData(w http.ResponseWriter, r *http.Reque
 	}
 	var ret publicData
 	for _, n := range networks {
-		ret.Networks = append(ret.Networks, publicNetworkData{n.Name, n.Domain})
+		if s.isNetworkUseAllowed(strings.ToLower(n.Name)) {
+			ret.Networks = append(ret.Networks, publicNetworkData{n.Name, n.Domain})
+		}
 	}
 	for _, t := range s.appTmpls.Types() {
 		ret.Types = append(ret.Types, strings.ReplaceAll(t, "-", ":"))

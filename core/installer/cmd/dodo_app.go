@@ -195,6 +195,7 @@ func dodoAppCmdRun(cmd *cobra.Command, args []string) error {
 		nsc,
 		jc,
 		env,
+		!dodoAppFlags.external,
 	)
 	if err != nil {
 		return err
