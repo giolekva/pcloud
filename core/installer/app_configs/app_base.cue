@@ -26,16 +26,6 @@ appType: #AppType | *"env"
   groups: string | *"" // TODO(gio): []string
 }
 
-#Network: {
-	name: string
-	ingressClass: string
-	certificateIssuer: string | *""
-	domain: string
-	allocatePortAddr: string
-	reservePortAddr: string
-	deallocatePortAddr: string
-}
-
 #Image: {
 	registry: string | *release.imageRegistry
 	repository: string

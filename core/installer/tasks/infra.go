@@ -33,17 +33,22 @@ func CreateRepoClient(env installer.EnvConfig, st *state) Task {
 }
 
 func SetupInfra(env installer.EnvConfig, st *state) Task {
-	return newConcurrentParentTask(
-		"Setup core services",
-		true,
+	tasks := []Task{
 		SetupNetwork(env, st),
 		SetupCertificateIssuers(env, st),
 		SetupAuth(env, st),
 		SetupGroupMemberships(env, st),
-		SetupHeadscale(env, st),
 		SetupWelcome(env, st),
 		SetupAppStore(env, st),
 		SetupLauncher(env, st),
+	}
+	if env.PrivateDomain != "" {
+		tasks = append(tasks, SetupHeadscale(env, st))
+	}
+	return newConcurrentParentTask(
+		"Setup core services",
+		true,
+		tasks...,
 	)
 }
 
@@ -94,7 +99,7 @@ func ConfigureFirstAccount(env installer.EnvConfig, st *state) Task {
 }
 
 func SetupNetwork(env installer.EnvConfig, st *state) Task {
-	t := newLeafTask("Setup private and public networks", func() error {
+	t := newLeafTask("Setup networks", func() error {
 		{
 			app, err := installer.FindEnvApp(st.appsRepo, "metallb-ipaddresspool")
 			if err != nil {
@@ -143,7 +148,7 @@ func SetupNetwork(env installer.EnvConfig, st *state) Task {
 				}
 			}
 		}
-		{
+		if env.PrivateDomain != "" {
 			keys, err := installer.NewSSHKeyPair("port-allocator")
 			if err != nil {
 				return err
@@ -187,25 +192,31 @@ func SetupCertificateIssuers(env installer.EnvConfig, st *state) Task {
 		instanceId := app.Slug()
 		appDir := fmt.Sprintf("/apps/%s", instanceId)
 		namespace := fmt.Sprintf("%s%s", env.NamespacePrefix, app.Namespace())
-		if _, err := st.appManager.Install(app, instanceId, appDir, namespace, map[string]any{}); err != nil {
+		if _, err := st.appManager.Install(app, instanceId, appDir, namespace, map[string]any{
+			"network": "Public",
+		}); err != nil {
 			return err
 		}
 		return nil
 	})
-	priv := newLeafTask(fmt.Sprintf("Private p.%s", env.Domain), func() error {
-		app, err := installer.FindEnvApp(st.appsRepo, "certificate-issuer-private")
-		if err != nil {
-			return err
-		}
-		instanceId := app.Slug()
-		appDir := fmt.Sprintf("/apps/%s", instanceId)
-		namespace := fmt.Sprintf("%s%s", env.NamespacePrefix, app.Namespace())
-		if _, err := st.appManager.Install(app, instanceId, appDir, namespace, map[string]any{}); err != nil {
-			return err
-		}
-		return nil
-	})
-	return newSequentialParentTask("Configure TLS certificate issuers", false, &pub, &priv)
+	tasks := []Task{&pub}
+	if env.PrivateDomain != "" {
+		priv := newLeafTask(fmt.Sprintf("Private p.%s", env.Domain), func() error {
+			app, err := installer.FindEnvApp(st.appsRepo, "certificate-issuer-private")
+			if err != nil {
+				return err
+			}
+			instanceId := app.Slug()
+			appDir := fmt.Sprintf("/apps/%s", instanceId)
+			namespace := fmt.Sprintf("%s%s", env.NamespacePrefix, app.Namespace())
+			if _, err := st.appManager.Install(app, instanceId, appDir, namespace, map[string]any{}); err != nil {
+				return err
+			}
+			return nil
+		})
+		tasks = append(tasks, &priv)
+	}
+	return newSequentialParentTask("Configure TLS certificate issuers", false, tasks...)
 }
 
 func SetupAuth(env installer.EnvConfig, st *state) Task {
@@ -218,6 +229,7 @@ func SetupAuth(env installer.EnvConfig, st *state) Task {
 		appDir := fmt.Sprintf("/apps/%s", instanceId)
 		namespace := fmt.Sprintf("%s%s", env.NamespacePrefix, app.Namespace())
 		if _, err := st.appManager.Install(app, instanceId, appDir, namespace, map[string]any{
+			"network":   "Public",
 			"subdomain": "test", // TODO(giolekva): make core-auth chart actually use this
 		}); err != nil {
 			return err
@@ -241,7 +253,12 @@ func SetupGroupMemberships(env installer.EnvConfig, st *state) Task {
 		instanceId := app.Slug()
 		appDir := fmt.Sprintf("/apps/%s", instanceId)
 		namespace := fmt.Sprintf("%s%s", env.NamespacePrefix, app.Namespace())
+		network := "Public"
+		if env.PrivateDomain != "" {
+			network = "Private"
+		}
 		if _, err := st.appManager.Install(app, instanceId, appDir, namespace, map[string]any{
+			"network":    network,
 			"authGroups": strings.Join(initGroups, ","),
 		}); err != nil {
 			return err
@@ -277,6 +294,7 @@ func SetupLauncher(env installer.EnvConfig, st *state) Task {
 		appDir := fmt.Sprintf("/apps/%s", instanceId)
 		namespace := fmt.Sprintf("%s%s", env.NamespacePrefix, app.Namespace())
 		if _, err := st.appManager.Install(app, instanceId, appDir, namespace, map[string]any{
+			"network":       "Public",
 			"repoAddr":      st.ssClient.GetRepoAddress("config"),
 			"sshPrivateKey": string(keys.RawPrivateKey()),
 		}); err != nil {
@@ -302,6 +320,7 @@ func SetupHeadscale(env installer.EnvConfig, st *state) Task {
 		appDir := fmt.Sprintf("/apps/%s", instanceId)
 		namespace := fmt.Sprintf("%s%s", env.NamespacePrefix, app.Namespace())
 		if _, err := st.appManager.Install(app, instanceId, appDir, namespace, map[string]any{
+			"network":   "Public",
 			"subdomain": "headscale",
 			"ipSubnet":  fmt.Sprintf("%s/24", env.Network.DNS.String()),
 		}); err != nil {
@@ -338,6 +357,7 @@ func SetupWelcome(env installer.EnvConfig, st *state) Task {
 		appDir := fmt.Sprintf("/apps/%s", instanceId)
 		namespace := fmt.Sprintf("%s%s", env.NamespacePrefix, app.Namespace())
 		if _, err := st.appManager.Install(app, instanceId, appDir, namespace, map[string]any{
+			"network":       "Public",
 			"repoAddr":      st.ssClient.GetRepoAddress("config"),
 			"sshPrivateKey": string(keys.RawPrivateKey()),
 		}); err != nil {
@@ -373,7 +393,12 @@ func SetupAppStore(env installer.EnvConfig, st *state) Task {
 		instanceId := app.Slug()
 		appDir := fmt.Sprintf("/apps/%s", instanceId)
 		namespace := fmt.Sprintf("%s%s", env.NamespacePrefix, app.Namespace())
+		network := "Public"
+		if env.PrivateDomain != "" {
+			network = "Private"
+		}
 		if _, err := st.appManager.Install(app, instanceId, appDir, namespace, map[string]any{
+			"network":       network,
 			"repoAddr":      st.ssClient.GetRepoAddress("config"),
 			"sshPrivateKey": string(keys.RawPrivateKey()),
 			"authGroups":    strings.Join(initGroups, ","),

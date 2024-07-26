@@ -11,7 +11,7 @@
 	<div style="border-width: 1px; border-right-style: solid;">
 		As part of provisioning new dodo instance you will have to update DNS records at your domain registrar, so that it points to the nameservers running on your newly created dodo. Please first get familiar with your domain registrar documentation, and only then proceed with provisioning.
 		<label for="accept" style="padding-top: 1rem;">
-			<input type="checkbox" name="accept" id="accept" form="create-form" required tabindex="5">
+			<input type="checkbox" name="accept" id="accept" form="create-form" required tabindex="6">
 			<strong>I understand</strong>
 		</label>
 	</div>
@@ -28,6 +28,16 @@
 					tabindex="1"
 				/>
 			</label>
+			<label for="private-network">
+				private network subdomain (optional)
+				<input
+					type="text"
+					id="private-network-subdomain"
+					name="private-network-subdomain"
+					placeholder="configure to create private network"
+					tabindex="2"
+				/>
+			</label>
 			<label for="contact-email">
 				contact email
 				<input
@@ -35,7 +45,7 @@
 					id="contact-email"
 					name="contact-email"
 					required
-					tabindex="2"
+					tabindex="3"
 				/>
 			</label>
 			<label for="admin-public-key">
@@ -45,7 +55,7 @@
 					id="admin-public-key"
 					name="admin-public-key"
 					required
-					tabindex="3"
+					tabindex="4"
 				/> <!-- TODO(gio): remove-->
 			</label>
 			<label for="secret-token">
@@ -54,7 +64,7 @@
 					id="secret-token"
 					name="secret-token"
 					required
-					tabindex="4"
+					tabindex="5"
 				></textarea>
 			</label>
 			<button type="submit" tabindex="6">provision</button>

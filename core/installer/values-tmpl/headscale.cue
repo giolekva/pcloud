@@ -1,4 +1,5 @@
 input: {
+	network: #Network
 	subdomain: string
 	ipSubnet: string
 }
@@ -37,7 +38,7 @@ charts: {
 	}
 }
 
-_domain: "\(input.subdomain).\(global.domain)"
+_domain: "\(input.subdomain).\(input.network.domain)"
 _oauth2ClientSecretName: "oauth2-client"
 
 helm: {
@@ -71,14 +72,14 @@ helm: {
 				pullPolicy: images.headscale.pullPolicy
 			}
 			storage: size: "5Gi"
-			ingressClassName: ingressPublic
-			certificateIssuer: issuerPublic
+			ingressClassName: input.network.ingressClass
+			certificateIssuer: input.network.certificateIssuer
 			domain: _domain
-			publicBaseDomain: global.domain
+			publicBaseDomain: input.network.domain
 			ipAddressPool: "\(global.id)-headscale"
 			oauth2: {
 				secretName: _oauth2ClientSecretName
-				issuer: "https://hydra.\(global.domain)"
+				issuer: "https://hydra.\(input.network.domain)"
 			}
 			api: {
 				port: 8585
@@ -108,10 +109,10 @@ help: [{
 	contents: "After installing the client application you need to configure it to use https://\(_domain) as a login URL, so you can login to the VPN network with your dodo: account"
 	children: [{
 		title: "macOS"
-		contents: "[https://headscale.\(global.domain)/apple](https://headscale.\(global.domain)/apple)"
+		contents: "[https://headscale.\(input.network.domain)/apple](https://headscale.\(input.network.domain)/apple)"
 	}, {
 		title: "iOS"
-		contents: "[https://headscale.\(global.domain)/apple](https://headscale.\(global.domain)/apple)"
+		contents: "[https://headscale.\(input.network.domain)/apple](https://headscale.\(input.network.domain)/apple)"
 	}, {
 		title: "Windows"
 		contents: "[https://tailscale.com/kb/1318/windows-mdm](https://tailscale.com/kb/1318/windows-mdm)"

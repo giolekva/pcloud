@@ -1,9 +1,10 @@
 input: {
-	authGroups: string
+	network: #Network @name(Network)
+	authGroups: string @name(Allowed Groups)
 }
 
 _subdomain: "memberships"
-_domain: "\(_subdomain).\(global.privateDomain)"
+_domain: "\(_subdomain).\(input.network.domain)"
 url: "https://\(_domain)"
 
 name: "Memberships"
@@ -20,7 +21,7 @@ ingress: {
 			enabled: true
 			groups: input.authGroups
 		}
-		network: networks.private
+		network: input.network
 		subdomain: _subdomain
 		service: {
 			name: "memberships"

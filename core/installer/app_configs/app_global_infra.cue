@@ -5,8 +5,20 @@
     infraAdminPublicKey: string | *""
 }
 
-// TODO(gio): remove
-ingressPublic: "\(global.pcloudEnvName)-ingress-public"
+#Network: {
+	name: string
+	ingressClass: string
+	certificateIssuer: string | *""
+	allocatePortAddr: string
+	reservePortAddr: string
+	deallocatePortAddr: string
+}
+
+#Networks: {
+	public: #Network
+}
+
+networks: #Networks
 
 ingress: {}
 _ingressValidate: {}

@@ -3,9 +3,10 @@ import (
 )
 
 input: {
-	repoAddr: string
-	sshPrivateKey: string
-	authGroups: string
+	network: #Network @name(Network)
+	repoAddr: string @name(Repository Address)
+	sshPrivateKey: string @name(SSH Private Key)
+	authGroups: string @name(Allowed Groups)
 }
 
 name: "App Manager"
@@ -15,7 +16,7 @@ icon: "<svg xmlns='http://www.w3.org/2000/svg' width='50' height='50' viewBox='0
 _subdomain: "apps"
 _httpPortName: "http"
 
-_domain: "\(_subdomain).\(networks.private.domain)"
+_domain: "\(_subdomain).\(input.network.domain)"
 url: "https://\(_domain)"
 
 ingress: {
@@ -24,7 +25,7 @@ ingress: {
 			enabled: true
 			groups: input.authGroups
 		}
-		network: networks.private
+		network: input.network
 		subdomain: _subdomain
 		service: {
 			name: "appmanager"
@@ -58,7 +59,7 @@ helm: {
 			repoAddr: input.repoAddr
 			sshPrivateKey: base64.Encode(null, input.sshPrivateKey)
 			ingress: {
-				className: networks.private.ingressClass
+				className: input.network.ingressClass
 				domain: _domain
 				certificateIssuer: ""
 			}

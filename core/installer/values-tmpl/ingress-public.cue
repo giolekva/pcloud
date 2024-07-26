@@ -44,7 +44,7 @@ helm: {
 	"ingress-public": {
 		chart: charts.ingressNginx
 		values: {
-			fullnameOverride: ingressPublic
+			fullnameOverride: "\(global.pcloudEnvName)-ingress-public"
 			controller: {
 				kind: "DaemonSet"
 				hostNetwork: true
@@ -52,10 +52,10 @@ helm: {
 				service: enabled: false
 				ingressClassByName: true
 				ingressClassResource: {
-					name: ingressPublic
+					name: networks.public.ingressClass
 					enabled: true
 					default: false
-					controllerValue: "k8s.io/\(ingressPublic)"
+					controllerValue: "k8s.io/\(networks.public.ingressClass)"
 				}
 				config: {
 					"proxy-body-size": "200M" // TODO(giolekva): configurable

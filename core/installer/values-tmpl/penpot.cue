@@ -144,7 +144,7 @@ helm: {
 				providers: {
 					oidc: {
 						enabled: true
-						baseURI: "https://hydra.\(global.domain)"
+						baseURI: "https://hydra.\(networks.public.domain)"
 						clientID: ""
 						clientSecret: ""
 						authURI: ""

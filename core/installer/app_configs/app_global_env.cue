@@ -11,13 +11,22 @@
 	network: #EnvNetwork
 }
 
-networks: {}
+#Network: {
+	name: string
+	ingressClass: string
+	certificateIssuer: string | *""
+	domain: string
+	allocatePortAddr: string
+	reservePortAddr: string
+	deallocatePortAddr: string
+}
 
-// TODO(gio): remove
-ingressPrivate: "\(global.id)-ingress-private"
-ingressPublic: "\(global.pcloudEnvName)-ingress-public"
-issuerPrivate: "\(global.id)-private"
-issuerPublic: "\(global.id)-public"
+#Networks: {
+	public: #Network
+	...
+}
+
+networks: #Networks
 
 #Ingress: {
 	auth: #Auth

@@ -157,7 +157,7 @@ data:
       userNameToLowerCase = true
       userNameCaseInsensitive = true
     [plugin "gerrit-oauth-provider-pcloud-oauth"]
-      root-url = https://hydra.\(global.domain)
+      root-url = https://hydra.\(networks.public.domain)
       client-id = "{{ .client_id }}"
       client-secret = "{{ .client_secret }}"
       link-to-existing-openid-accounts = true
@@ -182,7 +182,7 @@ data:
       timeout = 120 s
     [user]
       name = Gerrit Code Review
-      email = gerrit@\(global.domain)
+      email = gerrit@\(networks.public.domain)
       anonymousCoward = Unnamed User
     [cache]
       directory = cache

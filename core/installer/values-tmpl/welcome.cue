@@ -3,6 +3,7 @@ import (
 )
 
 input: {
+	network: #Network
 	repoAddr: string
 	sshPrivateKey: string
 }
@@ -35,12 +36,12 @@ helm: {
 			repoAddr: input.repoAddr
 			sshPrivateKey: base64.Encode(null, input.sshPrivateKey)
 			createAccountAddr: "http://api.\(global.namespacePrefix)core-auth.svc.cluster.local/identities"
-			loginAddr: "https://launcher.\(global.domain)"
+			loginAddr: "https://launcher.\(networks.public.domain)"
 			membershipsInitAddr: "http://memberships-api.\(global.namespacePrefix)core-auth-memberships.svc.cluster.local/api/init"
 			ingress: {
-				className: ingressPublic
-				domain: "welcome.\(global.domain)"
-				certificateIssuer: issuerPublic
+				className: input.network.ingressClass
+				domain: "welcome.\(input.network.domain)"
+				certificateIssuer: input.network.certificateIssuer
 			}
 			clusterRoleName: "\(global.id)-welcome"
 			image: {

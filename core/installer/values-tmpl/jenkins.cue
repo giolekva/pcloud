@@ -17,7 +17,7 @@ _jenkinsServiceHTTPPortNumber: 80
 ingress: {
 	jenkins: {
 		auth: enabled: false
-		network: networks.private
+		network: input.network
 		subdomain: input.subdomain
 		service: {
 			name: "jenkins"
@@ -108,7 +108,7 @@ helm: {
 oic:
   clientId: "${\(_oauth2ClientCredentials)-\(_oauth2ClientId)}"
   clientSecret: "${\(_oauth2ClientCredentials)-\(_oauth2ClientSecret)}"
-  wellKnownOpenIDConfigurationUrl: "https://hydra.\(global.domain)/.well-known/openid-configuration"
+  wellKnownOpenIDConfigurationUrl: "https://hydra.\(networks.public.domain)/.well-known/openid-configuration"
   userNameField: "email"
 """
 				}

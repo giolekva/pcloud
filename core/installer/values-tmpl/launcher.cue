@@ -3,12 +3,13 @@ import (
 )
 
 input: {
+	network: #Network
     repoAddr: string
 	sshPrivateKey: string
 }
 
 _subdomain: "launcher"
-_domain: "\(_subdomain).\(networks.public.domain)"
+_domain: "\(_subdomain).\(input.network.domain)"
 
 name: "Launcher"
 namespace: "launcher"
@@ -21,7 +22,7 @@ _httpPortName: "http"
 ingress: {
 	launcher: {
 		auth: enabled: true
-		network: networks.public
+		network: input.network
 		subdomain: _subdomain
 		service: {
 			name: "launcher"
@@ -60,7 +61,7 @@ helm: {
             portName: _httpPortName
             repoAddr: input.repoAddr
             sshPrivateKey: base64.Encode(null, input.sshPrivateKey)
-            logoutUrl: "https://accounts-ui.\(global.domain)/logout"
+            logoutUrl: "https://accounts-ui.\(networks.public.domain)/logout"
 			repoAddr: input.repoAddr
 			sshPrivateKey: base64.Encode(null, input.sshPrivateKey)
         }

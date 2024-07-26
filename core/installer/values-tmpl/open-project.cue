@@ -92,7 +92,7 @@ helm: {
 					password: "admin"
 					password_reset: false
 					name: "admin"
-					mail: "op-admin@\(global.domain)"
+					mail: "op-admin@\(networks.public.domain)"
 				}
 			}
 			persistence: {

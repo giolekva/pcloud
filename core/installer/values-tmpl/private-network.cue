@@ -57,6 +57,8 @@ charts: {
 	}
 }
 
+_ingressPrivate: "\(global.id)-ingress-private"
+
 helm: {
 	"ingress-nginx": {
 		chart: charts["ingress-nginx"]
@@ -67,15 +69,15 @@ helm: {
 					enabled: true
 					type: "LoadBalancer"
 					annotations: {
-						"metallb.universe.tf/address-pool": ingressPrivate
+						"metallb.universe.tf/address-pool": _ingressPrivate
 					}
 				}
 				ingressClassByName: true
 				ingressClassResource: {
-					name: ingressPrivate
+					name: _ingressPrivate
 					enabled: true
 					default: false
-					controllerValue: "k8s.io/\(ingressPrivate)"
+					controllerValue: "k8s.io/\(_ingressPrivate)"
 				}
 				config: {
 					"proxy-body-size": "200M" // TODO(giolekva): configurable
@@ -85,7 +87,7 @@ helm: {
 					"""
 				}
 				extraArgs: {
-					"default-ssl-certificate": "\(ingressPrivate)/cert-wildcard.\(global.privateDomain)"
+					"default-ssl-certificate": "\(_ingressPrivate)/cert-wildcard.\(global.privateDomain)"
 				}
 				admissionWebhooks: {
 					enabled: false
@@ -104,7 +106,7 @@ helm: {
 		values: {
 			hostname: input.privateNetwork.hostname
 			apiServer: "http://headscale-api.\(global.namespacePrefix)app-headscale.svc.cluster.local"
-			loginServer: "https://headscale.\(global.domain)" // TODO(gio): take headscale subdomain from configuration
+			loginServer: "https://headscale.\(networks.public.domain)" // TODO(gio): take headscale subdomain from configuration
 			ipSubnet: input.privateNetwork.ipSubnet
 			username: input.privateNetwork.username // TODO(gio): maybe install headscale-user chart separately?
 			preAuthKeySecret: "headscale-preauth-key"

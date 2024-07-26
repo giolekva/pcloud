@@ -53,7 +53,7 @@ helm: {
 		chart: charts.certManager
 		dependsOn: [{
 			name: "ingress-public"
-			namespace: ingressPublic
+			namespace: "\(global.pcloudEnvName)-ingress-public"
 		}]
 		values: {
 			fullnameOverride: "\(global.pcloudEnvName)-cert-manager"

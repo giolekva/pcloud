@@ -1,4 +1,6 @@
-input: {}
+input: {
+	network: #Network
+}
 
 images: {}
 
@@ -23,12 +25,11 @@ helm: {
 		}]
 		values: {
 			issuer: {
-				name: issuerPublic
+				name: input.network.certificateIssuer
 				server: "https://acme-v02.api.letsencrypt.org/directory"
-				// server: "https://acme-staging-v02.api.letsencrypt.org/directory"
-				domain: global.domain
+				domain: input.network.domain
 				contactEmail: global.contactEmail
-				ingressClass: ingressPublic
+				ingressClass: input.network.ingressClass
 			}
 		}
 	}

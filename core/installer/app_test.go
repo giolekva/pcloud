@@ -27,6 +27,17 @@ var (
 		},
 	}
 
+	infraNetworks = []InfraNetwork{
+		{
+			Name:               "Public",
+			IngressClass:       fmt.Sprintf("%s-ingress-public", env.InfraName),
+			CertificateIssuer:  fmt.Sprintf("%s-public", env.Id),
+			AllocatePortAddr:   fmt.Sprintf("http://port-allocator.%s-ingress-public.svc.cluster.local/api/allocate", env.InfraName),
+			ReservePortAddr:    fmt.Sprintf("http://port-allocator.%s-ingress-public.svc.cluster.local/api/reserve", env.InfraName),
+			DeallocatePortAddr: fmt.Sprintf("http://port-allocator.%s-ingress-public.svc.cluster.local/api/remove", env.InfraName),
+		},
+	}
+
 	networks = []Network{
 		{
 			Name:               "Public",
@@ -122,6 +133,7 @@ func TestGroupMemberships(t *testing.T) {
 		Namespace: "foo",
 	}
 	values := map[string]any{
+		"network":    "Public",
 		"authGroups": "foo,bar",
 	}
 	rendered, err := a.Render(release, env, networks, values, nil)
@@ -209,7 +221,7 @@ func TestIngressPublic(t *testing.T) {
 	values := map[string]any{
 		"sshPrivateKey": "private",
 	}
-	rendered, err := a.Render(release, infra, values, nil)
+	rendered, err := a.Render(release, infra, infraNetworks, values, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -311,7 +323,7 @@ func TestDNSGateway(t *testing.T) {
 	values := map[string]any{
 		"servers": []EnvDNS{EnvDNS{"v1.dodo.cloud", "10.0.1.2"}},
 	}
-	rendered, err := app.Render(release, infra, values, nil)
+	rendered, err := app.Render(release, infra, infraNetworks, values, nil)
 	if err != nil {
 		t.Fatal(err)
 	}

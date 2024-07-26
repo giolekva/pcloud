@@ -71,11 +71,11 @@ helm: {
 		chart: charts.matrix
 		info: "Installing Synapse server"
 		values: {
-			domain: global.domain
+			domain: input.network.domain
 			subdomain: input.subdomain
 			oauth2: {
 				secretName: "oauth2-client"
-				issuer: "https://hydra.\(global.domain)"
+				issuer: "https://hydra.\(input.network.domain)"
 			}
 			postgresql: {
 				host: "postgres"
@@ -84,8 +84,8 @@ helm: {
 				user: "matrix"
 				password: "matrix"
 			}
-			certificateIssuer: issuerPublic
-			ingressClassName: ingressPublic
+			certificateIssuer: input.network.certificateIssuer
+			ingressClassName: input.network.ingressClass
 			configMerge: {
 				configName: "config-to-merge"
 				fileName: "to-merge.yaml"

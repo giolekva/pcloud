@@ -297,11 +297,12 @@ func TestCreateNewEnv(t *testing.T) {
 	go s.Start()
 	time.Sleep(1 * time.Second) // Let server start
 	req := createEnvReq{
-		Name:           "test",
-		ContactEmail:   "test@test.t",
-		Domain:         "test.t",
-		AdminPublicKey: "test",
-		SecretToken:    "test",
+		Name:                    "test",
+		ContactEmail:            "test@test.t",
+		Domain:                  "test.t",
+		PrivateNetworkSubdomain: "p",
+		AdminPublicKey:          "test",
+		SecretToken:             "test",
 	}
 	var buf bytes.Buffer
 	if err := json.NewEncoder(&buf).Encode(req); err != nil {

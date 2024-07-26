@@ -1,4 +1,5 @@
 input: {
+	network: #Network
 	subdomain: string
 }
 
@@ -154,39 +155,24 @@ helm: {
 					}
 				}
 				ingress: {
-					admin: {
-						enabled: true
-						className: ingressPrivate
-						hosts: [{
-							host: "kratos.\(global.privateDomain)"
-							paths: [{
-								path: "/"
-								pathType: "Prefix"
-							}]
-						}]
-						tls: [{
-							hosts: [
-								"kratos.\(global.privateDomain)"
-						]
-						}]
-					}
+					admin: enabled: false
 					public: {
 						enabled: true
-						className: ingressPublic
+						className: input.network.ingressClass
 						annotations: {
 							"acme.cert-manager.io/http01-edit-in-place": "true"
-							"cert-manager.io/cluster-issuer": issuerPublic
+							"cert-manager.io/cluster-issuer": input.network.certificateIssuer
 						}
 						hosts: [{
-							host: "accounts.\(global.domain)"
+							host: "accounts.\(input.network.domain)"
 							paths: [{
 								path: "/"
 								pathType: "Prefix"
 							}]
 						}]
 						tls: [{
-							hosts: ["accounts.\(global.domain)"]
-							secretName: "cert-accounts.\(global.domain)"
+							hosts: ["accounts.\(input.network.domain)"]
+							secretName: "cert-accounts.\(input.network.domain)"
 						}]
 					}
 				}
@@ -206,25 +192,26 @@ helm: {
 						dsn: "postgres://kratos:kratos@postgres.\(global.namespacePrefix)core-auth.svc:5432/kratos?sslmode=disable&max_conns=20&max_idle_conns=4"
 						serve: {
 							public: {
-								base_url: "https://accounts.\(global.domain)"
+								base_url: "https://accounts.\(input.network.domain)"
 								cors: {
 									enabled: true
 									debug: false
 									allow_credentials: true
 									allowed_origins: [
-										"https://\(global.domain)",
-										"https://*.\(global.domain)",
+										"https://\(input.network.domain)",
+										"https://*.\(input.network.domain)",
 								]
 								}
 							}
 							admin: {
-								base_url: "https://kratos.\(global.privateDomain)/"
+								base_url: "https://kratos-admin.\(global.namespacePrefix)core-auth.svc.cluster.local"
 							}
 						}
 						selfservice: {
-							default_browser_return_url: "https://accounts-ui.\(global.domain)"
+							default_browser_return_url: "https://accounts-ui.\(input.network.domain)"
 							allowed_return_urls: [
-								"https://*.\(global.domain)/",
+								"https://*.\(input.network.domain)/",
+								// TODO(gio): replace with input.network.privateSubdomain
 								"https://*.\(global.privateDomain)",
 						    ]
 							methods: {
@@ -234,10 +221,10 @@ helm: {
 							}
 							flows: {
 								error: {
-									ui_url: "https://accounts-ui.\(global.domain)/error"
+									ui_url: "https://accounts-ui.\(input.network.domain)/error"
 								}
 								settings: {
-									ui_url: "https://accounts-ui.\(global.domain)/settings"
+									ui_url: "https://accounts-ui.\(input.network.domain)/settings"
 									privileged_session_max_age: "15m"
 								}
 								recovery: {
@@ -248,27 +235,27 @@ helm: {
 								}
 								logout: {
 									after: {
-										default_browser_return_url: "https://accounts-ui.\(global.domain)/login"
+										default_browser_return_url: "https://accounts-ui.\(input.network.domain)/login"
 									}
 								}
 								login: {
-									ui_url: "https://accounts-ui.\(global.domain)/login"
+									ui_url: "https://accounts-ui.\(input.network.domain)/login"
 									lifespan: "10m"
 									after: {
 										password: {
-											default_browser_return_url: "https://accounts-ui.\(global.domain)/"
+											default_browser_return_url: "https://accounts-ui.\(input.network.domain)/"
 										}
 									}
 								}
 								registration: {
 									lifespan: "10m"
-									ui_url: "https://accounts-ui.\(global.domain)/register"
+									ui_url: "https://accounts-ui.\(input.network.domain)/register"
 									after: {
 										password: {
 											hooks: [{
 												hook: "session"
 											}]
-											default_browser_return_url: "https://accounts-ui.\(global.domain)/"
+											default_browser_return_url: "https://accounts-ui.\(input.network.domain)/"
 										}
 									}
 								}
@@ -282,7 +269,7 @@ helm: {
 						cookies: {
 							path: "/"
 							same_site: "None"
-							domain: global.domain
+							domain: input.network.domain
 						}
 						secrets: {
 							cookie: ["PLEASE-CHANGE-ME-I-AM-VERY-INSECURE"]
@@ -305,7 +292,7 @@ helm: {
 						}
 						courier: {
 							smtp: {
-								connection_uri: "smtps://test-z1VmkYfYPjgdPRgPFgmeZ31esT9rUgS%40\(global.domain):iW%213Kk%5EPPLFrZa%24%21bbpTPN9Wv3b8mvwS6ZJvMLtce%23A2%2A4MotD@mx1.\(global.domain)"
+								connection_uri: "smtps://test-z1VmkYfYPjgdPRgPFgmeZ31esT9rUgS%40\(input.network.domain):iW%213Kk%5EPPLFrZa%24%21bbpTPN9Wv3b8mvwS6ZJvMLtce%23A2%2A4MotD@mx1.\(input.network.domain)"
 							}
 						}
 					}
@@ -336,37 +323,24 @@ helm: {
 					}
 				}
 				ingress: {
-					admin: {
-						enabled: true
-						className: ingressPrivate
-						hosts: [{
-							host: "hydra.\(global.privateDomain)"
-							paths: [{
-								path: "/"
-								pathType: "Prefix"
-							}]
-							   }]
-						tls: [{
-							hosts: ["hydra.\(global.privateDomain)"]
-						}]
-					}
+					admin: enabled: false
 					public: {
 						enabled: true
-						className: ingressPublic
+						className: input.network.ingressClass
 						annotations: {
 							"acme.cert-manager.io/http01-edit-in-place": "true"
-							"cert-manager.io/cluster-issuer": issuerPublic
+							"cert-manager.io/cluster-issuer": input.network.certificateIssuer
 						}
 						hosts: [{
-							host: "hydra.\(global.domain)"
+							host: "hydra.\(input.network.domain)"
 							paths: [{
 								path: "/"
 								pathType: "Prefix"
 							}]
 						}]
 						tls: [{
-							hosts: ["hydra.\(global.domain)"]
-							secretName: "cert-hydra.\(global.domain)"
+							hosts: ["hydra.\(input.network.domain)"]
+							secretName: "cert-hydra.\(input.network.domain)"
 						}]
 					}
 				}
@@ -393,15 +367,15 @@ helm: {
 									debug: false
 									allow_credentials: true
 									allowed_origins: [
-										"https://\(global.domain)",
-										"https://*.\(global.domain)"
+										"https://\(input.network.domain)",
+										"https://*.\(input.network.domain)"
 								]
 								}
 							}
 							admin: {
 								cors: {
 									allowed_origins: [
-										"https://hydra.\(global.privateDomain)"
+										"https://hydra-admin.\(global.namespacePrefix)core-auth.svc.cluster.local"
 								]
 								}
 								tls: {
@@ -422,12 +396,12 @@ helm: {
 						}
 						urls: {
 							self: {
-								public: "https://hydra.\(global.domain)"
-								issuer: "https://hydra.\(global.domain)"
+								public: "https://hydra.\(input.network.domain)"
+								issuer: "https://hydra.\(input.network.domain)"
 							}
-							consent: "https://accounts-ui.\(global.domain)/consent"
-							login: "https://accounts-ui.\(global.domain)/login"
-							logout: "https://accounts-ui.\(global.domain)/logout"
+							consent: "https://accounts-ui.\(input.network.domain)/consent"
+							login: "https://accounts-ui.\(input.network.domain)/login"
+							logout: "https://accounts-ui.\(input.network.domain)/logout"
 						}
 						secrets: {
 							system: ["youReallyNeedToChangeThis"]
@@ -451,10 +425,9 @@ helm: {
 				}
 			}
 			ui: {
-				certificateIssuer: issuerPublic
-				ingressClassName: ingressPublic
-				domain: global.domain
-				internalDomain: global.privateDomain
+				certificateIssuer: input.network.certificateIssuer
+				ingressClassName: input.network.ingressClass
+				domain: input.network.domain
 				hydra: "hydra-admin.\(global.namespacePrefix)core-auth.svc.cluster.local"
 				enableRegistration: false
 				image: {

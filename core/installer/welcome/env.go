@@ -239,11 +239,12 @@ func (s *EnvServer) createInvitation(w http.ResponseWriter, r *http.Request) {
 }
 
 type createEnvReq struct {
-	Name           string
-	ContactEmail   string `json:"contactEmail"`
-	Domain         string `json:"domain"`
-	AdminPublicKey string `json:"adminPublicKey"`
-	SecretToken    string `json:"secretToken"`
+	Name                    string
+	ContactEmail            string `json:"contactEmail"`
+	Domain                  string `json:"domain"`
+	PrivateNetworkSubdomain string `json:"privateNetworkSubdomain"`
+	AdminPublicKey          string `json:"adminPublicKey"`
+	SecretToken             string `json:"secretToken"`
 }
 
 func (s *EnvServer) readInvitations() ([]invitation, error) {
@@ -293,6 +294,9 @@ func extractRequest(r *http.Request) (createEnvReq, error) {
 			return err
 		}
 		if req.Domain, err = getFormValue(r.PostForm, "domain"); err != nil {
+			return err
+		}
+		if req.PrivateNetworkSubdomain, err = getFormValue(r.PostForm, "private-network-subdomain"); err != nil {
 			return err
 		}
 		if req.ContactEmail, err = getFormValue(r.PostForm, "contact-email"); err != nil {
@@ -385,11 +389,15 @@ func (s *EnvServer) createEnv(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
+	privateDomain := ""
+	if req.PrivateNetworkSubdomain != "" {
+		privateDomain = fmt.Sprintf("%s.%s", req.PrivateNetworkSubdomain, req.Domain)
+	}
 	env := installer.EnvConfig{
 		Id:              req.Name,
 		InfraName:       infra.Name,
 		Domain:          req.Domain,
-		PrivateDomain:   fmt.Sprintf("p.%s", req.Domain),
+		PrivateDomain:   privateDomain,
 		ContactEmail:    req.ContactEmail,
 		AdminPublicKey:  req.AdminPublicKey,
 		PublicIP:        infra.PublicIP,

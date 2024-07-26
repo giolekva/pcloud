@@ -23,9 +23,8 @@ helm: {
 		}]
 		values: {
 			issuer: {
-				name: issuerPrivate
+				name: "\(global.id)-private"
 				server: "https://acme-v02.api.letsencrypt.org/directory"
-				// server: "https://acme-staging-v02.api.letsencrypt.org/directory"
 				domain: global.privateDomain
 				contactEmail: global.contactEmail
 			}

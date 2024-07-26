@@ -154,7 +154,7 @@ helm: {
 			}
 			config: "coredns.conf"
 			db: "records.db"
-			zone: global.domain
+			zone: networks.public.domain
 			publicIP: strings.Join(global.publicIP, ",")
 			privateIP: global.network.ingress
 			nameserverIP: strings.Join(global.nameserverIP, ",")

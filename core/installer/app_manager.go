@@ -465,6 +465,7 @@ func (m *AppManager) Install(
 	if err := setPortFields(values, portReservations); err != nil {
 		return ReleaseResources{}, err
 	}
+	// TODO(gio): env might not have private domain
 	imageRegistry := fmt.Sprintf("zot.%s", env.PrivateDomain)
 	if o.FetchContainerImages {
 		if err := pullContainerImages(instanceId, rendered.ContainerImages, imageRegistry, namespace, m.jc); err != nil {
@@ -612,7 +613,6 @@ func (m *AppManager) Remove(instanceId string) error {
 	return nil
 }
 
-// TODO(gio): deduplicate with cue definition in app.go, this one should be removed.
 func (m *AppManager) CreateNetworks(env EnvConfig) ([]Network, error) {
 	ret := []Network{
 		{
@@ -624,14 +624,16 @@ func (m *AppManager) CreateNetworks(env EnvConfig) ([]Network, error) {
 			ReservePortAddr:    fmt.Sprintf("http://port-allocator.%s-ingress-public.svc.cluster.local/api/reserve", env.InfraName),
 			DeallocatePortAddr: fmt.Sprintf("http://port-allocator.%s-ingress-public.svc.cluster.local/api/remove", env.InfraName),
 		},
-		{
+	}
+	if env.PrivateDomain != "" {
+		ret = append(ret, Network{
 			Name:               "Private",
 			IngressClass:       fmt.Sprintf("%s-ingress-private", env.Id),
 			Domain:             env.PrivateDomain,
 			AllocatePortAddr:   fmt.Sprintf("http://port-allocator.%s-ingress-private.svc.cluster.local/api/allocate", env.Id),
 			ReservePortAddr:    fmt.Sprintf("http://port-allocator.%s-ingress-private.svc.cluster.local/api/reserve", env.Id),
 			DeallocatePortAddr: fmt.Sprintf("http://port-allocator.%s-ingress-private.svc.cluster.local/api/remove", env.Id),
-		},
+		})
 	}
 	n, err := m.FindAllAppInstances("network")
 	if err != nil {
@@ -799,7 +801,8 @@ func (m *InfraAppManager) Install(app InfraApp, appDir string, namespace string,
 		RepoAddr:  m.repoIO.FullAddress(),
 		AppDir:    appDir,
 	}
-	rendered, err := app.Render(release, infra, values, nil)
+	networks := m.CreateNetworks(infra)
+	rendered, err := app.Render(release, infra, networks, values, nil)
 	if err != nil {
 		return ReleaseResources{}, err
 	}
@@ -808,7 +811,7 @@ func (m *InfraAppManager) Install(app InfraApp, appDir string, namespace string,
 		return ReleaseResources{}, err
 	}
 	localCharts := generateLocalCharts(m.lg, charts)
-	rendered, err = app.Render(release, infra, values, localCharts)
+	rendered, err = app.Render(release, infra, networks, values, localCharts)
 	if err != nil {
 		return ReleaseResources{}, err
 	}
@@ -831,7 +834,7 @@ func (m *InfraAppManager) Update(
 	if err := m.repoIO.Pull(); err != nil {
 		return ReleaseResources{}, err
 	}
-	env, err := m.Config()
+	infra, err := m.Config()
 	if err != nil {
 		return ReleaseResources{}, err
 	}
@@ -853,7 +856,8 @@ func (m *InfraAppManager) Update(
 	if err != nil {
 		return ReleaseResources{}, err
 	}
-	rendered, err := app.Render(config.Release, env, values, renderedCfg.LocalCharts)
+	networks := m.CreateNetworks(infra)
+	rendered, err := app.Render(config.Release, infra, networks, values, renderedCfg.LocalCharts)
 	if err != nil {
 		return ReleaseResources{}, err
 	}
@@ -865,6 +869,19 @@ func (m *InfraAppManager) Update(
 		RenderedRaw: rendered.Raw,
 		Helm:        extractHelm(rendered.Resources),
 	}, nil
+}
+
+func (m *InfraAppManager) CreateNetworks(infra InfraConfig) []InfraNetwork {
+	return []InfraNetwork{
+		{
+			Name:               "Public",
+			IngressClass:       fmt.Sprintf("%s-ingress-public", infra.Name),
+			CertificateIssuer:  fmt.Sprintf("%s-public", infra.Name),
+			AllocatePortAddr:   fmt.Sprintf("http://port-allocator.%s-ingress-public.svc.cluster.local/api/allocate", infra.Name),
+			ReservePortAddr:    fmt.Sprintf("http://port-allocator.%s-ingress-public.svc.cluster.local/api/reserve", infra.Name),
+			DeallocatePortAddr: fmt.Sprintf("http://port-allocator.%s-ingress-public.svc.cluster.local/api/remove", infra.Name),
+		},
+	}
 }
 
 func pullHelmCharts(hf HelmFetcher, charts HelmCharts, rfs soft.RepoFS, root string) (map[string]string, error) {

@@ -115,9 +115,18 @@ type InfraConfig struct {
 	InfraAdminPublicKey  []byte   `json:"infraAdminPublicKey,omitempty"`
 }
 
+type InfraNetwork struct {
+	Name               string `json:"name,omitempty"`
+	IngressClass       string `json:"ingressClass,omitempty"`
+	CertificateIssuer  string `json:"certificateIssuer,omitempty"`
+	AllocatePortAddr   string `json:"allocatePortAddr,omitempty"`
+	ReservePortAddr    string `json:"reservePortAddr,omitempty"`
+	DeallocatePortAddr string `json:"deallocatePortAddr,omitempty"`
+}
+
 type InfraApp interface {
 	App
-	Render(release Release, infra InfraConfig, values map[string]any, charts map[string]helmv2.HelmChartTemplateSpec) (InfraAppRendered, error)
+	Render(release Release, infra InfraConfig, networks []InfraNetwork, values map[string]any, charts map[string]helmv2.HelmChartTemplateSpec) (InfraAppRendered, error)
 }
 
 type EnvNetwork struct {
@@ -492,7 +501,7 @@ func (a cueInfraApp) Type() AppType {
 	return AppTypeInfra
 }
 
-func (a cueInfraApp) Render(release Release, infra InfraConfig, values map[string]any, charts map[string]helmv2.HelmChartTemplateSpec) (InfraAppRendered, error) {
+func (a cueInfraApp) Render(release Release, infra InfraConfig, networks []InfraNetwork, values map[string]any, charts map[string]helmv2.HelmChartTemplateSpec) (InfraAppRendered, error) {
 	if charts == nil {
 		charts = make(map[string]helmv2.HelmChartTemplateSpec)
 	}
@@ -501,6 +510,7 @@ func (a cueInfraApp) Render(release Release, infra InfraConfig, values map[strin
 		"release":     release,
 		"input":       values,
 		"localCharts": charts,
+		"networks":    InfraNetworkMap(networks),
 	})
 	if err != nil {
 		return InfraAppRendered{}, err
@@ -533,6 +543,14 @@ func join[T fmt.Stringer](items []T, sep string) string {
 
 func NetworkMap(networks []Network) map[string]Network {
 	ret := make(map[string]Network)
+	for _, n := range networks {
+		ret[strings.ToLower(n.Name)] = n
+	}
+	return ret
+}
+
+func InfraNetworkMap(networks []InfraNetwork) map[string]InfraNetwork {
+	ret := make(map[string]InfraNetwork)
 	for _, n := range networks {
 		ret[strings.ToLower(n.Name)] = n
 	}
