@@ -1,24 +1,24 @@
-<div class="form-container-footer">
-    <form id="register-form" method="POST" action="/register" class="form-group-footer" onsubmit="return register()">
-		<label>
-			domain
-			<select id="network" name="domain">
+<div id="form-container" class="form-container-footer">
+	<form id="register-form" method="POST" action="/register" class="form-group-footer" onsubmit="return register()">
+		<h3 id="error-message"></h3>
+		<div class="reg-inputs">
+			<select id="network" name="domain" required>
+				<option value="" disabled selected>domain</option>
 				<option value="dodoapp.xyz">dodoapp.xyz</option>
 			</select>
-		</label>
-		<label>
-			subdomain
-			<input id="subdomain" type="text" name="subdomain" />
-		</label>
-		<label>
-			application type
-			<select id="app-type" name="app-type">
+			<input id="subdomain" type="text" name="subdomain" placeholder="subdomain" required>
+			<select id="app-type" name="app-type" required>
+				<option value="" disabled selected>application type</option>
 			</select>
-		</label>
-        <label>
-			ssh public key
-			<textarea id="public-key" name="public-key" rows="2" required></textarea>
-		</label>
-        <button type="submit">create first app</button>
-    </form>
+		</div>
+		<textarea id="public-key" name="public-key" rows="2" placeholder="ssh public key"></textarea>
+		<button id="create-app-button" type="submit">
+			<svg id="spinner" class="animated-spinner" fill="none" height="18" width="18" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" style="display: none;">
+				<g>
+					<circle cx="12" cy="12" r="10" fill="none" stroke="currentColor" stroke-width="4" />
+				</g>
+			</svg>
+			create first app
+		</button>
+	</form>
 </div>
