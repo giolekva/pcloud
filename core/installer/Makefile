@@ -38,7 +38,7 @@ dodo-app:
 	./pcloud --kubeconfig=../../priv/kubeconfig-hetzner dodo-app --ssh-key=/Users/lekva/.ssh/id_ed25519 --repo-addr=ssh://10.43.196.174/test
 
 welc:
-	./pcloud --kubeconfig=../../priv/kubeconfig welcome --ssh-key=/Users/lekva/.ssh/id_rsa --repo-addr=ssh://192.168.0.210/config --port=9090
+	./pcloud --kubeconfig=../../priv/kubeconfig-hetzner welcome --ssh-key=/Users/lekva/.ssh/id_ed25519 --repo-addr=ssh://10.43.196.174/config --port=9090
 
 env:
 	./pcloud --kubeconfig=../../priv/kubeconfig-hetzner envmanager --ssh-key=/Users/lekva/.ssh/id_rsa --repo-addr=192.168.100.210:22 --repo-name=config --port=9090

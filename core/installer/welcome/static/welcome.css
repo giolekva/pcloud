@@ -1,18 +1,92 @@
+[data-theme="light"],
+:root:not([data-theme="dark"]) {
+  --pico-font-family: Hack, monospace;
+  --pico-font-size: 14px;
+  --pico-background-color: #d6d6d6;
+  --pico-border-radius: 0;
+  --pico-form-element-border-color: #ffffff;
+  --pico-form-element-active-border-color: #7f9f7f;
+  --pico-form-element-focus-color: #7f9f7f;
+  --pico-form-element-background-color: #3a3a3a;
+  --pico-form-element-active-background-color: #3a3a3a;
+  --pico-form-element-selected-background-color: #3a3a3a;
+  --pico-primary: #7f9f7f;
+  --pico-primary-background: #7f9f7f;
+  --pico-primary-hover: #d4888d;
+  --pico-primary-hover-background: #d4888d;
+  --pico-grid-spacing-horizontal: 0;
+}
+
+body {
+  width: 100%;
+  height: 100vh;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
 .container {
-    position: relative; 
+  max-width: 500px !important;
+  width: 100%;
+}
+
+form {
+  padding: 10px;
+  background-color: var(--pico-form-element-background-color);
+  width: 100%;
+}
+
+input {
+  background: var(--pico-form-element-background-color);
+  color: white;
+  padding: 10px;
+  text-align: left;
+  font-family: var(--pico-font-family) !important;
+  margin-bottom: 0 !important;
+}
+
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus,
+input:-webkit-autofill:active {
+  -webkit-text-fill-color: white !important;
+  transition: background-color 5000s ease-in-out 0s;
+  background-color: var(--pico-form-element-background-color) !important;
+}
+
+&:-webkit-autofill::first-line {
+  font-family: var(--pico-font-family) !important;
+}
+
+.logo span:first-child {
+  color: white;
+  font-size: 24px;
+  padding-left: 10px;
+}
+
+.logo span:nth-child(2) {
+  color: var(--pico-primary-hover);
+  font-size: 24px;
+}
+
+.logo {
+  padding-top: var(--pico-spacing);
+  background-color: var(--pico-form-element-background-color);
+}
+
+label {
+  color: white;
+  margin-top: 14px;
+}
+
+label:first-of-type {
+  margin-top: 0;
+}
+
+label:last-of-type {
+  margin-bottom: 14px;
 }
 
 .error-message {
-    position: relative; 
-    left: 2px;
-    width: 100%;
-    margin-bottom: 1px;
-}
-
-.input-field {
-    margin-bottom: 14px;
-}
-
-.form-container {
-    margin-top: 0px; 
+  color: var(--pico-primary-hover);
 }
