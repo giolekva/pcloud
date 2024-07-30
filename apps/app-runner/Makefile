@@ -4,6 +4,7 @@ ifeq ($(podman), podman)
 manifest_dest_golang_1_22_0=docker://docker.io/$(repo_name)/app-runner:golang-1.22.0
 manifest_dest_golang_1_20_0=docker://docker.io/$(repo_name)/app-runner:golang-1.20.0
 manifest_dest_hugo_latest=docker://docker.io/$(repo_name)/app-runner:hugo-latest
+manifest_dest_php_8_2_apache=docker://docker.io/$(repo_name)/app-runner:php-8.2-apache
 endif
 
 clean:
@@ -68,5 +69,20 @@ push_hugo: push_hugo_arm64 push_hugo_amd64
 	$(podman) manifest push $(repo_name)/app-runner:hugo-latest $(manifest_dest_hugo_latest)
 	$(podman) manifest rm $(repo_name)/app-runner:hugo-latest
 
+# PHP
+
+push_php_8_2_apache_arm64: clean build_arm64
+	$(podman) build --platform linux/arm64 --tag=$(repo_name)/app-runner:php-8.2-apache-arm64 -f Dockerfile.php.8.2.apache .
+	$(podman) push $(repo_name)/app-runner:php-8.2-apache-arm64
+
+push_php_8_2_apache_amd64: clean build_amd64
+	$(podman) build --platform linux/amd64 --tag=$(repo_name)/app-runner:php-8.2-apache-amd64 -f Dockerfile.php.8.2.apache .
+	$(podman) push $(repo_name)/app-runner:php-8.2-apache-amd64
+
+push_php_8_2_apache: push_php_8_2_apache_arm64 push_php_8_2_apache_amd64
+	$(podman) manifest create $(repo_name)/app-runner:php-8.2-apache $(repo_name)/app-runner:php-8.2-apache-arm64 $(repo_name)/app-runner:php-8.2-apache-amd64
+	$(podman) manifest push $(repo_name)/app-runner:php-8.2-apache $(manifest_dest_php_8_2_apache)
+	$(podman) manifest rm $(repo_name)/app-runner:php-8.2-apache
+
 # all
-push: push_golang_1_22_0 push_golang_1_20_0 push_hugo
+push: push_golang_1_22_0 push_golang_1_20_0 push_hugo push_php_8_2_apache

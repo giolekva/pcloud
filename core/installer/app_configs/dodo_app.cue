@@ -47,9 +47,11 @@ _goVer1200: "golang:1.20.0"
 
 #GoAppTmpl: {
 	type: _goVer1220 | _goVer1200
-	run: string
+	run: string | *"main.go"
 	ingress: #AppIngress
 	volumes: #Volumes
+	port: int | *8080
+	rootDir: _appDir
 
 	runConfiguration: [{
 		bin: "/usr/local/go/bin/go",
@@ -86,6 +88,8 @@ _hugoLatest: "hugo:latest"
 	type: _hugoLatest
 	ingress: #AppIngress
 	volumes: {}
+	port: int | *8080
+	rootDir: _appDir
 
 	runConfiguration: [{
 		bin: "/usr/bin/hugo",
@@ -96,7 +100,7 @@ _hugoLatest: "hugo:latest"
 			"server",
 			"--watch=false",
 			"--bind=0.0.0.0",
-			"--port=\(_appPort)",
+			"--port=\(port)",
 			"--baseURL=\(ingress.baseURL)",
 			"--appendPort=false",
     	]
@@ -105,7 +109,28 @@ _hugoLatest: "hugo:latest"
 
 #HugoApp: #HugoAppTmpl
 
-#App: #GoApp | #HugoApp
+// PHP app
+
+#PHPAppTmpl: {
+	type: "php:8.2-apache"
+	ingress: #AppIngress
+	volumes: {}
+	port: int | *80
+	rootDir: "/var/www/html"
+
+	runConfiguration: [{
+		bin: "/usr/local/bin/apache2-foreground",
+		env: [
+			for k, v in volumes {
+				"DODO_VOLUME_\(strings.ToUpper(k))=/dodo-volume/\(v.name)"
+			}
+	    ]
+	}]
+}
+
+#PHPApp: #PHPAppTmpl
+
+#App: #GoApp | #HugoApp | #PHPApp
 
 app: #App
 
@@ -154,8 +179,8 @@ helm: {
 				pullPolicy: images.app.pullPolicy
 			}
 			runtimeClassName: "untrusted-external" // TODO(gio): make this part of the infra config
-			appPort: _appPort
-			appDir: _appDir
+			appPort: _app.port
+			appDir: _app.rootDir
 			appId: input.appId
 			repoAddr: input.repoAddr
 			sshPrivateKey: base64.Encode(null, input.sshPrivateKey)
@@ -172,4 +197,3 @@ helm: {
 }
 
 _appDir: "/dodo-app"
-_appPort: 8080

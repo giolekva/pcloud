@@ -44,8 +44,6 @@ const (
 	userCtx        = "user"
 )
 
-var types = []string{"golang:1.22.0", "golang:1.20.0", "hugo:latest"}
-
 type dodoAppTmplts struct {
 	index     *template.Template
 	appStatus *template.Template
@@ -372,6 +370,10 @@ func (s *DodoAppServer) handleStatus(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
+	}
+	var types []string
+	for _, t := range s.appTmpls.Types() {
+		types = append(types, strings.Replace(t, "-", ":", 1))
 	}
 	data := statusData{apps, networks, types}
 	if err := s.tmplts.index.Execute(w, data); err != nil {
@@ -869,7 +871,7 @@ func (s *DodoAppServer) updateDodoApp(appStatus installer.EnvApp, name, namespac
 }
 
 func (s *DodoAppServer) initRepo(repo soft.RepoIO, appType string, network installer.Network, subdomain string) error {
-	appType = strings.ReplaceAll(appType, ":", "-")
+	appType = strings.Replace(appType, ":", "-", 1)
 	appTmpl, err := s.appTmpls.Find(appType)
 	if err != nil {
 		return err
@@ -925,9 +927,8 @@ func (s *DodoAppServer) handleAPIPublicData(w http.ResponseWriter, r *http.Reque
 		}
 	}
 	for _, t := range s.appTmpls.Types() {
-		ret.Types = append(ret.Types, strings.ReplaceAll(t, "-", ":"))
+		ret.Types = append(ret.Types, strings.Replace(t, "-", ":", 1))
 	}
-	w.Header().Set("Access-Control-Allow-Origin", "*")
 	if err := json.NewEncoder(w).Encode(ret); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return

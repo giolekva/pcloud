@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"io/fs"
+	"sort"
 	"strings"
 	"text/template"
 
@@ -46,6 +47,16 @@ func (s *appTmplStoreFS) Types() []string {
 	for t := range s.tmpls {
 		ret = append(ret, t)
 	}
+	sort.Slice(ret, func(i, j int) bool {
+		a := strings.SplitN(ret[i], ":", 2)
+		b := strings.SplitN(ret[j], ":", 2)
+		langCmp := strings.Compare(a[0], b[0])
+		if langCmp != 0 {
+			return langCmp < 0
+		}
+		// TODO(gio): compare semver?
+		return strings.Compare(a[1], b[1]) > 0
+	})
 	return ret
 }
 

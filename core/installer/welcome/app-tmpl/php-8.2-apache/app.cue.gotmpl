@@ -1,0 +1,8 @@
+app: {
+	type: "php:8.2-apache"
+	ingress: {
+		network: "{{ .Network.Name }}"
+		subdomain: "{{ .Subdomain }}"
+		auth: enabled: false
+	}
+}

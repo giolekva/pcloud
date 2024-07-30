@@ -81,3 +81,22 @@ func TestAppTmplHugoLatest(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+func TestAppTmplPHP82(t *testing.T) {
+	d, err := fs.Sub(appTmpl, "app-tmpl")
+	if err != nil {
+		t.Fatal(err)
+	}
+	store, err := NewAppTmplStoreFS(d)
+	if err != nil {
+		t.Fatal(err)
+	}
+	a, err := store.Find("php-8.2-apache")
+	if err != nil {
+		t.Fatal(err)
+	}
+	out := soft.NewBillyRepoFS(memfs.New())
+	if err := a.Render(network, "testapp", out); err != nil {
+		t.Fatal(err)
+	}
+}

@@ -94,7 +94,7 @@ spec:
         - app-runner
         - --port=3000
         - --app-id={{ .Values.appId }}
-        - --app-dir=/dodo-app
+        - --app-dir={{ .Values.appDir }}
         - --repo-addr={{ .Values.repoAddr }}
         - --ssh-key=/pcloud/ssh-key/private
         - --run-cfg=/pcloud/config/run

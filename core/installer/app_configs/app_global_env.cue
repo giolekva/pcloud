@@ -22,7 +22,6 @@
 }
 
 #Networks: {
-	public: #Network
 	...
 }
 
