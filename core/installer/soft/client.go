@@ -28,6 +28,7 @@ type Client interface {
 	GetPublicKeys() ([]string, error)
 	RepoExists(name string) (bool, error)
 	GetRepo(name string) (RepoIO, error)
+	GetAllRepos() ([]string, error)
 	GetRepoAddress(name string) string
 	AddRepository(name string) error
 	UserExists(name string) (bool, error)
@@ -220,6 +221,15 @@ func (ss *realClient) GetRepo(name string) (RepoIO, error) {
 		return nil, err
 	}
 	return NewRepoIO(r, ss.signer)
+}
+
+func (ss *realClient) GetAllRepos() ([]string, error) {
+	log.Printf("Getting all repos")
+	out, err := ss.RunCommand("repo", "list")
+	if err != nil {
+		return nil, err
+	}
+	return strings.Fields(out), nil
 }
 
 type RepositoryAddress struct {

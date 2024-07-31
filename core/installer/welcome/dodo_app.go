@@ -15,6 +15,7 @@ import (
 	"slices"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/giolekva/pcloud/core/installer"
 	"github.com/giolekva/pcloud/core/installer/soft"
@@ -93,7 +94,8 @@ type DodoAppServer struct {
 	appConfigs        map[string]appConfig
 	tmplts            dodoAppTmplts
 	appTmpls          AppTmplStore
-	allowNetworkReuse bool
+	external          bool
+	fetchUsersAddr    string
 }
 
 type appConfig struct {
@@ -118,7 +120,8 @@ func NewDodoAppServer(
 	nsc installer.NamespaceCreator,
 	jc installer.JobCreator,
 	env installer.EnvConfig,
-	allowNetworkReuse bool,
+	external bool,
+	fetchUsersAddr string,
 ) (*DodoAppServer, error) {
 	tmplts, err := parseTemplatesDodoApp(dodoAppTmplFS)
 	if err != nil {
@@ -153,7 +156,8 @@ func NewDodoAppServer(
 		map[string]appConfig{},
 		tmplts,
 		appTmpls,
-		allowNetworkReuse,
+		external,
+		fetchUsersAddr,
 	}
 	config, err := client.GetRepo(ConfigRepoName)
 	if err != nil {
@@ -192,8 +196,23 @@ func (s *DodoAppServer) Start() error {
 		r.HandleFunc("/update", s.handleAPIUpdate)
 		r.HandleFunc("/api/apps/{app-name}/workers", s.handleAPIRegisterWorker).Methods(http.MethodPost)
 		r.HandleFunc("/api/add-admin-key", s.handleAPIAddAdminKey).Methods(http.MethodPost)
+		if !s.external {
+			r.HandleFunc("/api/sync-users", s.handleAPISyncUsers).Methods(http.MethodGet)
+		}
 		e <- http.ListenAndServe(fmt.Sprintf(":%d", s.apiPort), r)
 	}()
+	if !s.external {
+		go func() {
+			s.syncUsers()
+			// TODO(dtabidze): every sync delay should be randomized to avoid all client
+			// applications hitting memberships service at the same time.
+			// For every next sync new delay should be randomly generated from scratch.
+			// We can choose random delay from 1 to 2 minutes.
+			for range time.Tick(1 * time.Minute) {
+				s.syncUsers()
+			}
+		}()
+	}
 	return <-e
 }
 
@@ -533,11 +552,6 @@ func (s *DodoAppServer) handleCreateApp(w http.ResponseWriter, r *http.Request) 
 		http.Error(w, "missing type", http.StatusBadRequest)
 		return
 	}
-	adminPublicKey := r.FormValue("admin-public-key")
-	if adminPublicKey == "" {
-		http.Error(w, "missing admin public key", http.StatusBadRequest)
-		return
-	}
 	g := installer.NewFixedLengthRandomNameGenerator(3)
 	appName, err := g.Generate()
 	if err != nil {
@@ -548,12 +562,10 @@ func (s *DodoAppServer) handleCreateApp(w http.ResponseWriter, r *http.Request) 
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	} else if !ok {
-		if err := s.client.AddUser(user, adminPublicKey); err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
+		http.Error(w, "user sync has not finished, please try again in few minutes", http.StatusFailedDependency)
+		return
 	}
-	if err := s.st.CreateUser(user, nil, adminPublicKey, network); err != nil && !errors.Is(err, ErrorAlreadyExists) {
+	if err := s.st.CreateUser(user, nil, network); err != nil && !errors.Is(err, ErrorAlreadyExists) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -613,7 +625,7 @@ func (s *DodoAppServer) handleAPICreateApp(w http.ResponseWriter, r *http.Reques
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	if err := s.st.CreateUser(user, hashed, req.AdminPublicKey, req.Network); err != nil {
+	if err := s.st.CreateUser(user, hashed, req.Network); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -636,7 +648,7 @@ func (s *DodoAppServer) handleAPICreateApp(w http.ResponseWriter, r *http.Reques
 }
 
 func (s *DodoAppServer) isNetworkUseAllowed(network string) bool {
-	if s.allowNetworkReuse {
+	if !s.external {
 		return true
 	}
 	for _, cfg := range s.appConfigs {
@@ -1019,4 +1031,72 @@ func (f *combinedNetworkFilter) Filter(user string, networks []installer.Network
 		}
 	}
 	return ret, nil
+}
+
+type user struct {
+	Username      string   `json:"username"`
+	Email         string   `json:"email"`
+	SSHPublicKeys []string `json:"sshPublicKeys,omitempty"`
+}
+
+func (s *DodoAppServer) handleAPISyncUsers(_ http.ResponseWriter, _ *http.Request) {
+	go s.syncUsers()
+}
+
+func (s *DodoAppServer) syncUsers() {
+	if s.external {
+		panic("MUST NOT REACH!")
+	}
+	resp, err := http.Get(fmt.Sprintf("%s?selfAddress=%s/api/sync-users", s.fetchUsersAddr, s.self))
+	if err != nil {
+		return
+	}
+	users := []user{}
+	if err := json.NewDecoder(resp.Body).Decode(&users); err != nil {
+		fmt.Println(err)
+		return
+	}
+	for _, u := range users {
+		if len(u.SSHPublicKeys) == 0 {
+			continue
+		}
+		if ok, err := s.client.UserExists(u.Username); err != nil {
+			fmt.Println(err)
+			return
+		} else if !ok {
+			for i, k := range u.SSHPublicKeys {
+				if i == 0 {
+					if err := s.client.AddUser(u.Username, k); err != nil {
+						fmt.Println(err)
+						return
+					}
+				} else {
+					if err := s.client.AddPublicKey(u.Username, k); err != nil {
+						fmt.Println(err)
+						// TODO(dtabidze): If current public key is already registered
+						// with Git server, this method call will return an error.
+						// We need to differentiate such errors, and only add key which
+						// are missing.
+						continue // return
+					}
+					// TODO(dtabidze): Implement RemovePublicKey
+				}
+			}
+		}
+	}
+	repos, err := s.client.GetAllRepos()
+	if err != nil {
+		return
+	}
+	for _, r := range repos {
+		if r == ConfigRepoName {
+			continue
+		}
+		for _, u := range users {
+			if err := s.client.AddReadWriteCollaborator(r, u.Username); err != nil {
+				fmt.Println(err)
+				return
+			}
+		}
+	}
 }

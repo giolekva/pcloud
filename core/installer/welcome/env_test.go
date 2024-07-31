@@ -118,6 +118,10 @@ func (f fakeSoftServeClient) GetRepo(name string) (soft.RepoIO, error) {
 	return mockRepoIO{soft.NewBillyRepoFS(f.envFS), "foo.bar", f.t, &l}, nil
 }
 
+func (f fakeSoftServeClient) GetAllRepos() ([]string, error) {
+	return []string{}, nil
+}
+
 func (f fakeSoftServeClient) GetRepoAddress(name string) string {
 	return ""
 }

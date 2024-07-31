@@ -16,3 +16,4 @@ gitRepoPublicKey: ""
 persistentVolumeClaimName: ""
 allowedNetworks: ""
 external: false
+fetchUsersAddr: ""

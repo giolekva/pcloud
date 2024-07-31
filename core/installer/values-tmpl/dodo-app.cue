@@ -129,6 +129,7 @@ helm: {
 			persistentVolumeClaimName: volumes.db.name
 			allowedNetworks: strings.Join([for n in input.allowedNetworks { n.name }], ",")
 			external: input.external
+			fetchUsersAddr: "http://memberships-api.\(global.namespacePrefix)core-auth-memberships.svc.cluster.local/api/users"
 		}
 	}
 }

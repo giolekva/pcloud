@@ -23,8 +23,7 @@ type Commit struct {
 }
 
 type Store interface {
-	// TODO(gio): Remove publicKey once auto user sync is implemented
-	CreateUser(username string, password []byte, publicKey, network string) error
+	CreateUser(username string, password []byte, network string) error
 	GetUserPassword(username string) ([]byte, error)
 	GetUserNetwork(username string) (string, error)
 	GetApps() ([]string, error)
@@ -53,7 +52,6 @@ func (s *storeImpl) init() error {
 		CREATE TABLE IF NOT EXISTS users (
 			username TEXT PRIMARY KEY,
             password BLOB,
-            public_key TEXT,
             network TEXT
 		);
 		CREATE TABLE IF NOT EXISTS apps (
@@ -70,9 +68,9 @@ func (s *storeImpl) init() error {
 
 }
 
-func (s *storeImpl) CreateUser(username string, password []byte, publicKey, network string) error {
-	query := `INSERT INTO users (username, password, public_key, network) VALUES (?, ?, ?, ?)`
-	_, err := s.db.Exec(query, username, password, publicKey, network)
+func (s *storeImpl) CreateUser(username string, password []byte, network string) error {
+	query := `INSERT INTO users (username, password, network) VALUES (?, ?, ?)`
+	_, err := s.db.Exec(query, username, password, network)
 	if err != nil {
 		sqliteErr, ok := err.(*sqlite3.Error)
 		if ok && sqliteErr.ExtendedCode() == errorConstraintPrimaryKeyViolation {

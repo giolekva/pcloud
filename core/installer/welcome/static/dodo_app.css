@@ -78,6 +78,6 @@ body.container {
 
 @media (min-width: 768px) {
 	fieldset.grid {
-		grid-template-columns: 1fr 1fr 1fr 1fr 200px;
+		grid-template-columns: 1fr 1fr 1fr 200px;
 	}
 };

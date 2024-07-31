@@ -30,6 +30,7 @@ var dodoAppFlags struct {
 	gitRepoPublicKey  string
 	db                string
 	networks          []string
+	fetchUsersAddr    string
 }
 
 func dodoAppCmd() *cobra.Command {
@@ -76,6 +77,12 @@ func dodoAppCmd() *cobra.Command {
 	cmd.Flags().StringVar(
 		&dodoAppFlags.self,
 		"self",
+		"",
+		"",
+	)
+	cmd.Flags().StringVar(
+		&dodoAppFlags.fetchUsersAddr,
+		"fetch-users-addr",
 		"",
 		"",
 	)
@@ -195,7 +202,8 @@ func dodoAppCmdRun(cmd *cobra.Command, args []string) error {
 		nsc,
 		jc,
 		env,
-		!dodoAppFlags.external,
+		dodoAppFlags.external,
+		dodoAppFlags.fetchUsersAddr,
 	)
 	if err != nil {
 		return err

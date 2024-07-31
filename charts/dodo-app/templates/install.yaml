@@ -129,6 +129,7 @@ spec:
         - --db=/dodo-app/db/apps.db
         - --networks={{ .Values.allowedNetworks }}
         - --external={{ .Values.external }}
+        - --fetch-users-addr={{ .Values.fetchUsersAddr }}
         volumeMounts:
         - name: ssh-key
           readOnly: true
