@@ -69,41 +69,41 @@ spec:
           {{- toYaml . | nindent 12 }}
           {{- end }}
           {{- end }}
-          livenessProbe:
-            initialDelaySeconds: 5
-            httpGet:
-              path: /v2/
-              port: 5000
-              scheme: {{ .Values.httpGet.scheme }}
-              {{- if .Values.authHeader }}
-              httpHeaders:
-                - name: Authorization
-                  value: Basic {{ .Values.authHeader }}
-              {{- end }}
-          readinessProbe:
-            initialDelaySeconds: 5
-            httpGet:
-              path: /v2/
-              port: 5000
-              scheme: {{ .Values.httpGet.scheme }}
-              {{- if .Values.authHeader }}
-              httpHeaders:
-                - name: Authorization
-                  value: Basic {{ .Values.authHeader }}
-              {{- end }}
-          startupProbe:
-            initialDelaySeconds: {{ .Values.startupProbe.initialDelaySeconds }}
-            periodSeconds: {{ .Values.startupProbe.periodSeconds }}
-            failureThreshold: {{ .Values.startupProbe.failureThreshold }}
-            httpGet:
-              path: /v2/
-              port: 5000
-              scheme: {{ .Values.httpGet.scheme }}
-              {{- if .Values.authHeader }}
-              httpHeaders:
-                - name: Authorization
-                  value: Basic {{ .Values.authHeader }}
-              {{- end }}
+          # livenessProbe:
+          #   initialDelaySeconds: 5
+          #   httpGet:
+          #     path: /v2/
+          #     port: 5000
+          #     scheme: {{ .Values.httpGet.scheme }}
+          #     {{- if .Values.authHeader }}
+          #     httpHeaders:
+          #       - name: Authorization
+          #         value: Basic {{ .Values.authHeader }}
+          #     {{- end }}
+          # readinessProbe:
+          #   initialDelaySeconds: 5
+          #   httpGet:
+          #     path: /v2/
+          #     port: 5000
+          #     scheme: {{ .Values.httpGet.scheme }}
+          #     {{- if .Values.authHeader }}
+          #     httpHeaders:
+          #       - name: Authorization
+          #         value: Basic {{ .Values.authHeader }}
+          #     {{- end }}
+          # startupProbe:
+          #   initialDelaySeconds: {{ .Values.startupProbe.initialDelaySeconds }}
+          #   periodSeconds: {{ .Values.startupProbe.periodSeconds }}
+          #   failureThreshold: {{ .Values.startupProbe.failureThreshold }}
+          #   httpGet:
+          #     path: /v2/
+          #     port: 5000
+          #     scheme: {{ .Values.httpGet.scheme }}
+          #     {{- if .Values.authHeader }}
+          #     httpHeaders:
+          #       - name: Authorization
+          #         value: Basic {{ .Values.authHeader }}
+          #     {{- end }}
           resources:
             {{- toYaml .Values.resources | nindent 12 }}
       {{- if or .Values.mountConfig .Values.mountSecret .Values.persistence .Values.externalSecrets (not (empty .Values.extraVolumes))}}
