@@ -126,9 +126,6 @@ helm: {
 	auth: {
 		chart: charts.auth
 		dependsOn: [{
-			name: "ingress-nginx"
-			namespace: "\(global.namespacePrefix)ingress-private"
-		}, {
 			name: "postgres"
 			namespace: release.namespace
 		}]

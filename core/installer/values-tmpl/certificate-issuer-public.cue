@@ -19,10 +19,6 @@ charts: {
 helm: {
 	"certificate-issuer-public": {
 		chart: charts["certificate-issuer-public"]
-		dependsOn: [{
-			name: "ingress-nginx"
-			namespace: "\(global.namespacePrefix)ingress-private"
-		}]
 		values: {
 			issuer: {
 				name: input.network.certificateIssuer
