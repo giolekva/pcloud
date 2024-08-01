@@ -1,3 +1,7 @@
+import (
+	"strings"
+)
+
 input: {
 	name: string
 	domain: string
@@ -38,3 +42,13 @@ helm: {
 		}
 	}
 }
+
+help: [{
+	title: "DNS"
+	_records: [for ip in global.nameserverIP { "* 10800 IN A \(ip)" }]
+	_allRecords: strings.Join(_records, "<br>")
+	contents: """
+	Publish following DNS records using \(input.domain) Domain Name Registrar<br><br>
+	\(_allRecords)
+	"""
+}]
