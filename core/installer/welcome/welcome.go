@@ -10,6 +10,7 @@ import (
 	"log"
 	"net/http"
 	"net/url"
+	"os"
 
 	"github.com/gorilla/mux"
 
@@ -268,9 +269,13 @@ func (s *Server) initMemberships(username string) error {
 		if err := json.NewEncoder(&buf).Encode(req); err != nil {
 			return "", err
 		}
-		if _, err := http.Post(s.membershipsInitAddr, "applications/json", &buf); err != nil {
+		resp, err := http.Post(s.membershipsInitAddr, "applications/json", &buf)
+		if err != nil {
 			return "", err
 		}
+		defer resp.Body.Close()
+		fmt.Printf("Memberships resp: %d", resp.StatusCode)
+		io.Copy(os.Stdout, resp.Body)
 		fa.Created = true
 		if err := soft.WriteYaml(r, "first-account.yaml", fa); err != nil {
 			return "", err
