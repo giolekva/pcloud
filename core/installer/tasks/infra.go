@@ -78,6 +78,7 @@ func CommitEnvironmentConfiguration(env installer.EnvConfig, st *state) Task {
 
 type firstAccount struct {
 	Created bool     `json:"created"`
+	Domain  string   `json:"domain"`
 	Groups  []string `json:"groups"`
 }
 
@@ -88,7 +89,7 @@ func ConfigureFirstAccount(env installer.EnvConfig, st *state) Task {
 			return err
 		}
 		return r.Do(func(r soft.RepoFS) (string, error) {
-			fa := firstAccount{false, initGroups}
+			fa := firstAccount{false, env.Domain, initGroups}
 			if err := soft.WriteYaml(r, "first-account.yaml", fa); err != nil {
 				return "", err
 			}

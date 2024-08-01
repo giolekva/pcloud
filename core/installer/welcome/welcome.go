@@ -28,13 +28,13 @@ var successHtml []byte
 var staticAssets embed.FS
 
 type Server struct {
-	port                int
-	repo                soft.RepoIO
-	nsCreator           installer.NamespaceCreator
-	hf                  installer.HelmFetcher
-	createAccountAddr   string
-	loginAddr           string
-	membershipsInitAddr string
+	port              int
+	repo              soft.RepoIO
+	nsCreator         installer.NamespaceCreator
+	hf                installer.HelmFetcher
+	createAccountAddr string
+	loginAddr         string
+	membershipsAddr   string
 }
 
 func NewServer(
@@ -44,7 +44,7 @@ func NewServer(
 	hf installer.HelmFetcher,
 	createAccountAddr string,
 	loginAddr string,
-	membershipsInitAddr string,
+	membershipsAddr string,
 ) *Server {
 	return &Server{
 		port,
@@ -53,7 +53,7 @@ func NewServer(
 		hf,
 		createAccountAddr,
 		loginAddr,
-		membershipsInitAddr,
+		membershipsAddr,
 	}
 }
 
@@ -205,7 +205,7 @@ func (s *Server) createAccount(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-	if err := s.initMemberships(req.Username); err != nil {
+	if err := s.createUser(req.Username); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -245,40 +245,66 @@ func (s *Server) createAccount(w http.ResponseWriter, r *http.Request) {
 	renderRegistrationSuccess(w, s.loginAddr)
 }
 
-type firstaccount struct {
+type firstAccount struct {
 	Created bool     `json:"created"`
+	Domain  string   `json:"domain"`
 	Groups  []string `json:"groups"`
 }
 
 type initRequest struct {
-	Owner  string   `json:"owner"`
+	User   string   `json:"user"`
+	Email  string   `json:"email"`
 	Groups []string `json:"groups"`
 }
 
-func (s *Server) initMemberships(username string) error {
+type createUserRequest struct {
+	User  string `json:"user"`
+	Email string `json:"email"`
+}
+
+func (s *Server) createUser(username string) error {
 	return s.repo.Do(func(r soft.RepoFS) (string, error) {
-		var fa firstaccount
+		var fa firstAccount
 		if err := soft.ReadYaml(r, "first-account.yaml", &fa); err != nil {
 			return "", err
 		}
+		var resp *http.Response
+		var err error
 		if fa.Created {
-			return "", nil
+			req := createUserRequest{username, fmt.Sprintf("%s@%s", username, fa.Domain)}
+			var buf bytes.Buffer
+			if err := json.NewEncoder(&buf).Encode(req); err != nil {
+				return "", err
+			}
+			resp, err = http.Post(
+				fmt.Sprintf("%s/api/users", s.membershipsAddr),
+				"applications/json",
+				&buf,
+			)
+		} else {
+			req := initRequest{username, fmt.Sprintf("%s@%s", username, fa.Domain), fa.Groups}
+			var buf bytes.Buffer
+			if err := json.NewEncoder(&buf).Encode(req); err != nil {
+				return "", err
+			}
+			resp, err = http.Post(
+				fmt.Sprintf("%s/api/init", s.membershipsAddr),
+				"applications/json",
+				&buf,
+			)
+			fa.Created = true
+			if err := soft.WriteYaml(r, "first-account.yaml", fa); err != nil {
+				return "", err
+			}
 		}
-		req := initRequest{username, fa.Groups}
-		var buf bytes.Buffer
-		if err := json.NewEncoder(&buf).Encode(req); err != nil {
-			return "", err
-		}
-		resp, err := http.Post(s.membershipsInitAddr, "applications/json", &buf)
 		if err != nil {
 			return "", err
 		}
 		defer resp.Body.Close()
 		fmt.Printf("Memberships resp: %d", resp.StatusCode)
 		io.Copy(os.Stdout, resp.Body)
-		fa.Created = true
-		if err := soft.WriteYaml(r, "first-account.yaml", fa); err != nil {
-			return "", err
+		if resp.StatusCode != http.StatusOK {
+			return "", fmt.Errorf("memberships error")
 		}
 		return "initialized groups for first account", nil
 	})

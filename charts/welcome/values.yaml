@@ -6,7 +6,7 @@ repoAddr: 192.168.0.11
 sshPrivateKey: key
 createAccountAddr: http://api.core-auth.svc.cluster.local/identities
 loginAddr: https://accounts-ui.example.com
-membershipsInitAddr: http://memberships.example.svc.cluster.local/api/ini
+membershipsAddr: http://memberships.example.svc.cluster.local
 ingress:
   className: pcloud-ingress-public
   domain: welcome.example.com

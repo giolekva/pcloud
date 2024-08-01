@@ -33,7 +33,7 @@ var staticResources embed.FS
 
 type Store interface {
 	// Initializes store with admin user and their groups.
-	Init(owner string, groups []string) error
+	Init(user, email string, groups []string) error
 	CreateGroup(owner string, group Group) error
 	AddChildGroup(parent, child string) error
 	AddOwnerGroup(owned_group, owner_group string) error
@@ -137,7 +137,7 @@ func NewSQLiteStore(db *sql.DB) (*SQLiteStore, error) {
 	return &SQLiteStore{db: db}, nil
 }
 
-func (s *SQLiteStore) Init(owner string, groups []string) error {
+func (s *SQLiteStore) Init(user, email string, groups []string) error {
 	tx, err := s.db.Begin()
 	if err != nil {
 		return err
@@ -151,17 +151,21 @@ func (s *SQLiteStore) Init(owner string, groups []string) error {
 	if count != 0 {
 		return fmt.Errorf("Store already initialised")
 	}
+	query := `INSERT INTO users (username, email) VALUES (?, ?)`
+	if _, err := tx.Exec(query, user, email); err != nil {
+		return err
+	}
 	for _, g := range groups {
-		query := `INSERT INTO groups (name, description) VALUES (?, '')`
+		query = `INSERT INTO groups (name, description) VALUES (?, '')`
 		if _, err := tx.Exec(query, g); err != nil {
 			return err
 		}
 		query = `INSERT INTO owners (username, group_name) VALUES (?, ?)`
-		if _, err := tx.Exec(query, owner, g); err != nil {
+		if _, err := tx.Exec(query, user, g); err != nil {
 			return err
 		}
 		query = `INSERT INTO user_to_group (username, group_name) VALUES (?, ?)`
-		if _, err := tx.Exec(query, owner, g); err != nil {
+		if _, err := tx.Exec(query, user, g); err != nil {
 			return err
 		}
 	}
@@ -1188,7 +1192,8 @@ func (s *Server) removeSSHKeyForUserHandler(w http.ResponseWriter, r *http.Reque
 }
 
 type initRequest struct {
-	Owner  string   `json:"owner"`
+	User   string   `json:"user"`
+	Email  string   `json:"email"`
 	Groups []string `json:"groups"`
 }
 
@@ -1198,7 +1203,7 @@ func (s *Server) apiInitHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	if err := s.store.Init(req.Owner, req.Groups); err != nil {
+	if err := s.store.Init(req.User, req.Email, req.Groups); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -1285,34 +1290,30 @@ func (s *Server) apiGetAllUsers(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+type createUserRequest struct {
+	User  string `json:"user"`
+	Email string `json:"email"`
+}
+
 func (s *Server) apiCreateUser(w http.ResponseWriter, r *http.Request) {
 	defer s.pingAllSyncAddresses()
-	selfAddress := r.FormValue("selfAddress")
-	if selfAddress != "" {
-		s.addSyncAddress(selfAddress)
-	}
-	if err := r.ParseForm(); err != nil {
+	var req createUserRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, "Invalid request body", http.StatusBadRequest)
 		return
 	}
-	username := r.FormValue("username")
-	email := r.FormValue("email")
-	if username == "" {
+	if req.User == "" {
 		http.Error(w, "Username cannot be empty", http.StatusBadRequest)
 		return
 	}
-	if email == "" {
+	if req.Email == "" {
 		http.Error(w, "Email cannot be empty", http.StatusBadRequest)
 		return
 	}
-	username = strings.ToLower(username)
-	email = strings.ToLower(email)
-	err := s.store.CreateUser(username, email)
-	if err != nil {
+	if err := s.store.CreateUser(strings.ToLower(req.User), strings.ToLower(req.Email)); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	w.WriteHeader(http.StatusOK)
 }
 
 func (s *Server) pingAllSyncAddresses() {

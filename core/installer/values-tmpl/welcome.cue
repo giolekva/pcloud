@@ -37,7 +37,7 @@ helm: {
 			sshPrivateKey: base64.Encode(null, input.sshPrivateKey)
 			createAccountAddr: "http://api.\(global.namespacePrefix)core-auth.svc.cluster.local/identities"
 			loginAddr: "https://launcher.\(networks.public.domain)"
-			membershipsInitAddr: "http://memberships-api.\(global.namespacePrefix)core-auth-memberships.svc.cluster.local/api/init"
+			membershipsAddr: "http://memberships-api.\(global.namespacePrefix)core-auth-memberships.svc.cluster.local"
 			ingress: {
 				className: input.network.ingressClass
 				domain: "welcome.\(input.network.domain)"

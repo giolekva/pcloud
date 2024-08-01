@@ -11,12 +11,12 @@ import (
 )
 
 var welcomeFlags struct {
-	repo                string
-	sshKey              string
-	port                int
-	createAccountAddr   string
-	loginAddr           string
-	membershipsInitAddr string
+	repo              string
+	sshKey            string
+	port              int
+	createAccountAddr string
+	loginAddr         string
+	membershipsAddr   string
 }
 
 func welcomeCmd() *cobra.Command {
@@ -55,8 +55,8 @@ func welcomeCmd() *cobra.Command {
 		"",
 	)
 	cmd.Flags().StringVar(
-		&welcomeFlags.membershipsInitAddr,
-		"memberships-init-addr",
+		&welcomeFlags.membershipsAddr,
+		"memberships-addr",
 		"",
 		"",
 	)
@@ -95,7 +95,7 @@ func welcomeCmdRun(cmd *cobra.Command, args []string) error {
 		installer.NewGitHelmFetcher(),
 		welcomeFlags.createAccountAddr,
 		welcomeFlags.loginAddr,
-		welcomeFlags.membershipsInitAddr,
+		welcomeFlags.membershipsAddr,
 	)
 	s.Start()
 	return nil

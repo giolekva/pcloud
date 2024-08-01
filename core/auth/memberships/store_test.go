@@ -23,7 +23,7 @@ func TestInitSuccess(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := store.Init("admin", []string{"admin", "all"}); err != nil {
+	if err := store.Init("admin", "admin@admin", []string{"admin", "all"}); err != nil {
 		t.Fatal(err)
 	}
 	groups, err := store.GetGroupsOwnedBy("admin")
@@ -60,7 +60,7 @@ func TestInitFailure(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	err = store.Init("admin", []string{"admin", "all"})
+	err = store.Init("admin", "admin", []string{"admin", "all"})
 	if err == nil {
 		t.Fatal("initialisation did not fail")
 	} else if err.Error() != "Store already initialised" {
