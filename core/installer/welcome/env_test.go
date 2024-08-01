@@ -329,6 +329,7 @@ func TestCreateNewEnv(t *testing.T) {
 		t.Fatal(taskErr)
 	}
 	expected := []string{
+		"https://apps.p.test.t",
 		"https://accounts-ui.test.t",
 		"https://welcome.test.t",
 		"https://memberships.p.test.t",
@@ -340,7 +341,7 @@ func TestCreateNewEnv(t *testing.T) {
 			t.Fatal(httpClient.counts)
 		}
 	}
-	if len(httpClient.counts) != 5 {
+	if len(httpClient.counts) != 6 {
 		t.Fatal(httpClient.counts)
 	}
 }

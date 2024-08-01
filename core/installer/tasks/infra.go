@@ -265,11 +265,17 @@ func SetupGroupMemberships(env installer.EnvConfig, st *state) Task {
 		}
 		return nil
 	})
+	var addr string
+	if env.PrivateDomain != "" {
+		addr = fmt.Sprintf("https://memberships.%s", env.PrivateDomain)
+	} else {
+		addr = fmt.Sprintf("https://memberships.%s", env.Domain)
+	}
 	return newSequentialParentTask(
 		"Group membership",
 		false,
 		&t,
-		waitForAddr(st.httpClient, fmt.Sprintf("https://memberships.p.%s", env.Domain)),
+		waitForAddr(st.httpClient, addr),
 	)
 }
 
@@ -374,7 +380,7 @@ func SetupWelcome(env installer.EnvConfig, st *state) Task {
 }
 
 func SetupAppStore(env installer.EnvConfig, st *state) Task {
-	t := newLeafTask("Application marketplace", func() error {
+	t := newLeafTask("Setup", func() error {
 		user := fmt.Sprintf("%s-appmanager", env.Id)
 		keys, err := installer.NewSSHKeyPair(user)
 		if err != nil {
@@ -407,7 +413,18 @@ func SetupAppStore(env installer.EnvConfig, st *state) Task {
 		}
 		return nil
 	})
-	return &t
+	var addr string
+	if env.PrivateDomain != "" {
+		addr = fmt.Sprintf("https://apps.%s", env.PrivateDomain)
+	} else {
+		addr = fmt.Sprintf("https://apps.%s", env.Domain)
+	}
+	return newSequentialParentTask(
+		"Application marketplace",
+		false,
+		&t,
+		waitForAddr(st.httpClient, addr),
+	)
 }
 
 // TODO(gio-dns): remove
