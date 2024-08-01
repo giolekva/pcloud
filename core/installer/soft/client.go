@@ -3,7 +3,6 @@ package soft
 import (
 	"errors"
 	"fmt"
-	"golang.org/x/crypto/ssh"
 	"log"
 	"net"
 	"os"
@@ -11,6 +10,8 @@ import (
 	"slices"
 	"strings"
 	"time"
+
+	"golang.org/x/crypto/ssh"
 
 	"github.com/cenkalti/backoff/v4"
 	"github.com/go-git/go-billy/v5/memfs"
@@ -33,9 +34,12 @@ type Client interface {
 	AddRepository(name string) error
 	UserExists(name string) (bool, error)
 	FindUser(pubKey string) (string, error)
+	GetAllUsers() ([]string, error)
 	AddUser(name, pubKey string) error
+	RemoveUser(user string) error
 	AddPublicKey(user string, pubKey string) error
 	RemovePublicKey(user string, pubKey string) error
+	GetUserPublicKeys(user string) ([]string, error)
 	MakeUserAdmin(name string) error
 	AddReadWriteCollaborator(repo, user string) error
 	AddReadOnlyCollaborator(repo, user string) error
@@ -96,6 +100,15 @@ func (ss *realClient) Signer() ssh.Signer {
 	return ss.signer
 }
 
+func (ss *realClient) GetAllUsers() ([]string, error) {
+	log.Printf("Getting all users")
+	out, err := ss.RunCommand("user", "list")
+	if err != nil {
+		return nil, err
+	}
+	return strings.Fields(out), nil
+}
+
 func (ss *realClient) UserExists(name string) (bool, error) {
 	log.Printf("Checking user exists %s", name)
 	out, err := ss.RunCommand("user", "list")
@@ -132,6 +145,12 @@ func (ss *realClient) AddUser(name, pubKey string) error {
 	return ss.AddPublicKey(name, pubKey)
 }
 
+func (ss *realClient) RemoveUser(user string) error {
+	log.Printf("Removing user: %s\n", user)
+	_, err := ss.RunCommand("user", "delete", user)
+	return err
+}
+
 func (ss *realClient) MakeUserAdmin(name string) error {
 	log.Printf("Making user %s admin", name)
 	_, err := ss.RunCommand("user", "set-admin", name, "true")
@@ -148,6 +167,31 @@ func (ss *realClient) RemovePublicKey(user string, pubKey string) error {
 	log.Printf("Removing public key: %s %s\n", user, pubKey)
 	_, err := ss.RunCommand("user", "remove-pubkey", user, pubKey)
 	return err
+}
+
+func (ss *realClient) GetUserPublicKeys(user string) ([]string, error) {
+	log.Printf("Getting public keys for user: %s\n", user)
+	out, err := ss.RunCommand("user", "info", user)
+	if err != nil {
+		return nil, err
+	}
+	return extractPublicKeys(out), nil
+}
+
+func extractPublicKeys(userInfo string) []string {
+	var keys []string
+	lines := strings.Split(userInfo, "\n")
+	gettingKeys := false
+	for _, line := range lines {
+		if strings.HasPrefix(line, "Public keys:") {
+			gettingKeys = true
+			continue
+		}
+		if gettingKeys {
+			keys = append(keys, strings.TrimSpace(line))
+		}
+	}
+	return keys
 }
 
 func (ss *realClient) RunCommand(args ...string) (string, error) {

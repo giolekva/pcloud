@@ -7,7 +7,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"golang.org/x/crypto/bcrypt"
 	"html/template"
 	"io"
 	"io/fs"
@@ -16,6 +15,9 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"golang.org/x/crypto/bcrypt"
+	"golang.org/x/exp/rand"
 
 	"github.com/giolekva/pcloud/core/installer"
 	"github.com/giolekva/pcloud/core/installer/soft"
@@ -203,12 +205,18 @@ func (s *DodoAppServer) Start() error {
 	}()
 	if !s.external {
 		go func() {
+			rand.Seed(uint64(time.Now().UnixNano()))
 			s.syncUsers()
 			// TODO(dtabidze): every sync delay should be randomized to avoid all client
 			// applications hitting memberships service at the same time.
 			// For every next sync new delay should be randomly generated from scratch.
 			// We can choose random delay from 1 to 2 minutes.
-			for range time.Tick(1 * time.Minute) {
+			// for range time.Tick(1 * time.Minute) {
+			// 	s.syncUsers()
+			// }
+			for {
+				delay := time.Duration(rand.Intn(60)+60) * time.Second
+				time.Sleep(delay)
 				s.syncUsers()
 			}
 		}()
@@ -1056,30 +1064,67 @@ func (s *DodoAppServer) syncUsers() {
 		fmt.Println(err)
 		return
 	}
+	validUsernames := make(map[string]user)
+	for _, u := range users {
+		validUsernames[u.Username] = u
+	}
+	allClientUsers, err := s.client.GetAllUsers()
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+	keyToUser := make(map[string]string)
+	for _, clientUser := range allClientUsers {
+		userData, ok := validUsernames[clientUser]
+		if !ok {
+			if err := s.client.RemoveUser(clientUser); err != nil {
+				fmt.Println(err)
+				return
+			}
+		} else {
+			existingKeys, err := s.client.GetUserPublicKeys(clientUser)
+			if err != nil {
+				fmt.Println(err)
+				return
+			}
+			for _, existingKey := range existingKeys {
+				cleanKey := CleanKey(existingKey)
+				keyOk := slices.ContainsFunc(userData.SSHPublicKeys, func(key string) bool {
+					return cleanKey == CleanKey(key)
+				})
+				if !keyOk {
+					if err := s.client.RemovePublicKey(clientUser, existingKey); err != nil {
+						fmt.Println(err)
+					}
+				} else {
+					keyToUser[cleanKey] = clientUser
+				}
+			}
+		}
+	}
 	for _, u := range users {
 		if len(u.SSHPublicKeys) == 0 {
 			continue
 		}
-		if ok, err := s.client.UserExists(u.Username); err != nil {
+		ok, err := s.client.UserExists(u.Username)
+		if err != nil {
 			fmt.Println(err)
 			return
-		} else if !ok {
-			for i, k := range u.SSHPublicKeys {
-				if i == 0 {
-					if err := s.client.AddUser(u.Username, k); err != nil {
-						fmt.Println(err)
-						return
-					}
-				} else {
-					if err := s.client.AddPublicKey(u.Username, k); err != nil {
-						fmt.Println(err)
-						// TODO(dtabidze): If current public key is already registered
-						// with Git server, this method call will return an error.
-						// We need to differentiate such errors, and only add key which
-						// are missing.
-						continue // return
-					}
-					// TODO(dtabidze): Implement RemovePublicKey
+		}
+		if !ok {
+			if err := s.client.AddUser(u.Username, u.SSHPublicKeys[0]); err != nil {
+				fmt.Println(err)
+				return
+			}
+		} else {
+			for _, key := range u.SSHPublicKeys {
+				cleanKey := CleanKey(key)
+				if user, ok := keyToUser[cleanKey]; ok && u.Username == user {
+					panic("MUST NOT REACH!")
+				}
+				if err := s.client.AddPublicKey(u.Username, key); err != nil {
+					fmt.Println(err)
+					return
 				}
 			}
 		}
@@ -1099,4 +1144,12 @@ func (s *DodoAppServer) syncUsers() {
 			}
 		}
 	}
+}
+
+func CleanKey(key string) string {
+	fields := strings.Fields(key)
+	if len(fields) < 2 {
+		return key
+	}
+	return fields[0] + " " + fields[1]
 }

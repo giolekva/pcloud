@@ -3,7 +3,6 @@ package welcome
 import (
 	"bytes"
 	"encoding/json"
-	"golang.org/x/crypto/ssh"
 	"io"
 	"io/fs"
 	"log"
@@ -14,11 +13,11 @@ import (
 	"testing"
 	"time"
 
+	"golang.org/x/crypto/ssh"
+
 	"github.com/go-git/go-billy/v5"
 	"github.com/go-git/go-billy/v5/memfs"
 	"github.com/go-git/go-billy/v5/util"
-	// "github.com/go-git/go-git/v5"
-	// "github.com/go-git/go-git/v5/storage/memory"
 
 	"github.com/giolekva/pcloud/core/installer"
 	"github.com/giolekva/pcloud/core/installer/soft"
@@ -137,12 +136,24 @@ func (f fakeSoftServeClient) FindUser(pubKey string) (string, error) {
 	return "", nil
 }
 
+func (f fakeSoftServeClient) GetAllUsers() ([]string, error) {
+	return []string{}, nil
+}
+
 func (f fakeSoftServeClient) AddUser(name, pubKey string) error {
+	return nil
+}
+
+func (f fakeSoftServeClient) RemoveUser(name string) error {
 	return nil
 }
 
 func (f fakeSoftServeClient) AddPublicKey(user string, pubKey string) error {
 	return nil
+}
+
+func (f fakeSoftServeClient) GetUserPublicKeys(username string) ([]string, error) {
+	return []string{}, nil
 }
 
 func (f fakeSoftServeClient) RemovePublicKey(user string, pubKey string) error {
