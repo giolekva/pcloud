@@ -11,6 +11,7 @@ import (
 	"path"
 	"path/filepath"
 	"strings"
+	"sync"
 
 	gio "github.com/giolekva/pcloud/core/installer/io"
 	"github.com/giolekva/pcloud/core/installer/soft"
@@ -29,6 +30,7 @@ const (
 var ErrorNotFound = errors.New("not found")
 
 type AppManager struct {
+	l          sync.Locker
 	repoIO     soft.RepoIO
 	nsc        NamespaceCreator
 	jc         JobCreator
@@ -44,6 +46,7 @@ func NewAppManager(
 	appDirRoot string,
 ) (*AppManager, error) {
 	return &AppManager{
+		&sync.Mutex{},
 		repoIO,
 		nsc,
 		jc,
@@ -394,6 +397,14 @@ func (m *AppManager) Install(
 	values map[string]any,
 	opts ...InstallOption,
 ) (ReleaseResources, error) {
+	o := &installOptions{}
+	for _, i := range opts {
+		i(o)
+	}
+	if !o.NoLock {
+		m.l.Lock()
+		defer m.l.Unlock()
+	}
 	portFields := findPortFields(app.Schema())
 	fakeReservations := map[string]reservePortResp{}
 	for i, f := range portFields {
@@ -401,10 +412,6 @@ func (m *AppManager) Install(
 	}
 	if err := setPortFields(values, fakeReservations); err != nil {
 		return ReleaseResources{}, err
-	}
-	o := &installOptions{}
-	for _, i := range opts {
-		i(o)
 	}
 	appDir = filepath.Clean(appDir)
 	if !o.NoPull {
@@ -544,6 +551,8 @@ func (m *AppManager) Update(
 	values map[string]any,
 	opts ...InstallOption,
 ) (ReleaseResources, error) {
+	m.l.Lock()
+	defer m.l.Unlock()
 	if err := m.repoIO.Pull(); err != nil {
 		return ReleaseResources{}, err
 	}
@@ -584,6 +593,8 @@ func (m *AppManager) Update(
 }
 
 func (m *AppManager) Remove(instanceId string) error {
+	m.l.Lock()
+	defer m.l.Unlock()
 	if err := m.repoIO.Pull(); err != nil {
 		return err
 	}
