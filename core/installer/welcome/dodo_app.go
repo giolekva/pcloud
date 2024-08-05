@@ -1075,6 +1075,9 @@ func (s *DodoAppServer) syncUsers() {
 	}
 	keyToUser := make(map[string]string)
 	for _, clientUser := range allClientUsers {
+		if clientUser == "admin" || clientUser == "fluxcd" {
+			continue
+		}
 		userData, ok := validUsernames[clientUser]
 		if !ok {
 			if err := s.client.RemoveUser(clientUser); err != nil {
@@ -1088,9 +1091,9 @@ func (s *DodoAppServer) syncUsers() {
 				return
 			}
 			for _, existingKey := range existingKeys {
-				cleanKey := CleanKey(existingKey)
+				cleanKey := soft.CleanKey(existingKey)
 				keyOk := slices.ContainsFunc(userData.SSHPublicKeys, func(key string) bool {
-					return cleanKey == CleanKey(key)
+					return cleanKey == soft.CleanKey(key)
 				})
 				if !keyOk {
 					if err := s.client.RemovePublicKey(clientUser, existingKey); err != nil {
@@ -1103,6 +1106,10 @@ func (s *DodoAppServer) syncUsers() {
 		}
 	}
 	for _, u := range users {
+		if err := s.st.CreateUser(u.Username, nil, ""); err != nil && !errors.Is(err, ErrorAlreadyExists) {
+			fmt.Println(err)
+			return
+		}
 		if len(u.SSHPublicKeys) == 0 {
 			continue
 		}
@@ -1118,11 +1125,14 @@ func (s *DodoAppServer) syncUsers() {
 			}
 		} else {
 			for _, key := range u.SSHPublicKeys {
-				cleanKey := CleanKey(key)
-				if user, ok := keyToUser[cleanKey]; ok && u.Username == user {
-					panic("MUST NOT REACH!")
+				cleanKey := soft.CleanKey(key)
+				if user, ok := keyToUser[cleanKey]; ok {
+					if u.Username != user {
+						panic("MUST NOT REACH! IMPOSSIBLE KEY USER RECORD")
+					}
+					continue
 				}
-				if err := s.client.AddPublicKey(u.Username, key); err != nil {
+				if err := s.client.AddPublicKey(u.Username, cleanKey); err != nil {
 					fmt.Println(err)
 					return
 				}
@@ -1140,16 +1150,8 @@ func (s *DodoAppServer) syncUsers() {
 		for _, u := range users {
 			if err := s.client.AddReadWriteCollaborator(r, u.Username); err != nil {
 				fmt.Println(err)
-				return
+				continue
 			}
 		}
 	}
-}
-
-func CleanKey(key string) string {
-	fields := strings.Fields(key)
-	if len(fields) < 2 {
-		return key
-	}
-	return fields[0] + " " + fields[1]
 }

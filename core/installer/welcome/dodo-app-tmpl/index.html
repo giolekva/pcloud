@@ -2,7 +2,7 @@
 dodo app: status
 {{ end }}
 {{- define "content" -}}
-<form action="" method="POST">
+<form id="create-app" action="" method="POST">
 	<fieldset class="grid">
 		<select name="network">
 			{{- range .Networks -}}
@@ -15,7 +15,8 @@ dodo app: status
 			<option value="{{ . }}">{{ . }}</option>
 			{{- end -}}
 		</select>
-		<button type="submit" name="create-app">Create App</button>
+		<button id="create-app-button" aria-busy="false" type="submit" name="create-app">
+			create app</button>
 	</fieldset>
 </form>
 <hr class="divider">
@@ -24,10 +25,11 @@ dodo app: status
 		<ul>
 			{{- range .Apps -}}
 			<li>
-				<a href="/{{ . }}">{{ . }}</a>
+				<a class="app-info-link" href="/{{ . }}">{{ . }}</a>
 			</li>
 			{{- end -}}
 		</ul>
 	</nav>
 </aside>
+<script src="/static/dodo-app.js?v=0.0.7"></script>
 {{- end -}}

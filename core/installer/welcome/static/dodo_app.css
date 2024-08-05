@@ -73,11 +73,31 @@
 }
 
 body.container {
-	padding-top: 15px;
+  padding-top: 15px;
 }
 
 @media (min-width: 768px) {
-	fieldset.grid {
-		grid-template-columns: 1fr 1fr 1fr 200px;
-	}
-};
+  fieldset.grid {
+    grid-template-columns: 1fr 1fr 1fr 200px;
+  }
+}
+
+[role="button"][aria-busy="true"],
+[type="button"][aria-busy="true"],
+[type="reset"][aria-busy="true"],
+[type="submit"][aria-busy="true"],
+a[aria-busy="true"],
+button[aria-busy="true"] {
+  pointer-events: auto;
+}
+
+input:disabled,
+select:disabled,
+textarea:disabled,
+button:disabled {
+  cursor: not-allowed;
+}
+
+.app-info-link {
+  width: fit-content;
+}

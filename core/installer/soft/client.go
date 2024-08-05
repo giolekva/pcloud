@@ -188,10 +188,21 @@ func extractPublicKeys(userInfo string) []string {
 			continue
 		}
 		if gettingKeys {
-			keys = append(keys, strings.TrimSpace(line))
+			if key := CleanKey(line); key != "" {
+				keys = append(keys, key)
+			}
 		}
 	}
 	return keys
+}
+
+func CleanKey(key string) string {
+	k := strings.TrimSpace(key)
+	fields := strings.Fields(k)
+	if len(fields) < 2 {
+		return k
+	}
+	return fields[0] + " " + fields[1]
 }
 
 func (ss *realClient) RunCommand(args ...string) (string, error) {
