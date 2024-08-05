@@ -9,6 +9,7 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"strings"
 
 	"github.com/go-git/go-billy/v5"
 	"sigs.k8s.io/yaml"
@@ -71,6 +72,7 @@ var infraAppConfigs = []string{
 type AppRepository interface {
 	GetAll() ([]App, error)
 	Find(name string) (App, error)
+	Filter(query string) ([]App, error)
 }
 
 type InMemoryAppRepository struct {
@@ -102,6 +104,19 @@ func CreateAllApps() []App {
 			CreateEnvApps(envAppConfigs)...,
 		)...,
 	)
+}
+
+func (r InMemoryAppRepository) Filter(query string) ([]App, error) {
+	var filteredApps []App
+	if query == "" {
+		return r.GetAll()
+	}
+	for _, a := range r.apps {
+		if strings.Contains(strings.ToLower(a.Name()), strings.ToLower(query)) {
+			filteredApps = append(filteredApps, a)
+		}
+	}
+	return filteredApps, nil
 }
 
 func CreateStoreApps() []App {

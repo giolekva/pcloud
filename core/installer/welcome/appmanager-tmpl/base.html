@@ -14,9 +14,9 @@
           <aside id="menu-nav">
             <nav id="menu" class="is-sticky-above-lg">
                 <ul>
-                  <li><a href="/" class="{{ if (eq .CurrentPage "ALL") }}primary{{ end }}">All</a></li>
-                  <li><a href="/installed" class="{{ if (eq .CurrentPage "INSTALLED") }}primary{{ end }}">Installed</a></li>
-                  <li><a href="/not-installed" class="{{ if (eq .CurrentPage "NOT_INSTALLED") }}primary{{ end }}">Not Installed</a></li>
+                  <li><a href="/" class="{{ if (eq .CurrentPage "all") }}primary{{ end }}">All</a></li>
+                  <li><a href="/installed" class="{{ if (eq .CurrentPage "installed") }}primary{{ end }}">Installed</a></li>
+                  <li><a href="/not-installed" class="{{ if (eq .CurrentPage "not-installed") }}primary{{ end }}">Not Installed</a></li>
                   <hr>
                   {{ block "extra_menu" . }}{{ end }}
                 </ul>
@@ -26,6 +26,6 @@
 			  {{ block "content" . }}{{ end }}
 		  </div>
       </main>
-    <script src="/static/app-manager.js?v=0.0.2"></script>
+    <script src="/static/app-manager.js?v=0.0.10"></script>
 	</body>
 </html>

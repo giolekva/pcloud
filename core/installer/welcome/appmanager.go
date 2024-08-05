@@ -100,11 +100,10 @@ func (s *AppManagerServer) Start() error {
 	r.HandleFunc("/api/instance/{slug}", s.handleInstance).Methods(http.MethodGet)
 	r.HandleFunc("/api/instance/{slug}/update", s.handleAppUpdate).Methods(http.MethodPost)
 	r.HandleFunc("/api/instance/{slug}/remove", s.handleAppRemove).Methods(http.MethodPost)
-	r.HandleFunc("/", s.handleIndex).Methods(http.MethodGet)
-	r.HandleFunc("/not-installed", s.handleNotInstalledApps).Methods(http.MethodGet)
-	r.HandleFunc("/installed", s.handleInstalledApps).Methods(http.MethodGet)
 	r.HandleFunc("/app/{slug}", s.handleAppUI).Methods(http.MethodGet)
 	r.HandleFunc("/instance/{slug}", s.handleInstanceUI).Methods(http.MethodGet)
+	r.HandleFunc("/{pageType}", s.handleAppsList).Methods(http.MethodGet)
+	r.HandleFunc("/", s.handleAppsList).Methods(http.MethodGet)
 	fmt.Printf("Starting HTTP server on port: %d\n", s.port)
 	return http.ListenAndServe(fmt.Sprintf(":%d", s.port), r)
 }
@@ -317,88 +316,51 @@ func (s *AppManagerServer) handleAppRemove(w http.ResponseWriter, r *http.Reques
 }
 
 type PageData struct {
-	Apps        []app
-	CurrentPage string
+	Apps         []app
+	CurrentPage  string
+	SearchTarget string
+	SearchValue  string
 }
 
-func (s *AppManagerServer) handleIndex(w http.ResponseWriter, r *http.Request) {
-	all, err := s.r.GetAll()
-	if err != nil {
-		log.Printf("all apps: %v", err)
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
+func (s *AppManagerServer) handleAppsList(w http.ResponseWriter, r *http.Request) {
+	pageType := mux.Vars(r)["pageType"]
+	if pageType == "" {
+		pageType = "all"
 	}
-	resp := make([]app, 0)
-	for _, a := range all {
-		instances, err := s.m.FindAllAppInstances(a.Slug())
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
-		resp = append(resp, app{a.Name(), a.Icon(), a.Description(), a.Slug(), instances})
-	}
-	data := PageData{
-		Apps:        resp,
-		CurrentPage: "ALL",
-	}
-	if err := s.tmpl.index.Execute(w, data); err != nil {
-		log.Printf("executing template: %v", err)
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-}
-
-func (s *AppManagerServer) handleNotInstalledApps(w http.ResponseWriter, r *http.Request) {
-	all, err := s.r.GetAll()
+	searchQuery := r.FormValue("query")
+	apps, err := s.r.Filter(searchQuery)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 	resp := make([]app, 0)
-	for _, a := range all {
+	for _, a := range apps {
 		instances, err := s.m.FindAllAppInstances(a.Slug())
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
-		if len(instances) == 0 {
-			resp = append(resp, app{a.Name(), a.Icon(), a.Description(), a.Slug(), nil})
-		}
-	}
-	data := PageData{
-		Apps:        resp,
-		CurrentPage: "NOT_INSTALLED",
-	}
-	if err := s.tmpl.index.Execute(w, data); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-}
-
-func (s *AppManagerServer) handleInstalledApps(w http.ResponseWriter, r *http.Request) {
-	all, err := s.r.GetAll()
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-	resp := make([]app, 0)
-	for _, a := range all {
-		instances, err := s.m.FindAllAppInstances(a.Slug())
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
-		if len(instances) != 0 {
+		switch pageType {
+		case "installed":
+			if len(instances) != 0 {
+				resp = append(resp, app{a.Name(), a.Icon(), a.Description(), a.Slug(), instances})
+			}
+		case "not-installed":
+			if len(instances) == 0 {
+				resp = append(resp, app{a.Name(), a.Icon(), a.Description(), a.Slug(), nil})
+			}
+		default:
 			resp = append(resp, app{a.Name(), a.Icon(), a.Description(), a.Slug(), instances})
 		}
 	}
 	data := PageData{
-		Apps:        resp,
-		CurrentPage: "INSTALLED",
+		Apps:         resp,
+		CurrentPage:  pageType,
+		SearchTarget: pageType,
+		SearchValue:  searchQuery,
 	}
 	if err := s.tmpl.index.Execute(w, data); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
 	}
 }
 

@@ -1,13 +1,14 @@
 {{ define "header" }}
-  <form class="search-bar">
-      <input name="search" type="search" placeholder="Search" />
+  <form id="search-form" class="search-bar" method="GET" action="/{{ .SearchTarget }}">
+      <input id="search-input" name="query" type="search" placeholder="Search" value="{{ .SearchValue }}"/>
   </form>
+  <input type="hidden" id="page-type" value="{{ .SearchTarget }}" />
 {{ end }}
 
 {{ define "content" }}
 <aside>
     <nav>
-        <ul>
+        <ul id="app-list">
             {{ range .Apps }}
                 <li class="app-card">
                     <a href="/app/{{ .Slug }}" class="app-link">
