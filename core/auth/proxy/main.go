@@ -4,25 +4,42 @@ import (
 	"bytes"
 	"context"
 	"crypto/tls"
+	"embed"
 	"encoding/json"
 	"flag"
 	"fmt"
+	"html/template"
 	"io"
 	"log"
 	"net/http"
 	"net/http/cookiejar"
 	"net/url"
+	"slices"
 	"strings"
-
-	"golang.org/x/exp/slices"
 )
 
 var port = flag.Int("port", 3000, "Port to listen on")
 var whoAmIAddr = flag.String("whoami-addr", "", "Kratos whoami endpoint address")
 var loginAddr = flag.String("login-addr", "", "Login page address")
 var membershipAddr = flag.String("membership-addr", "", "Group membership API endpoint")
+var membershipPublicAddr = flag.String("membership-public-addr", "", "Public address of membership service")
 var groups = flag.String("groups", "", "Comma separated list of groups. User must be part of at least one of them. If empty group membership will not be checked.")
 var upstream = flag.String("upstream", "", "Upstream service address")
+
+//go:embed unauthorized.html
+var unauthorizedHTML embed.FS
+
+//go:embed static/*
+var f embed.FS
+
+type cachingHandler struct {
+	h http.Handler
+}
+
+func (h cachingHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Cache-Control", "max-age=604800")
+	h.h.ServeHTTP(w, r)
+}
 
 type user struct {
 	Identity struct {
@@ -44,6 +61,34 @@ func getAddr(r *http.Request) (*url.URL, error) {
 		r.Header["X-Forwarded-Scheme"][0],
 		r.Header["X-Forwarded-Host"][0],
 		r.URL.RequestURI()))
+}
+
+var funcMap = template.FuncMap{
+	"IsLast": func(index int, slice []string) bool {
+		return index == len(slice)-1
+	},
+}
+
+type UnauthorizedPageData struct {
+	MembershipPublicAddr string
+	Groups               []string
+}
+
+func renderUnauthorizedPage(w http.ResponseWriter, groups []string) {
+	tmpl, err := template.New("unauthorized.html").Funcs(funcMap).ParseFS(unauthorizedHTML, "unauthorized.html")
+	if err != nil {
+		http.Error(w, "Failed to load template", http.StatusInternalServerError)
+		return
+	}
+	data := UnauthorizedPageData{
+		MembershipPublicAddr: *membershipPublicAddr,
+		Groups:               groups,
+	}
+	w.Header().Set("Content-Type", "text/html")
+	w.WriteHeader(http.StatusUnauthorized)
+	if err := tmpl.Execute(w, data); err != nil {
+		http.Error(w, "Failed render template", http.StatusInternalServerError)
+	}
 }
 
 func handle(w http.ResponseWriter, r *http.Request) {
@@ -80,10 +125,10 @@ func handle(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 		if !hasPermission {
-			http.Error(w, "not authorized", http.StatusUnauthorized)
+			groupList := strings.Split(*groups, ",")
+			renderUnauthorizedPage(w, groupList)
 			return
 		}
-
 	}
 	rc := r.Clone(context.Background())
 	rc.Header.Add("X-User", user.Identity.Traits.Username)
@@ -189,9 +234,10 @@ func getTransitiveGroups(user string) ([]string, error) {
 
 func main() {
 	flag.Parse()
-	if *groups != "" && *membershipAddr == "" {
-		log.Fatal("membership-addr flag is required when groups are provided")
+	if *groups != "" && (*membershipAddr == "" || *membershipPublicAddr == "") {
+		log.Fatal("membership-addr and membership-public-addr flags are required when groups are provided")
 	}
+	http.Handle("/static/", cachingHandler{http.FileServer(http.FS(f))})
 	http.HandleFunc("/", handle)
 	fmt.Printf("Starting HTTP server on port: %d\n", *port)
 	log.Fatal(http.ListenAndServe(fmt.Sprintf(":%d", *port), nil))

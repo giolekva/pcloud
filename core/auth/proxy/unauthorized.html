@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Auth Proxy</title>
+    <link rel="stylesheet" href="/static/pico.2.0.6.min.css">
+    <link rel="stylesheet" href="/static/main.css?v=0.0.1">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/hack-font/3.3.0/web/hack.min.css">
+</head>
+<body>
+    <main class="container">
+        <div>
+            <h1>Unauthorized</h1>
+            <p>
+                Only members of
+                {{ range $index, $group := .Groups }}
+                <a href="{{ $.MembershipPublicAddr }}/group/{{ $group }}">{{ $group }}</a>{{ if not (IsLast $index $.Groups) }},{{ end }}
+                {{ end }}
+                are authorized to access this page.
+            </p>
+        </div>
+    </main>
+</body>
+</html>

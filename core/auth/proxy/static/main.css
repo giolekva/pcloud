@@ -1,0 +1,65 @@
+[data-theme="light"],
+:root:not([data-theme="dark"]) {
+  --pico-font-family: Hack, monospace;
+  --pico-font-size: 14px;
+  --pico-header-height: 56px;
+  --pico-border-radius: 0;
+  --pico-background-color: #d6d6d6;
+  --pico-form-element-border-color: #3a3a3a;
+  --pico-form-element-active-border-color: #7f9f7f;
+  --pico-form-element-focus-color: #7f9f7f;
+  --pico-form-element-background-color: #d6d6d6;
+  --pico-form-element-active-background-color: #d6d6d6;
+  --pico-form-element-selected-background-color: #d6d6d6;
+  --pico-primary: #7f9f7f;
+  --pico-primary-background: #7f9f7f;
+  --pico-primary-hover: #d4888d;
+  --pico-primary-hover-background: #d4888d;
+  --pico-grid-spacing-horizontal: 0;
+  --search-background-color: #d6d6d6;
+  --pico-color: #3a3a3a;
+  --pico-form-element-color: #3a3a3a;
+  --pico-primary-inverse: #3a3a3a;
+  --pico-tooltip-background-color: #3a3a3a;
+  --pico-tooltip-color: #d6d6d6;
+  --pico-icon-color: #3a3a3a;
+  --pico-group-box-shadow-focus-with-button: 0 0 0 0;
+  --pico-card-background-color: var(--pico-card-sectioning-background-color);
+  p {
+    --pico-color: #3a3a3a;
+  }
+  h1 {
+    font-size: 20px;
+    --pico-color: #3a3a3a;
+  }
+  h2 {
+    font-size: 18px;
+    --pico-color: #3a3a3a;
+  }
+  h3 {
+    font-size: 16px;
+    --pico-color: #3a3a3a;
+  }
+  h4 {
+    font-size: 14px;
+    --pico-color: #3a3a3a;
+  }
+  label {
+    color: var(--pico-color);
+  }
+}
+
+a[role="button"],
+a[role="button"]:hover,
+a[role="button"]:focus {
+  background-color: var(--pico-primary);
+  border: none;
+  outline: none;
+}
+
+main.container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100vh;
+}

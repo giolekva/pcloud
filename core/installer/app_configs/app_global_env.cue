@@ -86,6 +86,12 @@ networks: #Networks
 						whoAmIAddr: "https://accounts.\(global.domain)/sessions/whoami"
 						loginAddr: "https://accounts-ui.\(global.domain)/login"
 						membershipAddr: "http://memberships-api.\(global.id)-core-auth-memberships.svc.cluster.local/api/user"
+						if global.privateDomain == "" {
+							membershipPublicAddr: "https://memberships.\(global.domain)"
+						}
+						if global.privateDomain != "" {
+							membershipPublicAddr: "https://memberships.\(global.privateDomain)"
+						}
 						groups: auth.groups
 						portName: _authProxyHTTPPortName
 					}

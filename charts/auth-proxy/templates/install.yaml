@@ -42,5 +42,6 @@ spec:
         - --whoami-addr={{ .Values.whoAmIAddr }}
         - --login-addr={{ .Values.loginAddr }}
         - --membership-addr={{ .Values.membershipAddr }}
+        - --membership-public-addr={{ .Values.membershipPublicAddr }}
         - --groups={{ .Values.groups }}
         - --upstream={{ .Values.upstream }}
