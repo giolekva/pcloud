@@ -788,6 +788,21 @@ func (s *DodoAppServer) createApp(user, appName, appType, network, subdomain str
 	if err := s.client.AddReadWriteCollaborator(appName, user); err != nil {
 		return err
 	}
+	if !s.external {
+		go func() {
+			users, err := s.client.GetAllUsers()
+			if err != nil {
+				fmt.Println(err)
+				return
+			}
+			for _, user := range users {
+				// TODO(gio): fluxcd should have only read access
+				if err := s.client.AddReadWriteCollaborator(appName, user); err != nil {
+					fmt.Println(err)
+				}
+			}
+		}()
+	}
 	return nil
 }
 

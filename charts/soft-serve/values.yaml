@@ -18,3 +18,5 @@ ingress:
   ingressClassName: example-ingress-private
   certificateIssuer: ""
   sourcePort: 0
+allowKeyless: false
+anonAccess: "no-access"

@@ -45,6 +45,10 @@ spec:
           value: ":80"
         - name: SOFT_SERVE_HTTP_PUBLIC_URL
           value: "http://{{ .Values.ingress.domain }}"
+        - name: SOFT_SERVE_ALLOW_KEYLESS
+          value: "{{ .Values.allowKeyless }}"
+        - name: SOFT_SERVE_ANON_ACCESS
+          value: "{{ .Values.anonAccess }}"
         ports:
         - name: ssh
           containerPort: {{ .Values.port }}
