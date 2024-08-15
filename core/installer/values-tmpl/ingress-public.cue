@@ -46,10 +46,41 @@ helm: {
 		values: {
 			fullnameOverride: "\(global.pcloudEnvName)-ingress-public"
 			controller: {
-				kind: "DaemonSet"
-				hostNetwork: true
-				hostPort: enabled: true
-				service: enabled: false
+				kind: "Deployment"
+				replicaCount: 1 // TODO(gio): configurable
+				topologySpreadConstraints: [{
+					labelSelector: {
+						matchLabels: {
+							"app.kubernetes.io/instance": "ingress-public"
+						}
+					}
+					maxSkew: 1
+					topologyKey: "kubernetes.io/hostname"
+					whenUnsatisfiable: "DoNotSchedule"
+				}]
+				hostNetwork: false
+				hostPort: enabled: false
+				updateStrategy: {
+					type: "RollingUpdate"
+					rollingUpdate: {
+						maxSurge: "100%"
+						maxUnavailable: "30%"
+					}
+				}
+				service: {
+					enabled: true
+					type: "NodePort"
+					nodePorts: {
+						http: 80
+						https: 443
+						tcp: {
+							"53": 53
+						}
+						udp: {
+							"53": 53
+						}
+					}
+				}
 				ingressClassByName: true
 				ingressClassResource: {
 					name: networks.public.ingressClass
