@@ -6,12 +6,16 @@ import (
 	"github.com/giolekva/pcloud/core/installer"
 )
 
-func NewMonitorRelease(mon installer.HelmReleaseMonitor, rr installer.ReleaseResources) Task {
+func NewMonitorReleaseTasks(mon installer.HelmReleaseMonitor, rr installer.ReleaseResources) []Task {
 	var t []Task
 	for _, h := range rr.Helm {
 		t = append(t, newMonitorHelm(mon, h))
 	}
-	return newConcurrentParentTask("Monitor", true, t...)
+	return t
+}
+
+func NewMonitorRelease(mon installer.HelmReleaseMonitor, rr installer.ReleaseResources) Task {
+	return newConcurrentParentTask("Monitor", true, NewMonitorReleaseTasks(mon, rr)...)
 }
 
 func newMonitorHelm(mon installer.HelmReleaseMonitor, h installer.Resource) Task {

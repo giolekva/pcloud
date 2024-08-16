@@ -120,9 +120,12 @@
 {{ end }}
 
 {{ define "extra_menu" }}
-  <li><a href="/app/{{ .App.Slug }}" class="{{ if eq $.CurrentPage .App.Name }}primary{{ end }}">{{ .App.Name }}</a></li>
+  <li><a href="/app/{{ .App.Slug }}" {{ if eq $.CurrentPage .App.Name }}class="primary"{{ end }}>{{ .App.Name }}</a></li>
+  {{ if (and (not $.Instance) $.Task) }}
+  <li><a href="/instance/{{ $.CurrentPage }}" class="primary">{{ $.CurrentPage }}</a></li>
+  {{ end }}
   {{ range .Instances }}
-  <li><a href="/instance/{{ .Id }}" class="{{ if eq $.CurrentPage .Id }}primary{{ end }}">{{ .Id }}</a></li>
+  <li><a href="/instance/{{ .Id }}" {{ if eq $.CurrentPage .Id }}class="primary"{{ end }}>{{ .Id }}</a></li>
   {{ end }}
 {{ end }}
 
@@ -135,7 +138,7 @@
   {{ if .Task }}
     {{if or (eq .Task.Status 0) (eq .Task.Status 1) }}
     {{ $renderForm = false }}
-    Waiting for resources:
+    Installation in progress (feel free to navigate away from this page):
     <ul class="progress">
       {{ template "task" .Task.Subtasks }}
     </ul>

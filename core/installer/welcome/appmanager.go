@@ -28,6 +28,7 @@ type AppManagerServer struct {
 	reconciler tasks.Reconciler
 	h          installer.HelmReleaseMonitor
 	tasks      map[string]tasks.Task
+	ta         map[string]installer.EnvApp
 	tmpl       tmplts
 }
 
@@ -77,6 +78,7 @@ func NewAppManagerServer(
 		reconciler: reconciler,
 		h:          h,
 		tasks:      make(map[string]tasks.Task),
+		ta:         make(map[string]installer.EnvApp),
 		tmpl:       tmpl,
 	}, nil
 }
@@ -236,21 +238,20 @@ func (s *AppManagerServer) handleAppInstall(w http.ResponseWriter, r *http.Reque
 	instanceId := a.Slug() + suffix
 	appDir := fmt.Sprintf("/apps/%s", instanceId)
 	namespace := fmt.Sprintf("%s%s%s", env.NamespacePrefix, a.Namespace(), suffix)
-	rr, err := s.m.Install(a, instanceId, appDir, namespace, values)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
+	t := tasks.NewInstallTask(s.h, func() (installer.ReleaseResources, error) {
+		return s.m.Install(a, instanceId, appDir, namespace, values)
+	})
 	ctx, _ := context.WithTimeout(context.Background(), 2*time.Minute)
 	go s.reconciler.Reconcile(ctx)
 	if _, ok := s.tasks[instanceId]; ok {
 		panic("MUST NOT REACH!")
 	}
-	t := tasks.NewMonitorRelease(s.h, rr)
+	s.tasks[instanceId] = t
+	s.ta[instanceId] = a
 	t.OnDone(func(err error) {
 		delete(s.tasks, instanceId)
+		delete(s.ta, instanceId)
 	})
-	s.tasks[instanceId] = t
 	go t.Start()
 	if _, err := fmt.Fprintf(w, "/instance/%s", instanceId); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -422,15 +423,25 @@ func (s *AppManagerServer) handleInstanceUI(w http.ResponseWriter, r *http.Reque
 		http.Error(w, "empty slug", http.StatusBadRequest)
 		return
 	}
+	t, ok := s.tasks[slug]
 	instance, err := s.m.FindInstance(slug)
-	if err != nil {
+	if err != nil && !ok {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	a, err := s.m.GetInstanceApp(instance.Id)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
+	var a installer.EnvApp
+	if instance != nil {
+		a, err = s.m.GetInstanceApp(instance.Id)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+	} else {
+		var ok bool
+		a, ok = s.ta[slug]
+		if !ok {
+			panic("MUST NOT REACH!")
+		}
 	}
 	instances, err := s.m.FindAllAppInstances(a.Slug())
 	if err != nil {
@@ -442,14 +453,13 @@ func (s *AppManagerServer) handleInstanceUI(w http.ResponseWriter, r *http.Reque
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	t := s.tasks[slug]
 	data := appPageData{
 		App:               a,
 		Instance:          instance,
 		Instances:         instances,
 		AvailableNetworks: networks,
 		Task:              t,
-		CurrentPage:       instance.Id,
+		CurrentPage:       slug,
 	}
 	if err := s.tmpl.app.Execute(w, data); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)

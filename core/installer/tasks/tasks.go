@@ -15,6 +15,10 @@ const (
 
 type TaskDoneListener func(err error)
 
+type Subtasks interface {
+	Tasks() []Task
+}
+
 type Task interface {
 	Title() string
 	Start()
@@ -103,11 +107,17 @@ func (b *leafTask) Start() {
 
 type parentTask struct {
 	leafTask
-	subtasks     []Task
+	subtasks     Subtasks
 	showChildren bool
 }
 
-func newParentTask(title string, showChildren bool, start func() error, subtasks ...Task) parentTask {
+type TaskSlice []Task
+
+func (s TaskSlice) Tasks() []Task {
+	return s
+}
+
+func newParentTask(title string, showChildren bool, start func() error, subtasks Subtasks) parentTask {
 	return parentTask{
 		leafTask:     newLeafTask(title, start),
 		subtasks:     subtasks,
@@ -117,17 +127,13 @@ func newParentTask(title string, showChildren bool, start func() error, subtasks
 
 func (t *parentTask) Subtasks() []Task {
 	if t.showChildren {
-		return t.subtasks
+		return t.subtasks.Tasks()
 	} else {
 		return make([]Task, 0)
 	}
 }
 
-type sequentialParentTask struct {
-	parentTask
-}
-
-func newSequentialParentTask(title string, showChildren bool, subtasks ...Task) *sequentialParentTask {
+func newSequentialParentTask(title string, showChildren bool, subtasks ...Task) *parentTask {
 	start := func() error {
 		errCh := make(chan error)
 		for i := range subtasks[:len(subtasks)-1] {
@@ -146,16 +152,11 @@ func newSequentialParentTask(title string, showChildren bool, subtasks ...Task) 
 		go subtasks[0].Start()
 		return <-errCh
 	}
-	return &sequentialParentTask{
-		parentTask: newParentTask(title, showChildren, start, subtasks...),
-	}
+	t := newParentTask(title, showChildren, start, TaskSlice(subtasks))
+	return &t
 }
 
-type concurrentParentTask struct {
-	parentTask
-}
-
-func newConcurrentParentTask(title string, showChildren bool, subtasks ...Task) *concurrentParentTask {
+func newConcurrentParentTask(title string, showChildren bool, subtasks ...Task) *parentTask {
 	start := func() error {
 		errCh := make(chan error)
 		for i := range subtasks {
@@ -177,7 +178,6 @@ func newConcurrentParentTask(title string, showChildren bool, subtasks ...Task) 
 		}
 		return nil
 	}
-	return &concurrentParentTask{
-		parentTask: newParentTask(title, showChildren, start, subtasks...),
-	}
+	t := newParentTask(title, showChildren, start, TaskSlice(subtasks))
+	return &t
 }
