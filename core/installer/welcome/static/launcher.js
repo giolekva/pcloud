@@ -10,6 +10,58 @@ function hideTooltip(obj) {
 document.addEventListener("DOMContentLoaded", function () {
   document.getElementById('appFrame-default').contentDocument.write("Welcome to the dodo: application launcher, think of it as your desktop environment. You can launch applications from left-hand side dock. You should setup VPN clients on your devices, so you can install applications from Application Manager and access your private network. Instructions on how to do that can be viewed by clicking <b>Help</b> button after hovering over <b>Headscale</b> icon in the dock.");
   document.getElementById('appFrame-default').style.backgroundColor = '#d6d6d6';
+  initDock();
+  setTimeout(reloadDock, 5000);
+});
+
+function copyToClipboard(elem, text) {
+  navigator.clipboard.writeText(text);
+  elem.setAttribute("data-tooltip", "Copied");
+  elem.setAttribute("data-placement", "bottom");
+  setTimeout(() => {
+    elem.removeAttribute("data-tooltip");
+    elem.removeAttribute("data-placement");
+  }, 500);
+};
+
+function reloadDock() {
+  fetch("/").then(resp => resp.text()).then(resp => {
+	const tmp = document.createElement("div");
+	tmp.innerHTML = resp;
+	const apps = document.querySelector(".app-list");
+	let existing = [...document.querySelectorAll(".app-container")];
+	let current = [...tmp.querySelectorAll(".app-container")];
+	const getId = (e) => e.getAttribute("id");
+	const existingIds = existing.map(getId);
+	const currentIds = current.map(getId);
+	existing.forEach((e) => {
+	  const id = getId(e);
+	  if (!currentIds.includes(id)) {
+		e.classList.add("fadeout");
+		setTimeout(() => apps.removeChild(e), 1900);
+	  }
+	});
+	let prevId = undefined;
+	current.forEach((c) => {
+	  const id = getId(c);
+	  if (existingIds.includes(id)) {
+		prevId = id;
+		return;
+	  }
+	  c.classList.add("pulsate");
+	  if (prevId) {
+		apps.insertBefore(c, document.getElementById(prevId).nextSibling);
+	  } else {
+		apps.insertBefore(c, apps.firstChild);
+	  }
+	  prevId = id;
+	});
+	initDock();
+	setTimeout(reloadDock, 5000);
+  });
+}
+
+function initDock() {
   const icons = document.querySelectorAll(".app-icon");
   const circle = document.querySelector(".user-circle");
   const tooltipUser = document.querySelector("#tooltip-user");
@@ -33,6 +85,9 @@ document.addEventListener("DOMContentLoaded", function () {
   let activeTooltip;
 
   icons.forEach(function (icon) {
+	if (activeAppId && icon.getAttribute("data-app-id") === activeAppId) {
+	  icon.style.color = "var(--button)";
+	}
     icon.addEventListener("click", function (event) {
       event.stopPropagation();
       const appUrl = this.getAttribute("data-app-url");
@@ -42,7 +97,10 @@ document.addEventListener("DOMContentLoaded", function () {
       if (!appUrl && modalId) {
         openModal(document.getElementById(modalId));
       } else {
-        if (!iframes[appId]) createIframe(appId, appUrl);
+        if (!iframes[appId]) {
+		  createIframe(appId, appUrl);
+		}
+		activeAppId = appId;
         showIframe(appId);
         document.querySelectorAll(".app-icon").forEach((icon) => {
           icon.style.color = "var(--bodyBg)";
@@ -167,33 +225,24 @@ document.addEventListener("DOMContentLoaded", function () {
       closeModal(visibleModal);
     }
   });
+}
 
-  const iframes = {};
-  const rightPanel = document.getElementById('right-panel');
+let activeAppId = undefined;
+const iframes = {};
+const rightPanel = document.getElementById('right-panel');
 
-  function showIframe(appId) {
-    document.querySelectorAll('.appFrame').forEach(iframe => {
-      iframe.style.display = iframe.id === `appFrame-${appId}` ? 'block' : 'none';
-    });
-  };
+function showIframe(appId) {
+  document.querySelectorAll('.appFrame').forEach(iframe => {
+    iframe.style.display = iframe.id === `appFrame-${appId}` ? 'block' : 'none';
+  });
+};
 
-  function createIframe(appId, appUrl) {
-    const iframe = document.createElement('iframe');
-    iframe.id = `appFrame-${appId}`;
-    iframe.className = 'appFrame';
-    iframe.src = appUrl;
-    iframe.style.display = 'none';
-    rightPanel.appendChild(iframe);
-    iframes[appId] = iframe;
-  };
-});
-
-function copyToClipboard(elem, text) {
-  navigator.clipboard.writeText(text);
-  elem.setAttribute("data-tooltip", "Copied");
-  elem.setAttribute("data-placement", "bottom");
-  setTimeout(() => {
-    elem.removeAttribute("data-tooltip");
-    elem.removeAttribute("data-placement");
-  }, 500);
+function createIframe(appId, appUrl) {
+  const iframe = document.createElement('iframe');
+  iframe.id = `appFrame-${appId}`;
+  iframe.className = 'appFrame';
+  iframe.src = appUrl;
+  iframe.style.display = 'none';
+  rightPanel.appendChild(iframe);
+  iframes[appId] = iframe;
 };

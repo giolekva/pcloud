@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>dodo: Launcher</title>
     <link rel="stylesheet" type="text/css" href="/static/pico.2.0.6.min.css">
-    <link rel="stylesheet" type="text/css" href="/static/launcher.css?v=0.0.18">
+    <link rel="stylesheet" type="text/css" href="/static/launcher.css?v=0.0.19">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/hack-font/3.3.0/web/hack.min.css">
 </head>
 <body class="container-fluid">
@@ -22,18 +22,19 @@
         <hr class="separator">
         <div class="app-list scrollbar-custom">
             {{range .AllAppsInfo}}
-            <div class="app-icon" data-app-id="{{ .Id }}" data-app-url="{{ .URL }}" {{ if not .URL }}data-modal-id="modal-{{ CleanAppName .Id }}"{{ end }}>
-                {{.Icon}}
-            </div>
-            <div class="tooltip">
-                <p>{{ .Name }}</p>
-                {{ if .DisplayURL }}
+			<div class="app-container" id="{{ .Id }}">
+				<div class="app-icon" data-app-id="{{ .Id }}" data-app-url="{{ .URL }}" {{ if not .URL }}data-modal-id="modal-{{ CleanAppName .Id }}"{{ end }}>
+					{{.Icon}}
+				</div>
+				<div class="tooltip">
+					<p>{{ .Name }}</p>
+					{{ if .DisplayURL }}
                     <p>{{ .DisplayURL }}</p>
-                {{ end }}
-                {{ if .Help }}
+					{{ end }}
+					{{ if .Help }}
                     <button class="help-button" id="help-button-{{ CleanAppName .Id }}">Help</button>
-                {{ end }}
-            </div>
+					{{ end }}
+				</div>
                 <dialog class="app-help-modal" id="modal-{{ CleanAppName .Id }}" close>
                     <article class="modal-article">
                         <header>
@@ -56,6 +57,7 @@
                         </div>
                     </article>
                 </dialog>
+			</div>
             {{end}}
         </div>
     </div>
@@ -80,6 +82,6 @@
             {{ template "help-content-template" (dict "Help" $h.Children "First" false) }}
         {{ end }}
     {{ end }}
-    <script src="/static/launcher.js?v=0.0.14"></script>
+    <script src="/static/launcher.js?v=0.0.19"></script>
 </body>
 </html>
