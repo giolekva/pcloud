@@ -1,7 +1,7 @@
 repo_name ?= giolekva
 podman ?= docker
 ifeq ($(podman), podman)
-manifest_dest=docker://docker.io/$(repo_name)/pcloud-installer:latest
+manifest_dest=docker://docker.io/$(repo_name)/auth-proxy:latest
 endif
 
 clean:
