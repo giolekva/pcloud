@@ -147,23 +147,29 @@ func (c *repoClient) preOpenNewPorts() error {
 		if err != nil {
 			return "", err
 		}
-		tcp, err := extractPorts(rel, "spec.values.controller.service.nodePorts.tcp")
+		svcType, err := extractString(rel, "spec.values.controller.service.type")
 		if err != nil {
 			return "", err
 		}
-		udp, err := extractPorts(rel, "spec.values.controller.service.nodePorts.udp")
-		if err != nil {
-			return "", err
+		if svcType == "NodePort" {
+			tcp, err := extractPorts(rel, "spec.values.controller.service.nodePorts.tcp")
+			if err != nil {
+				return "", err
+			}
+			udp, err := extractPorts(rel, "spec.values.controller.service.nodePorts.udp")
+			if err != nil {
+				return "", err
+			}
+			for _, p := range ports {
+				ps := strconv.Itoa(p)
+				tcp[ps] = p
+				udp[ps] = p
+			}
+			if err := c.writeRelease(fs, rel); err != nil {
+				return "", err
+			}
 		}
-		for _, p := range ports {
-			ps := strconv.Itoa(p)
-			tcp[ps] = p
-			udp[ps] = p
-		}
-		if err := c.writeRelease(fs, rel); err != nil {
-			return "", err
-		}
-		fmt.Printf("Pre opened new ports: %s\n", ports)
+		fmt.Printf("Pre opened new ports: %+v\n", ports)
 		return "preopen new ports", nil
 	})
 }
@@ -242,19 +248,25 @@ func (c *repoClient) RemovePortForwarding(protocol string, port int) error {
 		default:
 			panic("MUST NOT REACH")
 		}
-		svcTCP, err := extractPorts(rel, "spec.values.controller.service.nodePorts.tcp")
+		svcType, err := extractString(rel, "spec.values.controller.service.type")
 		if err != nil {
 			return "", err
 		}
-		svcUDP, err := extractPorts(rel, "spec.values.controller.service.nodePorts.udp")
-		if err != nil {
-			return "", err
-		}
-		if err := removePort(svcTCP, port); err != nil {
-			return "", err
-		}
-		if err := removePort(svcUDP, port); err != nil {
-			return "", err
+		if svcType == "NodePort" {
+			svcTCP, err := extractPorts(rel, "spec.values.controller.service.nodePorts.tcp")
+			if err != nil {
+				return "", err
+			}
+			svcUDP, err := extractPorts(rel, "spec.values.controller.service.nodePorts.udp")
+			if err != nil {
+				return "", err
+			}
+			if err := removePort(svcTCP, port); err != nil {
+				return "", err
+			}
+			if err := removePort(svcUDP, port); err != nil {
+				return "", err
+			}
 		}
 		if err := c.writeRelease(fs, rel); err != nil {
 			return "", err
@@ -360,19 +372,43 @@ type reserveResp struct {
 	Secret string `json:"secret"`
 }
 
-func extractPorts(data map[string]any, path string) (map[string]any, error) {
+func extractField(data map[string]any, path string) (any, error) {
+	var val any = data
 	for _, i := range strings.Split(path, ".") {
-		val, ok := data[i]
+		valM, ok := val.(map[string]any)
+		if !ok {
+			return nil, fmt.Errorf("expected map")
+		}
+		val, ok = valM[i]
 		if !ok {
 			return nil, fmt.Errorf("%s not found", i)
 		}
-		valM, ok := val.(map[string]any)
-		if !ok {
-			return nil, fmt.Errorf("%s is not a map", i)
-		}
-		data = valM
 	}
-	return data, nil
+	return val, nil
+}
+
+func extractPorts(data map[string]any, path string) (map[string]any, error) {
+	ret, err := extractField(data, path)
+	if err != nil {
+		return nil, err
+	}
+	retM, ok := ret.(map[string]any)
+	if !ok {
+		return nil, fmt.Errorf("expected map")
+	}
+	return retM, nil
+}
+
+func extractString(data map[string]any, path string) (string, error) {
+	ret, err := extractField(data, path)
+	if err != nil {
+		return "", err
+	}
+	retS, ok := ret.(string)
+	if !ok {
+		return "", fmt.Errorf("expected map")
+	}
+	return retS, nil
 }
 
 func addPort(pm map[string]any, sourcePort int, targetService string, targetPort int) error {
