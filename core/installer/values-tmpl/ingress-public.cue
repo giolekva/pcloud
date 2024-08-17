@@ -28,13 +28,13 @@ images: {
 charts: {
 	ingressNginx: {
 		kind: "GitRepository"
-		address: "https://github.com/giolekva/pcloud.git"
+		address: "https://code.v1.dodo.cloud/helm-charts"
 		branch: "main"
 		path: "charts/ingress-nginx"
 	}
 	portAllocator: {
 		kind: "GitRepository"
-		address: "https://github.com/giolekva/pcloud.git"
+		address: "https://code.v1.dodo.cloud/helm-charts"
 		branch: "main"
 		path: "charts/port-allocator"
 	}

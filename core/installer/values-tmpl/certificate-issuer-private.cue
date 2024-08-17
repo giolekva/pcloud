@@ -9,7 +9,7 @@ charts: {
 	"certificate-issuer-private": {
 		path: "charts/certificate-issuer-private"
 		kind: "GitRepository"
-		address: "https://github.com/giolekva/pcloud.git"
+		address: "https://code.v1.dodo.cloud/helm-charts"
 		branch: "main"
 	}
 }

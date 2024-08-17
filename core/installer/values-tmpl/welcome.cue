@@ -23,7 +23,7 @@ images: {
 charts: {
 	welcome: {
 		kind: "GitRepository"
-		address: "https://github.com/giolekva/pcloud.git"
+		address: "https://code.v1.dodo.cloud/helm-charts"
 		branch: "main"
 		path: "charts/welcome"
 	}

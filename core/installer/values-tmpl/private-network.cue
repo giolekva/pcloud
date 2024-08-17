@@ -39,19 +39,19 @@ images: {
 charts: {
 	"ingress-nginx": {
 		kind: "GitRepository"
-		address: "https://github.com/giolekva/pcloud.git"
+		address: "https://code.v1.dodo.cloud/helm-charts"
 		branch: "main"
 		path: "charts/ingress-nginx"
 	}
 	"tailscale-proxy": {
 		kind: "GitRepository"
-		address: "https://github.com/giolekva/pcloud.git"
+		address: "https://code.v1.dodo.cloud/helm-charts"
 		branch: "main"
 		path: "charts/tailscale-proxy"
 	}
 	portAllocator: {
 		kind: "GitRepository"
-		address: "https://github.com/giolekva/pcloud.git"
+		address: "https://code.v1.dodo.cloud/helm-charts"
 		branch: "main"
 		path: "charts/port-allocator"
 	}

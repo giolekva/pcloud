@@ -53,13 +53,13 @@ networks: #Networks
 		charts: {
 			ingress: #Chart & {
 				kind: "GitRepository"
-				address: "https://github.com/giolekva/pcloud.git"
+				address: "https://code.v1.dodo.cloud/helm-charts"
 				branch: "main"
 				path: "charts/ingress"
 			}
 			authProxy: #Chart & {
 				kind: "GitRepository"
-				address: "https://github.com/giolekva/pcloud.git"
+				address: "https://code.v1.dodo.cloud/helm-charts"
 				branch: "main"
 				path: "charts/auth-proxy"
 			}

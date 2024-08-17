@@ -65,19 +65,19 @@ images: {
 charts: {
 	zot: {
 		kind: "GitRepository"
-		address: "https://github.com/giolekva/pcloud.git"
+		address: "https://code.v1.dodo.cloud/helm-charts"
 		branch: "main"
 		path: "charts/zot"
 	}
 	oauth2Client: {
 		kind: "GitRepository"
-		address: "https://github.com/giolekva/pcloud.git"
+		address: "https://code.v1.dodo.cloud/helm-charts"
 		branch: "main"
 		path: "charts/oauth2-client"
 	}
 	resourceRenderer: {
 		kind: "GitRepository"
-		address: "https://github.com/giolekva/pcloud.git"
+		address: "https://code.v1.dodo.cloud/helm-charts"
 		branch: "main"
 		path: "charts/resource-renderer"
 	}

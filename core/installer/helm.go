@@ -45,20 +45,49 @@ type HelmFetcher interface {
 	Pull(chart HelmChartGitRepo, rfs soft.RepoFS, root string) error
 }
 
-type gitHelmFetcher struct{}
-
-func NewGitHelmFetcher() *gitHelmFetcher {
-	return &gitHelmFetcher{}
+type RepoCloner interface {
+	Clone(addr, ref string) (*git.Repository, error)
 }
 
-func (f *gitHelmFetcher) Pull(chart HelmChartGitRepo, rfs soft.RepoFS, root string) error {
-	ref := fmt.Sprintf("refs/heads/%s", chart.Branch)
+type cachingRepoCloner struct {
+	cache map[string]*git.Repository
+}
+
+func NewCachingRepoCloner() RepoCloner {
+	return &cachingRepoCloner{make(map[string]*git.Repository)}
+}
+
+func (rc *cachingRepoCloner) Clone(addr, ref string) (*git.Repository, error) {
+	key := fmt.Sprintf("%s:%s", addr, ref)
+	if ret, ok := rc.cache[key]; ok {
+		return ret, nil
+	}
 	r, err := git.Clone(memory.NewStorage(), memfs.New(), &git.CloneOptions{
-		URL:           chart.Address,
+		URL:           addr,
 		ReferenceName: plumbing.ReferenceName(ref),
 		SingleBranch:  true,
 		Depth:         1,
 	})
+	if err != nil {
+		return nil, err
+	}
+	// TODO(gio): enable
+	// rc.cache[key] = r
+	return r, nil
+}
+
+type gitHelmFetcher struct {
+	rc RepoCloner
+}
+
+func NewGitHelmFetcher() *gitHelmFetcher {
+	// TODO(gio): take cloner as an argument
+	return &gitHelmFetcher{NewCachingRepoCloner()}
+}
+
+func (f *gitHelmFetcher) Pull(chart HelmChartGitRepo, rfs soft.RepoFS, root string) error {
+	ref := fmt.Sprintf("refs/heads/%s", chart.Branch)
+	r, err := f.rc.Clone(chart.Address, ref)
 	if err != nil {
 		return err
 	}
