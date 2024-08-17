@@ -28,7 +28,7 @@ var dbPath = flag.String("db-path", "memberships.db", "Path to SQLite file")
 //go:embed memberships-tmpl/*
 var tmpls embed.FS
 
-//go:embed static
+//go:embed stat
 var staticResources embed.FS
 
 type Store interface {
@@ -673,7 +673,7 @@ func (s *Server) Start() error {
 	e := make(chan error)
 	go func() {
 		r := mux.NewRouter()
-		r.PathPrefix("/static/").Handler(http.FileServer(http.FS(staticResources)))
+		r.PathPrefix("/stat/").Handler(http.FileServer(http.FS(staticResources)))
 		r.HandleFunc("/group/{group-name}/add-user/", s.addUserToGroupHandler).Methods(http.MethodPost)
 		r.HandleFunc("/group/{parent-group}/add-child-group", s.addChildGroupHandler).Methods(http.MethodPost)
 		r.HandleFunc("/group/{owned-group}/add-owner-group", s.addOwnerGroupHandler).Methods(http.MethodPost)

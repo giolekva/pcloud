@@ -1,0 +1,127 @@
+[data-theme="light"],
+:root:not([data-theme="dark"]) {
+	--pico-font-family: Hack, monospace;
+	--pico-font-size: 14px;
+	--pico-background-color: #d6d6d6;
+	--pico-border-radius: 0;
+	--pico-form-element-border-color: #ffffff;
+	--pico-form-element-active-border-color: #7f9f7f;
+	--pico-primary: #7f9f7f;
+	--pico-primary-background: #7f9f7f;
+	--pico-primary-hover: #d4888d;
+	--pico-primary-hover-background: #d4888d;
+	--pico-grid-spacing-horizontal: 0;
+}
+
+input[type="checkbox"] {
+	--pico-form-element-border-color: #3a3a3a;
+}
+
+main.container {
+	max-width: 850px;
+	margin-top: 13rem;
+}
+
+.dodo {
+	font-size: 1.6rem;
+	font-weight: bold;
+	background-color: #3a3a3a;
+	border-left: 1px dashed #3a3a3a;
+}
+
+.highlight{
+    color: #d4888d;
+}
+
+#menu {
+	border-bottom: 1px dashed #3a3a3a;
+	padding-left: 5rem;
+	padding-right: 5rem;
+}
+
+#menu a {
+	/* font-size: 1.2rem; */
+	color: #3a3a3a;
+}
+
+#menu li {
+	padding-top: 0;
+	padding-bottom: 0;
+}
+
+#links {
+	--pico-nav-element-spacing-horizontal: 3rem;
+}
+
+#menu li {
+	border-right: 1px dashed #3a3a3a;
+}
+
+div.contents-header {
+	font-size: 1.2rem;
+	border-width: 1px;
+	border-style: solid;
+}
+
+#contents {
+	border-width: 1px;
+	border-style: none solid solid solid;
+}
+
+main > div.grid {
+	--pico-grid-column-gap: 0;
+}
+
+div.contents-header > div {
+	padding: 1rem 3rem;
+}
+
+#contents > div {
+	padding: 3rem;
+}
+
+#create-instance-form {
+	--pico-spacing: 10px;
+	/* TODO(gio): figure out why overriding --pico-background-color does not work */
+	background-color: #3a3a3a;
+}
+
+#create-instance-form label {
+	color: #ffffff;
+}
+
+#create-instance-form input, textarea, button, select {
+	border-width: 0.5px !important;
+	background-color: #3a3a3a;
+}
+
+#create-instance-form p {
+	color: #ffffff;
+}
+
+#create-instance-form input {
+	height: 3rem;
+	color: #ffffff;
+}
+
+#create-instance-form textarea {
+	color: #ffffff;
+}
+
+#create-instance-form button {
+	width: fit-content;
+	font-weight: bold;
+	color: #3a3a3a;
+}
+
+.progress {
+	padding-left: 0;
+}
+
+.progress ul {
+	padding-left: 15px;
+}
+
+.progress li {
+	list-style-type: none;
+}

@@ -32,15 +32,12 @@ var dodoAppTmplFS embed.FS
 //go:embed all:app-tmpl
 var appTmplsFS embed.FS
 
-//go:embed static
-var staticResources embed.FS
-
 const (
 	ConfigRepoName = "config"
 	appConfigsFile = "/apps.json"
 	loginPath      = "/login"
 	logoutPath     = "/logout"
-	staticPath     = "/static"
+	staticPath     = "/stat/"
 	apiPublicData  = "/api/public-data"
 	apiCreateApp   = "/api/apps"
 	sessionCookie  = "dodo-app-session"
@@ -182,7 +179,7 @@ func (s *DodoAppServer) Start() error {
 	go func() {
 		r := mux.NewRouter()
 		r.Use(s.mwAuth)
-		r.PathPrefix(staticPath).Handler(http.FileServer(http.FS(staticResources)))
+		r.PathPrefix(staticPath).Handler(cachingHandler{http.FileServer(http.FS(statAssets))})
 		r.HandleFunc(logoutPath, s.handleLogout).Methods(http.MethodGet)
 		r.HandleFunc(apiPublicData, s.handleAPIPublicData)
 		r.HandleFunc(apiCreateApp, s.handleAPICreateApp).Methods(http.MethodPost)
@@ -835,23 +832,28 @@ type dodoAppRendered struct {
 }
 
 func (s *DodoAppServer) updateDodoApp(appStatus installer.EnvApp, name, namespace string, networks []installer.Network) error {
+	fmt.Println("111")
 	repo, err := s.client.GetRepo(name)
 	if err != nil {
 		return err
 	}
+	fmt.Println("111")
 	hf := installer.NewGitHelmFetcher()
 	m, err := installer.NewAppManager(repo, s.nsc, s.jc, hf, "/.dodo")
 	if err != nil {
 		return err
 	}
+	fmt.Println("111")
 	appCfg, err := soft.ReadFile(repo, "app.cue")
 	if err != nil {
 		return err
 	}
+	fmt.Println("111")
 	app, err := installer.NewDodoApp(appCfg)
 	if err != nil {
 		return err
 	}
+	fmt.Println("111")
 	lg := installer.GitRepositoryLocalChartGenerator{"app", namespace}
 	return repo.Do(func(r soft.RepoFS) (string, error) {
 		res, err := m.Install(
@@ -872,13 +874,16 @@ func (s *DodoAppServer) updateDodoApp(appStatus installer.EnvApp, name, namespac
 			installer.WithLocalChartGenerator(lg),
 			installer.WithNoLock(),
 		)
+		fmt.Println("111")
 		if err != nil {
 			return "", err
 		}
+		fmt.Println("111")
 		var rendered dodoAppRendered
 		if err := json.NewDecoder(bytes.NewReader(res.RenderedRaw)).Decode(&rendered); err != nil {
 			return "", nil
 		}
+		fmt.Println("111")
 		if _, err := m.Install(
 			appStatus,
 			"status",
@@ -898,6 +903,7 @@ func (s *DodoAppServer) updateDodoApp(appStatus installer.EnvApp, name, namespac
 		); err != nil {
 			return "", err
 		}
+		fmt.Println("111")
 		return "install app", nil
 	},
 		soft.WithCommitToBranch("dodo"),

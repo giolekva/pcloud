@@ -27,6 +27,9 @@ var successHtml []byte
 //go:embed static/*
 var staticAssets embed.FS
 
+//go:embed stat/*
+var statAssets embed.FS
+
 type Server struct {
 	port              int
 	repo              soft.RepoIO
@@ -59,7 +62,7 @@ func NewServer(
 
 func (s *Server) Start() {
 	r := mux.NewRouter()
-	r.PathPrefix("/static/").Handler(cachingHandler{http.FileServer(http.FS(staticAssets))})
+	r.PathPrefix("/stat/").Handler(cachingHandler{http.FileServer(http.FS(statAssets))})
 	r.Path("/").Methods("POST").HandlerFunc(s.createAccount)
 	r.Path("/").Methods("GET").HandlerFunc(s.createAccountForm)
 	http.Handle("/", r)

@@ -94,7 +94,7 @@ func (h cachingHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 func (s *AppManagerServer) Start() error {
 	r := mux.NewRouter()
-	r.PathPrefix("/static/").Handler(cachingHandler{http.FileServer(http.FS(staticAssets))})
+	r.PathPrefix("/stat/").Handler(cachingHandler{http.FileServer(http.FS(statAssets))})
 	r.HandleFunc("/api/networks", s.handleNetworks).Methods(http.MethodGet)
 	r.HandleFunc("/api/app-repo", s.handleAppRepo)
 	r.HandleFunc("/api/app/{slug}/install", s.handleAppInstall).Methods(http.MethodPost)

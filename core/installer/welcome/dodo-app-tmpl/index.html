@@ -9,14 +9,13 @@ dodo app: status
 			<option value="{{ .Name }}">{{ .Name }} - {{ .Domain }}</option>
 			{{- end -}}
 		</select>
-		<input type="text" name="subdomain" placeholder="Subdomain" />
+		<input type="text" name="subdomain" placeholder="subdomain" />
 		<select name="type">
 			{{- range .Types -}}
 			<option value="{{ . }}">{{ . }}</option>
 			{{- end -}}
 		</select>
-		<button id="create-app-button" aria-busy="false" type="submit" name="create-app">
-			create app</button>
+		<button id="create-app-button" aria-busy="false" type="submit" name="create-app">create app</button>
 	</fieldset>
 </form>
 <hr class="divider">
@@ -31,5 +30,5 @@ dodo app: status
 		</ul>
 	</nav>
 </aside>
-<script src="/static/dodo-app.js?v=0.0.7"></script>
+<script src="/stat/dodo-app.js?v=0.0.8"></script>
 {{- end -}}

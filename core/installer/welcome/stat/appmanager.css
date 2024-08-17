@@ -1,0 +1,329 @@
+[data-theme="light"],
+:root:not([data-theme="dark"]) {
+  --pico-font-family: Hack, monospace;
+  --pico-font-size: 14px;
+  --pico-header-height: 56px;
+  --pico-border-radius: 0;
+  --pico-background-color: #d6d6d6;
+  --pico-form-element-border-color: #3a3a3a;
+  --pico-form-element-active-border-color: #7f9f7f;
+  --pico-form-element-focus-color: #7f9f7f;
+  --pico-form-element-background-color: #d6d6d6;
+  --pico-form-element-active-background-color: #d6d6d6;
+  --pico-form-element-selected-background-color: #d6d6d6;
+  --pico-dropdown-color: #3a3a3a;
+  --pico-dropdown-background-color: #d6d6d6;
+  --pico-dropdown-border-color: #7f9f7f;
+  --pico-dropdown-hover-background-color: #7f9f7f;
+  --pico-primary: #7f9f7f;
+  --pico-primary-background: #7f9f7f;
+  --pico-primary-hover: #d4888d;
+  --pico-primary-hover-background: #d4888d;
+  --pico-grid-spacing-horizontal: 0;
+  --search-background-color: #d6d6d6;
+  --pico-color: #3a3a3a;
+  --pico-form-element-color: #3a3a3a;
+  --pico-primary-inverse: #3a3a3a;
+  --pico-tooltip-background-color: #3a3a3a;
+  --pico-tooltip-color: #d6d6d6;
+  --pico-icon-color: #3a3a3a;
+  --icon-width: 50px;
+  --icon-height: 50px;
+  --icon-margin-left: 6px;
+  --icon-margin-right: 6px;
+  --app-details-padding-right: calc(
+    var(--icon-margin-right) + var(--icon-margin-left) + var(--icon-width)
+  );
+  h3,
+  p {
+    --pico-color: #3a3a3a;
+  }
+  label {
+    color: var(--pico-color);
+  }
+  input:is([type="checkbox"]) {
+    --pico-form-element-focus-color: none;
+    --pico-border-color: var(--pico-color);
+  }
+  [data-tooltip]:not(a, button, input) {
+    text-decoration: none;
+    cursor: pointer;
+  }
+  #menu-nav nav ul li a {
+    --pico-primary: #3a3a3a;
+  }
+  .icon {
+    color: var(--pico-icon-color);
+  }
+}
+
+@media (max-width: 768px) {
+  body > main {
+    grid-template-columns: 9rem 1fr !important;
+    column-gap: 0 !important;
+  }
+
+  .container-fluid {
+    padding-left: 1px;
+    padding-right: 1px;
+    margin-left: 0;
+    margin-right: 0;
+  }
+
+  #content {
+    width: 100% !important;
+  }
+
+  .app-details {
+    padding-right: 22px !important;
+  }
+}
+
+body > header {
+  z-index: 4;
+  position: relative;
+}
+
+html {
+  scroll-behavior: smooth;
+  overflow-x: hidden;
+}
+
+body > header.is-fixed-above-lg + main {
+  --pico-main-top-offset: var(--pico-header-height);
+}
+
+body > header.is-fixed-above-lg {
+  height: var(--pico-header-height);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2;
+  position: sticky;
+  top: 0;
+  -webkit-backdrop-filter: blur(1rem);
+  backdrop-filter: blur(1rem);
+  background-color: var(--pico-form-element-border-color);
+  transition: border-top-color 0.4s ease-in-out, box-shadow 0.4s ease-in-out;
+}
+
+body > main > aside > nav.is-sticky-above-lg {
+  position: sticky;
+  top: calc(
+    var(--pico-main-top-offset) + var(--pico-block-spacing-vertical) / 2
+  );
+  max-height: calc(var(--max-height) - var(--pico-spacing));
+  overflow: auto;
+  transition: top var(--pico-transition);
+  transition-delay: 50ms;
+}
+
+body > main {
+  display: grid;
+  grid-template-rows: auto auto 1fr;
+  grid-template-columns: 11rem calc(100% - 11rem);
+  grid-template-areas: "menu content";
+  column-gap: 2rem;
+  margin-top: 1rem;
+  padding: 0;
+}
+
+header > h1,
+header > svg {
+  margin-bottom: 2.5px;
+  color: white;
+}
+
+header > svg {
+  margin-right: var(--pico-spacing);
+}
+
+.search-bar {
+  max-width: 616px;
+  width: 100%;
+}
+
+article {
+  margin: 0.3em;
+  margin-bottom: 0.3em;
+  display: flex;
+  padding: 6px !important;
+  position: relative;
+  align-items: flex-start;
+}
+
+.icon {
+  margin: 0 var(--icon-margin-right) 0 var(--icon-margin-left);
+  flex-shrink: 0;
+  /* --pico-primary: #3a3a3a;
+  color: var(--pico-color); */
+}
+
+.app-details {
+  display: flex;
+  flex-direction: column;
+  flex-grow: 1;
+  position: relative;
+  padding-right: var(--app-details-padding-right);
+}
+
+.app-name-container {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.app {
+  margin-bottom: 2px;
+  margin-top: 0px;
+  margin-left: 5px;
+  font-weight: bold;
+  font-size: 16px;
+}
+
+.app-link:hover h3.app,
+.app-link:hover .icon {
+  color: var(--pico-primary-hover);
+}
+
+.app-link:hover .app {
+  text-decoration: underline;
+}
+.primary:hover {
+  text-decoration: underline;
+  color: var(--pico-primary-hover);
+}
+
+.description {
+  margin: 0 0 3px 5px;
+}
+
+.instance-count {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  font-weight: bold;
+  border: 2px solid var(--pico-color) !important;
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  transform: translate(50%, -50%);
+}
+
+pre {
+  white-space: pre-wrap;
+  /* Since CSS 2.1 */
+  white-space: -moz-pre-wrap;
+  /* Mozilla, since 1999 */
+  white-space: -pre-wrap;
+  /* Opera 4-6 */
+  white-space: -o-pre-wrap;
+  /* Opera 7 */
+  word-wrap: break-word;
+  /* Internet Explorer 5.5+ */
+  background-color: transparent;
+}
+
+.hidden {
+  visibility: hidden;
+}
+
+.toast {
+  position: fixed;
+  z-index: 999;
+  bottom: 10px;
+}
+
+.app-link {
+  padding-top: 0px;
+  padding-bottom: 2px;
+  text-decoration: none;
+  width: 100%;
+  padding-right: 0;
+}
+
+nav li {
+  padding-top: 0;
+  padding-bottom: 0;
+}
+
+nav hr {
+  border-color: var(--pico-color);
+}
+
+input[type="search"] {
+  margin-bottom: 0;
+  height: 100%;
+}
+
+.page {
+  display: flex;
+  align-items: center;
+  flex-direction: column;
+}
+
+.card-content {
+  width: 100%;
+}
+
+.app-card {
+  margin-bottom: 6px;
+}
+
+nav {
+  height: 100%;
+}
+
+#config-form label {
+  width: auto !important;
+  padding: 0 5px 0 5px;
+}
+
+#config-form > label:nth-of-type(2) label {
+  padding-left: 0;
+  padding-right: 0;
+}
+
+input[type="checkbox"]:checked {
+  border-color: var(--pico-form-element-focus-color) !important;
+}
+
+#menu-nav {
+  grid-area: menu;
+}
+
+#content {
+  grid-area: content;
+  width: calc(100% - 11rem);
+}
+
+main > aside#menu-nav nav {
+  margin-bottom: var(--pico-spacing);
+  margin-block: calc(var(--pico-outline-width) * -1);
+  padding-block: var(--pico-outline-width);
+  overflow: auto;
+}
+
+#menu-nav nav ul:first-of-type {
+  margin: 0;
+  padding: 0;
+}
+
+.progress {
+  padding-left: 0;
+}
+
+.progress ul {
+  padding-left: 15px;
+}
+
+.progress li {
+  list-style-type: none;
+}
+
+.primary {
+  color: #7f9f7f;
+}

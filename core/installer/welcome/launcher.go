@@ -18,9 +18,6 @@ import (
 //go:embed launcher-tmpl/launcher.html
 var indexHTML embed.FS
 
-//go:embed static/*
-var files embed.FS
-
 type AppLauncherInfo struct {
 	Id         string
 	Name       string
@@ -140,7 +137,7 @@ func getLoggedInUser(r *http.Request) (string, error) {
 }
 
 func (s *LauncherServer) Start() {
-	http.Handle("/static/", cachingHandler{http.FileServer(http.FS(files))})
+	http.Handle("/stat/", cachingHandler{http.FileServer(http.FS(statAssets))})
 	http.HandleFunc("/", s.homeHandler)
 	log.Fatal(http.ListenAndServe(fmt.Sprintf(":%d", s.port), nil))
 }
