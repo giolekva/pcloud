@@ -19,6 +19,7 @@ var (
 
 type Commit struct {
 	Hash    string
+	Status  string
 	Message string
 }
 
@@ -30,7 +31,7 @@ type Store interface {
 	GetUserApps(username string) ([]string, error)
 	CreateApp(name, username string) error
 	GetAppOwner(name string) (string, error)
-	CreateCommit(name, hash, message string) error
+	CreateCommit(name, hash, message, status string) error
 	GetCommitHistory(name string) ([]Commit, error)
 }
 
@@ -61,7 +62,8 @@ func (s *storeImpl) init() error {
 		CREATE TABLE IF NOT EXISTS commits (
 			app_name TEXT,
             hash TEXT,
-            message TEXT
+            message TEXT,
+            status TEXT
 		);
 	`)
 	return err
@@ -172,14 +174,14 @@ func (s *storeImpl) GetUserApps(username string) ([]string, error) {
 	return ret, nil
 }
 
-func (s *storeImpl) CreateCommit(name, hash, message string) error {
-	query := `INSERT INTO commits (app_name, hash, message) VALUES (?, ?, ?)`
-	_, err := s.db.Exec(query, name, hash, message)
+func (s *storeImpl) CreateCommit(name, hash, message, status string) error {
+	query := `INSERT INTO commits (app_name, hash, message, status) VALUES (?, ?, ?, ?)`
+	_, err := s.db.Exec(query, name, hash, message, status)
 	return err
 }
 
 func (s *storeImpl) GetCommitHistory(name string) ([]Commit, error) {
-	query := `SELECT hash, message FROM commits WHERE app_name = ?`
+	query := `SELECT hash, message, status FROM commits WHERE app_name = ?`
 	rows, err := s.db.Query(query, name)
 	if err != nil {
 		return nil, err
@@ -191,7 +193,7 @@ func (s *storeImpl) GetCommitHistory(name string) ([]Commit, error) {
 			return nil, err
 		}
 		var c Commit
-		if err := rows.Scan(&c.Hash, &c.Message); err != nil {
+		if err := rows.Scan(&c.Hash, &c.Message, &c.Status); err != nil {
 			return nil, err
 		}
 		ret = append(ret, c)

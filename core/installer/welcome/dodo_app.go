@@ -459,7 +459,11 @@ type apiUpdateReq struct {
 	Repository struct {
 		Name string `json:"name"`
 	} `json:"repository"`
-	After string `json:"after"`
+	After   string `json:"after"`
+	Commits []struct {
+		Id      string `json:"id"`
+		Message string `json:"message"`
+	} `json:"commits"`
 }
 
 func (s *DodoAppServer) handleAPIUpdate(w http.ResponseWriter, r *http.Request) {
@@ -491,13 +495,26 @@ func (s *DodoAppServer) handleAPIUpdate(w http.ResponseWriter, r *http.Request) 
 		if err != nil {
 			return
 		}
-		if err := s.updateDodoApp(instanceAppStatus, req.Repository.Name, s.appConfigs[req.Repository.Name].Namespace, networks); err != nil {
-			if err := s.st.CreateCommit(req.Repository.Name, req.After, err.Error()); err != nil {
-				fmt.Printf("Error: %s\n", err.Error())
-				return
+		found := false
+		commitMsg := ""
+		for _, c := range req.Commits {
+			if c.Id == req.After {
+				found = true
+				commitMsg = c.Message
+				break
 			}
 		}
-		if err := s.st.CreateCommit(req.Repository.Name, req.After, "OK"); err != nil {
+		if !found {
+			fmt.Printf("Error: could not find commit message")
+			return
+		}
+		if err := s.updateDodoApp(instanceAppStatus, req.Repository.Name, s.appConfigs[req.Repository.Name].Namespace, networks); err != nil {
+			if err := s.st.CreateCommit(req.Repository.Name, req.After, commitMsg, err.Error()); err != nil {
+				fmt.Printf("Error: %s\n", err.Error())
+			}
+			return
+		}
+		if err := s.st.CreateCommit(req.Repository.Name, req.After, commitMsg, "OK"); err != nil {
 			fmt.Printf("Error: %s\n", err.Error())
 		}
 		for addr, _ := range s.workers[req.Repository.Name] {
