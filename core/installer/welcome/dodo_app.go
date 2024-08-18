@@ -509,6 +509,7 @@ func (s *DodoAppServer) handleAPIUpdate(w http.ResponseWriter, r *http.Request) 
 			return
 		}
 		if err := s.updateDodoApp(instanceAppStatus, req.Repository.Name, s.appConfigs[req.Repository.Name].Namespace, networks); err != nil {
+			fmt.Printf("Error: %s\n", err.Error())
 			if err := s.st.CreateCommit(req.Repository.Name, req.After, commitMsg, err.Error()); err != nil {
 				fmt.Printf("Error: %s\n", err.Error())
 			}

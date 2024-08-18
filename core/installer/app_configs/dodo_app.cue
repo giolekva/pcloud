@@ -24,10 +24,21 @@ input: {
 	...
 }
 
+#PostgreSQLs: {
+	...
+}
+
 app: {
 	volumes: {
 		for key, value in volumes {
 			"\(key)": #volume & value & {
+				name: key
+			}
+		}
+	}
+	postgresql: {
+		for key, value in postgresql {
+			"\(key)": #PostgreSQL & value & {
 				name: key
 			}
 		}
@@ -50,6 +61,7 @@ _goVer1200: "golang:1.20.0"
 	run: string | *"main.go"
 	ingress: #AppIngress
 	volumes: #Volumes
+	postgresql: #PostgreSQLs
 	port: int | *8080
 	rootDir: _appDir
 
@@ -65,6 +77,18 @@ _goVer1200: "golang:1.20.0"
 		env: [
 			for k, v in volumes {
 				"DODO_VOLUME_\(strings.ToUpper(k))=/dodo-volume/\(v.name)"
+			}
+			for k, v in postgresql {
+				"DODO_POSTGRESQL_\(strings.ToUpper(k))_ADDRESS=\(v.name).\(release.namespace).svc.cluster.local"
+			}
+			for k, v in postgresql {
+				"DODO_POSTGRESQL_\(strings.ToUpper(k))_USERNAME=postgres"
+			}
+			for k, v in postgresql {
+				"DODO_POSTGRESQL_\(strings.ToUpper(k))_PASSWORD=postgres"
+			}
+			for k, v in postgresql {
+				"DODO_POSTGRESQL_\(strings.ToUpper(k))_DATABASE=postgres"
 			}
 	    ]
 	}]
@@ -88,6 +112,7 @@ _hugoLatest: "hugo:latest"
 	type: _hugoLatest
 	ingress: #AppIngress
 	volumes: {}
+	postgresql: {}
 	port: int | *8080
 	rootDir: _appDir
 
@@ -115,6 +140,7 @@ _hugoLatest: "hugo:latest"
 	type: "php:8.2-apache"
 	ingress: #AppIngress
 	volumes: {}
+	postgresql: {}
 	port: int | *80
 	rootDir: "/var/www/html"
 
@@ -168,6 +194,7 @@ charts: {
 }
 
 volumes: app.volumes
+postgresql: app.postgresql
 
 helm: {
 	app: {

@@ -44,25 +44,6 @@ func TestAppTmplGolang1200(t *testing.T) {
 	}
 }
 
-func TestAppTmplGolang1220(t *testing.T) {
-	d, err := fs.Sub(appTmpl, "app-tmpl")
-	if err != nil {
-		t.Fatal(err)
-	}
-	store, err := NewAppTmplStoreFS(d)
-	if err != nil {
-		t.Fatal(err)
-	}
-	a, err := store.Find("golang-1.22.0")
-	if err != nil {
-		t.Fatal(err)
-	}
-	out := soft.NewBillyRepoFS(memfs.New())
-	if err := a.Render(network, "testapp", out); err != nil {
-		t.Fatal(err)
-	}
-}
-
 func TestAppTmplHugoLatest(t *testing.T) {
 	d, err := fs.Sub(appTmpl, "app-tmpl")
 	if err != nil {

@@ -1,9 +1,0 @@
-app: {
-	type: "golang:1.22.0"
-	run: "main.go"
-	ingress: {
-		network: "{{ .Network.Name }}"
-		subdomain: "{{ .Subdomain }}"
-		auth: enabled: false
-	}
-}

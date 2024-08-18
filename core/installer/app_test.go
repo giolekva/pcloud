@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"net"
 	"testing"
+
+	"cuelang.org/go/cue/errors"
 )
 
 var (
@@ -341,8 +343,12 @@ var testAppCue []byte
 func TestPCloudApp(t *testing.T) {
 	app, err := NewDodoApp(testAppCue)
 	if err != nil {
+		for _, e := range errors.Errors(err) {
+			t.Log(e)
+		}
 		t.Fatal(err)
 	}
+
 	release := Release{
 		Namespace:     "foo",
 		AppInstanceId: "foo-bar",

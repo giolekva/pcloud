@@ -128,7 +128,6 @@ networks: #Networks
 }
 
 ingress: {}
-
 _ingressValidate: {
 	for key, value in ingress {
 		"\(key)": #Ingress & value

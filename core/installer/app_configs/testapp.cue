@@ -6,7 +6,16 @@ app: {
 		subdomain: "testapp"
 		auth: enabled: false
 	}
-	volumes: data: size: "1Gi"
+	volumes: {
+		data: {
+			size: "1Gi"
+		}
+	}
+	postgresql: {
+		foo: {
+			size: "2Gi"
+		}
+	}
 }
 
 // do create app --type=go[1.22.0] [--run-cmd=(*default main.go)]

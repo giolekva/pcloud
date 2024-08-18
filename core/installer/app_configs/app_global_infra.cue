@@ -19,7 +19,3 @@
 }
 
 networks: #Networks
-
-ingress: {}
-_ingressValidate: {}
-

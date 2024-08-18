@@ -118,6 +118,11 @@ images: {
             "\(name)": #Image & image
         }
     }
+    for _, value in _postgresql {
+        for name, image in value.out.images {
+            "\(name)": #Image & image
+        }
+    }
 }
 
 charts: {}
@@ -134,6 +139,13 @@ charts: {
             }
         }
     }
+    for _, value in _postgresql {
+        for name, chart in value.out.charts {
+            "\(name)": #Chart & chart & {
+                name: name
+            }
+        }
+    }
 }
 charts: {
 	volume: {
@@ -141,6 +153,104 @@ charts: {
 		address: "https://code.v1.dodo.cloud/helm-charts"
 		branch: "main"
 		path: "charts/volumes"
+	}
+}
+
+#PostgreSQL: {
+	name: string
+	version: "15.3"
+	initSQL: string | *""
+	size: string | *"1Gi"
+
+	_size: size
+	_volumeClaimName: "postgresql"
+
+	out: {
+		images: {
+			postgres: #Image & {
+				repository: "library"
+				name: "postgres"
+				tag: version
+				pullPolicy: "IfNotPresent"
+			}
+		}
+		charts: {
+			volume: #Chart & {
+				kind: "GitRepository"
+				address: "https://code.v1.dodo.cloud/helm-charts"
+				branch: "main"
+				path: "charts/volumes"
+			}
+			postgres: #Chart & {
+				kind: "GitRepository"
+				address: "https://code.v1.dodo.cloud/helm-charts"
+				branch: "main"
+				path: "charts/postgresql"
+			}
+		}
+		charts: {
+			for key, value in charts {
+				"\(key)": #Chart & value & {
+					name: key
+				}
+			}
+		}
+		helm: {
+			"volume-name": {
+				chart: charts.volume
+				values: {
+					name: _volumeClaimName
+					size: _size
+				}
+			}
+			postgres: {
+				chart: charts.postgres
+				values: {
+					fullnameOverride: "postgres"
+					image: {
+						registry: images.postgres.registry
+						repository: images.postgres.imageName
+						tag: images.postgres.tag
+						pullPolicy: images.postgres.pullPolicy
+					}
+					auth: {
+						username: "postgres"
+						password: "postgres"
+						database: "postgres"
+					}
+					service: {
+						type: "ClusterIP"
+						port: 5432
+					}
+					primary: {
+						persistence: existingClaim: _volumeClaimName
+						if initSQL != "" {
+							initdb: scripts: "init.sql": initSQL
+						}
+						securityContext: {
+							enabled: true
+							fsGroup: 0
+						}
+						containerSecurityContext: {
+							enabled: true
+							runAsUser: 0
+						}
+					}
+					volumePermissions: securityContext: runAsUser: 0
+				}
+			}
+		}
+	}
+}
+
+_ingressValidate: {}
+
+postgresql: {}
+_postgresql: {
+	for key, value in postgresql {
+		"\(key)": #PostgreSQL & value & {
+			name: key
+		}
 	}
 }
 
@@ -181,6 +291,13 @@ _helmValidate: {
 		for ing, ingValue in value.out.helm {
 			"\(key)-\(ing)": #Helm & ingValue & {
 				name: "\(key)-\(ing)"
+			}
+		}
+	}
+	for key, value in _postgresql {
+		for post, postValue in value.out.helm {
+			"\(key)-\(post)": #Helm & postValue & {
+				name: "\(key)-\(post)"
 			}
 		}
 	}
