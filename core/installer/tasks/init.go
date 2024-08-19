@@ -102,7 +102,7 @@ func NewInitConfigRepoTask(env installer.EnvConfig, st *state) Task {
 		if err != nil {
 			return err
 		}
-		if err := repoIO.Do(func(r soft.RepoFS) (string, error) {
+		if _, err := repoIO.Do(func(r soft.RepoFS) (string, error) {
 			w, err := r.Writer("README.md")
 			if err != nil {
 				return "", err

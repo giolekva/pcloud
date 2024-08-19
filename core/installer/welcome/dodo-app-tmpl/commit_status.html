@@ -1,0 +1,32 @@
+{{ define "title" }}
+dodo app: {{ .AppName }}
+{{ end }}
+{{- define "content" -}}
+{{ if ne .Commit.Error "" }}
+{{ .CommitError }}
+{{ end }}
+{{- if gt (len .Resources.Volume) 0 -}}
+<h2>Volumes</h2>
+{{- range $v := .Resources.Volume -}}
+Name: {{ $v.Name }}<br/>
+Size: {{ $v.Size }}<br/>
+<br/>
+{{- end -}}
+{{- end -}}
+{{- if gt (len .Resources.PostgreSQL) 0 -}}
+<h2>PostgreSQL</h2>
+{{- range $p := .Resources.PostgreSQL -}}
+Name: {{ $p.Name }}<br/>
+Version: {{ $p.Version }}<br/>
+Volume: {{ $p.Volume }}<br/>
+<br/>
+{{- end -}}
+{{- end -}}
+{{- if gt (len .Resources.Ingress) 0 -}}
+<h2>Ingress</h2>
+{{- range $i := .Resources.Ingress -}}
+Host: {{ $i.Host }}<br/>
+<br/>
+{{- end -}}
+{{- end -}}
+{{- end -}}

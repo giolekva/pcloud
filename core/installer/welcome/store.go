@@ -1,11 +1,14 @@
 package welcome
 
 import (
+	"bytes"
 	"database/sql"
+	"encoding/json"
 	"errors"
 
 	"github.com/ncruces/go-sqlite3"
 
+	"github.com/giolekva/pcloud/core/installer"
 	"github.com/giolekva/pcloud/core/installer/soft"
 )
 
@@ -17,10 +20,16 @@ var (
 	ErrorAlreadyExists = errors.New("already exists")
 )
 
-type Commit struct {
-	Hash    string
+type CommitMeta struct {
 	Status  string
+	Error   string
+	Hash    string
 	Message string
+}
+
+type Commit struct {
+	CommitMeta
+	Resources installer.ReleaseResources
 }
 
 type Store interface {
@@ -31,8 +40,9 @@ type Store interface {
 	GetUserApps(username string) ([]string, error)
 	CreateApp(name, username string) error
 	GetAppOwner(name string) (string, error)
-	CreateCommit(name, hash, message, status string) error
-	GetCommitHistory(name string) ([]Commit, error)
+	CreateCommit(name, hash, message, status, error string, resources []byte) error
+	GetCommitHistory(name string) ([]CommitMeta, error)
+	GetCommit(hash string) (Commit, error)
 }
 
 func NewStore(cf soft.RepoIO, db *sql.DB) (Store, error) {
@@ -63,7 +73,9 @@ func (s *storeImpl) init() error {
 			app_name TEXT,
             hash TEXT,
             message TEXT,
-            status TEXT
+            status TEXT,
+            error TEXT,
+            resources JSONB
 		);
 	`)
 	return err
@@ -174,30 +186,48 @@ func (s *storeImpl) GetUserApps(username string) ([]string, error) {
 	return ret, nil
 }
 
-func (s *storeImpl) CreateCommit(name, hash, message, status string) error {
-	query := `INSERT INTO commits (app_name, hash, message, status) VALUES (?, ?, ?, ?)`
-	_, err := s.db.Exec(query, name, hash, message, status)
+func (s *storeImpl) CreateCommit(name, hash, message, status, error string, resources []byte) error {
+	query := `INSERT INTO commits (app_name, hash, message, status, error, resources) VALUES (?, ?, ?, ?, ?, ?)`
+	_, err := s.db.Exec(query, name, hash, message, status, error, resources)
 	return err
 }
 
-func (s *storeImpl) GetCommitHistory(name string) ([]Commit, error) {
-	query := `SELECT hash, message, status FROM commits WHERE app_name = ?`
+func (s *storeImpl) GetCommitHistory(name string) ([]CommitMeta, error) {
+	query := `SELECT hash, message, status, error FROM commits WHERE app_name = ?`
 	rows, err := s.db.Query(query, name)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	ret := []Commit{}
+	ret := []CommitMeta{}
 	for rows.Next() {
 		if err := rows.Err(); err != nil {
 			return nil, err
 		}
-		var c Commit
-		if err := rows.Scan(&c.Hash, &c.Message, &c.Status); err != nil {
+		var c CommitMeta
+		if err := rows.Scan(&c.Hash, &c.Message, &c.Status, &c.Error); err != nil {
 			return nil, err
 		}
 		ret = append(ret, c)
 
+	}
+	return ret, nil
+}
+
+func (s *storeImpl) GetCommit(hash string) (Commit, error) {
+	query := `SELECT hash, message, status, error, resources FROM commits WHERE hash = ?`
+	row := s.db.QueryRow(query, hash)
+	if err := row.Err(); err != nil {
+		return Commit{}, err
+	}
+	var ret Commit
+	var c Commit
+	var res []byte
+	if err := row.Scan(&c.Hash, &c.Message, &c.Status, &c.Error, &res); err != nil {
+		return Commit{}, err
+	}
+	if err := json.NewDecoder(bytes.NewBuffer(res)).Decode(&ret.Resources); err != nil {
+		return Commit{}, err
 	}
 	return ret, nil
 }

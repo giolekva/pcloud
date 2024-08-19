@@ -88,13 +88,14 @@ func ConfigureFirstAccount(env installer.EnvConfig, st *state) Task {
 		if err != nil {
 			return err
 		}
-		return r.Do(func(r soft.RepoFS) (string, error) {
+		_, err = r.Do(func(r soft.RepoFS) (string, error) {
 			fa := firstAccount{false, env.Domain, initGroups}
 			if err := soft.WriteYaml(r, "first-account.yaml", fa); err != nil {
 				return "", err
 			}
 			return "first account membership configuration", nil
 		})
+		return err
 	})
 	return &t
 }

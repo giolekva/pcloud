@@ -49,6 +49,13 @@ appType: #AppType | *"env"
 
 volumes: {}
 volumes: {
+	for _, p in _postgresql {
+		for k, v in p.out.volumes {
+			"\(k)": v
+		}
+	}
+}
+volumes: {
 	for key, value in volumes {
 		"\(key)": #volume & value & {
 			name: key
@@ -163,7 +170,7 @@ charts: {
 	size: string | *"1Gi"
 
 	_size: size
-	_volumeClaimName: "postgresql"
+	_volumeClaimName: "\(name)-postgresql"
 
 	out: {
 		images: {
@@ -175,18 +182,15 @@ charts: {
 			}
 		}
 		charts: {
-			volume: #Chart & {
-				kind: "GitRepository"
-				address: "https://code.v1.dodo.cloud/helm-charts"
-				branch: "main"
-				path: "charts/volumes"
-			}
 			postgres: #Chart & {
 				kind: "GitRepository"
 				address: "https://code.v1.dodo.cloud/helm-charts"
 				branch: "main"
 				path: "charts/postgresql"
 			}
+		}
+		volumes: {
+			"\(_volumeClaimName)": size: _size
 		}
 		charts: {
 			for key, value in charts {
@@ -196,15 +200,14 @@ charts: {
 			}
 		}
 		helm: {
-			"volume-name": {
-				chart: charts.volume
-				values: {
-					name: _volumeClaimName
-					size: _size
-				}
-			}
 			postgres: {
 				chart: charts.postgres
+				annotations: {
+					"dodo.cloud/resource-type": "postgresql"
+					"dodo.cloud/resource.postgresql.name": name
+					"dodo.cloud/resource.postgresql.version": version
+					"dodo.cloud/resource.postgresql.volume": _volumeClaimName
+				}
 				values: {
 					fullnameOverride: "postgres"
 					image: {
@@ -270,6 +273,7 @@ localCharts: {
 	name: string
 	dependsOn: [...#ResourceReference] | *[]
 	info: string | *""
+	annotations: {...} | *{}
 	...
 }
 
@@ -284,6 +288,11 @@ _helmValidate: {
 		"\(key)-volume": #Helm & {
 			chart: charts.volume
 			info: "Creating disk for \(key)"
+			annotations: {
+				"dodo.cloud/resource-type": "volume"
+				"dodo.cloud/resource.volume.name": value.name
+				"dodo.cloud/resource.volume.size": value.size
+			}
 			values: value
 		}
 	}
@@ -309,13 +318,14 @@ _helmValidate: {
 	_values: _
 	_dependencies: [...#ResourceReference] | *[]
 	_info: string | *""
+	_annotations: {...} | *{}
 
 	apiVersion: "helm.toolkit.fluxcd.io/v2beta1"
 	kind: "HelmRelease"
 	metadata: {
 		name: _name
    		namespace: release.namespace
-        annotations: {
+        annotations: _annotations & {
           "dodo.cloud/installer-info": _info
         }
 	}
@@ -335,6 +345,7 @@ output: {
 			_values: r.values
 			_dependencies: r.dependsOn
 			_info: r.info
+			_annotations: r.annotations
 		}
 	}
 }

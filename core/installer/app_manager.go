@@ -285,9 +285,10 @@ func createKustomizationChain(r soft.RepoFS, path string) error {
 }
 
 type Resource struct {
-	Name      string `json:"name"`
-	Namespace string `json:"namespace"`
-	Info      string `json:"info"`
+	Name        string            `json:"name"`
+	Namespace   string            `json:"namespace"`
+	Info        string            `json:"info"`
+	Annotations map[string]string `json:"annotations"`
 }
 
 type ReleaseResources struct {
@@ -326,7 +327,7 @@ func installApp(
 	if o.NoLock {
 		dopts = append(dopts, soft.WithNoLock())
 	}
-	return repo.Do(func(r soft.RepoFS) (string, error) {
+	_, err := repo.Do(func(r soft.RepoFS) (string, error) {
 		if err := r.RemoveDir(appDir); err != nil {
 			return "", err
 		}
@@ -386,6 +387,7 @@ func installApp(
 		}
 		return fmt.Sprintf("install: %s", name), nil
 	}, dopts...)
+	return err
 }
 
 // TODO(gio): commit instanceId -> appDir mapping as well
@@ -529,11 +531,13 @@ func extractHelm(resources CueAppData) []Resource {
 		}
 		if h.Kind == "HelmRelease" {
 			res := Resource{
-				Name:      h.Metadata.Name,
-				Namespace: h.Metadata.Namespace,
-				Info:      fmt.Sprintf("%s/%s", h.Metadata.Namespace, h.Metadata.Name),
+				Name:        h.Metadata.Name,
+				Namespace:   h.Metadata.Namespace,
+				Info:        fmt.Sprintf("%s/%s", h.Metadata.Namespace, h.Metadata.Name),
+				Annotations: nil,
 			}
 			if h.Metadata.Annotations != nil {
+				res.Annotations = h.Metadata.Annotations
 				info, ok := h.Metadata.Annotations["dodo.cloud/installer-info"]
 				if ok && len(info) != 0 {
 					res.Info = info
@@ -599,7 +603,7 @@ func (m *AppManager) Remove(instanceId string) error {
 		return err
 	}
 	var portForward []PortForward
-	if err := m.repoIO.Do(func(r soft.RepoFS) (string, error) {
+	if _, err := m.repoIO.Do(func(r soft.RepoFS) (string, error) {
 		instanceDir := filepath.Join(m.appDirRoot, instanceId)
 		renderedCfg, err := readRendered(m.repoIO, filepath.Join(instanceDir, "rendered.json"))
 		if err != nil {

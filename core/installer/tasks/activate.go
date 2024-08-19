@@ -32,7 +32,7 @@ func AddNewEnvTask(env installer.EnvConfig, st *state) Task {
 			return err
 		}
 		repoHost := strings.Split(st.ssClient.Address(), ":")[0]
-		return st.repo.Do(func(r soft.RepoFS) (string, error) {
+		_, err = st.repo.Do(func(r soft.RepoFS) (string, error) {
 			kust, err := soft.ReadKustomization(r, "environments/kustomization.yaml")
 			if err != nil {
 				return "", err
@@ -69,6 +69,7 @@ func AddNewEnvTask(env installer.EnvConfig, st *state) Task {
 			}
 			return fmt.Sprintf("%s: initialize environment", env.Id), nil
 		})
+		return err
 	})
 	return &t
 }

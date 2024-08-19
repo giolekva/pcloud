@@ -343,7 +343,7 @@ func (b Bootstrapper) installFluxcd(ss soft.Client, envName string) error {
 	if err != nil {
 		return err
 	}
-	if err := repoIO.Do(func(r soft.RepoFS) (string, error) {
+	if _, err := repoIO.Do(func(r soft.RepoFS) (string, error) {
 		w, err := r.Writer("README.md")
 		if err != nil {
 			return "", err
@@ -438,7 +438,7 @@ func (b Bootstrapper) installInfrastructureServices(mgr *InfraAppManager, env Bo
 }
 
 func configureMainRepo(repo soft.RepoIO, bootstrap BootstrapConfig) error {
-	return repo.Do(func(r soft.RepoFS) (string, error) {
+	_, err := repo.Do(func(r soft.RepoFS) (string, error) {
 		if err := soft.WriteYaml(r, "bootstrap-config.yaml", bootstrap); err != nil {
 			return "", err
 		}
@@ -495,6 +495,7 @@ spec:
 		}
 		return "initialize pcloud directory structure", nil
 	})
+	return err
 }
 
 func (b Bootstrapper) installEnvManager(mgr *InfraAppManager, ss soft.Client, env BootstrapConfig) error {

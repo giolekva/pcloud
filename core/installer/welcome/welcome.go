@@ -266,7 +266,7 @@ type createUserRequest struct {
 }
 
 func (s *Server) createUser(username string) error {
-	return s.repo.Do(func(r soft.RepoFS) (string, error) {
+	_, err := s.repo.Do(func(r soft.RepoFS) (string, error) {
 		var fa firstAccount
 		if err := soft.ReadYaml(r, "first-account.yaml", &fa); err != nil {
 			return "", err
@@ -311,4 +311,5 @@ func (s *Server) createUser(username string) error {
 		}
 		return "initialized groups for first account", nil
 	})
+	return err
 }

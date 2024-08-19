@@ -101,6 +101,10 @@ networks: #Networks
 				chart: charts.ingress
 				_service: service
                 info: "Generating TLS certificate for https://\(_domain)"
+				annotations: {
+					"dodo.cloud/resource-type": "ingress"
+					"dodo.cloud/resource.ingress.host": "https://\(_domain)"
+				}
 				values: {
 					domain: _domain
 					appRoot: _appRoot

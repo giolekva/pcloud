@@ -76,17 +76,17 @@ func (r mockRepoIO) Pull() error {
 	return nil
 }
 
-func (r mockRepoIO) CommitAndPush(message string, opts ...soft.PushOption) error {
+func (r mockRepoIO) CommitAndPush(message string, opts ...soft.PushOption) (string, error) {
 	r.t.Logf("Commit and push: %s", message)
-	return nil
+	return "", nil
 }
 
-func (r mockRepoIO) Do(op soft.DoFn, _ ...soft.DoOption) error {
+func (r mockRepoIO) Do(op soft.DoFn, _ ...soft.DoOption) (string, error) {
 	r.l.Lock()
 	defer r.l.Unlock()
 	msg, err := op(r)
 	if err != nil {
-		return err
+		return "", err
 	}
 	return r.CommitAndPush(msg)
 }

@@ -280,7 +280,8 @@ func (s *EnvServer) writeInvitations(invitations []invitation) error {
 			return err
 		}
 	}
-	return s.repo.CommitAndPush("Generated new invitation")
+	_, err = s.repo.CommitAndPush("Generated new invitation")
+	return err
 }
 
 func extractRequest(r *http.Request) (createEnvReq, error) {
@@ -380,7 +381,7 @@ func (s *EnvServer) createEnv(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	if err := s.repo.CommitAndPush(fmt.Sprintf("Allocate CIDR for %s", req.Name)); err != nil {
+	if _, err := s.repo.CommitAndPush(fmt.Sprintf("Allocate CIDR for %s", req.Name)); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}

@@ -42,11 +42,13 @@ const (
 	apiCreateApp   = "/api/apps"
 	sessionCookie  = "dodo-app-session"
 	userCtx        = "user"
+	initCommitMsg  = "init"
 )
 
 type dodoAppTmplts struct {
-	index     *template.Template
-	appStatus *template.Template
+	index        *template.Template
+	appStatus    *template.Template
+	commitStatus *template.Template
 }
 
 func parseTemplatesDodoApp(fs embed.FS) (dodoAppTmplts, error) {
@@ -69,7 +71,11 @@ func parseTemplatesDodoApp(fs embed.FS) (dodoAppTmplts, error) {
 	if err != nil {
 		return dodoAppTmplts{}, err
 	}
-	return dodoAppTmplts{index, appStatus}, nil
+	commitStatus, err := parse("dodo-app-tmpl/commit_status.html")
+	if err != nil {
+		return dodoAppTmplts{}, err
+	}
+	return dodoAppTmplts{index, appStatus, commitStatus}, nil
 }
 
 type DodoAppServer struct {
@@ -185,6 +191,7 @@ func (s *DodoAppServer) Start() error {
 		r.HandleFunc(apiCreateApp, s.handleAPICreateApp).Methods(http.MethodPost)
 		r.HandleFunc("/{app-name}"+loginPath, s.handleLoginForm).Methods(http.MethodGet)
 		r.HandleFunc("/{app-name}"+loginPath, s.handleLogin).Methods(http.MethodPost)
+		r.HandleFunc("/{app-name}/{hash}", s.handleAppCommit).Methods(http.MethodGet)
 		r.HandleFunc("/{app-name}", s.handleAppStatus).Methods(http.MethodGet)
 		r.HandleFunc("/", s.handleStatus).Methods(http.MethodGet)
 		r.HandleFunc("/", s.handleCreateApp).Methods(http.MethodPost)
@@ -373,10 +380,16 @@ func (s *DodoAppServer) handleLogin(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, fmt.Sprintf("/%s", appName), http.StatusSeeOther)
 }
 
+type navItem struct {
+	Name    string
+	Address string
+}
+
 type statusData struct {
-	Apps     []string
-	Networks []installer.Network
-	Types    []string
+	Navigation []navItem
+	Apps       []string
+	Networks   []installer.Network
+	Types      []string
 }
 
 func (s *DodoAppServer) handleStatus(w http.ResponseWriter, r *http.Request) {
@@ -399,7 +412,8 @@ func (s *DodoAppServer) handleStatus(w http.ResponseWriter, r *http.Request) {
 	for _, t := range s.appTmpls.Types() {
 		types = append(types, strings.Replace(t, "-", ":", 1))
 	}
-	data := statusData{apps, networks, types}
+	n := []navItem{navItem{"Home", "/"}}
+	data := statusData{n, apps, networks, types}
 	if err := s.tmplts.index.Execute(w, data); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -407,9 +421,10 @@ func (s *DodoAppServer) handleStatus(w http.ResponseWriter, r *http.Request) {
 }
 
 type appStatusData struct {
+	Navigation      []navItem
 	Name            string
 	GitCloneCommand string
-	Commits         []Commit
+	Commits         []CommitMeta
 }
 
 func (s *DodoAppServer) handleAppStatus(w http.ResponseWriter, r *http.Request) {
@@ -444,11 +459,106 @@ func (s *DodoAppServer) handleAppStatus(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 	data := appStatusData{
+		Navigation: []navItem{
+			navItem{"Home", "/"},
+			navItem{appName, "/" + appName},
+		},
 		Name:            appName,
 		GitCloneCommand: fmt.Sprintf("git clone %s/%s\n\n\n", s.repoPublicAddr, appName),
 		Commits:         commits,
 	}
 	if err := s.tmplts.appStatus.Execute(w, data); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+}
+
+type volume struct {
+	Name string
+	Size string
+}
+
+type postgresql struct {
+	Name    string
+	Version string
+	Volume  string
+}
+
+type ingress struct {
+	Host string
+}
+
+type resourceData struct {
+	Volume     []volume
+	PostgreSQL []postgresql
+	Ingress    []ingress
+}
+
+type commitStatusData struct {
+	Navigation []navItem
+	AppName    string
+	Commit     Commit
+	Resources  resourceData
+}
+
+func (s *DodoAppServer) handleAppCommit(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	appName, ok := vars["app-name"]
+	if !ok || appName == "" {
+		http.Error(w, "missing app-name", http.StatusBadRequest)
+		return
+	}
+	hash, ok := vars["hash"]
+	if !ok || appName == "" {
+		http.Error(w, "missing app-name", http.StatusBadRequest)
+		return
+	}
+	u := r.Context().Value(userCtx)
+	if u == nil {
+		http.Error(w, "unauthorized", http.StatusUnauthorized)
+		return
+	}
+	user, ok := u.(string)
+	if !ok {
+		http.Error(w, "could not get user", http.StatusInternalServerError)
+		return
+	}
+	owner, err := s.st.GetAppOwner(appName)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	if owner != user {
+		http.Error(w, "unauthorized", http.StatusUnauthorized)
+		return
+	}
+	commit, err := s.st.GetCommit(hash)
+	if err != nil {
+		// TODO(gio): not-found ?
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	var res strings.Builder
+	if err := json.NewEncoder(&res).Encode(commit.Resources.Helm); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	resData, err := extractResourceData(commit.Resources.Helm)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	data := commitStatusData{
+		Navigation: []navItem{
+			navItem{"Home", "/"},
+			navItem{appName, "/" + appName},
+			navItem{hash, "/" + appName + "/" + hash},
+		},
+		AppName:   appName,
+		Commit:    commit,
+		Resources: resData,
+	}
+	if err := s.tmplts.commitStatus.Execute(w, data); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -508,15 +618,10 @@ func (s *DodoAppServer) handleAPIUpdate(w http.ResponseWriter, r *http.Request) 
 			fmt.Printf("Error: could not find commit message")
 			return
 		}
-		if err := s.updateDodoApp(instanceAppStatus, req.Repository.Name, s.appConfigs[req.Repository.Name].Namespace, networks); err != nil {
+		resources, err := s.updateDodoApp(instanceAppStatus, req.Repository.Name, s.appConfigs[req.Repository.Name].Namespace, networks)
+		if err = s.createCommit(req.Repository.Name, req.After, commitMsg, err, resources); err != nil {
 			fmt.Printf("Error: %s\n", err.Error())
-			if err := s.st.CreateCommit(req.Repository.Name, req.After, commitMsg, err.Error()); err != nil {
-				fmt.Printf("Error: %s\n", err.Error())
-			}
 			return
-		}
-		if err := s.st.CreateCommit(req.Repository.Name, req.After, commitMsg, "OK"); err != nil {
-			fmt.Printf("Error: %s\n", err.Error())
 		}
 		for addr, _ := range s.workers[req.Repository.Name] {
 			go func() {
@@ -710,7 +815,8 @@ func (s *DodoAppServer) createApp(user, appName, appType, network, subdomain str
 	if err != nil {
 		return err
 	}
-	if err := s.initRepo(appRepo, appType, n, subdomain); err != nil {
+	commit, err := s.initRepo(appRepo, appType, n, subdomain)
+	if err != nil {
 		return err
 	}
 	apps := installer.NewInMemoryAppRepository(installer.CreateAllApps())
@@ -729,7 +835,12 @@ func (s *DodoAppServer) createApp(user, appName, appType, network, subdomain str
 	}
 	namespace := fmt.Sprintf("%s%s%s", s.env.NamespacePrefix, instanceApp.Namespace(), suffix)
 	s.appConfigs[appName] = appConfig{namespace, network}
-	if err := s.updateDodoApp(instanceAppStatus, appName, namespace, networks); err != nil {
+	resources, err := s.updateDodoApp(instanceAppStatus, appName, namespace, networks)
+	if err != nil {
+		return err
+	}
+	if err = s.createCommit(appName, commit, initCommitMsg, err, resources); err != nil {
+		fmt.Printf("Error: %s\n", err.Error())
 		return err
 	}
 	configRepo, err := s.client.GetRepo(ConfigRepoName)
@@ -741,7 +852,7 @@ func (s *DodoAppServer) createApp(user, appName, appType, network, subdomain str
 	if err != nil {
 		return err
 	}
-	if err := configRepo.Do(func(fs soft.RepoFS) (string, error) {
+	_, err = configRepo.Do(func(fs soft.RepoFS) (string, error) {
 		w, err := fs.Writer(appConfigsFile)
 		if err != nil {
 			return "", err
@@ -768,7 +879,8 @@ func (s *DodoAppServer) createApp(user, appName, appType, network, subdomain str
 			return "", err
 		}
 		return fmt.Sprintf("Installed app: %s", appName), nil
-	}); err != nil {
+	})
+	if err != nil {
 		return err
 	}
 	cfg, err := m.FindInstance(appName)
@@ -849,32 +961,33 @@ type dodoAppRendered struct {
 	} `json:"input"`
 }
 
-func (s *DodoAppServer) updateDodoApp(appStatus installer.EnvApp, name, namespace string, networks []installer.Network) error {
+func (s *DodoAppServer) updateDodoApp(appStatus installer.EnvApp, name, namespace string, networks []installer.Network) (installer.ReleaseResources, error) {
 	fmt.Println("111")
 	repo, err := s.client.GetRepo(name)
 	if err != nil {
-		return err
+		return installer.ReleaseResources{}, err
 	}
 	fmt.Println("111")
 	hf := installer.NewGitHelmFetcher()
 	m, err := installer.NewAppManager(repo, s.nsc, s.jc, hf, "/.dodo")
 	if err != nil {
-		return err
+		return installer.ReleaseResources{}, err
 	}
 	fmt.Println("111")
 	appCfg, err := soft.ReadFile(repo, "app.cue")
 	if err != nil {
-		return err
+		return installer.ReleaseResources{}, err
 	}
 	fmt.Println("111")
 	app, err := installer.NewDodoApp(appCfg)
 	if err != nil {
-		return err
+		return installer.ReleaseResources{}, err
 	}
 	fmt.Println("111")
 	lg := installer.GitRepositoryLocalChartGenerator{"app", namespace}
-	return repo.Do(func(r soft.RepoFS) (string, error) {
-		res, err := m.Install(
+	var ret installer.ReleaseResources
+	if _, err := repo.Do(func(r soft.RepoFS) (string, error) {
+		ret, err = m.Install(
 			app,
 			"app",
 			"/.dodo/app",
@@ -898,7 +1011,7 @@ func (s *DodoAppServer) updateDodoApp(appStatus installer.EnvApp, name, namespac
 		}
 		fmt.Println("111")
 		var rendered dodoAppRendered
-		if err := json.NewDecoder(bytes.NewReader(res.RenderedRaw)).Decode(&rendered); err != nil {
+		if err := json.NewDecoder(bytes.NewReader(ret.RenderedRaw)).Decode(&rendered); err != nil {
 			return "", nil
 		}
 		fmt.Println("111")
@@ -926,20 +1039,23 @@ func (s *DodoAppServer) updateDodoApp(appStatus installer.EnvApp, name, namespac
 	},
 		soft.WithCommitToBranch("dodo"),
 		soft.WithForce(),
-	)
+	); err != nil {
+		return installer.ReleaseResources{}, err
+	}
+	return ret, nil
 }
 
-func (s *DodoAppServer) initRepo(repo soft.RepoIO, appType string, network installer.Network, subdomain string) error {
+func (s *DodoAppServer) initRepo(repo soft.RepoIO, appType string, network installer.Network, subdomain string) (string, error) {
 	appType = strings.Replace(appType, ":", "-", 1)
 	appTmpl, err := s.appTmpls.Find(appType)
 	if err != nil {
-		return err
+		return "", err
 	}
 	return repo.Do(func(fs soft.RepoFS) (string, error) {
 		if err := appTmpl.Render(network, subdomain, repo); err != nil {
 			return "", err
 		}
-		return "init", nil
+		return initCommitMsg, nil
 	})
 }
 
@@ -992,6 +1108,30 @@ func (s *DodoAppServer) handleAPIPublicData(w http.ResponseWriter, r *http.Reque
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
+}
+
+func (s *DodoAppServer) createCommit(name, hash, message string, err error, resources installer.ReleaseResources) error {
+	if err != nil {
+		fmt.Printf("Error: %s\n", err.Error())
+		if err := s.st.CreateCommit(name, hash, message, "FAILED", err.Error(), nil); err != nil {
+			fmt.Printf("Error: %s\n", err.Error())
+			return err
+		}
+		return err
+	}
+	var resB bytes.Buffer
+	if err := json.NewEncoder(&resB).Encode(resources); err != nil {
+		if err := s.st.CreateCommit(name, hash, message, "FAILED", err.Error(), nil); err != nil {
+			fmt.Printf("Error: %s\n", err.Error())
+			return err
+		}
+		return err
+	}
+	if err := s.st.CreateCommit(name, hash, message, "OK", "", resB.Bytes()); err != nil {
+		fmt.Printf("Error: %s\n", err.Error())
+		return err
+	}
+	return nil
 }
 
 func pickNetwork(networks []installer.Network, network string) []installer.Network {
@@ -1193,4 +1333,49 @@ func (s *DodoAppServer) syncUsers() {
 			}
 		}
 	}
+}
+
+func extractResourceData(resources []installer.Resource) (resourceData, error) {
+	var ret resourceData
+	for _, r := range resources {
+		t, ok := r.Annotations["dodo.cloud/resource-type"]
+		if !ok {
+			continue
+		}
+		switch t {
+		case "volume":
+			name, ok := r.Annotations["dodo.cloud/resource.volume.name"]
+			if !ok {
+				return resourceData{}, fmt.Errorf("no name")
+			}
+			size, ok := r.Annotations["dodo.cloud/resource.volume.size"]
+			if !ok {
+				return resourceData{}, fmt.Errorf("no size")
+			}
+			ret.Volume = append(ret.Volume, volume{name, size})
+		case "postgresql":
+			name, ok := r.Annotations["dodo.cloud/resource.postgresql.name"]
+			if !ok {
+				return resourceData{}, fmt.Errorf("no name")
+			}
+			version, ok := r.Annotations["dodo.cloud/resource.postgresql.version"]
+			if !ok {
+				return resourceData{}, fmt.Errorf("no version")
+			}
+			volume, ok := r.Annotations["dodo.cloud/resource.postgresql.volume"]
+			if !ok {
+				return resourceData{}, fmt.Errorf("no volume")
+			}
+			ret.PostgreSQL = append(ret.PostgreSQL, postgresql{name, version, volume})
+		case "ingress":
+			host, ok := r.Annotations["dodo.cloud/resource.ingress.host"]
+			if !ok {
+				return resourceData{}, fmt.Errorf("no host")
+			}
+			ret.Ingress = append(ret.Ingress, ingress{host})
+		default:
+			fmt.Printf("Unknown resource: %+v\n", r.Annotations)
+		}
+	}
+	return ret, nil
 }

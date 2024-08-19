@@ -98,8 +98,8 @@ type RepoIO interface {
 	RepoFS
 	FullAddress() string
 	Pull() error
-	CommitAndPush(message string, opts ...PushOption) error
-	Do(op DoFn, opts ...DoOption) error
+	CommitAndPush(message string, opts ...PushOption) (string, error)
+	Do(op DoFn, opts ...DoOption) (string, error)
 }
 
 type repoFS struct {
@@ -190,32 +190,33 @@ func (r *repoIO) pullWithoutLock() error {
 	return nil
 }
 
-func (r *repoIO) CommitAndPush(message string, opts ...PushOption) error {
+func (r *repoIO) CommitAndPush(message string, opts ...PushOption) (string, error) {
 	var o pushOptions
 	for _, i := range opts {
 		i(&o)
 	}
 	wt, err := r.repo.Worktree()
 	if err != nil {
-		return err
+		return "", err
 	}
 	if err := wt.AddGlob("*"); err != nil {
-		return err
+		return "", err
 	}
 	st, err := wt.Status()
 	if err != nil {
-		return err
+		return "", err
 	}
 	if len(st) == 0 {
-		return nil // TODO(gio): maybe return ErrorNothingToCommit
+		return "", nil // TODO(gio): maybe return ErrorNothingToCommit
 	}
-	if _, err := wt.Commit(message, &git.CommitOptions{
+	hash, err := wt.Commit(message, &git.CommitOptions{
 		Author: &object.Signature{
 			Name: "pcloud-installer",
 			When: time.Now(),
 		},
-	}); err != nil {
-		return err
+	})
+	if err != nil {
+		return "", err
 	}
 	gopts := &git.PushOptions{
 		RemoteName: "origin",
@@ -227,10 +228,10 @@ func (r *repoIO) CommitAndPush(message string, opts ...PushOption) error {
 	if o.Force {
 		gopts.Force = true
 	}
-	return r.repo.Push(gopts)
+	return hash.String(), r.repo.Push(gopts)
 }
 
-func (r *repoIO) Do(op DoFn, opts ...DoOption) error {
+func (r *repoIO) Do(op DoFn, opts ...DoOption) (string, error) {
 	o := &doOptions{}
 	for _, i := range opts {
 		i(o)
@@ -241,15 +242,15 @@ func (r *repoIO) Do(op DoFn, opts ...DoOption) error {
 	}
 	if !o.NoPull {
 		if err := r.pullWithoutLock(); err != nil {
-			return err
+			return "", err
 		}
 	}
 	msg, err := op(r)
 	if err != nil {
-		return err
+		return "", err
 	}
 	if o.NoCommit {
-		return nil
+		return "", nil
 	}
 	popts := []PushOption{}
 	if o.Force {

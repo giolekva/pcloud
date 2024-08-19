@@ -8,6 +8,13 @@
     <link rel="stylesheet" href="/stat/dodo_app.css?v=0.0.8">
 </head>
 <body class="container">
+	<nav aria-label="breadcrumb">
+		<ul>
+			{{- range $i := .Navigation }}
+			<li><a href="{{ $i.Address }}">{{- $i.Name -}}</a></li>
+			{{- end }}
+		</ul>
+	</nav>
     {{- block "content" . }}
     {{- end }}
 </body>
