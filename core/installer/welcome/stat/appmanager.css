@@ -327,3 +327,11 @@ main > aside#menu-nav nav {
 .primary {
   color: #7f9f7f;
 }
+
+.search-icon {
+  background-image: var(--pico-icon-search) !important;
+}
+
+.search-progress-icon {
+  background-image: var(--pico-icon-loading) !important;
+}

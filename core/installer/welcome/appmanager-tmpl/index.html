@@ -1,6 +1,6 @@
 {{ define "header" }}
   <form id="search-form" class="search-bar" method="GET" action="/{{ .SearchTarget }}">
-      <input id="search-input" name="query" type="search" placeholder="Search" value="{{ .SearchValue }}"/>
+      <input id="search-input" class="search-icon" name="query" type="search" placeholder="Search" value="{{ .SearchValue }}"/>
   </form>
   <input type="hidden" id="page-type" value="{{ .SearchTarget }}" />
 {{ end }}
