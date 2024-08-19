@@ -79,7 +79,7 @@ _goVer1200: "golang:1.20.0"
 				"DODO_VOLUME_\(strings.ToUpper(k))=/dodo-volume/\(v.name)"
 			}
 			for k, v in postgresql {
-				"DODO_POSTGRESQL_\(strings.ToUpper(k))_ADDRESS=\(v.name).\(release.namespace).svc.cluster.local"
+				"DODO_POSTGRESQL_\(strings.ToUpper(k))_ADDRESS=postgres-\(v.name).\(release.namespace).svc.cluster.local"
 			}
 			for k, v in postgresql {
 				"DODO_POSTGRESQL_\(strings.ToUpper(k))_USERNAME=postgres"

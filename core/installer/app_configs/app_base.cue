@@ -209,7 +209,7 @@ charts: {
 					"dodo.cloud/resource.postgresql.volume": _volumeClaimName
 				}
 				values: {
-					fullnameOverride: "postgres"
+					fullnameOverride: "postgres-\(name)"
 					image: {
 						registry: images.postgres.registry
 						repository: images.postgres.imageName
@@ -217,6 +217,7 @@ charts: {
 						pullPolicy: images.postgres.pullPolicy
 					}
 					auth: {
+						postgresPassword: "postgres"
 						username: "postgres"
 						password: "postgres"
 						database: "postgres"
@@ -224,6 +225,16 @@ charts: {
 					service: {
 						type: "ClusterIP"
 						port: 5432
+					}
+					global: {
+						postgresql: {
+							auth: {
+								postgresPassword: "postgres"
+								username: "postgres"
+								password: "postgres"
+								database: "postgres"
+							}
+						}
 					}
 					primary: {
 						persistence: existingClaim: _volumeClaimName
