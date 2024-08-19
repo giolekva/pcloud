@@ -260,7 +260,7 @@ func TestCreateNewEnv(t *testing.T) {
 	jc := fakeJobCreator{t}
 	hf := fakeHelmFetcher{t}
 	lg := installer.GitRepositoryLocalChartGenerator{"foo", "bar"}
-	infraRepo := mockRepoIO{soft.NewBillyRepoFS(infraFS), "foo.bar", t, &sync.Mutex{}}
+	infraRepo := soft.NewMockRepoIO(soft.NewBillyRepoFS(infraFS), "foo.bar", t)
 	infraMgr, err := installer.NewInfraAppManager(infraRepo, nsCreator, hf, lg)
 	if err != nil {
 		t.Fatal(err)

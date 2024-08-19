@@ -1,166 +1,79 @@
 package main
 
 import (
-	"bytes"
-	"encoding/json"
-	"io"
-	"net/http"
-	"os"
+	"fmt"
 	"reflect"
+	"strconv"
 	"testing"
+
+	"github.com/giolekva/pcloud/core/installer/soft"
+
+	"github.com/go-git/go-billy/v5/memfs"
 )
 
-type fakeClient struct {
-	contents map[string]any
-}
-
-func (c *fakeClient) ReadRelease() (map[string]any, error) {
-	return c.contents, nil
-}
-
-func (c *fakeClient) WriteRelease(rel map[string]any, meta string) error {
-	c.contents = rel
-	return nil
+func fakeSecretGenerator(secret string) SecretGenerator {
+	return func() (string, error) {
+		return secret, nil
+	}
 }
 
 func TestAllocateSucceeds(t *testing.T) {
-	c := &fakeClient{map[string]any{
-		"spec": map[string]any{
-			"values": map[string]any{},
-		},
-	}}
-	s := newServer(8080, c) // TODO(gio): run using unix socket
-	go func() {
-		s.Start()
-	}()
-	defer s.Close()
-	var buf bytes.Buffer
-	req := allocateReq{
-		Protocol:      "TCP",
-		SourcePort:    22,
-		TargetService: "foo",
-		TargetPort:    2222,
-	}
-	if err := json.NewEncoder(&buf).Encode(req); err != nil {
-		t.Fatal(err)
-	}
-	resp, err := http.Post("http://localhost:8080/api/allocate", "application/json", &buf)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if resp.StatusCode != http.StatusOK {
-		io.Copy(os.Stdout, resp.Body)
-		t.Fatalf("Expected %d, got %d", http.StatusOK, resp.StatusCode)
-	}
-	expected := map[string]any{
+	ingressPath := "/ingress.yaml"
+	fs := memfs.New()
+	repo := soft.NewMockRepoIO(soft.NewBillyRepoFS(fs), "foo.bar", t)
+	if err := soft.WriteYaml(repo, ingressPath, map[string]any{
 		"spec": map[string]any{
 			"values": map[string]any{
-				"tcp": map[string]any{
-					"22": "foo:2222",
+				"controller": map[string]any{
+					"service": map[string]any{
+						"type": "ClusterIP",
+					},
 				},
+				"tcp": map[string]any{},
 				"udp": map[string]any{},
 			},
 		},
+	}); err != nil {
+		t.Fatal(err)
 	}
-	if !reflect.DeepEqual(expected, c.contents) {
-		t.Fatalf("Expected %v, got %v", expected, c.contents)
+	c, err := newRepoClient(repo, ingressPath, 5, 10, fakeSecretGenerator("test"))
+	if err != nil {
+		t.Fatal(err)
 	}
-}
-
-func TestAllocateConflicts(t *testing.T) {
-	c := &fakeClient{map[string]any{
+	tcp := map[string]any{}
+	udp := map[string]any{}
+	expected := map[string]any{
 		"spec": map[string]any{
 			"values": map[string]any{
-				"tcp": map[string]any{
-					"22": "foo:2222",
+				"controller": map[string]any{
+					"service": map[string]any{
+						"type": "ClusterIP",
+					},
 				},
+				"tcp": tcp,
+				"udp": udp,
 			},
 		},
-	}}
-	s := newServer(8080, c) // TODO(gio): run using unix socket
-	go func() {
-		s.Start()
-	}()
-	defer s.Close()
-	var buf bytes.Buffer
-	req := allocateReq{
-		Protocol:      "TCP",
-		SourcePort:    22,
-		TargetService: "foo",
-		TargetPort:    2222,
 	}
-	if err := json.NewEncoder(&buf).Encode(req); err != nil {
+	for i := 0; i < 500; i++ {
+		for _, protocol := range []string{"tcp", "udp"} {
+			port, secret, err := c.ReservePort()
+			if err != nil {
+				t.Fatal(err)
+			}
+			target := fmt.Sprintf("%s/bar:%d", protocol, port)
+			if err := c.AddPortForwarding("tcp", port, secret, target); err != nil {
+				t.Fatal(err)
+			}
+			tcp[strconv.Itoa(port)] = target
+		}
+	}
+	var actual map[string]any
+	if err := soft.ReadYaml(repo, ingressPath, &actual); err != nil {
 		t.Fatal(err)
 	}
-	resp, err := http.Post("http://localhost:8080/api/allocate", "application/json", &buf)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if resp.StatusCode != http.StatusConflict {
-		io.Copy(os.Stdout, resp.Body)
-		t.Fatalf("Expected %d, got %d", http.StatusConflict, resp.StatusCode)
-	}
-}
-
-func TestAllocate80Taken(t *testing.T) {
-	c := &fakeClient{map[string]any{
-		"spec": map[string]any{
-			"values": map[string]any{},
-		},
-	}}
-	s := newServer(8080, c) // TODO(gio): run using unix socket
-	go func() {
-		s.Start()
-	}()
-	defer s.Close()
-	var buf bytes.Buffer
-	req := allocateReq{
-		Protocol:      "TCP",
-		SourcePort:    80,
-		TargetService: "foo",
-		TargetPort:    2222,
-	}
-	if err := json.NewEncoder(&buf).Encode(req); err != nil {
-		t.Fatal(err)
-	}
-	resp, err := http.Post("http://localhost:8080/api/allocate", "application/json", &buf)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if resp.StatusCode != http.StatusConflict {
-		io.Copy(os.Stdout, resp.Body)
-		t.Fatalf("Expected %d, got %d", http.StatusConflict, resp.StatusCode)
-	}
-}
-
-func TestAllocate443Taken(t *testing.T) {
-	c := &fakeClient{map[string]any{
-		"spec": map[string]any{
-			"values": map[string]any{},
-		},
-	}}
-	s := newServer(8080, c) // TODO(gio): run using unix socket
-	go func() {
-		s.Start()
-	}()
-	defer s.Close()
-	var buf bytes.Buffer
-	req := allocateReq{
-		Protocol:      "TCP",
-		SourcePort:    443,
-		TargetService: "foo",
-		TargetPort:    2222,
-	}
-	if err := json.NewEncoder(&buf).Encode(req); err != nil {
-		t.Fatal(err)
-	}
-	resp, err := http.Post("http://localhost:8080/api/allocate", "application/json", &buf)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if resp.StatusCode != http.StatusConflict {
-		io.Copy(os.Stdout, resp.Body)
-		t.Fatalf("Expected %d, got %d", http.StatusConflict, resp.StatusCode)
+	if !reflect.DeepEqual(expected, actual) {
+		t.Fatalf("Expected %v, got %v", expected, actual)
 	}
 }
 
