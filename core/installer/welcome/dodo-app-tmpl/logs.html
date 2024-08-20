@@ -1,0 +1,6 @@
+{{ define "title" }}
+dodo app: {{ .AppName }} - logs
+{{ end }}
+{{- define "content" -}}
+<code id="logs">{{ .Logs }}</code>
+{{- end -}}

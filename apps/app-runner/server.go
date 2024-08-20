@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"os"
 	"os/exec"
@@ -25,6 +26,7 @@ type Server struct {
 	runCommands []Command
 	self        string
 	managerAddr string
+	logs        *Log
 }
 
 func NewServer(port int, appId string, repoAddr string, signer ssh.Signer, appDir string, runCommands []Command, self string, manager string) *Server {
@@ -39,17 +41,23 @@ func NewServer(port int, appId string, repoAddr string, signer ssh.Signer, appDi
 		runCommands: runCommands,
 		self:        self,
 		managerAddr: manager,
+		logs:        &Log{},
 	}
 }
 
 func (s *Server) Start() error {
 	http.HandleFunc("/update", s.handleUpdate)
 	http.HandleFunc("/ready", s.handleReady)
+	http.HandleFunc("/logs", s.handleLogs)
 	if err := s.run(); err != nil {
 		return err
 	}
 	go s.pingManager()
 	return http.ListenAndServe(fmt.Sprintf(":%d", s.port), nil)
+}
+
+func (s *Server) handleLogs(w http.ResponseWriter, r *http.Request) {
+	fmt.Fprint(w, s.logs.Contents())
 }
 
 func (s *Server) handleReady(w http.ResponseWriter, r *http.Request) {
@@ -93,6 +101,7 @@ func (s *Server) run() error {
 	if err := CloneRepository(s.repoAddr, s.signer, s.appDir); err != nil {
 		return err
 	}
+	logM := io.MultiWriter(os.Stdout, s.logs)
 	for i, c := range s.runCommands {
 		args := []string{c.Bin}
 		args = append(args, c.Args...)
@@ -101,8 +110,8 @@ func (s *Server) run() error {
 			Path:   c.Bin,
 			Args:   args,
 			Env:    c.Env,
-			Stdout: os.Stdout,
-			Stderr: os.Stderr,
+			Stdout: logM,
+			Stderr: logM,
 		}
 		fmt.Printf("Running: %s\n", c.Bin)
 		if i < len(s.runCommands)-1 {
@@ -121,6 +130,7 @@ func (s *Server) run() error {
 
 type pingReq struct {
 	Address string `json:"address"`
+	Logs    string `json:"logs"`
 }
 
 func (s *Server) pingManager() {
@@ -132,6 +142,7 @@ func (s *Server) pingManager() {
 	}()
 	buf, err := json.Marshal(pingReq{
 		Address: fmt.Sprintf("%s:%d", s.self, s.port),
+		Logs:    s.logs.Contents(),
 	})
 	if err != nil {
 		return

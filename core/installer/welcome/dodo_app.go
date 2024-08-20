@@ -49,6 +49,7 @@ type dodoAppTmplts struct {
 	index        *template.Template
 	appStatus    *template.Template
 	commitStatus *template.Template
+	logs         *template.Template
 }
 
 func parseTemplatesDodoApp(fs embed.FS) (dodoAppTmplts, error) {
@@ -75,7 +76,11 @@ func parseTemplatesDodoApp(fs embed.FS) (dodoAppTmplts, error) {
 	if err != nil {
 		return dodoAppTmplts{}, err
 	}
-	return dodoAppTmplts{index, appStatus, commitStatus}, nil
+	logs, err := parse("dodo-app-tmpl/logs.html")
+	if err != nil {
+		return dodoAppTmplts{}, err
+	}
+	return dodoAppTmplts{index, appStatus, commitStatus, logs}, nil
 }
 
 type DodoAppServer struct {
@@ -101,6 +106,7 @@ type DodoAppServer struct {
 	appTmpls          AppTmplStore
 	external          bool
 	fetchUsersAddr    string
+	logs              map[string]string
 }
 
 type appConfig struct {
@@ -163,6 +169,7 @@ func NewDodoAppServer(
 		appTmpls,
 		external,
 		fetchUsersAddr,
+		map[string]string{},
 	}
 	config, err := client.GetRepo(ConfigRepoName)
 	if err != nil {
@@ -191,6 +198,7 @@ func (s *DodoAppServer) Start() error {
 		r.HandleFunc(apiCreateApp, s.handleAPICreateApp).Methods(http.MethodPost)
 		r.HandleFunc("/{app-name}"+loginPath, s.handleLoginForm).Methods(http.MethodGet)
 		r.HandleFunc("/{app-name}"+loginPath, s.handleLogin).Methods(http.MethodPost)
+		r.HandleFunc("/{app-name}/logs", s.handleAppLogs).Methods(http.MethodGet)
 		r.HandleFunc("/{app-name}/{hash}", s.handleAppCommit).Methods(http.MethodGet)
 		r.HandleFunc("/{app-name}", s.handleAppStatus).Methods(http.MethodGet)
 		r.HandleFunc("/", s.handleStatus).Methods(http.MethodGet)
@@ -425,6 +433,7 @@ type appStatusData struct {
 	Name            string
 	GitCloneCommand string
 	Commits         []CommitMeta
+	LastCommit      resourceData
 }
 
 func (s *DodoAppServer) handleAppStatus(w http.ResponseWriter, r *http.Request) {
@@ -458,6 +467,20 @@ func (s *DodoAppServer) handleAppStatus(w http.ResponseWriter, r *http.Request) 
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
+	var lastCommitResources resourceData
+	if len(commits) > 0 {
+		lastCommit, err := s.st.GetCommit(commits[len(commits)-1].Hash)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		r, err := extractResourceData(lastCommit.Resources.Helm)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		lastCommitResources = r
+	}
 	data := appStatusData{
 		Navigation: []navItem{
 			navItem{"Home", "/"},
@@ -466,6 +489,7 @@ func (s *DodoAppServer) handleAppStatus(w http.ResponseWriter, r *http.Request) 
 		Name:            appName,
 		GitCloneCommand: fmt.Sprintf("git clone %s/%s\n\n\n", s.repoPublicAddr, appName),
 		Commits:         commits,
+		LastCommit:      lastCommitResources,
 	}
 	if err := s.tmplts.appStatus.Execute(w, data); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -564,6 +588,54 @@ func (s *DodoAppServer) handleAppCommit(w http.ResponseWriter, r *http.Request) 
 	}
 }
 
+type logData struct {
+	Navigation []navItem
+	AppName    string
+	Logs       template.HTML
+}
+
+func (s *DodoAppServer) handleAppLogs(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	appName, ok := vars["app-name"]
+	if !ok || appName == "" {
+		http.Error(w, "missing app-name", http.StatusBadRequest)
+		return
+	}
+	u := r.Context().Value(userCtx)
+	if u == nil {
+		http.Error(w, "unauthorized", http.StatusUnauthorized)
+		return
+	}
+	user, ok := u.(string)
+	if !ok {
+		http.Error(w, "could not get user", http.StatusInternalServerError)
+		return
+	}
+	owner, err := s.st.GetAppOwner(appName)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	if owner != user {
+		http.Error(w, "unauthorized", http.StatusUnauthorized)
+		return
+	}
+	data := logData{
+		Navigation: []navItem{
+			navItem{"Home", "/"},
+			navItem{appName, "/" + appName},
+			navItem{"Logs", "/" + appName + "/logs"},
+		},
+		AppName: appName,
+		Logs:    template.HTML(strings.ReplaceAll(s.logs[appName], "\n", "<br/>")),
+	}
+	if err := s.tmplts.logs.Execute(w, data); err != nil {
+		fmt.Println(err)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+}
+
 type apiUpdateReq struct {
 	Ref        string `json:"ref"`
 	Repository struct {
@@ -634,6 +706,7 @@ func (s *DodoAppServer) handleAPIUpdate(w http.ResponseWriter, r *http.Request) 
 
 type apiRegisterWorkerReq struct {
 	Address string `json:"address"`
+	Logs    string `json:"logs"`
 }
 
 func (s *DodoAppServer) handleAPIRegisterWorker(w http.ResponseWriter, r *http.Request) {
@@ -652,6 +725,7 @@ func (s *DodoAppServer) handleAPIRegisterWorker(w http.ResponseWriter, r *http.R
 		s.workers[appName] = map[string]struct{}{}
 	}
 	s.workers[appName][req.Address] = struct{}{}
+	s.logs[appName] = req.Logs
 }
 
 func (s *DodoAppServer) handleCreateApp(w http.ResponseWriter, r *http.Request) {
