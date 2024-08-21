@@ -10,7 +10,13 @@
   --formText: #d6d6d6;
   --button: #7f9f7f;
   --logo: #d4888d;
-  --fontSize: 14px;
+  --pico-font-size: 14px;
+}
+
+html {
+  height: 100%;
+  margin: 0;
+  padding: 0;
 }
 
 body {
@@ -18,7 +24,7 @@ body {
   padding: 0;
   font-family: Hack, monospace;
   display: flex;
-  height: 100vh;
+  height: 100%;
   padding-left: 0 !important;
   padding-right: 0 !important;
   background-color: var(--bodyBg);
@@ -91,23 +97,49 @@ body {
 }
 
 @keyframes pulsate {
-  from { opacity: 1; }
-  10% { opacity: 0; }
-  20% { opacity: 1; }
-  30% { opacity: 0; }
-  40% { opacity: 1; }
-  50% { opacity: 0; }
-  60% { opacity: 1; }
-  70% { opacity: 0; }
-  80% { opacity: 1; }
-  90% { opacity: 0; }
-  to { opacity: 1; }
+  from {
+    opacity: 1;
+  }
+  10% {
+    opacity: 0;
+  }
+  20% {
+    opacity: 1;
+  }
+  30% {
+    opacity: 0;
+  }
+  40% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0;
+  }
+  60% {
+    opacity: 1;
+  }
+  70% {
+    opacity: 0;
+  }
+  80% {
+    opacity: 1;
+  }
+  90% {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
 }
 
 @keyframes fadeout {
   /* TODO(gio): figure out why animating from 1 does not work */
-  from { opacity: 0.999; }
-  to { opacity: 0; }
+  from {
+    opacity: 0.999;
+  }
+  to {
+    opacity: 0;
+  }
 }
 
 .pulsate {
@@ -153,7 +185,6 @@ body {
   color: var(--formText);
   margin: 0;
   cursor: auto;
-  font-size: var(--fontSize);
 }
 
 .app-icon:hover {
@@ -173,11 +204,9 @@ body {
   flex: 1;
   overflow-y: auto;
   float: right;
-  margin-left: 2px;
   color: var(--bg);
   padding-left: 10px;
   padding-right: 10px;
-  font-size: 16px !important;
 }
 
 .app-help-modal {
@@ -240,8 +269,8 @@ header h4 {
   min-height: 90% !important;
   max-height: 90% !important;
   overflow: hidden;
-  padding-left: 5px !important;
-  padding-right: 5px !important;
+  padding-left: 0px !important;
+  padding-right: 0px !important;
 }
 
 .help-content {
@@ -297,7 +326,6 @@ header h4 {
   list-style: none !important;
   padding-inline-start: 10px !important;
   margin-bottom: 0px;
-  font-size: 16px !important;
 }
 
 .modal-left ul li a {
