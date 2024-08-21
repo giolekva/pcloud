@@ -335,3 +335,11 @@ main > aside#menu-nav nav {
 .search-progress-icon {
   background-image: var(--pico-icon-loading) !important;
 }
+
+details.dropdown summary:not([role]) {
+  color: var(--pico-color);
+}
+
+details[open] > summary:not([role]):not(:focus) {
+  color: var(--pico-color);
+}
