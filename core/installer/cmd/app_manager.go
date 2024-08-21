@@ -117,10 +117,7 @@ func appManagerCmdRun(cmd *cobra.Command, args []string) error {
 		appManagerFlags.port,
 		m,
 		r,
-		tasks.NewFluxcdReconciler(
-			"http://fluxcd-reconciler.dodo-fluxcd-reconciler.svc.cluster.local",
-			env.Id,
-		),
+		tasks.NewFixedReconciler(env.Id, env.Id),
 		helmMon,
 	)
 	if err != nil {

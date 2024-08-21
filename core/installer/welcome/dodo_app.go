@@ -21,6 +21,7 @@ import (
 
 	"github.com/giolekva/pcloud/core/installer"
 	"github.com/giolekva/pcloud/core/installer/soft"
+	"github.com/giolekva/pcloud/core/installer/tasks"
 
 	"github.com/gorilla/mux"
 	"github.com/gorilla/securecookie"
@@ -106,6 +107,7 @@ type DodoAppServer struct {
 	appTmpls          AppTmplStore
 	external          bool
 	fetchUsersAddr    string
+	reconciler        tasks.Reconciler
 	logs              map[string]string
 }
 
@@ -133,6 +135,7 @@ func NewDodoAppServer(
 	env installer.EnvConfig,
 	external bool,
 	fetchUsersAddr string,
+	reconciler tasks.Reconciler,
 ) (*DodoAppServer, error) {
 	tmplts, err := parseTemplatesDodoApp(dodoAppTmplFS)
 	if err != nil {
@@ -169,6 +172,7 @@ func NewDodoAppServer(
 		appTmpls,
 		external,
 		fetchUsersAddr,
+		reconciler,
 		map[string]string{},
 	}
 	config, err := client.GetRepo(ConfigRepoName)
@@ -1004,6 +1008,8 @@ func (s *DodoAppServer) createApp(user, appName, appType, network, subdomain str
 			}
 		}()
 	}
+	ctx, _ := context.WithTimeout(context.Background(), 2*time.Minute)
+	go s.reconciler.Reconcile(ctx, s.namespace, "config")
 	return nil
 }
 
@@ -1035,29 +1041,28 @@ type dodoAppRendered struct {
 	} `json:"input"`
 }
 
-func (s *DodoAppServer) updateDodoApp(appStatus installer.EnvApp, name, namespace string, networks []installer.Network) (installer.ReleaseResources, error) {
-	fmt.Println("111")
+func (s *DodoAppServer) updateDodoApp(
+	appStatus installer.EnvApp,
+	name, namespace string,
+	networks []installer.Network,
+) (installer.ReleaseResources, error) {
 	repo, err := s.client.GetRepo(name)
 	if err != nil {
 		return installer.ReleaseResources{}, err
 	}
-	fmt.Println("111")
 	hf := installer.NewGitHelmFetcher()
 	m, err := installer.NewAppManager(repo, s.nsc, s.jc, hf, "/.dodo")
 	if err != nil {
 		return installer.ReleaseResources{}, err
 	}
-	fmt.Println("111")
 	appCfg, err := soft.ReadFile(repo, "app.cue")
 	if err != nil {
 		return installer.ReleaseResources{}, err
 	}
-	fmt.Println("111")
 	app, err := installer.NewDodoApp(appCfg)
 	if err != nil {
 		return installer.ReleaseResources{}, err
 	}
-	fmt.Println("111")
 	lg := installer.GitRepositoryLocalChartGenerator{"app", namespace}
 	var ret installer.ReleaseResources
 	if _, err := repo.Do(func(r soft.RepoFS) (string, error) {
@@ -1079,16 +1084,13 @@ func (s *DodoAppServer) updateDodoApp(appStatus installer.EnvApp, name, namespac
 			installer.WithLocalChartGenerator(lg),
 			installer.WithNoLock(),
 		)
-		fmt.Println("111")
 		if err != nil {
 			return "", err
 		}
-		fmt.Println("111")
 		var rendered dodoAppRendered
 		if err := json.NewDecoder(bytes.NewReader(ret.RenderedRaw)).Decode(&rendered); err != nil {
 			return "", nil
 		}
-		fmt.Println("111")
 		if _, err := m.Install(
 			appStatus,
 			"status",
@@ -1108,7 +1110,6 @@ func (s *DodoAppServer) updateDodoApp(appStatus installer.EnvApp, name, namespac
 		); err != nil {
 			return "", err
 		}
-		fmt.Println("111")
 		return "install app", nil
 	},
 		soft.WithCommitToBranch("dodo"),
@@ -1116,6 +1117,8 @@ func (s *DodoAppServer) updateDodoApp(appStatus installer.EnvApp, name, namespac
 	); err != nil {
 		return installer.ReleaseResources{}, err
 	}
+	ctx, _ := context.WithTimeout(context.Background(), 2*time.Minute)
+	go s.reconciler.Reconcile(ctx, namespace, "app")
 	return ret, nil
 }
 

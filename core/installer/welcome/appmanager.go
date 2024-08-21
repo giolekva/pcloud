@@ -25,7 +25,7 @@ type AppManagerServer struct {
 	port       int
 	m          *installer.AppManager
 	r          installer.AppRepository
-	reconciler tasks.Reconciler
+	reconciler *tasks.FixedReconciler
 	h          installer.HelmReleaseMonitor
 	tasks      map[string]tasks.Task
 	ta         map[string]installer.EnvApp
@@ -64,7 +64,7 @@ func NewAppManagerServer(
 	port int,
 	m *installer.AppManager,
 	r installer.AppRepository,
-	reconciler tasks.Reconciler,
+	reconciler *tasks.FixedReconciler,
 	h installer.HelmReleaseMonitor,
 ) (*AppManagerServer, error) {
 	tmpl, err := parseTemplatesAppManager(appTmpls)
@@ -239,10 +239,13 @@ func (s *AppManagerServer) handleAppInstall(w http.ResponseWriter, r *http.Reque
 	appDir := fmt.Sprintf("/apps/%s", instanceId)
 	namespace := fmt.Sprintf("%s%s%s", env.NamespacePrefix, a.Namespace(), suffix)
 	t := tasks.NewInstallTask(s.h, func() (installer.ReleaseResources, error) {
-		return s.m.Install(a, instanceId, appDir, namespace, values)
+		rr, err := s.m.Install(a, instanceId, appDir, namespace, values)
+		if err == nil {
+			ctx, _ := context.WithTimeout(context.Background(), 5*time.Second)
+			go s.reconciler.Reconcile(ctx)
+		}
+		return rr, err
 	})
-	ctx, _ := context.WithTimeout(context.Background(), 2*time.Minute)
-	go s.reconciler.Reconcile(ctx)
 	if _, ok := s.tasks[instanceId]; ok {
 		panic("MUST NOT REACH!")
 	}

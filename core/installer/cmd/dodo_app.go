@@ -8,6 +8,7 @@ import (
 
 	"github.com/giolekva/pcloud/core/installer"
 	"github.com/giolekva/pcloud/core/installer/soft"
+	"github.com/giolekva/pcloud/core/installer/tasks"
 	"github.com/giolekva/pcloud/core/installer/welcome"
 
 	_ "github.com/ncruces/go-sqlite3"
@@ -186,6 +187,12 @@ func dodoAppCmdRun(cmd *cobra.Command, args []string) error {
 	} else {
 		ug = welcome.NewInternalUserGetter()
 	}
+	reconciler := &tasks.SequentialReconciler{
+		[]tasks.Reconciler{
+			&tasks.SourceGitReconciler{},
+			// &tasks.KustomizationReconciler{},
+		},
+	}
 	s, err := welcome.NewDodoAppServer(
 		st,
 		nf,
@@ -204,6 +211,7 @@ func dodoAppCmdRun(cmd *cobra.Command, args []string) error {
 		env,
 		dodoAppFlags.external,
 		dodoAppFlags.fetchUsersAddr,
+		reconciler,
 	)
 	if err != nil {
 		return err

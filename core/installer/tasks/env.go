@@ -72,12 +72,12 @@ func NewCreateEnvTask(
 	t.OnDone(func(_ error) {
 		done()
 	})
-	pr := NewFluxcdReconciler( // TODO(gio): make reconciler address a flag
-		"http://fluxcd-reconciler.dodo-fluxcd-reconciler.svc.cluster.local",
+	pr := NewFixedReconciler(
+		fmt.Sprintf("%s-flux", env.InfraName),
 		fmt.Sprintf("%s-flux", env.InfraName),
 	)
-	er := NewFluxcdReconciler(
-		"http://fluxcd-reconciler.dodo-fluxcd-reconciler.svc.cluster.local",
+	er := NewFixedReconciler(
+		env.Id,
 		env.Id,
 	)
 	go pr.Reconcile(rctx)

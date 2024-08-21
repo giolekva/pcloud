@@ -66,13 +66,19 @@ func reconcile(
 	namespace string,
 	name string,
 ) error {
+	fmt.Printf("%+v %s %s\n", res, namespace, name)
 	unstr, err := client.Resource(res).Namespace(namespace).Get(context.TODO(), name, metav1.GetOptions{})
 	if err != nil {
 		return err
 	}
 	timeNowTime := time.Now()
 	annotations := unstr.GetAnnotations()
+	if annotations == nil {
+		annotations = map[string]string{}
+		unstr.SetAnnotations(annotations)
+	}
 	annotations[reconcileAnnotation] = timeNowTime.Format(reconcileAtLayout)
+	fmt.Printf("New reconciled at: %+v\n", annotations[reconcileAnnotation])
 	unstr.SetAnnotations(annotations)
 	unstr, err = client.Resource(res).Namespace(namespace).Update(context.TODO(), unstr, metav1.UpdateOptions{})
 	if err != nil {
@@ -85,14 +91,14 @@ func reconcile(
 		}
 		reconciledAt, err := getReconciledAt(unstr)
 		if err != nil {
-			return err
+			continue
 		}
 		reconciledAtTime, err := time.Parse(reconcileAtLayout, reconciledAt)
 		if err != nil {
 			return err
 		}
-		reconciledAtTime = reconciledAtTime.Add(3 * time.Hour)
-		if reconciledAtTime.After(timeNowTime) {
+		fmt.Printf("Current reconciled at: %s\n", reconciledAtTime.Format(reconcileAtLayout))
+		if reconciledAtTime.Equal(timeNowTime) || reconciledAtTime.After(timeNowTime) {
 			return nil
 		}
 	}
@@ -116,7 +122,8 @@ func (s *Server) sourceGitReconcile(w http.ResponseWriter, r *http.Request) {
 		Resource: "gitrepositories",
 	}
 	if err := reconcile(s.client, res, namespace, name); err != nil {
-		http.Error(w, "error", http.StatusInternalServerError)
+		fmt.Println(err)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 }
@@ -139,7 +146,8 @@ func (s *Server) kustomizationReconcile(w http.ResponseWriter, r *http.Request) 
 		Resource: "kustomizations",
 	}
 	if err := reconcile(s.client, res, namespace, name); err != nil {
-		http.Error(w, "error", http.StatusInternalServerError)
+		fmt.Println(err)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 }

@@ -10,7 +10,7 @@ metadata:
   name: fluxcd-reconciler
 rules: # TODO(gio): restrict to ns create and dnszone get
 - apiGroups:
-  - "source.toolkit.fluxcd.io/v1"
+  - "source.toolkit.fluxcd.io"
   resources:
   - "gitrepositories"
   verbs:
@@ -62,12 +62,12 @@ spec:
     matchLabels:
       app: fluxcd-reconciler
   replicas: 1
-  serviceAccountName: fluxcd-reconciler
   template:
     metadata:
       labels:
         app: fluxcd-reconciler
     spec:
+      serviceAccountName: fluxcd-reconciler
       containers:
       - name: fluxcd-reconciler
         image: {{ .Values.image.repository }}:{{ .Values.image.tag }}
