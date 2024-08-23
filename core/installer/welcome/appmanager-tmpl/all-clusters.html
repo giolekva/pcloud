@@ -1,0 +1,21 @@
+{{ define "header" }}
+<h1>Clusters</h1>
+{{ end }}
+
+{{ define "content"}}
+<form action="/clusters" method="POST">
+	<fieldset class="grid">
+		<input type="text" name="name" placeholder="name" />
+		<button type="submit" name="create-cluster">create cluster</button>
+	</fieldset>
+</form>
+<aside>
+	<nav>
+		<ul>
+			{{ range .Clusters }}
+			<li><a href="/clusters/{{ .Name }}">{{ .Name }}</a></li>
+			{{ end }}
+		</ul>
+	</nav>
+</aside>
+{{ end }}

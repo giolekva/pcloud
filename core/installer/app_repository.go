@@ -54,6 +54,7 @@ var envAppConfigs = []string{
 	"values-tmpl/launcher.cue",
 	"values-tmpl/env-dns.cue",
 	"values-tmpl/launcher.cue",
+	"values-tmpl/cluster-network.cue",
 }
 
 var infraAppConfigs = []string{
@@ -99,10 +100,7 @@ func (r InMemoryAppRepository) GetAll() ([]App, error) {
 func CreateAllApps() []App {
 	return append(
 		createInfraApps(),
-		append(
-			CreateEnvApps(storeEnvAppConfigs),
-			CreateEnvApps(envAppConfigs)...,
-		)...,
+		CreateAllEnvApps()...,
 	)
 }
 
@@ -121,6 +119,13 @@ func (r InMemoryAppRepository) Filter(query string) ([]App, error) {
 
 func CreateStoreApps() []App {
 	return CreateEnvApps(storeEnvAppConfigs)
+}
+
+func CreateAllEnvApps() []App {
+	return append(
+		CreateStoreApps(),
+		CreateEnvApps(envAppConfigs)...,
+	)
 }
 
 func CreateEnvApps(configs []string) []App {

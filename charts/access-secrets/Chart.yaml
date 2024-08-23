@@ -1,0 +1,6 @@
+apiVersion: v2
+name: access-secrets
+description: A Helm chart giving service account access to secrets in the same namespace
+type: application
+version: 0.0.1
+appVersion: "0.0.1"

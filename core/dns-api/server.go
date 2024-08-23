@@ -31,6 +31,8 @@ func NewServer(port int, zone string, ds string, store RecordStore, nameserver [
 	}
 	m.HandleFunc("/records-to-publish", s.recordsToPublish)
 	m.HandleFunc("/create-txt-record", s.createTxtRecord)
+	m.HandleFunc("/create-a-record", s.createARecord)
+	m.HandleFunc("/delete-a-record", s.deleteARecord)
 	m.HandleFunc("/delete-txt-record", s.deleteTxtRecord)
 	return s
 }
@@ -69,8 +71,19 @@ func (s *Server) createTxtRecord(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	fmt.Printf("CREATE: %+v\n", req)
 	if err := s.store.Add(req.Entry, req.Text); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+}
+
+func (s *Server) createARecord(w http.ResponseWriter, r *http.Request) {
+	var req record
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	if err := s.store.AddARecord(req.Entry, req.Text); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -82,8 +95,19 @@ func (s *Server) deleteTxtRecord(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	fmt.Printf("DELETE: %+v\n", req)
 	if err := s.store.Delete(req.Entry, req.Text); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+}
+
+func (s *Server) deleteARecord(w http.ResponseWriter, r *http.Request) {
+	var req record
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	if err := s.store.DeleteARecord(req.Entry, req.Text); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}

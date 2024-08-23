@@ -1,19 +1,7 @@
-{{ define "task" }}
-{{ range . }}
-<li aria-busy="{{ eq .Status 1 }}">
-	{{ if eq .Status 3 }}<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"><path fill="black" d="M21 7L9 19l-5.5-5.5l1.41-1.41L9 16.17L19.59 5.59z"/></svg>{{ end }}{{ .Title }}{{ if .Err }} - {{ .Err.Error }} {{ end }}
-	{{ if .Subtasks }}
-	<ul>
-   		{{ template "task" .Subtasks }}
-	</ul>
-	{{ end }}
-</li>
-{{ end }}
-{{ end }}
-
 {{ define "schema-form" }}
   {{ $readonly := .ReadOnly }}
   {{ $networks := .AvailableNetworks }}
+  {{ $clusters := .AvailableClusters }}
   {{ $data := .Data }}
   {{ range $f := .Schema.Fields }}
   {{ $name := $f.Name }}
@@ -38,6 +26,25 @@
           {{ $schema.Name }}
 		  <input type="text" name="{{ $name }}" oninput="valueChanged({{ $name }}, this.value)" {{ if $readonly }}disabled{{ end }} value="{{ index $data $name }}" />
       </label>
+	{{ else if eq $schema.Kind 12 }}
+      <label {{ if $schema.Advanced }}hidden{{ end }}>
+          {{ $schema.Name }}
+		  <details class="dropdown">
+			  {{ $selectedCluster := index $data $name }}
+			  <summary id="{{ $name }}">{{ $selectedCluster }}</summary>
+			  <ul>
+				  {{ range $clusters }}
+					  {{ $selected := eq $selectedCluster .Name }}
+					  <li>
+						  <label>
+							  <input type="radio" name="{{ $name }}" oninput="clusterSelected('{{ $name }}', '{{ .Name }}', this.checked)" {{ if $selected }}checked{{ end }} />
+							  {{ .Name }}
+						  </label>
+					  </li>
+				  {{ end }}
+			  </ul>
+		  </details>
+      </label>
 	{{ else if eq $schema.Kind 3 }}
       <label {{ if $schema.Advanced }}hidden{{ end }}>
           {{ $schema.Name }}
@@ -49,8 +56,8 @@
 					  {{ $selected := eq $selectedNetwork .Name }}
 					  <li>
 						  <label>
-							  <input type="radio" name="{{ $name }}" oninput="networkSelected('{{ $name }}', '{{ .Name }}', this.checked)" {{ if $selected }}checked{{ end }} />
-							  {{ .Name }}
+							  <input type="radio" name="{{ $name }}" oninput="networkSelected('{{ $name }}', '{{ .Name }}', '{{ .Name }} - {{ .Domain }}', this.checked)" {{ if $selected }}checked{{ end }} />
+							  {{ .Name }} - {{ .Domain }}
 						  </label>
 					  </li>
 				  {{ end }}
@@ -75,7 +82,7 @@
 					  <li>
 						  <label>
 							  <input type="checkbox" name="{{ $networkName }}" oninput="multiNetworkSelected('{{ $name }}', '{{ $networkName }}', this.checked)" {{ if $selected }}checked{{ end }} />
-							  {{ .Name }}
+							  {{ .Name }} - {{ .Domain }}
 						  </label>
 					  </li>
 				  {{ end }}
@@ -132,25 +139,14 @@
 {{ define "content"}}
   {{ $schema := .App.Schema }}
   {{ $networks := .AvailableNetworks }}
+  {{ $clusters := .AvailableClusters }}
   {{ $instance := .Instance }}
-  {{ $renderForm := true }}
 
-  {{ if .Task }}
-    {{if or (eq .Task.Status 0) (eq .Task.Status 1) }}
-    {{ $renderForm = false }}
-    Installation in progress (feel free to navigate away from this page):
-    <ul class="progress">
-      {{ template "task" .Task.Subtasks }}
-    </ul>
-    {{ end }}
-  {{ end }}
-
-  {{ if $renderForm }}
   <form id="config-form">
 	  {{ if $instance }}
-		{{ template "schema-form" (dict "Schema" $schema "AvailableNetworks" $networks "ReadOnly" false "Data" ($instance.InputToValues $schema)) }}
+		{{ template "schema-form" (dict "Schema" $schema "AvailableNetworks" $networks "AvailableClusters" $clusters "ReadOnly" false "Data" ($instance.InputToValues $schema)) }}
 	  {{ else }}
-		{{ template "schema-form" (dict "Schema" $schema "AvailableNetworks" $networks "ReadOnly" false "Data" (dict)) }}
+		{{ template "schema-form" (dict "Schema" $schema "AvailableNetworks" $networks "AvailableClusters" $clusters "ReadOnly" false "Data" (dict)) }}
 	  {{ end }}
 	  {{ if $instance }}
 		<div class="grid">
@@ -161,7 +157,6 @@
 		<button type="submit" id="submit">{{ if $instance }}Update{{ else }}Install{{ end }}</button>
 	  {{ end }}
   </form>
-  {{ end }}
 
 <div id="toast-failure" class="toast hidden">
   <svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2S2 6.477 2 12s4.477 10 10 10Zm3-6L9 8m0 8l6-8"/></svg> {{ if $instance }}Update failed{{ else}}Install failed{{ end }}
@@ -200,11 +195,19 @@
 	 setValue(name, value, config);
  }
 
- function networkSelected(name, network, selected) {
+ function clusterSelected(name, cluster, selected) {
+	console.log(selected);
+	setValue(name, cluster, config);
+	let summary = document.getElementById(name);
+	summary.innerHTML = cluster;
+	summary.parentNode.removeAttribute("open");
+ }
+
+ function networkSelected(name, network, label, selected) {
 	console.log(selected);
 	setValue(name, network, config);
 	let summary = document.getElementById(name);
-	summary.innerHTML = network;
+	summary.innerHTML = label;
 	summary.parentNode.removeAttribute("open");
  }
 
@@ -310,29 +313,6 @@
 		 }
 	 });
  }
-
- {{ if .Task }}
- async function refresh() {
-	 try {
-		 const resp = await fetch(window.location.href);
-		 if (resp.ok) {
-			 var tmp = document.createElement("html");
-			 tmp.innerHTML = await resp.text();
-			 const progress = tmp.getElementsByClassName("progress")[0];
-			 if (progress) {
-				 document.getElementsByClassName("progress")[0].innerHTML = progress.innerHTML;
-			 } else {
-				 location.reload();
-			 }
-		 }
-	 } catch (error) {
-		 console.log(error);
-	 } finally {
-		 setTimeout(refresh, 3000);
-	 }
- }
- setTimeout(refresh, 3000);
- {{ end }}
 </script>
 
 {{end}}

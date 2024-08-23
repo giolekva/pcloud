@@ -8,14 +8,14 @@ import (
 	"io"
 	"net/http"
 
+	"github.com/giolekva/pcloud/core/installer/kube"
+
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/rest"
-	"k8s.io/client-go/tools/clientcmd"
 )
 
 type NamespaceCreator interface {
@@ -77,8 +77,8 @@ func (f *realZoneStatusFetcher) Fetch(addr string) (string, error) {
 	return buf.String(), nil
 }
 
-func NewNamespaceCreator(kubeconfig string) (NamespaceCreator, error) {
-	clientset, err := NewKubeConfig(kubeconfig)
+func NewNamespaceCreator(opts kube.KubeConfigOpts) (NamespaceCreator, error) {
+	clientset, err := kube.NewKubeClient(opts)
 	if err != nil {
 		return nil, err
 	}
@@ -120,27 +120,10 @@ func (m *realHelmReleaseMonitor) IsReleased(namespace, name string) (bool, error
 }
 
 func NewHelmReleaseMonitor(kubeconfig string) (HelmReleaseMonitor, error) {
-	c, err := NewKubeConfig(kubeconfig)
+	c, err := kube.NewKubeClient(kube.KubeConfigOpts{KubeConfigPath: kubeconfig})
 	if err != nil {
 		return nil, err
 	}
 	d := dynamic.New(c.RESTClient())
 	return &realHelmReleaseMonitor{d}, nil
-}
-
-func NewKubeConfig(kubeconfig string) (*kubernetes.Clientset, error) {
-	if kubeconfig == "" {
-		config, err := rest.InClusterConfig()
-		if err != nil {
-			return nil, err
-		}
-		return kubernetes.NewForConfig(config)
-
-	} else {
-		config, err := clientcmd.BuildConfigFromFlags("", kubeconfig)
-		if err != nil {
-			return nil, err
-		}
-		return kubernetes.NewForConfig(config)
-	}
 }

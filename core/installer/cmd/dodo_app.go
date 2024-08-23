@@ -201,6 +201,8 @@ func dodoAppCmdRun(cmd *cobra.Command, args []string) error {
 		},
 	}
 	vpnKeyGen := installer.NewHeadscaleAPIClient(dodoAppFlags.headscaleAPIAddr)
+	// TOOD(gio): implement
+	var cnc installer.ClusterNetworkConfigurator
 	s, err := welcome.NewDodoAppServer(
 		st,
 		nf,
@@ -217,6 +219,7 @@ func dodoAppCmdRun(cmd *cobra.Command, args []string) error {
 		nsc,
 		jc,
 		vpnKeyGen,
+		cnc,
 		env,
 		dodoAppFlags.external,
 		dodoAppFlags.fetchUsersAddr,

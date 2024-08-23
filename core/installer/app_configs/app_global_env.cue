@@ -1,3 +1,7 @@
+import (
+	"strings"
+)
+
 #Global: {
 	id: string | *""
 	pcloudEnvName: string | *""
@@ -44,6 +48,15 @@ networks: #Networks
 	_authProxyName: "\(name)-auth-proxy"
     _authProxyHTTPPortName: "http"
 
+	if input.cluster != _|_ {
+		clusterProxy: {
+			"\(name)": {
+				from: _domain
+				_sanitizedDomain: strings.Replace(_domain, ".", "-", -1)
+				to: "\(_sanitizedDomain).\(input.cluster.name).cluster.\(global.privateDomain)"
+			}
+		}
+	}
 	images: {
 		authProxy: {
 			repository: "giolekva"
@@ -71,6 +84,8 @@ networks: #Networks
 			"\(name)-auth-proxy": {
 				chart: charts.authProxy
 				info: "Installing authentication proxy"
+				// NOTE(gio): Force to install in default cluster.
+				cluster: null
 				_name: name
 				values: {
 					name: _authProxyName
@@ -94,31 +109,98 @@ networks: #Networks
 				}
 			}
 		}
-		"\(name)-ingress": {
-			chart: charts.ingress
-			_service: service
-			info: "Generating TLS certificate for https://\(_domain)"
-			annotations: {
-				"dodo.cloud/resource-type": "ingress"
-				"dodo.cloud/resource.ingress.host": "https://\(_domain)"
-			}
-			values: {
-				domain: _domain
-				appRoot: _appRoot
-				ingressClassName: network.ingressClass
-				certificateIssuer: network.certificateIssuer
-				service: {
-					if auth.enabled {
-						name: _authProxyName
-						port: name: _authProxyHTTPPortName
+		if input.cluster != _|_ {
+			"\(name)-ingress-\(input.cluster.name)": {
+				chart: charts.ingress
+				cluster: input.cluster
+				_service: service
+				_sanitizedDomain: strings.Replace(_domain, ".", "-", -1)
+				_clusterDomain: "\(_sanitizedDomain).\(input.cluster.name).cluster.\(global.privateDomain)"
+				info: "Configuring secure route to \(input.cluster.name) cluster"
+				annotations: {
+					// TODO(gio): Change type to cluster-gateway or sth similar.
+					"dodo.cloud/resource-type": "ingress"
+					"dodo.cloud/resource.ingress.host": "https://\(_clusterDomain)"
+				}
+				values: {
+					domain: _clusterDomain
+					ingressClassName: input.cluster.ingressClassName
+					certificateIssuer: ""
+					annotations: {
+						"nginx.ingress.kubernetes.io/force-ssl-redirect": "false"
+						"nginx.ingress.kubernetes.io/ssl-redirect": "false"
 					}
-					if !auth.enabled {
+					service: {
 						name: _service.name
 						if _service.port.name != _|_ {
 							port: name: _service.port.name
 						}
 						if _service.port.number != _|_ {
 							port: number: _service.port.number
+						}
+					}
+				}
+			}
+			"\(release.appInstanceId)-\(name)-ingress": {
+				chart: charts.ingress
+				// NOTE(gio): Force to install in default cluster.
+				cluster: null
+				// TODO(gio): take it from input.network.namespace
+				targetNamespace: "\(global.namespacePrefix)ingress-private"
+				_service: service
+				info: "Generating TLS certificate for https://\(_domain)"
+				annotations: {
+					"dodo.cloud/resource-type": "ingress"
+					"dodo.cloud/resource.ingress.host": "https://\(_domain)"
+				}
+				values: {
+					domain: _domain
+					appRoot: _appRoot
+					ingressClassName: network.ingressClass
+					certificateIssuer: network.certificateIssuer
+					service: {
+						if auth.enabled {
+							name: _authProxyName
+							port: name: _authProxyHTTPPortName
+						}
+						if !auth.enabled {
+							// TODO(gio): make this variables part of the env configuration
+							name: "proxy-backend-service"
+							port: name: "http"
+						}
+					}
+				}
+			}
+		}
+		if input.cluster == _|_ {
+			"\(name)-ingress": {
+				chart: charts.ingress
+				// NOTE(gio): Force to install in default cluster.
+				cluster: null
+				_service: service
+				info: "Generating TLS certificate for https://\(_domain)"
+				annotations: {
+					"dodo.cloud/resource-type": "ingress"
+					"dodo.cloud/resource.ingress.host": "https://\(_domain)"
+				}
+				values: {
+					domain: _domain
+					appRoot: _appRoot
+					ingressClassName: network.ingressClass
+					certificateIssuer: network.certificateIssuer
+					service: {
+						if auth.enabled {
+							name: _authProxyName
+							port: name: _authProxyHTTPPortName
+						}
+						if !auth.enabled {
+							name: _service.name
+							if _service.port.name != _|_ {
+								port: name: _service.port.name
+							}
+							if _service.port.number != _|_ {
+								port: number: _service.port.number
+							}
 						}
 					}
 				}
@@ -134,6 +216,14 @@ networks: #Networks
 			"\(k)": #Ingress & v & {
 				name: k
 				g: global
+			}
+		}
+		...
+	}
+	clusterProxy: {
+		for k, v in ingress {
+			for i, j in v.clusterProxy {
+				"\(k)-\(i)": j
 			}
 		}
 		...

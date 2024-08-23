@@ -18,7 +18,7 @@ func CreateRepoClient(env installer.EnvConfig, st *state) Task {
 		if err != nil {
 			return err
 		}
-		appManager, err := installer.NewAppManager(r, st.nsCreator, st.jc, st.hf, nil, "/apps")
+		appManager, err := installer.NewAppManager(r, st.nsCreator, st.jc, st.hf, nil, nil, "/apps")
 		if err != nil {
 			return err
 		}

@@ -4,7 +4,8 @@ input: {
 	authKey?: string @name(Auth Key) @role(VPNAuthKey) @usernameField(username) @enabledField(vpnEnabled)
 	cpuCores: int | *1 @name(CPU Cores)
 	memory: string | *"2Gi" @name(Memory)
-	vpnEnabled: bool @name(Enable VPN)
+	vpnEnabled?: bool @name(Enable VPN)
+	codeServerEnabled?: bool @name(Install VSCode Server)
 }
 
 name: "Virutal Machine"
@@ -21,15 +22,20 @@ out: {
 			domain: global.domain
 			cpuCores: input.cpuCores
 			memory: input.memory
-			if !input.vpnEnabled {
-				vpn: enabled: false
-			}
-			if input.vpnEnabled {
-				vpn: {
-					enabled: true
-					loginServer: "https://headscale.\(global.domain)"
-					authKey: input.authKey
+			if input.vpnEnabled != _|_ {
+				if !input.vpnEnabled {
+					vpn: enabled: false
 				}
+				if input.vpnEnabled {
+					vpn: {
+						enabled: true
+						loginServer: "https://headscale.\(global.domain)"
+						authKey: input.authKey
+					}
+				}
+			}
+			if input.codeServerEnabled != _|_ {
+				codeServerEnabled: input.codeServerEnabled
 			}
 		}
 	}

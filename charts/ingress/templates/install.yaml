@@ -3,8 +3,10 @@ kind: Ingress
 metadata:
   name: ingress-{{ .Values.domain }}
   namespace: {{ .Release.Namespace }}
-  {{- if or .Values.certificateIssuer .Values.appRoot }}
   annotations:
+    {{- if .Values.annotations }}
+    {{ toYaml .Values.annotations | nindent 4 }}
+    {{- end }}
     {{- if .Values.certificateIssuer }}
     acme.cert-manager.io/http01-edit-in-place: "true"
     cert-manager.io/cluster-issuer: {{ .Values.certificateIssuer }}
@@ -13,7 +15,6 @@ metadata:
     {{- if .Values.appRoot }}
     nginx.ingress.kubernetes.io/app-root: {{ .Values.appRoot }}
     {{- end }}
-  {{- end }}
 spec:
   ingressClassName: {{ .Values.ingressClassName }}
   {{- if .Values.certificateIssuer }}

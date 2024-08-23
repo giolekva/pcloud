@@ -104,6 +104,7 @@ type DodoAppServer struct {
 	nsc               installer.NamespaceCreator
 	jc                installer.JobCreator
 	vpnKeyGen         installer.VPNAPIClient
+	cnc               installer.ClusterNetworkConfigurator
 	workers           map[string]map[string]struct{}
 	appConfigs        map[string]appConfig
 	tmplts            dodoAppTmplts
@@ -136,6 +137,7 @@ func NewDodoAppServer(
 	nsc installer.NamespaceCreator,
 	jc installer.JobCreator,
 	vpnKeyGen installer.VPNAPIClient,
+	cnc installer.ClusterNetworkConfigurator,
 	env installer.EnvConfig,
 	external bool,
 	fetchUsersAddr string,
@@ -171,6 +173,7 @@ func NewDodoAppServer(
 		nsc,
 		jc,
 		vpnKeyGen,
+		cnc,
 		map[string]map[string]struct{}{},
 		map[string]appConfig{},
 		tmplts,
@@ -1073,7 +1076,7 @@ func (s *DodoAppServer) createAppForBranch(
 		return err
 	}
 	hf := installer.NewGitHelmFetcher()
-	m, err := installer.NewAppManager(configRepo, s.nsc, s.jc, hf, s.vpnKeyGen, "/")
+	m, err := installer.NewAppManager(configRepo, s.nsc, s.jc, hf, s.vpnKeyGen, s.cnc, "/")
 	if err != nil {
 		return err
 	}
@@ -1220,7 +1223,7 @@ func (s *DodoAppServer) updateDodoApp(
 		return installer.ReleaseResources{}, err
 	}
 	hf := installer.NewGitHelmFetcher()
-	m, err := installer.NewAppManager(repo, s.nsc, s.jc, hf, s.vpnKeyGen, "/.dodo")
+	m, err := installer.NewAppManager(repo, s.nsc, s.jc, hf, s.vpnKeyGen, s.cnc, "/.dodo")
 	if err != nil {
 		return installer.ReleaseResources{}, err
 	}

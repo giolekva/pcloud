@@ -2,10 +2,13 @@ package main
 
 import (
 	"github.com/giolekva/pcloud/core/installer"
+	"github.com/giolekva/pcloud/core/installer/kube"
 )
 
 func newNSCreator() (installer.NamespaceCreator, error) {
-	return installer.NewNamespaceCreator(rootFlags.kubeConfig)
+	return installer.NewNamespaceCreator(kube.KubeConfigOpts{
+		KubeConfigPath: rootFlags.kubeConfig,
+	})
 }
 
 func newZoneFetcher() (installer.ZoneStatusFetcher, error) {
@@ -17,7 +20,9 @@ func newHelmReleaseMonitor() (installer.HelmReleaseMonitor, error) {
 }
 
 func newJobCreator() (installer.JobCreator, error) {
-	clientset, err := installer.NewKubeConfig(rootFlags.kubeConfig)
+	clientset, err := kube.NewKubeClient(kube.KubeConfigOpts{
+		KubeConfigPath: rootFlags.kubeConfig,
+	})
 	if err != nil {
 		return nil, err
 	}

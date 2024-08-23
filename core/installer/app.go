@@ -33,15 +33,23 @@ var cueInfraAppGlobal []byte
 type rendered struct {
 	Name            string
 	Readme          string
+	Cluster         string
+	Namespaces      []Namespace
 	Resources       CueAppData
 	HelmCharts      HelmCharts
 	ContainerImages map[string]ContainerImage
 	Ports           []PortForward
+	ClusterProxies  map[string]ClusterProxy
 	Data            CueAppData
 	URL             string
 	Help            []HelpDocument
 	Icon            string
 	Raw             []byte
+}
+
+type Namespace struct {
+	Name       string `json:"name"`
+	Kubeconfig string `json:"kubeconfig,omitempty"`
 }
 
 type HelpDocument struct {
@@ -79,6 +87,11 @@ type EnvAppRendered struct {
 type InfraAppRendered struct {
 	rendered
 	Config InfraAppInstanceConfig
+}
+
+type ClusterProxy struct {
+	From string `json:"from"`
+	To   string `json:"to"`
 }
 
 type PortForward struct {
@@ -200,6 +213,7 @@ type EnvApp interface {
 		release Release,
 		env EnvConfig,
 		networks []Network,
+		clusters []Cluster,
 		values map[string]any,
 		charts map[string]helmv2.HelmChartTemplateSpec,
 		vpnKeyGen VPNAPIClient,
@@ -342,6 +356,13 @@ func (a cueApp) render(values map[string]any) (rendered, error) {
 		return rendered{}, err
 	}
 	ret.Readme = readme
+	res.LookupPath(cue.ParsePath("input.cluster.name")).Decode(&ret.Cluster)
+	if err := res.LookupPath(cue.ParsePath("output.clusterProxy")).Decode(&ret.ClusterProxies); err != nil {
+		return rendered{}, err
+	}
+	if err := res.LookupPath(cue.ParsePath("namespaces")).Decode(&ret.Namespaces); err != nil {
+		return rendered{}, err
+	}
 	if err := res.LookupPath(cue.ParsePath("portForward")).Decode(&ret.Ports); err != nil {
 		return rendered{}, err
 	}
@@ -457,14 +478,16 @@ func (a cueEnvApp) Render(
 	release Release,
 	env EnvConfig,
 	networks []Network,
+	clusters []Cluster,
 	values map[string]any,
 	charts map[string]helmv2.HelmChartTemplateSpec,
 	vpnKeyGen VPNAPIClient,
 ) (EnvAppRendered, error) {
-	derived, err := deriveValues(values, values, a.Schema(), networks, vpnKeyGen)
+	derived, err := deriveValues(values, values, a.Schema(), networks, clusters, vpnKeyGen)
 	if err != nil {
 		return EnvAppRendered{}, err
 	}
+	// return EnvAppRendered{}, fmt.Errorf("asdasd")
 	if charts == nil {
 		charts = make(map[string]helmv2.HelmChartTemplateSpec)
 	}

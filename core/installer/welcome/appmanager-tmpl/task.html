@@ -1,0 +1,30 @@
+{{ define "content"}}
+Installation in progress (feel free to navigate away from this page):
+<ul class="progress">
+    {{ template "task" .Task.Subtasks }}
+</ul>
+
+<script>
+ async function refresh() {
+	 try {
+		 const resp = await fetch(window.location.href);
+		 console.log(window.location.href, resp);
+		 if (resp.ok) {
+			 if (window.location.href != resp.url) {
+				 location.assign(resp.url);
+			 } else {
+				 var tmp = document.createElement("html");
+				 tmp.innerHTML = await resp.text();
+				 const progress = tmp.getElementsByClassName("progress")[0];
+				 document.getElementsByClassName("progress")[0].innerHTML = progress.innerHTML;
+			 }
+		 }
+	 } catch (error) {
+		 console.log(error);
+	 } finally {
+		 setTimeout(refresh, 3000);
+	 }
+ }
+ setTimeout(refresh, 3000);
+</script>
+{{ end }}

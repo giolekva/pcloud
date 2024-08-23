@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"net/url"
 )
@@ -15,6 +16,7 @@ type VPNAPIClient interface {
 	ExpireKey(username, key string) error
 	ExpireNode(username, node string) error
 	RemoveNode(username, node string) error
+	GetNodeIP(username, node string) (net.IP, error)
 }
 
 type headscaleAPIClient struct {
@@ -107,4 +109,35 @@ func (g *headscaleAPIClient) RemoveNode(username, node string) error {
 		return errors.New(buf.String())
 	}
 	return nil
+}
+
+func (g *headscaleAPIClient) GetNodeIP(username, node string) (net.IP, error) {
+	addr, err := url.Parse(fmt.Sprintf("%s/user/%s/node/%s/ip", g.apiAddr, username, node))
+	if err != nil {
+		return nil, err
+	}
+	resp, err := g.c.Do(&http.Request{
+		URL:    addr,
+		Method: http.MethodGet,
+		Body:   nil,
+	})
+	if err != nil {
+		return nil, err
+	}
+	var buf bytes.Buffer
+	if _, err := io.Copy(&buf, resp.Body); err != nil {
+		return nil, err
+	}
+	bufS := buf.String()
+	if resp.StatusCode == http.StatusNotFound {
+		return nil, ErrorNotFound
+	}
+	if resp.StatusCode != http.StatusOK {
+		return nil, errors.New(bufS)
+	}
+	ip := net.ParseIP(bufS)
+	if ip == nil {
+		return nil, fmt.Errorf("invalid ip")
+	}
+	return ip, nil
 }

@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"log"
 	"os"
 
@@ -62,16 +61,7 @@ func rewriteCmdRun(cmd *cobra.Command, args []string) error {
 	log.Println("Creating repository")
 	r := installer.NewInMemoryAppRepository(installer.CreateAllApps())
 	hf := installer.NewGitHelmFetcher()
-	mgr, err := installer.NewAppManager(repoIO, nil, nil, hf, nil, "/apps")
-	if err != nil {
-		return err
-	}
-	env, err := mgr.Config()
-	if err != nil {
-		return err
-	}
-	fmt.Printf("%+v\n", env)
-	log.Println("Read config")
+	mgr, err := installer.NewAppManager(repoIO, nil, nil, hf, nil, nil, "/apps")
 	if err != nil {
 		return err
 	}

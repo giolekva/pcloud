@@ -100,7 +100,7 @@ func (f *gitHelmFetcher) Pull(chart HelmChartGitRepo, rfs soft.RepoFS, root stri
 	if err != nil {
 		return err
 	}
-	if err := rfs.RemoveDir(root); err != nil {
+	if err := rfs.RemoveAll(root); err != nil {
 		return err
 	}
 	return util.Walk(wtFS, "/", func(path string, info fs.FileInfo, err error) error {

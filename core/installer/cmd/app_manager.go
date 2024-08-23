@@ -16,11 +16,13 @@ import (
 )
 
 var appManagerFlags struct {
-	sshKey           string
-	repoAddr         string
-	port             int
-	appRepoAddr      string
-	headscaleAPIAddr string
+	sshKey                 string
+	repoAddr               string
+	port                   int
+	appRepoAddr            string
+	headscaleAPIAddr       string
+	dnsAPIAddr             string
+	clusterProxyConfigPath string
 }
 
 func appManagerCmd() *cobra.Command {
@@ -58,6 +60,18 @@ func appManagerCmd() *cobra.Command {
 		"",
 		"",
 	)
+	cmd.Flags().StringVar(
+		&appManagerFlags.dnsAPIAddr,
+		"dns-api-addr",
+		"",
+		"",
+	)
+	cmd.Flags().StringVar(
+		&appManagerFlags.clusterProxyConfigPath,
+		"cluster-proxy-config-path",
+		"",
+		"",
+	)
 	return cmd
 }
 
@@ -92,8 +106,15 @@ func appManagerCmdRun(cmd *cobra.Command, args []string) error {
 		return err
 	}
 	hf := installer.NewGitHelmFetcher()
-	vpnKeyGen := installer.NewHeadscaleAPIClient(appManagerFlags.headscaleAPIAddr)
-	m, err := installer.NewAppManager(repoIO, nsc, jc, hf, vpnKeyGen, "/apps")
+	vpnAPIClient := installer.NewHeadscaleAPIClient(appManagerFlags.headscaleAPIAddr)
+	cnc := &installer.NginxProxyConfigurator{
+		// TODO(gio): read from env config
+		PrivateSubdomain: "p",
+		DNSAPIAddr:       appManagerFlags.dnsAPIAddr,
+		Repo:             repoIO,
+		NginxConfigPath:  appManagerFlags.clusterProxyConfigPath,
+	}
+	m, err := installer.NewAppManager(repoIO, nsc, jc, hf, vpnAPIClient, cnc, "/apps")
 	if err != nil {
 		return err
 	}
@@ -117,16 +138,21 @@ func appManagerCmdRun(cmd *cobra.Command, args []string) error {
 	} else {
 		r = installer.NewInMemoryAppRepository(installer.CreateStoreApps())
 	}
+	fr := installer.NewInMemoryAppRepository(installer.CreateAllEnvApps())
 	helmMon, err := newHelmReleaseMonitor()
 	if err != nil {
 		return err
 	}
 	s, err := welcome.NewAppManagerServer(
 		appManagerFlags.port,
+		repoIO,
 		m,
 		r,
+		fr,
 		tasks.NewFixedReconciler(env.Id, env.Id),
 		helmMon,
+		cnc,
+		vpnAPIClient,
 	)
 	if err != nil {
 		return err

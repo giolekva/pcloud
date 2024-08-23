@@ -47,6 +47,7 @@ out: {
 	helm: {
 		"certificate-issuer": {
 			chart: charts["certificate-issuer"]
+			Info: "Configuring SSL certificate issuer for \(input.domain)"
 			dependsOn: [{
 				name: "ingress-nginx"
 				namespace: "\(global.namespacePrefix)ingress-private"

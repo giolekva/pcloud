@@ -35,16 +35,27 @@ func NewRecordsFile(r io.Reader) (*RecordsFile, error) {
 func (z *RecordsFile) DeleteTxtRecord(name, value string) {
 	z.lock.Lock()
 	defer z.lock.Unlock()
-	fmt.Printf("%s %s\n", name, value)
 	for i, rr := range z.rrs {
-		fmt.Printf("%+v\n", rr)
 		if txt, ok := rr.(*dns.TXT); ok {
-			fmt.Printf("%+v\n", txt)
 			if txt.Hdr.Name == name && strings.Join(txt.Txt, "") == value {
 				z.rrs = append(z.rrs[:i], z.rrs[i+1:]...)
 			}
 		}
 	}
+}
+
+func (z *RecordsFile) DeleteARecord(name, value string) error {
+	z.lock.Lock()
+	defer z.lock.Unlock()
+	for i, rr := range z.rrs {
+		if a, ok := rr.(*dns.A); ok {
+			if a.Hdr.Name == name && a.A.String() == value {
+				z.rrs = append(z.rrs[:i], z.rrs[i+1:]...)
+				return nil
+			}
+		}
+	}
+	return fmt.Errorf("not found")
 }
 
 // func (z *RecordsFile) DeleteRecordsFor(name string) {

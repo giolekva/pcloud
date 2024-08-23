@@ -1,7 +1,7 @@
 repo_name ?= dtabidze
 podman ?= docker
 ifeq ($(podman), podman)
-manifest_dest=docker://docker.io/$(repo_name)/pcloud-installer:latest
+manifest_dest=docker://docker.io/$(repo_name)/dns-api:latest
 endif
 
 clean:

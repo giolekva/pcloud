@@ -6,6 +6,8 @@ import (
 	"strings"
 )
 
+const defaultClusterName = "default"
+
 type Release struct {
 	AppInstanceId string `json:"appInstanceId"`
 	Namespace     string `json:"namespace"`
@@ -69,6 +71,7 @@ func deriveValues(
 	values any,
 	schema Schema,
 	networks []Network,
+	clusters []Cluster,
 	vpnKeyGen VPNAPIClient,
 ) (map[string]any, error) {
 	ret := make(map[string]any)
@@ -95,7 +98,9 @@ func deriveValues(
 					// TODO(gio): Improve getField
 					enabled, ok = getField(root, v).(bool)
 					if !ok {
-						return nil, fmt.Errorf("could not resolve enabled: %+v %s %+v", def.Meta(), v, root)
+						enabled = false
+						// TODO(gio): validate that enabled field exists in the schema
+						// return nil, fmt.Errorf("could not resolve enabled: %+v %s %+v", def.Meta(), v, root)
 					}
 				}
 				if !enabled {
@@ -164,20 +169,36 @@ func deriveValues(
 				picked = append(picked, n)
 			}
 			ret[k] = picked
+		case KindCluster:
+			name, ok := v.(string)
+			if !ok {
+				// TODO(gio): validate that value has cluster schema
+				ret[k] = v
+			} else {
+				c, err := findCluster(clusters, name)
+				if err != nil {
+					return nil, err
+				}
+				if c == nil {
+					delete(ret, k)
+				} else {
+					ret[k] = c
+				}
+			}
 		case KindAuth:
-			r, err := deriveValues(root, v, AuthSchema, networks, vpnKeyGen)
+			r, err := deriveValues(root, v, AuthSchema, networks, clusters, vpnKeyGen)
 			if err != nil {
 				return nil, err
 			}
 			ret[k] = r
 		case KindSSHKey:
-			r, err := deriveValues(root, v, SSHKeySchema, networks, vpnKeyGen)
+			r, err := deriveValues(root, v, SSHKeySchema, networks, clusters, vpnKeyGen)
 			if err != nil {
 				return nil, err
 			}
 			ret[k] = r
 		case KindStruct:
-			r, err := deriveValues(root, v, def, networks, vpnKeyGen)
+			r, err := deriveValues(root, v, def, networks, clusters, vpnKeyGen)
 			if err != nil {
 				return nil, err
 			}
@@ -274,6 +295,16 @@ func derivedToConfig(derived map[string]any, schema Schema) (map[string]any, err
 				return nil, err
 			}
 			ret[k] = r
+		case KindCluster:
+			vm, ok := v.(map[string]any)
+			if !ok {
+				return nil, fmt.Errorf("expected map")
+			}
+			name, ok := vm["name"]
+			if !ok {
+				return nil, fmt.Errorf("expected cluster name")
+			}
+			ret[k] = name
 		default:
 			return nil, fmt.Errorf("Should not reach!")
 		}
@@ -288,4 +319,16 @@ func findNetwork(networks []Network, name string) (Network, error) {
 		}
 	}
 	return Network{}, fmt.Errorf("Network not found: %s", name)
+}
+
+func findCluster(clusters []Cluster, name string) (*Cluster, error) {
+	if name == defaultClusterName {
+		return nil, nil
+	}
+	for _, c := range clusters {
+		if c.Name == name {
+			return &c, nil
+		}
+	}
+	return nil, fmt.Errorf("Cluster not found: %s", name)
 }

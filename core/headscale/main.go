@@ -39,6 +39,11 @@ const defaultACLs = `
     },
   },
   "acls": [
+    // {
+    //   "action": "accept",
+    //   "src": ["10.42.0.0/16", "10.43.0.0/16", "135.181.48.180/32", "65.108.39.172/32"],
+    //   "dst": ["10.42.0.0/16:*", "10.43.0.0/16:*", "135.181.48.180/32:*", "65.108.39.172/32:*"],
+    // },
     {{- range .cidrs }}
     { // Everyone has passthough access to private-network-proxy node
       "action": "accept",
@@ -46,8 +51,18 @@ const defaultACLs = `
       "dst": ["{{ . }}:*", "private-network-proxy:0"],
     },
     {{- end }}
+    { // Everyone has access to every port of nodes owned by private-network-proxy
+      "action": "accept",
+      "src": ["*"],
+      "dst": ["private-network-proxy:*"],
+    },
+    {
+      "action": "accept",
+      "src": ["private-network-proxy"],
+      "dst": ["private-network-proxy:*"],
+    },
     {{- range .users }}
-    { // Everyone has passthough access to private-network-proxy node
+    {
       "action": "accept",
       "src": ["{{ . }}"],
       "dst": ["{{ . }}:*"],
@@ -90,6 +105,7 @@ func (s *server) start() error {
 	r.HandleFunc("/user/{user}/preauthkey", s.createReusablePreAuthKey).Methods(http.MethodPost)
 	r.HandleFunc("/user/{user}/preauthkey", s.expireReusablePreAuthKey).Methods(http.MethodDelete)
 	r.HandleFunc("/user/{user}/node/{node}/expire", s.expireUserNode).Methods(http.MethodPost)
+	r.HandleFunc("/user/{user}/node/{node}/ip", s.getNodeIP).Methods(http.MethodGet)
 	r.HandleFunc("/user/{user}/node/{node}", s.removeUserNode).Methods(http.MethodDelete)
 	r.HandleFunc("/user", s.createUser).Methods(http.MethodPost)
 	r.HandleFunc("/routes/{id}/enable", s.enableRoute).Methods(http.MethodPost)
@@ -245,6 +261,33 @@ func (s *server) enableRoute(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
+}
+
+func (s *server) getNodeIP(w http.ResponseWriter, r *http.Request) {
+	user, ok := mux.Vars(r)["user"]
+	if !ok || user == "" {
+		http.Error(w, "no user", http.StatusBadRequest)
+		return
+	}
+	node, ok := mux.Vars(r)["node"]
+	if !ok || node == "" {
+		http.Error(w, "no name", http.StatusBadRequest)
+		return
+	}
+	addr, err := s.client.getNodeAddresses(user, node)
+	if err != nil {
+		if errors.Is(err, ErrorNotFound) {
+			http.Error(w, err.Error(), http.StatusNotFound)
+		} else {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+		}
+		return
+	}
+	if len(addr) == 0 || addr[0] == nil {
+		http.Error(w, "no address", http.StatusPreconditionFailed)
+		return
+	}
+	fmt.Fprintf(w, "%s", addr[0].String())
 }
 
 func updateACLs(aclsPath string, cidrs []string, users []string) ([]byte, error) {

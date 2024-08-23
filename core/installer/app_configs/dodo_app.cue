@@ -32,6 +32,7 @@ if app.dev.enabled {
 			loginServer: "https://headscale.\(global.domain)"
 			authKey: input.vpnAuthKey
 		}
+		codeServerEnabled: true
 		cpuCores: 1
 		memory: "1Gi"
 		cloudInit: {

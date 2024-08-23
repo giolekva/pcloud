@@ -5,12 +5,14 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net"
 	"os/exec"
 	"strconv"
 	"strings"
 )
 
 var ErrorAlreadyExists = errors.New("already exists")
+var ErrorNotFound = errors.New("not found")
 
 type client struct {
 	config string
@@ -89,8 +91,9 @@ func (c *client) enableRoute(id string) error {
 }
 
 type nodeInfo struct {
-	Id   int    `json:"id"`
-	Name string `json:"name"`
+	Id          int      `json:"id"`
+	Name        string   `json:"name"`
+	IPAddresses []net.IP `json:"ip_addresses"`
 }
 
 func (c *client) getNodeId(user, node string) (string, error) {
@@ -109,6 +112,24 @@ func (c *client) getNodeId(user, node string) (string, error) {
 		}
 	}
 	return "", fmt.Errorf("not found")
+}
+
+func (c *client) getNodeAddresses(user, node string) ([]net.IP, error) {
+	cmd := exec.Command("headscale", c.config, "--user", user, "node", "list", "-o", "json")
+	out, err := cmd.Output()
+	if err != nil {
+		return nil, err
+	}
+	var nodes []nodeInfo
+	if err := json.NewDecoder(bytes.NewReader(out)).Decode(&nodes); err != nil {
+		return nil, err
+	}
+	for _, n := range nodes {
+		if n.Name == node {
+			return n.IPAddresses, nil
+		}
+	}
+	return nil, ErrorNotFound
 }
 
 func extractLastLine(s string) (string, error) {

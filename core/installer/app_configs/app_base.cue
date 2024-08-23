@@ -5,6 +5,11 @@ import (
 	"net"
 )
 
+input: {
+	cluster?: #Cluster @name(Cluster)
+	...
+}
+
 name: string | *""
 description: string | *""
 readme: string | *""
@@ -20,6 +25,13 @@ help: [...#HelpDocument] | *[]
 }
 
 url: string | *""
+
+#Namespace: {
+	name: string
+	kubeconfig?: string
+}
+
+namespaces: [...#Namespace] | *[]
 
 #AppType: "infra" | "env"
 appType: #AppType | *"env"
@@ -98,6 +110,12 @@ appType: #AppType | *"env"
 
 portForward: [...#PortForward] | *[]
 
+#Cluster: {
+	name: string
+	kubeconfig: string
+	ingressClassName: string
+}
+
 global: #Global
 release: #Release
 
@@ -131,6 +149,7 @@ release: #Release
 	username: string
 	domain: string
 	vpn: #VPN | *{ enabled: false }
+	codeServerEnabled: bool | *false
 	cpuCores: int
 	memory: string
 	sshKnownHosts: [...string] | *[]
@@ -142,6 +161,27 @@ release: #Release
 	_memory: memory
 
 	_codeServerPort: 9090
+	_codeServerCmd: [...[...string]] | *[]
+	if codeServerEnabled {
+		_codeServerCmd: [
+			["sh", "-c", "curl -fsSL https://code-server.dev/install.sh | HOME=/home/\(username) sh"],
+			["sh", "-c", "systemctl enable --now code-server@\(username)"],
+			["sh", "-c", "sleep 10"],
+			// TODO(gio): (maybe) listen only on tailscale interface
+			["sh", "-c", "sed -i -e 's/127.0.0.1:8080/0.0.0.0:\(_codeServerPort)/g' /home/\(username)/.config/code-server/config.yaml"],
+			["sh", "-c", "sed -i -e 's/auth: password/auth: none/g' /home/\(username)/.config/code-server/config.yaml"],
+			["sh", "-c", "systemctl restart --now code-server@\(username)"],
+	    ]
+	}
+
+	_vpnCmd: [...[...string]] | *[]
+	if vpn.enabled {
+		_vpnCmd: [
+			["sh", "-c", "curl -fsSL https://tailscale.com/install.sh | sh"],
+			// TODO(gio): (maybe) enable tailscale ssh
+			["sh", "-c", "tailscale up --login-server=\(vpn.loginServer) --auth-key=\(vpn.authKey)"],
+     	]
+	}
 
 	images: {}
 	charts: {
@@ -241,32 +281,24 @@ release: #Release
 					owner: "\(username):\(username)"
 					permissions: "0644"
 				}], cloudInit.writeFiles])
-				runcmd: list.Concat([[
-					["sh", "-c", "chown -R \(username):\(username) /home/\(username)"],
-					["sh", "-c", "ssh-keygen -t ed25519 -f /home/\(username)/.ssh/id_ed25519 -q -N ''"],
-					["sh", "-c", "chown \(username):\(username) /home/\(username)/.ssh/id_ed25519*"],
-					["sh", "-c", "chmod 0600 /home/\(username)/.ssh/id_ed25519*"],
-					// TODO(gio): implement post app delete webhook to remove ssh key from memberships
-					// TODO(gio): make memberships-api addr configurable
-					["sh", "-c", "PUBKEY=$(cat /home/\(username)/.ssh/id_ed25519.pub) && curl --request POST --data \"{\\\"user\\\":\\\"\(username)\\\",\\\"publicKey\\\":\\\"${PUBKEY}\\\"}\" http://memberships-api.\(global.namespacePrefix)core-auth-memberships.svc.cluster.local/api/users/\(username)/keys"],
-					// TODO(gio): this waits for user keys are synced from memberships service back to the dodo-app.
-					// We should inject this key into the dodo-app directly as well.
-					["sh", "-c", "sleep 20"],
-					if vpn.enabled {
-						["sh", "-c", "curl -fsSL https://tailscale.com/install.sh | sh"],
-					}
-					if vpn.enabled {
-						// TODO(gio): (maybe) enable tailscale ssh
-						["sh", "-c", "tailscale up --login-server=\(vpn.loginServer) --auth-key=\(vpn.authKey)"],
-					}
-					["sh", "-c", "curl -fsSL https://code-server.dev/install.sh | HOME=/home/\(username) sh"],
-					["sh", "-c", "systemctl enable --now code-server@\(username)"],
-					["sh", "-c", "sleep 10"],
-					// TODO(gio): (maybe) listen only on tailscale interface
-					["sh", "-c", "sed -i -e 's/127.0.0.1:8080/0.0.0.0:\(_codeServerPort)/g' /home/\(username)/.config/code-server/config.yaml"],
-					["sh", "-c", "sed -i -e 's/auth: password/auth: none/g' /home/\(username)/.config/code-server/config.yaml"],
-					["sh", "-c", "systemctl restart --now code-server@\(username)"],
-				], cloudInit.runCmd])
+				runcmd: list.Concat([
+					[
+						["sh", "-c", "chown -R \(username):\(username) /home/\(username)"],
+						["sh", "-c", "ssh-keygen -t ed25519 -f /home/\(username)/.ssh/id_ed25519 -q -N ''"],
+						["sh", "-c", "chown \(username):\(username) /home/\(username)/.ssh/id_ed25519*"],
+						["sh", "-c", "chmod 0600 /home/\(username)/.ssh/id_ed25519*"],
+						// TODO(gio): implement post app delete webhook to remove ssh key from memberships
+						// TODO(gio): make memberships-api addr configurable
+						["sh", "-c", "PUBKEY=$(cat /home/\(username)/.ssh/id_ed25519.pub) && curl --request POST --data \"{\\\"user\\\":\\\"\(username)\\\",\\\"publicKey\\\":\\\"${PUBKEY}\\\"}\" http://memberships-api.\(global.namespacePrefix)core-auth-memberships.svc.cluster.local/api/users/\(username)/keys"],
+				    ],
+					_vpnCmd,
+					_codeServerCmd,
+					[
+						// TODO(gio): this waits for user keys are synced from memberships service back to the dodo-app.
+						// We should inject this key into the dodo-app directly as well.
+						// ["sh", "-c", "sleep 20"],
+   				    ],
+					cloudInit.runCmd])
 			}
 		}
 	}
@@ -370,6 +402,8 @@ _localCharts: localCharts
 	dependsOn: [...#ResourceReference] | *[]
 	info: string | *""
 	annotations: {...} | *{}
+	cluster?: #Cluster | null
+	targetNamespace?: string
 	...
 }
 
@@ -380,12 +414,15 @@ _localCharts: localCharts
 	_dependencies: [...#ResourceReference] | *[]
 	_info: string | *""
 	_annotations: {...} | *{}
+	_cluster?: #Cluster | null
+	_namespace: string
+	_targetNamespace?: string
 
 	apiVersion: "helm.toolkit.fluxcd.io/v2beta1"
 	kind: "HelmRelease"
 	metadata: {
 		name: _name
-   		namespace: release.namespace
+   		namespace: _namespace
         annotations: _annotations & {
           "dodo.cloud/installer-info": _info
         }
@@ -394,6 +431,19 @@ _localCharts: localCharts
 		interval: "1m0s"
 		dependsOn: _dependencies
 		chart: spec: _chart
+		if _targetNamespace != _|_ {
+			targetNamespace: _targetNamespace
+		}
+		if _cluster != _|_ {
+			if _cluster != null {
+				kubeConfig: secretRef: {
+					name: "cluster-kubeconfig"
+					key: "kubeconfig"
+				}
+			}
+		}
+		install: remediation: retries: -1
+		upgrade: remediation: retries: -1
 		values: _values
 	}
 }
@@ -401,6 +451,7 @@ _localCharts: localCharts
 output: {
 	images: out.images
 	charts: out.charts
+	clusterProxy: out.clusterProxy
 	_lc: _localCharts & {
 		for k, v in out.charts {
 			"\(k)": {
@@ -417,6 +468,13 @@ output: {
 				_dependencies: r.dependsOn
 				_info: r.info
 				_annotations: r.annotations
+				_namespace: release.namespace
+				if r.cluster != _|_ {
+					_cluster: r.cluster
+				}
+				if r.targetNamespace != _|_ {
+					_targetNamespace: r.targetNamespace
+				}
 			}
 		}
 	}
@@ -441,9 +499,10 @@ url: string | *""
 	images: {...}
 	charts: {...}
 	helm: {...}
+	clusterProxy: {...}
 	images: {
-		for key, value in images {
-			"\(key)": #Image & value
+		for k, v in images {
+			"\(k)": #Image & v
 		}
 	}
 	charts: {
@@ -453,10 +512,24 @@ url: string | *""
 			}
 		}
 	}
+	helm: {
+		for k, v in helm {
+			"\(k)": #Helm & v & {
+				name: k
+			}
+		}
+	}
+	clusterProxy: {
+		for k, v in clusterProxy {
+			"\(k)": #ClusterProxy & v
+		}
+	}
 	helmR: {
-		for key, value in helm {
-			"\(key)": #Helm & value & {
-				name: key
+		for k, v in helm {
+			"\(k)": v & {
+				if v.cluster == _|_ && input.cluster != _|_ {
+					cluster: input.cluster
+				}
 			}
 		}
 		...
@@ -471,6 +544,12 @@ url: string | *""
 			address: "https://code.v1.dodo.cloud/helm-charts"
 			branch: "main"
 			path: "charts/volumes"
+		}
+		secret: {
+			kind: "GitRepository"
+			address: "https://code.v1.dodo.cloud/helm-charts"
+			branch: "main"
+			path: "charts/secret"
 		}
 		...
 	}
@@ -571,3 +650,43 @@ out: #WithOut
 out: {}
 
 _codeServerPortName: "code-server"
+
+resources: { ... }
+
+#ClusterProxy: {
+	from: string
+	to: string
+}
+
+if input.cluster != _|_ {
+	{
+		out: {
+			charts: {
+				secret: {
+					kind: "GitRepository"
+					address: "https://code.v1.dodo.cloud/helm-charts"
+					branch: "main"
+					path: "charts/secret"
+				}
+ 			}
+			helm: {
+				"cluster-kubeconfig": {
+					chart: charts.secret
+					cluster: null
+					info: "Connecting to \(input.cluster.name) cluster"
+					values: {
+						name: "cluster-kubeconfig"
+						key: "kubeconfig"
+						value: base64.Encode(null, input.cluster.kubeconfig)
+						keep: true
+					}
+				}
+			}
+		}
+	}
+
+	namespaces: [{
+		name: release.namespace
+		kubeconfig: input.cluster.kubeconfig
+	}]
+}

@@ -1,6 +1,7 @@
 package installer
 
 import (
+	"net"
 	"testing"
 )
 
@@ -22,6 +23,10 @@ func (g testKeyGen) RemoveNode(username, node string) error {
 	return nil
 }
 
+func (g testKeyGen) GetNodeIP(username, node string) (net.IP, error) {
+	return nil, nil
+}
+
 func TestDeriveVPNAuthKey(t *testing.T) {
 	schema := structSchema{
 		"input",
@@ -36,7 +41,7 @@ func TestDeriveVPNAuthKey(t *testing.T) {
 	input := map[string]any{
 		"username": "foo",
 	}
-	v, err := deriveValues(input, input, schema, nil, testKeyGen{})
+	v, err := deriveValues(input, input, schema, nil, nil, testKeyGen{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -62,7 +67,7 @@ func TestDeriveVPNAuthKeyDisabled(t *testing.T) {
 		"username": "foo",
 		"enabled":  false,
 	}
-	v, err := deriveValues(input, input, schema, nil, testKeyGen{})
+	v, err := deriveValues(input, input, schema, nil, nil, testKeyGen{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -88,7 +93,7 @@ func TestDeriveVPNAuthKeyEnabledExplicitly(t *testing.T) {
 		"username": "foo",
 		"enabled":  true,
 	}
-	v, err := deriveValues(input, input, schema, nil, testKeyGen{})
+	v, err := deriveValues(input, input, schema, nil, nil, testKeyGen{})
 	if err != nil {
 		t.Fatal(err)
 	}

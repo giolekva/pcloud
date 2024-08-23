@@ -29,7 +29,7 @@ type RepoFS interface {
 	Reader(path string) (io.ReadCloser, error)
 	Writer(path string) (io.WriteCloser, error)
 	CreateDir(path string) error
-	RemoveDir(path string) error
+	RemoveAll(path string) error
 	ListDir(path string) ([]os.FileInfo, error)
 }
 
@@ -125,7 +125,7 @@ func (r *repoFS) CreateDir(path string) error {
 	return r.fs.MkdirAll(path, fs.ModePerm)
 }
 
-func (r *repoFS) RemoveDir(path string) error {
+func (r *repoFS) RemoveAll(path string) error {
 	if err := util.RemoveAll(r.fs, path); err != nil {
 		if errors.Is(err, fs.ErrNotExist) {
 			return nil

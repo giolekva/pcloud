@@ -64,8 +64,10 @@ spec:
         #       key: key
         - name: TS_HOSTNAME
           value: {{ .Values.hostname }}
+        {{- if .Values.ipSubnet }}
         - name: TS_ROUTES
           value: {{ .Values.ipSubnet }}
+        {{- end }}
         - name: TS_EXTRA_ARGS
           value: --login-server={{ .Values.loginServer }}
         # volumeMounts:

@@ -1,0 +1,70 @@
+{{ define "header" }}
+<h1>Cluster - {{ .Cluster.Name }}</h1>
+{{ end }}
+
+{{ define "content" }}
+<form action="/clusters/{{ .Cluster.Name }}/remove" method="POST">
+	<button type="submit" name="remove-cluster">remove cluster</button>
+</form>
+<form action="/clusters/{{ .Cluster.Name }}/servers" method="POST" autocomplete="off">
+	<details class="dropdown">
+		<summary id="type">worker</summary>
+		<ul>
+			<li>
+				<label>
+					<input type="radio" name="type" value="worker" checked />
+					worker
+				</label>
+			</li>
+			<li>
+				<label>
+					<input type="radio" name="type" value="controller" />
+					controller
+				</label>
+			</li>
+		</ul>
+	</details>
+	<input type="text" name="ip" placeholder="ip" />
+	<input type="text" name="port" placeholder="22 (optional)" />
+	<input type="text" name="user" placeholder="user" />
+	<input type="password" name="password" placeholder="password" />
+	<button type="submit" name="add-server">add server</button>
+</form>
+{{ $c := .Cluster }}
+<table class="striped">
+	<thead>
+		<tr>
+			<th scope="col">type</th>
+			<th scope="col">hostname</th>
+			<th scope="col">ip</th>
+			<th scope="col">remove</th>
+		</tr>
+	</thead>
+	<tbody>
+		{{ range $s := .Cluster.Controllers }}
+		<tr>
+			<th>controller</th>
+			<th scope="row">{{ $s.Name }}</th>
+			<td>{{ $s.IP }} </td>
+			<td>
+				<form action="/clusters/{{ $c.Name }}/servers/{{ $s.Name }}/remove" method="POST">
+					<button type="submit">remove</button>
+				</form>
+			</td>
+		</tr>
+		{{ end }}
+		{{ range $s := .Cluster.Workers }}
+		<tr>
+			<th>worker</th>
+			<th scope="row">{{ $s.Name }}</th>
+			<td>{{ $s.IP }} </td>
+			<td>
+				<form action="/clusters/{{ $c.Name }}/servers/{{ $s.Name }}/remove" method="POST">
+					<button type="submit">remove</button>
+				</form>
+			</td>
+		</tr>
+		{{ end }}
+	</tbody>
+</table>
+{{ end }}

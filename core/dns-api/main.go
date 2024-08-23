@@ -23,6 +23,9 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
+	if err := store.Log(); err != nil {
+		panic(err)
+	}
 	server := NewServer(*port, *zone, ds, store, nameserverIP)
 	server.Start()
 }

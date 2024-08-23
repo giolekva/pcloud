@@ -23,6 +23,7 @@ const (
 	KindArrayString       = 8
 	KindPort              = 9
 	KindVPNAuthKey        = 11
+	KindCluster           = 12
 )
 
 type Field struct {
@@ -54,6 +55,34 @@ var SSHKeySchema Schema = structSchema{
 		Field{"private", basicSchema{"Private Key", KindString, false, nil}},
 	},
 	advanced: true,
+}
+
+const clusterSchema = `
+#Cluster: {
+    name: string
+	kubeconfig: string
+    ingressClassName: string
+}
+
+value: { %s }
+`
+
+func isCluster(v cue.Value) bool {
+	if v.Value().Kind() != cue.StructKind {
+		return false
+	}
+	s := fmt.Sprintf(clusterSchema, fmt.Sprintf("%#v", v))
+	c := cuecontext.New()
+	u := c.CompileString(s)
+	if err := u.Validate(); err != nil {
+		return false
+	}
+	cluster := u.LookupPath(cue.ParsePath("#Cluster"))
+	vv := u.LookupPath(cue.ParsePath("value"))
+	if err := cluster.Subsume(vv); err == nil {
+		return true
+	}
+	return false
 }
 
 const networkSchema = `
@@ -233,18 +262,18 @@ func NewCueSchema(name string, v cue.Value) (Schema, error) {
 			meta := map[string]string{}
 			usernameFieldAttr := v.Attribute("usernameField")
 			if usernameFieldAttr.Err() == nil {
-				meta["usernameField"] = strings.ToLower(usernameFieldAttr.Contents())
+				meta["usernameField"] = usernameFieldAttr.Contents()
 			}
 			usernameAttr := v.Attribute("username")
 			if usernameAttr.Err() == nil {
-				meta["username"] = strings.ToLower(usernameAttr.Contents())
+				meta["username"] = usernameAttr.Contents()
 			}
 			if len(meta) != 1 {
 				return nil, fmt.Errorf("invalid vpn auth key field meta: %+v", meta)
 			}
 			enabledFieldAttr := v.Attribute("enabledField")
 			if enabledFieldAttr.Err() == nil {
-				meta["enabledField"] = strings.ToLower(enabledFieldAttr.Contents())
+				meta["enabledField"] = enabledFieldAttr.Contents()
 			}
 			return basicSchema{name, KindVPNAuthKey, true, meta}, nil
 		} else {
@@ -272,9 +301,11 @@ func NewCueSchema(name string, v cue.Value) (Schema, error) {
 			return basicSchema{name, KindAuth, false, nil}, nil
 		} else if isSSHKey(v) {
 			return basicSchema{name, KindSSHKey, true, nil}, nil
+		} else if isCluster(v) {
+			return basicSchema{name, KindCluster, false, nil}, nil
 		}
 		s := structSchema{name, make([]Field, 0), false}
-		f, err := v.Fields(cue.Schema())
+		f, err := v.Fields(cue.All())
 		if err != nil {
 			return nil, err
 		}
@@ -283,10 +314,14 @@ func NewCueSchema(name string, v cue.Value) (Schema, error) {
 			if err != nil {
 				return nil, err
 			}
-			s.fields = append(s.fields, Field{f.Selector().String(), scm})
+			s.fields = append(s.fields, Field{cleanFieldName(f.Selector().String()), scm})
 		}
 		return s, nil
 	default:
 		return nil, fmt.Errorf("SHOULD NOT REACH!")
 	}
+}
+
+func cleanFieldName(name string) string {
+	return strings.ReplaceAll(strings.ReplaceAll(name, "?", ""), "!", "")
 }

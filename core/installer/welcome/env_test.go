@@ -3,6 +3,7 @@ package welcome
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"io"
 	"io/fs"
 	"log"
@@ -256,7 +257,13 @@ func (m *onDoneTaskMap) Add(name string, task tasks.Task) error {
 	if err := m.m.Add(name, task); err != nil {
 		return err
 	} else {
-		task.OnDone(m.onDone)
+		task.OnDone(func(err error) {
+			if err == nil {
+				m.onDone(nil)
+			} else {
+				m.onDone(fmt.Errorf("%s: %s", name, err))
+			}
+		})
 		return nil
 	}
 }

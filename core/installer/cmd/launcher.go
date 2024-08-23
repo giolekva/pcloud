@@ -74,7 +74,7 @@ func launcherCmdRun(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-	appManager, err := installer.NewAppManager(repoIO, nil, nil, nil, nil, "/apps")
+	appManager, err := installer.NewAppManager(repoIO, nil, nil, nil, nil, nil, "/apps")
 	if err != nil {
 		return err
 	}

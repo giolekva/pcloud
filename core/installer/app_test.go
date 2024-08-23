@@ -82,7 +82,7 @@ func TestAuthProxyEnabled(t *testing.T) {
 				"groups":  "a,b",
 			},
 		}
-		rendered, err := a.Render(release, env, networks, values, nil, nil)
+		rendered, err := a.Render(release, env, networks, nil, values, nil, nil)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -112,7 +112,7 @@ func TestAuthProxyDisabled(t *testing.T) {
 				"enabled": false,
 			},
 		}
-		rendered, err := a.Render(release, env, networks, values, nil, nil)
+		rendered, err := a.Render(release, env, networks, nil, values, nil, nil)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -138,7 +138,7 @@ func TestGroupMemberships(t *testing.T) {
 		"network":    "Public",
 		"authGroups": "foo,bar",
 	}
-	rendered, err := a.Render(release, env, networks, values, nil, nil)
+	rendered, err := a.Render(release, env, networks, nil, values, nil, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -168,7 +168,7 @@ func TestGerrit(t *testing.T) {
 		},
 		"sshPort": 22,
 	}
-	rendered, err := a.Render(release, env, networks, values, nil, nil)
+	rendered, err := a.Render(release, env, networks, nil, values, nil, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -193,7 +193,7 @@ func TestJenkins(t *testing.T) {
 		"subdomain": "jenkins",
 		"network":   "Private",
 	}
-	rendered, err := a.Render(release, env, networks, values, nil, nil)
+	rendered, err := a.Render(release, env, networks, nil, values, nil, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -252,7 +252,7 @@ func TestPrivateNetwork(t *testing.T) {
 		},
 		"sshPrivateKey": "private",
 	}
-	rendered, err := a.Render(release, env, networks, values, nil, nil)
+	rendered, err := a.Render(release, env, networks, nil, values, nil, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -285,7 +285,7 @@ func TestAppPackages(t *testing.T) {
 			"groups":  "a,b",
 		},
 	}
-	rendered, err := app.Render(release, env, networks, values, nil, nil)
+	rendered, err := app.Render(release, env, networks, nil, values, nil, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -388,7 +388,7 @@ func TestDodoAppDevDisabled(t *testing.T) {
 		AppDir:        "/foo/bar",
 	}
 	keyGen := testKeyGen{}
-	r, err := app.Render(release, env, networks, map[string]any{
+	r, err := app.Render(release, env, networks, nil, map[string]any{
 		"repoAddr":       "",
 		"repoPublicAddr": "",
 		"managerAddr":    "",
@@ -425,7 +425,7 @@ func TestDodoAppDevEnabled(t *testing.T) {
 		AppDir:        "/foo/bar",
 	}
 	keyGen := testKeyGen{}
-	r, err := app.Render(release, env, networks, map[string]any{
+	r, err := app.Render(release, env, networks, nil, map[string]any{
 		"repoAddr":       "",
 		"repoPublicAddr": "",
 		"managerAddr":    "",
@@ -463,7 +463,7 @@ func TestDodoAppInstance(t *testing.T) {
 		"gitRepoPublicKey": "",
 		"username":         "",
 	}
-	rendered, err := a.Render(release, env, networks, values, nil, nil)
+	rendered, err := a.Render(release, env, networks, nil, values, nil, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -486,4 +486,38 @@ func TestDodoApp(t *testing.T) {
 		t.Fatal(err)
 	}
 	t.Log(app.Schema())
+}
+
+func TestAppVirtualMachine(t *testing.T) {
+	contents, err := valuesTmpls.ReadFile("values-tmpl/virtual-machine.cue")
+	if err != nil {
+		t.Fatal(err)
+	}
+	app, err := NewCueEnvApp(CueAppData{
+		"base.cue":   []byte(cueBaseConfig),
+		"app.cue":    []byte(contents),
+		"global.cue": []byte(cueEnvAppGlobal),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	release := Release{
+		Namespace: "foo",
+	}
+	values := map[string]any{
+		"name":     "foo",
+		"username": "bar",
+		"cpuCores": 1,
+		"memory":   "1Gi",
+	}
+	rendered, err := app.Render(release, env, networks, nil, values, nil, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, r := range rendered.Resources {
+		t.Log(string(r))
+	}
+	for _, r := range rendered.Data {
+		t.Log(string(r))
+	}
 }

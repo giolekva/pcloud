@@ -69,7 +69,10 @@ out: {
 			values: {
 				repoAddr: input.repoAddr
 				sshPrivateKey: base64.Encode(null, input.sshPrivateKey)
+				// TODO(gio): de-hardcode these variables
 				headscaleAPIAddr: "http://headscale-api.\(global.namespacePrefix)app-headscale.svc.cluster.local"
+				dnsAPIAddr: "http://dns-api.\(global.namespacePrefix)dns.svc.cluster.local"
+				clusterProxyConfigPath: "/apps/private-network/resources/proxy-backend-config.yaml"
 				ingress: {
 					className: input.network.ingressClass
 					domain: _domain

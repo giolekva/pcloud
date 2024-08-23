@@ -12,3 +12,5 @@ clusterRoleName: example-welcome
 appRepoAddr: ""
 portName: http
 headscaleAPIAddr: ""
+dnsAPIAddr: ""
+clusterProxyConfigPath: ""
