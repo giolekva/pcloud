@@ -166,6 +166,13 @@ spec:
           readOnly: true
         - mountPath: /headscale-api
           name: api-socket
+        livenessProbe:
+          exec:
+            command:
+              - cat
+              - /headscale/acls/config.hujson-reload
+            initialDelaySeconds: 60
+            periodSeconds: 5
       - name: headscale-api
         image: {{ .Values.api.image.repository }}:{{ .Values.api.image.tag }}
         imagePullPolicy: {{ .Values.api.image.pullPolicy }}
@@ -179,6 +186,15 @@ spec:
         - --config=/headscale/config/config.yaml
         - --ip-subnet={{ .Values.api.ipSubnet }}
         - --acls=/headscale/acls/config.hujson
+        - --self={{ .Values.api.self }}
+        - --fetch-users-addr={{ .Values.api.fetchUsersAddr }}
+        livenessProbe:
+          exec:
+            command:
+              - cat
+              - /headscale/acls/config.hujson-reload
+            initialDelaySeconds: 60
+            periodSeconds: 5
         volumeMounts:
         - name: data
           mountPath: /headscale/data

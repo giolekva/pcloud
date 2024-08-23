@@ -1,10 +1,13 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"os/exec"
 	"strings"
 )
+
+var ErrorAlreadyExists = errors.New("already exists")
 
 type client struct {
 	config string
@@ -19,7 +22,10 @@ func newClient(config string) *client {
 func (c *client) createUser(name string) error {
 	cmd := exec.Command("headscale", c.config, "users", "create", name)
 	out, err := cmd.Output()
-	fmt.Println(string(out))
+	outStr := string(out)
+	if err != nil && strings.Contains(outStr, "User already exists") {
+		return ErrorAlreadyExists
+	}
 	return err
 }
 

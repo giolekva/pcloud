@@ -223,13 +223,6 @@ func (s *DodoAppServer) Start() error {
 		go func() {
 			rand.Seed(uint64(time.Now().UnixNano()))
 			s.syncUsers()
-			// TODO(dtabidze): every sync delay should be randomized to avoid all client
-			// applications hitting memberships service at the same time.
-			// For every next sync new delay should be randomly generated from scratch.
-			// We can choose random delay from 1 to 2 minutes.
-			// for range time.Tick(1 * time.Minute) {
-			// 	s.syncUsers()
-			// }
 			for {
 				delay := time.Duration(rand.Intn(60)+60) * time.Second
 				time.Sleep(delay)

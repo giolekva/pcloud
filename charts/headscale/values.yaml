@@ -19,6 +19,8 @@ api:
     repository: giolekva/headscale-api
     tag: latest
     pullPolicy: Always
+  self: ""
+  fetchUsersAddr: ""
 ui:
   enabled: false
   image:
