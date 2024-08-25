@@ -35,6 +35,7 @@ type AppManager struct {
 	nsc        NamespaceCreator
 	jc         JobCreator
 	hf         HelmFetcher
+	vpnKeyGen  VPNAuthKeyGenerator
 	appDirRoot string
 }
 
@@ -43,6 +44,7 @@ func NewAppManager(
 	nsc NamespaceCreator,
 	jc JobCreator,
 	hf HelmFetcher,
+	vpnKeyGen VPNAuthKeyGenerator,
 	appDirRoot string,
 ) (*AppManager, error) {
 	return &AppManager{
@@ -51,6 +53,7 @@ func NewAppManager(
 		nsc,
 		jc,
 		hf,
+		vpnKeyGen,
 		appDirRoot,
 	}, nil
 }
@@ -457,7 +460,7 @@ func (m *AppManager) Install(
 		RepoAddr:      m.repoIO.FullAddress(),
 		AppDir:        appDir,
 	}
-	rendered, err := app.Render(release, env, networks, values, nil)
+	rendered, err := app.Render(release, env, networks, values, nil, m.vpnKeyGen)
 	if err != nil {
 		return ReleaseResources{}, err
 	}
@@ -489,7 +492,7 @@ func (m *AppManager) Install(
 	if o.FetchContainerImages {
 		release.ImageRegistry = imageRegistry
 	}
-	rendered, err = app.Render(release, env, networks, values, localCharts)
+	rendered, err = app.Render(release, env, networks, values, localCharts, m.vpnKeyGen)
 	if err != nil {
 		return ReleaseResources{}, err
 	}
@@ -582,7 +585,7 @@ func (m *AppManager) Update(
 	if err != nil {
 		return ReleaseResources{}, err
 	}
-	rendered, err := app.Render(config.Release, env, networks, values, renderedCfg.LocalCharts)
+	rendered, err := app.Render(config.Release, env, networks, values, renderedCfg.LocalCharts, m.vpnKeyGen)
 	if err != nil {
 		return ReleaseResources{}, err
 	}
@@ -989,6 +992,8 @@ func findPortFields(scm Schema) []string {
 		return []string{}
 	case KindPort:
 		return []string{""}
+	case KindVPNAuthKey:
+		return []string{}
 	default:
 		panic("MUST NOT REACH!")
 	}

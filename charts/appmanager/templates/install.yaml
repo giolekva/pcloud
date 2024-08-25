@@ -90,6 +90,7 @@ spec:
         - appmanager
         - --repo-addr={{ .Values.repoAddr }}
         - --ssh-key=/pcloud/ssh-key/private
+        - --headscale-api-addr={{ .Values.headscaleAPIAddr }}
         - --port=8080
         {{- if .Values.appRepoAddr }}
         - --app-repo-addr={{ .Values.appRepoAddr }}

@@ -68,6 +68,7 @@ helm: {
 		values: {
 			repoAddr: input.repoAddr
 			sshPrivateKey: base64.Encode(null, input.sshPrivateKey)
+			headscaleAPIAddr: "http://headscale-api.\(global.namespacePrefix)app-headscale.svc.cluster.local"
 			ingress: {
 				className: input.network.ingressClass
 				domain: _domain

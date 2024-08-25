@@ -16,10 +16,11 @@ import (
 )
 
 var appManagerFlags struct {
-	sshKey      string
-	repoAddr    string
-	port        int
-	appRepoAddr string
+	sshKey           string
+	repoAddr         string
+	port             int
+	appRepoAddr      string
+	headscaleAPIAddr string
 }
 
 func appManagerCmd() *cobra.Command {
@@ -48,6 +49,12 @@ func appManagerCmd() *cobra.Command {
 	cmd.Flags().StringVar(
 		&appManagerFlags.appRepoAddr,
 		"app-repo-addr",
+		"",
+		"",
+	)
+	cmd.Flags().StringVar(
+		&appManagerFlags.headscaleAPIAddr,
+		"headscale-api-addr",
 		"",
 		"",
 	)
@@ -85,7 +92,8 @@ func appManagerCmdRun(cmd *cobra.Command, args []string) error {
 		return err
 	}
 	hf := installer.NewGitHelmFetcher()
-	m, err := installer.NewAppManager(repoIO, nsc, jc, hf, "/apps")
+	vpnKeyGen := installer.NewHeadscaleAPIClient(appManagerFlags.headscaleAPIAddr)
+	m, err := installer.NewAppManager(repoIO, nsc, jc, hf, vpnKeyGen, "/apps")
 	if err != nil {
 		return err
 	}

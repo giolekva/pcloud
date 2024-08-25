@@ -32,7 +32,7 @@ create_env:
 	./pcloud --kubeconfig=../../priv/kubeconfig create-env --admin-priv-key=/Users/lekva/.ssh/id_rsa --name=lekva --ip=192.168.0.211 --admin-username=gio
 
 appmanager:
-	./pcloud --kubeconfig=../../priv/kubeconfig-hetzner appmanager --ssh-key=/Users/lekva/.ssh/id_ed25519 --repo-addr=ssh://10.43.196.174/config --port=9090 # --app-repo-addr=http://localhost:8080
+	./pcloud --kubeconfig=../../priv/kubeconfig-hetzner appmanager --ssh-key=/Users/lekva/.ssh/id_ed25519 --repo-addr=ssh://10.43.196.174/config --port=9090 --headscale-api-addr=http://10.43.193.154 # --app-repo-addr=http://localhost:8080
 
 dodo-app:
 	./pcloud --kubeconfig=../../priv/kubeconfig-hetzner dodo-app --ssh-key=/Users/lekva/.ssh/id_ed25519 --repo-addr=ssh://10.43.196.174/test

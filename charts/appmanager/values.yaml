@@ -11,3 +11,4 @@ ingress:
 clusterRoleName: example-welcome
 appRepoAddr: ""
 portName: http
+headscaleAPIAddr: ""

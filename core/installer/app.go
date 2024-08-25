@@ -196,7 +196,14 @@ type EnvConfig struct {
 
 type EnvApp interface {
 	App
-	Render(release Release, env EnvConfig, networks []Network, values map[string]any, charts map[string]helmv2.HelmChartTemplateSpec) (EnvAppRendered, error)
+	Render(
+		release Release,
+		env EnvConfig,
+		networks []Network,
+		values map[string]any,
+		charts map[string]helmv2.HelmChartTemplateSpec,
+		vpnKeyGen VPNAuthKeyGenerator,
+	) (EnvAppRendered, error)
 }
 
 type cueApp struct {
@@ -452,8 +459,9 @@ func (a cueEnvApp) Render(
 	networks []Network,
 	values map[string]any,
 	charts map[string]helmv2.HelmChartTemplateSpec,
+	vpnKeyGen VPNAuthKeyGenerator,
 ) (EnvAppRendered, error) {
-	derived, err := deriveValues(values, a.Schema(), networks)
+	derived, err := deriveValues(values, values, a.Schema(), networks, vpnKeyGen)
 	if err != nil {
 		return EnvAppRendered{}, err
 	}

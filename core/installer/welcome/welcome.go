@@ -214,7 +214,7 @@ func (s *Server) createAccount(w http.ResponseWriter, r *http.Request) {
 	}
 	// TODO(gio): remove this once auto user sync is implemented
 	{
-		appManager, err := installer.NewAppManager(s.repo, s.nsCreator, nil, s.hf, "/apps")
+		appManager, err := installer.NewAppManager(s.repo, s.nsCreator, nil, s.hf, nil, "/apps")
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return

@@ -32,6 +32,7 @@ var dodoAppFlags struct {
 	db                string
 	networks          []string
 	fetchUsersAddr    string
+	headscaleAPIAddr  string
 }
 
 func dodoAppCmd() *cobra.Command {
@@ -123,6 +124,12 @@ func dodoAppCmd() *cobra.Command {
 		[]string{},
 		"",
 	)
+	cmd.Flags().StringVar(
+		&dodoAppFlags.headscaleAPIAddr,
+		"headscale-api-addr",
+		"",
+		"",
+	)
 	return cmd
 }
 
@@ -193,6 +200,7 @@ func dodoAppCmdRun(cmd *cobra.Command, args []string) error {
 			// &tasks.KustomizationReconciler{},
 		},
 	}
+	vpnKeyGen := installer.NewHeadscaleAPIClient(dodoAppFlags.headscaleAPIAddr)
 	s, err := welcome.NewDodoAppServer(
 		st,
 		nf,
@@ -208,6 +216,7 @@ func dodoAppCmdRun(cmd *cobra.Command, args []string) error {
 		dodoAppFlags.envAppManagerAddr,
 		nsc,
 		jc,
+		vpnKeyGen,
 		env,
 		dodoAppFlags.external,
 		dodoAppFlags.fetchUsersAddr,

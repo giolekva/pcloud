@@ -1,0 +1,9 @@
+name: ""
+cpuCores: 1
+memory: "1Gi"
+disk:
+  source: "https://cloud.debian.org/images/cloud/bookworm-backports/latest/debian-12-backports-generic-amd64.qcow2"
+  size: 64Gi
+ports: []
+cloudInit:
+  userData: {}

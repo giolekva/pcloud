@@ -8,17 +8,17 @@ func TestFindPortFields(t *testing.T) {
 	scm := structSchema{
 		"a",
 		[]Field{
-			Field{"x", basicSchema{"x", KindString, false}},
-			Field{"y", basicSchema{"y", KindInt, false}},
-			Field{"z", basicSchema{"z", KindPort, false}},
+			Field{"x", basicSchema{"x", KindString, false, nil}},
+			Field{"y", basicSchema{"y", KindInt, false, nil}},
+			Field{"z", basicSchema{"z", KindPort, false, nil}},
 			Field{
 				"w",
 				structSchema{
 					"w",
 					[]Field{
-						Field{"x", basicSchema{"x", KindString, false}},
-						Field{"y", basicSchema{"y", KindInt, false}},
-						Field{"z", basicSchema{"z", KindPort, false}},
+						Field{"x", basicSchema{"x", KindString, false, nil}},
+						Field{"y", basicSchema{"y", KindInt, false, nil}},
+						Field{"z", basicSchema{"z", KindPort, false, nil}},
 					},
 					false,
 				},

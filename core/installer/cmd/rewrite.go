@@ -62,7 +62,7 @@ func rewriteCmdRun(cmd *cobra.Command, args []string) error {
 	log.Println("Creating repository")
 	r := installer.NewInMemoryAppRepository(installer.CreateAllApps())
 	hf := installer.NewGitHelmFetcher()
-	mgr, err := installer.NewAppManager(repoIO, nil, nil, hf, "/apps")
+	mgr, err := installer.NewAppManager(repoIO, nil, nil, hf, nil, "/apps")
 	if err != nil {
 		return err
 	}

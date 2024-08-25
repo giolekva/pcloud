@@ -1,0 +1,14 @@
+# TODO(gio): enable
+# apiVersion: v1
+# kind: Service
+# metadata:
+#   name: {{ .Values.name }}-code-server
+# spec:
+#   type: ClusterIP
+#   selector:
+#     app: {{ .Values.name }}
+#   ports:
+#   - name: http
+#     port: 80
+#     targetPort: 8080 # TODO(gio): add to values.yaml
+#     protocol: TCP

@@ -22,6 +22,7 @@ const (
 	KindNumber            = 4
 	KindArrayString       = 8
 	KindPort              = 9
+	KindVPNAuthKey        = 11
 )
 
 type Field struct {
@@ -34,13 +35,14 @@ type Schema interface {
 	Kind() Kind
 	Fields() []Field
 	Advanced() bool
+	Meta() map[string]string
 }
 
 var AuthSchema Schema = structSchema{
 	name: "Auth",
 	fields: []Field{
-		Field{"enabled", basicSchema{"Enabled", KindBoolean, false}},
-		Field{"groups", basicSchema{"Groups", KindString, false}},
+		Field{"enabled", basicSchema{"Enabled", KindBoolean, false, nil}},
+		Field{"groups", basicSchema{"Groups", KindString, false, nil}},
 	},
 	advanced: false,
 }
@@ -48,8 +50,8 @@ var AuthSchema Schema = structSchema{
 var SSHKeySchema Schema = structSchema{
 	name: "SSH Key",
 	fields: []Field{
-		Field{"public", basicSchema{"Public Key", KindString, false}},
-		Field{"private", basicSchema{"Private Key", KindString, false}},
+		Field{"public", basicSchema{"Public Key", KindString, false, nil}},
+		Field{"private", basicSchema{"Private Key", KindString, false, nil}},
 	},
 	advanced: true,
 }
@@ -166,6 +168,7 @@ type basicSchema struct {
 	name     string
 	kind     Kind
 	advanced bool
+	meta     map[string]string
 }
 
 func (s basicSchema) Name() string {
@@ -182,6 +185,10 @@ func (s basicSchema) Fields() []Field {
 
 func (s basicSchema) Advanced() bool {
 	return s.advanced
+}
+
+func (s basicSchema) Meta() map[string]string {
+	return s.meta
 }
 
 type structSchema struct {
@@ -206,6 +213,10 @@ func (s structSchema) Advanced() bool {
 	return s.advanced
 }
 
+func (s structSchema) Meta() map[string]string {
+	return map[string]string{}
+}
+
 func NewCueSchema(name string, v cue.Value) (Schema, error) {
 	nameAttr := v.Attribute("name")
 	if nameAttr.Err() == nil {
@@ -218,29 +229,36 @@ func NewCueSchema(name string, v cue.Value) (Schema, error) {
 	}
 	switch v.IncompleteKind() {
 	case cue.StringKind:
-		return basicSchema{name, KindString, false}, nil
+		if role == "vpnauthkey" {
+			meta := map[string]string{}
+			usernameAttr := v.Attribute("usernameField")
+			meta["usernameField"] = strings.ToLower(usernameAttr.Contents())
+			return basicSchema{name, KindVPNAuthKey, true, meta}, nil
+		} else {
+			return basicSchema{name, KindString, false, nil}, nil
+		}
 	case cue.BoolKind:
-		return basicSchema{name, KindBoolean, false}, nil
+		return basicSchema{name, KindBoolean, false, nil}, nil
 	case cue.NumberKind:
-		return basicSchema{name, KindNumber, false}, nil
+		return basicSchema{name, KindNumber, false, nil}, nil
 	case cue.IntKind:
 		if role == "port" {
-			return basicSchema{name, KindPort, true}, nil
+			return basicSchema{name, KindPort, true, nil}, nil
 		} else {
-			return basicSchema{name, KindInt, false}, nil
+			return basicSchema{name, KindInt, false, nil}, nil
 		}
 	case cue.ListKind:
 		if isMultiNetwork(v) {
-			return basicSchema{name, KindMultiNetwork, false}, nil
+			return basicSchema{name, KindMultiNetwork, false, nil}, nil
 		}
-		return basicSchema{name, KindArrayString, false}, nil
+		return basicSchema{name, KindArrayString, false, nil}, nil
 	case cue.StructKind:
 		if isNetwork(v) {
-			return basicSchema{name, KindNetwork, false}, nil
+			return basicSchema{name, KindNetwork, false, nil}, nil
 		} else if isAuth(v) {
-			return basicSchema{name, KindAuth, false}, nil
+			return basicSchema{name, KindAuth, false, nil}, nil
 		} else if isSSHKey(v) {
-			return basicSchema{name, KindSSHKey, true}, nil
+			return basicSchema{name, KindSSHKey, true, nil}, nil
 		}
 		s := structSchema{name, make([]Field, 0), false}
 		f, err := v.Fields(cue.Schema())

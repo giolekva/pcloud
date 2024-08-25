@@ -82,7 +82,7 @@ func TestAuthProxyEnabled(t *testing.T) {
 				"groups":  "a,b",
 			},
 		}
-		rendered, err := a.Render(release, env, networks, values, nil)
+		rendered, err := a.Render(release, env, networks, values, nil, nil)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -112,7 +112,7 @@ func TestAuthProxyDisabled(t *testing.T) {
 				"enabled": false,
 			},
 		}
-		rendered, err := a.Render(release, env, networks, values, nil)
+		rendered, err := a.Render(release, env, networks, values, nil, nil)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -138,7 +138,7 @@ func TestGroupMemberships(t *testing.T) {
 		"network":    "Public",
 		"authGroups": "foo,bar",
 	}
-	rendered, err := a.Render(release, env, networks, values, nil)
+	rendered, err := a.Render(release, env, networks, values, nil, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -168,7 +168,7 @@ func TestGerrit(t *testing.T) {
 		},
 		"sshPort": 22,
 	}
-	rendered, err := a.Render(release, env, networks, values, nil)
+	rendered, err := a.Render(release, env, networks, values, nil, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -193,7 +193,7 @@ func TestJenkins(t *testing.T) {
 		"subdomain": "jenkins",
 		"network":   "Private",
 	}
-	rendered, err := a.Render(release, env, networks, values, nil)
+	rendered, err := a.Render(release, env, networks, values, nil, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -252,7 +252,7 @@ func TestPrivateNetwork(t *testing.T) {
 		},
 		"sshPrivateKey": "private",
 	}
-	rendered, err := a.Render(release, env, networks, values, nil)
+	rendered, err := a.Render(release, env, networks, values, nil, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -285,7 +285,7 @@ func TestAppPackages(t *testing.T) {
 			"groups":  "a,b",
 		},
 	}
-	rendered, err := app.Render(release, env, networks, values, nil)
+	rendered, err := app.Render(release, env, networks, values, nil, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -360,7 +360,7 @@ func TestPCloudApp(t *testing.T) {
 		"managerAddr":   "",
 		"appId":         "",
 		"sshPrivateKey": "",
-	}, nil)
+	}, nil, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -383,7 +383,7 @@ func TestDodoAppInstance(t *testing.T) {
 		"repoHost":         "",
 		"gitRepoPublicKey": "",
 	}
-	rendered, err := a.Render(release, env, networks, values, nil)
+	rendered, err := a.Render(release, env, networks, values, nil, nil)
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -3,6 +3,7 @@ package installer
 import (
 	"fmt"
 	"html/template"
+	"strings"
 )
 
 type Release struct {
@@ -55,7 +56,21 @@ func (a AppInstanceConfig) InputToValues(schema Schema) map[string]any {
 	return ret
 }
 
-func deriveValues(values any, schema Schema, networks []Network) (map[string]any, error) {
+func getField(v any, f string) any {
+	for _, i := range strings.Split(f, ".") {
+		vm := v.(map[string]any)
+		v = vm[i]
+	}
+	return v
+}
+
+func deriveValues(
+	root any,
+	values any,
+	schema Schema,
+	networks []Network,
+	vpnKeyGen VPNAuthKeyGenerator,
+) (map[string]any, error) {
 	ret := make(map[string]any)
 	for _, f := range schema.Fields() {
 		k := f.Name
@@ -74,6 +89,16 @@ func deriveValues(values any, schema Schema, networks []Network) (map[string]any
 					"private": string(key.RawPrivateKey()),
 				}
 			}
+			if def.Kind() == KindVPNAuthKey {
+				usernameField := def.Meta()["usernameField"]
+				// TODO(gio): Improve getField
+				username := getField(root, usernameField)
+				authKey, err := vpnKeyGen.Generate(username.(string))
+				if err != nil {
+					return nil, err
+				}
+				ret[k] = authKey
+			}
 			continue
 		}
 		switch def.Kind() {
@@ -84,6 +109,8 @@ func deriveValues(values any, schema Schema, networks []Network) (map[string]any
 		case KindInt:
 			ret[k] = v
 		case KindPort:
+			ret[k] = v
+		case KindVPNAuthKey:
 			ret[k] = v
 		case KindArrayString:
 			a, ok := v.([]string)
@@ -120,19 +147,19 @@ func deriveValues(values any, schema Schema, networks []Network) (map[string]any
 			}
 			ret[k] = picked
 		case KindAuth:
-			r, err := deriveValues(v, AuthSchema, networks)
+			r, err := deriveValues(v, v, AuthSchema, networks, vpnKeyGen)
 			if err != nil {
 				return nil, err
 			}
 			ret[k] = r
 		case KindSSHKey:
-			r, err := deriveValues(v, SSHKeySchema, networks)
+			r, err := deriveValues(v, v, SSHKeySchema, networks, vpnKeyGen)
 			if err != nil {
 				return nil, err
 			}
 			ret[k] = r
 		case KindStruct:
-			r, err := deriveValues(v, def, networks)
+			r, err := deriveValues(v, v, def, networks, vpnKeyGen)
 			if err != nil {
 				return nil, err
 			}
@@ -162,6 +189,8 @@ func derivedToConfig(derived map[string]any, schema Schema) (map[string]any, err
 		case KindInt:
 			ret[k] = v
 		case KindPort:
+			ret[k] = v
+		case KindVPNAuthKey:
 			ret[k] = v
 		case KindArrayString:
 			a, ok := v.([]string)

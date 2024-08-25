@@ -1,0 +1,49 @@
+apiVersion: kubevirt.io/v1
+kind: VirtualMachine
+metadata:
+  labels:
+    kubevirt.io/os: linux
+  name: {{ .Values.name }}
+spec:
+  running: true
+  template:
+    metadata:
+      creationTimestamp: null
+      labels:
+        kubevirt.io/domain: debian
+        app: {{ .Values.name }}
+    spec:
+      domain:
+        cpu:
+          cores: {{ .Values.cpuCores }}
+        resources:
+          limits:
+            memory: {{ .Values.memory }}
+        devices:
+          interfaces:
+            - name: default
+              masquerade: {}
+              ports:
+                {{- range .Values.ports }}
+                - port: {{ . }}
+                {{- end }}
+          disks:
+            - name: disk0
+              disk:
+                bus: virtio
+            - name: cloudinitdisk
+              disk:
+                bus: virtio
+                readonly: true
+      networks:
+        - name: default
+          pod: {}
+      volumes:
+        - name: disk0
+          persistentVolumeClaim:
+            claimName: dv-{{ .Values.name }}
+        - name: cloudinitdisk
+          cloudInitNoCloud:
+            userData: |
+              #cloud-config
+              {{- toYaml .Values.cloudInit.userData | nindent 14 }}
