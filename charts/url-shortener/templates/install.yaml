@@ -46,4 +46,4 @@ spec:
       volumes:
       - name: url-shortener
         persistentVolumeClaim:
-          claimName: url-shortener
+          claimName: {{ .Values.persistentVolumeClaimName }}

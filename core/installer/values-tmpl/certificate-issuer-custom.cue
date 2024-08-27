@@ -7,8 +7,6 @@ input: {
 	domain: string
 }
 
-images: {}
-
 name: "Network"
 namespace: "ingress-custom"
 readme: "Configure custom public domain"
@@ -36,29 +34,31 @@ icon: """
   </g>
 </svg>"""
 
-charts: {
-	"certificate-issuer": {
-		kind: "GitRepository"
-		address: "https://code.v1.dodo.cloud/helm-charts"
-		branch: "main"
-		path: "charts/certificate-issuer-public"
+out: {
+	charts: {
+		"certificate-issuer": {
+			kind: "GitRepository"
+			address: "https://code.v1.dodo.cloud/helm-charts"
+			branch: "main"
+			path: "charts/certificate-issuer-public"
+		}
 	}
-}
 
-helm: {
-	"certificate-issuer": {
-		chart: charts["certificate-issuer"]
-		dependsOn: [{
-			name: "ingress-nginx"
-			namespace: "\(global.namespacePrefix)ingress-private"
-		}]
-		values: {
-			issuer: {
-				name: input.name
-				server: "https://acme-v02.api.letsencrypt.org/directory"
-				domain: input.domain
-				contactEmail: global.contactEmail
-				ingressClass: networks.public.ingressClass
+	helm: {
+		"certificate-issuer": {
+			chart: charts["certificate-issuer"]
+			dependsOn: [{
+				name: "ingress-nginx"
+				namespace: "\(global.namespacePrefix)ingress-private"
+			}]
+			values: {
+				issuer: {
+					name: input.name
+					server: "https://acme-v02.api.letsencrypt.org/directory"
+					domain: input.domain
+					contactEmail: global.contactEmail
+					ingressClass: networks.public.ingressClass
+				}
 			}
 		}
 	}

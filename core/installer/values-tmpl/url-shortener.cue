@@ -2,6 +2,7 @@ input: {
     network: #Network @name(Network)
     subdomain: string @name(Subdomain)
 	auth: #Auth @name(Authentication)
+	storageSize: string @name(Storage Size)
 }
 
 _domain: "\(input.subdomain).\(input.network.domain)"
@@ -37,51 +38,53 @@ icon: """
 
 _httpPortName: "http"
 
-ingress: {
-	"url-shorteners": {
-		auth: input.auth
-		network: input.network
-		subdomain: input.subdomain
-		service: {
-			name: "url-shortener"
-			port: name: _httpPortName
+out: {
+	ingress: {
+		"url-shorteners": {
+			auth: input.auth
+			network: input.network
+			subdomain: input.subdomain
+			service: {
+				name: "url-shortener"
+				port: name: _httpPortName
+			}
 		}
 	}
-}
 
-images: {
-	urlShortener: {
-		repository: "giolekva"
-		name: "url-shortener"
-		tag: "latest"
-		pullPolicy: "Always"
+	images: {
+		urlShortener: {
+			repository: "giolekva"
+			name: "url-shortener"
+			tag: "latest"
+			pullPolicy: "Always"
+		}
 	}
-}
 
-charts: {
-    urlShortener: {
-		kind: "GitRepository"
-		address: "https://code.v1.dodo.cloud/helm-charts"
-		branch: "main"
-		path: "charts/url-shortener"
-    }
-}
+	charts: {
+		urlShortener: {
+			kind: "GitRepository"
+			address: "https://code.v1.dodo.cloud/helm-charts"
+			branch: "main"
+			path: "charts/url-shortener"
+		}
+	}
 
-helm: {
-    "url-shortener": {
-        chart: charts.urlShortener
-		info: "Installing server"
-        values: {
-            storage: {
-                size: "1Gi"
-            }
-            image: {
-				repository: images.urlShortener.fullName
-				tag: images.urlShortener.tag
-				pullPolicy: images.urlShortener.pullPolicy
+		volumes: data: size: input.storageSize
+
+	helm: {
+		"url-shortener": {
+			chart: charts.urlShortener
+			info: "Installing server"
+			values: {
+				image: {
+					repository: images.urlShortener.fullName
+					tag: images.urlShortener.tag
+					pullPolicy: images.urlShortener.pullPolicy
+				}
+				portName: _httpPortName
+				persistentVolumeClaimNama: volumes.data.name
+				requireAuth: input.auth.enabled
 			}
-            portName: _httpPortName
-			requireAuth: input.auth.enabled
-        }
-    }
+		}
+	}
 }

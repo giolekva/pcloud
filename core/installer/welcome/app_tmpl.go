@@ -1,15 +1,14 @@
 package welcome
 
 import (
+	"bytes"
 	"fmt"
-	"io"
 	"io/fs"
 	"sort"
 	"strings"
 	"text/template"
 
 	"github.com/giolekva/pcloud/core/installer"
-	"github.com/giolekva/pcloud/core/installer/soft"
 )
 
 const tmplSuffix = ".gotmpl"
@@ -69,7 +68,7 @@ func (s *appTmplStoreFS) Find(appType string) (AppTmpl, error) {
 }
 
 type AppTmpl interface {
-	Render(network installer.Network, subdomain string, out soft.RepoFS) error
+	Render(network installer.Network, subdomain string) (map[string][]byte, error)
 }
 
 type appTmplFS struct {
@@ -109,29 +108,20 @@ func NewAppTmplFS(fsys fs.FS, root string) (AppTmpl, error) {
 	return &appTmplFS{files, tmpls}, nil
 }
 
-func (a *appTmplFS) Render(network installer.Network, subdomain string, out soft.RepoFS) error {
+func (a *appTmplFS) Render(network installer.Network, subdomain string) (map[string][]byte, error) {
+	ret := map[string][]byte{}
+	for path, contents := range a.files {
+		ret[path] = contents
+	}
 	for path, tmpl := range a.tmpls {
-		f, err := out.Writer(path)
-		if err != nil {
-			return err
-		}
-		defer f.Close()
-		if err := tmpl.Execute(f, map[string]any{
+		var buf bytes.Buffer
+		if err := tmpl.Execute(&buf, map[string]any{
 			"Network":   network,
 			"Subdomain": subdomain,
 		}); err != nil {
-			return err
+			return nil, err
 		}
+		ret[path] = buf.Bytes()
 	}
-	for path, contents := range a.files {
-		f, err := out.Writer(path)
-		if err != nil {
-			return err
-		}
-		defer f.Close()
-		if _, err := io.WriteString(f, string(contents)); err != nil {
-			return err
-		}
-	}
-	return nil
+	return ret, nil
 }

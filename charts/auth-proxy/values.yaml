@@ -2,6 +2,7 @@ image:
   repository: giolekva/auth-proxy
   tag: latest
   pullPolicy: Always
+name: "auth-proxy"
 upstream: bar.svc.cluster.local
 whoAmIAddr: https://accounts.example.com/sessions/whoami
 loginAddr: https://accounts-ui.example.com/login

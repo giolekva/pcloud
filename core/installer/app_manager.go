@@ -76,7 +76,7 @@ func (m *AppManager) appConfig(path string) (AppInstanceConfig, error) {
 	}
 }
 
-func (m *AppManager) FindAllInstances() ([]AppInstanceConfig, error) {
+func (m *AppManager) GetAllInstances() ([]AppInstanceConfig, error) {
 	m.repoIO.Pull()
 	kust, err := soft.ReadKustomization(m.repoIO, filepath.Join(m.appDirRoot, "kustomization.yaml"))
 	if err != nil {
@@ -94,7 +94,7 @@ func (m *AppManager) FindAllInstances() ([]AppInstanceConfig, error) {
 	return ret, nil
 }
 
-func (m *AppManager) FindAllAppInstances(name string) ([]AppInstanceConfig, error) {
+func (m *AppManager) GetAllAppInstances(name string) ([]AppInstanceConfig, error) {
 	kust, err := soft.ReadKustomization(m.repoIO, filepath.Join(m.appDirRoot, "kustomization.yaml"))
 	if err != nil {
 		if errors.Is(err, fs.ErrNotExist) {
@@ -117,22 +117,30 @@ func (m *AppManager) FindAllAppInstances(name string) ([]AppInstanceConfig, erro
 	return ret, nil
 }
 
-func (m *AppManager) FindInstance(id string) (*AppInstanceConfig, error) {
-	kust, err := soft.ReadKustomization(m.repoIO, filepath.Join(m.appDirRoot, "kustomization.yaml"))
+func (m *AppManager) GetInstance(id string) (*AppInstanceConfig, error) {
+	appDir := filepath.Clean(filepath.Join(m.appDirRoot, id))
+	cfgPath := filepath.Join(appDir, "config.json")
+	// kust, err := soft.ReadKustomization(m.repoIO, filepath.Join(m.appDirRoot, "kustomization.yaml"))
+	// if err != nil {
+	// 	return nil, err
+	// }
+	// for _, app := range kust.Resources {
+	// 	if app == id {
+	// cfg, err := m.appConfig(filepath.Join(m.appDirRoot, app, "config.json"))
+	cfg, err := m.appConfig(cfgPath)
 	if err != nil {
 		return nil, err
 	}
-	for _, app := range kust.Resources {
-		if app == id {
-			cfg, err := m.appConfig(filepath.Join(m.appDirRoot, app, "config.json"))
-			if err != nil {
-				return nil, err
-			}
-			cfg.Id = id
-			return &cfg, nil
-		}
-	}
-	return nil, ErrorNotFound
+	cfg.Id = id
+	return &cfg, err
+	// if err != nil {
+	// 	return nil, err
+	// }
+	// 		cfg.Id = id
+	// 		return &cfg, nil
+	// 	}
+	// }
+	// return nil, ErrorNotFound
 }
 
 func GetCueAppData(fs soft.RepoFS, dir string) (CueAppData, error) {
@@ -653,7 +661,7 @@ func (m *AppManager) CreateNetworks(env EnvConfig) ([]Network, error) {
 			DeallocatePortAddr: fmt.Sprintf("http://port-allocator.%s-ingress-private.svc.cluster.local/api/remove", env.Id),
 		})
 	}
-	n, err := m.FindAllAppInstances("network")
+	n, err := m.GetAllAppInstances("network")
 	if err != nil {
 		return nil, err
 	}

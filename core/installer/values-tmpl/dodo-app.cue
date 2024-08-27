@@ -52,57 +52,6 @@ icon: """
 _domain: "\(input.subdomain).\(input.network.domain)"
 url: "https://\(_domain)"
 
-images: {
-	softserve: {
-		repository: "charmcli"
-		name: "soft-serve"
-		tag: "v0.7.1"
-		pullPolicy: "IfNotPresent"
-	}
-	dodoApp: {
-		repository: "giolekva"
-		name: "pcloud-installer"
-		tag: "latest"
-		pullPolicy: "Always"
-	}
-}
-
-charts: {
-	softserve: {
-		kind: "GitRepository"
-		address: "https://code.v1.dodo.cloud/helm-charts"
-		branch: "main"
-		path: "charts/soft-serve"
-	}
-	dodoApp: {
-		kind: "GitRepository"
-		address: "https://code.v1.dodo.cloud/helm-charts"
-		branch: "main"
-		path: "charts/dodo-app"
-	}
-}
-
-volumes: db: size: "10Gi"
-
-ingress: {
-	"dodo-app": {
-		auth: {
-			if input.external {
-				enabled: false
-			}
-			if !input.external {
-				enabled: true
-			}
-		}
-		network: input.network
-		subdomain: input.subdomain
-		service: {
-			name: "web"
-			port: name: "http"
-		}
-	}
-}
-
 portForward: [#PortForward & {
 	allocator: input.network.allocatePortAddr
 	reservator: input.network.reservePortAddr
@@ -112,51 +61,106 @@ portForward: [#PortForward & {
 	targetPort: 22
 }]
 
-helm: {
-	softserve: {
-		chart: charts.softserve
-		info: "Installing Git server"
-		values: {
-			serviceType: "ClusterIP"
-			addressPool: ""
-			reservedIP: ""
-			adminKey: strings.Join([input.fluxKeys.public, input.dAppKeys.public], "\n")
-			privateKey: input.ssKeys.private
-			publicKey: input.ssKeys.public
-			ingress: {
-				enabled: false
+out: {
+	images: {
+		softserve: {
+			repository: "charmcli"
+			name: "soft-serve"
+			tag: "v0.7.1"
+			pullPolicy: "IfNotPresent"
+		}
+		dodoApp: {
+			repository: "giolekva"
+			name: "pcloud-installer"
+			tag: "latest"
+			pullPolicy: "Always"
+		}
+	}
+
+	charts: {
+		softserve: {
+			kind: "GitRepository"
+			address: "https://code.v1.dodo.cloud/helm-charts"
+			branch: "main"
+			path: "charts/soft-serve"
+		}
+		dodoApp: {
+			kind: "GitRepository"
+			address: "https://code.v1.dodo.cloud/helm-charts"
+			branch: "main"
+			path: "charts/dodo-app"
+		}
+	}
+
+	volumes: {
+		"config-repo": size: "10Gi"
+		db: size: "10Gi"
+	}
+
+	ingress: {
+		"dodo-app": {
+			auth: {
+				if input.external {
+					enabled: false
+				}
+				if !input.external {
+					enabled: true
+				}
 			}
-			image: {
-				repository: images.softserve.fullName
-				tag: images.softserve.tag
-				pullPolicy: images.softserve.pullPolicy
+			network: input.network
+			subdomain: input.subdomain
+			service: {
+				name: "web"
+				port: name: "http"
 			}
 		}
 	}
-	"dodo-app": {
-		chart: charts.dodoApp
-		info: "Installing supervisor"
-		values: {
-			image: {
-				repository: images.dodoApp.fullName
-				tag: images.dodoApp.tag
-				pullPolicy: images.dodoApp.pullPolicy
+
+	helm: {
+		softserve: {
+			chart: charts.softserve
+			info: "Installing Git server"
+			values: {
+				serviceType: "ClusterIP"
+				addressPool: ""
+				reservedIP: ""
+				adminKey: strings.Join([input.fluxKeys.public, input.dAppKeys.public], "\n")
+				privateKey: input.ssKeys.private
+				publicKey: input.ssKeys.public
+				image: {
+					repository: images.softserve.fullName
+					tag: images.softserve.tag
+					pullPolicy: images.softserve.pullPolicy
+				}
+				persistentVolumeClaimName: volumes["config-repo"].name
 			}
-			clusterRoleName: "\(release.namespace)-dodo-app"
-			port: 8080
-			apiPort: 8081
-			repoAddr: "soft-serve.\(release.namespace).svc.cluster.local:22"
-			sshPrivateKey: base64.Encode(null, input.dAppKeys.private)
-			self: "api.\(release.namespace).svc.cluster.local"
-			repoPublicAddr: "ssh://\(_domain):\(input.sshPort)"
-			namespace: release.namespace
-			envAppManagerAddr: "http://appmanager.\(global.namespacePrefix)appmanager.svc.cluster.local"
-			envConfig: base64.Encode(null, json.Marshal(global))
-			gitRepoPublicKey: input.ssKeys.public
-			persistentVolumeClaimName: volumes.db.name
-			allowedNetworks: strings.Join([for n in input.allowedNetworks { n.name }], ",")
-			external: input.external
-			fetchUsersAddr: "http://memberships-api.\(global.namespacePrefix)core-auth-memberships.svc.cluster.local/api/users"
+		}
+		"dodo-app": {
+			chart: charts.dodoApp
+			info: "Installing supervisor"
+			values: {
+				image: {
+					repository: images.dodoApp.fullName
+					tag: images.dodoApp.tag
+					pullPolicy: images.dodoApp.pullPolicy
+				}
+				clusterRoleName: "\(release.namespace)-dodo-app"
+				port: 8080
+				apiPort: 8081
+				repoAddr: "soft-serve.\(release.namespace).svc.cluster.local:22"
+				sshPrivateKey: base64.Encode(null, input.dAppKeys.private)
+				self: "api.\(release.namespace).svc.cluster.local"
+				repoPublicAddr: "ssh://\(_domain):\(input.sshPort)"
+				namespace: release.namespace
+				envAppManagerAddr: "http://appmanager.\(global.namespacePrefix)appmanager.svc.cluster.local"
+				envConfig: base64.Encode(null, json.Marshal(global))
+				gitRepoPublicKey: input.ssKeys.public
+				persistentVolumeClaimName: volumes.db.name
+				allowedNetworks: strings.Join([for n in input.allowedNetworks { n.name }], ",")
+				external: input.external
+				fetchUsersAddr: "http://memberships-api.\(global.namespacePrefix)core-auth-memberships.svc.cluster.local/api/users"
+				headscaleAPIAddr: "http://headscale-api.\(global.namespacePrefix)app-headscale.svc"
+			}
 		}
 	}
 }

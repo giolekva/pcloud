@@ -29,57 +29,59 @@ _httpPortName: "http"
 _domain: "\(_subdomain).\(input.network.domain)"
 url: "https://\(_domain)"
 
-ingress: {
-	appmanager: {
-		auth: {
-			enabled: true
-			groups: input.authGroups
-		}
-		network: input.network
-		subdomain: _subdomain
-		service: {
-			name: "appmanager"
-			port: name: _httpPortName
-		}
-	}
-}
-
-images: {
-	appmanager: {
-		repository: "giolekva"
-		name: "pcloud-installer"
-		tag: "latest"
-		pullPolicy: "Always"
-	}
-}
-
-charts: {
-	appmanager: {
-		kind: "GitRepository"
-		address: "https://code.v1.dodo.cloud/helm-charts"
-		branch: "main"
-		path: "charts/appmanager"
-	}
-}
-
-helm: {
-	appmanager: {
-		chart: charts.appmanager
-		values: {
-			repoAddr: input.repoAddr
-			sshPrivateKey: base64.Encode(null, input.sshPrivateKey)
-			headscaleAPIAddr: "http://headscale-api.\(global.namespacePrefix)app-headscale.svc.cluster.local"
-			ingress: {
-				className: input.network.ingressClass
-				domain: _domain
-				certificateIssuer: ""
+out: {
+	ingress: {
+		appmanager: {
+			auth: {
+				enabled: true
+				groups: input.authGroups
 			}
-			clusterRoleName: "\(global.id)-appmanager"
-			portName: _httpPortName
-			image: {
-				repository: images.appmanager.fullName
-				tag: images.appmanager.tag
-				pullPolicy: images.appmanager.pullPolicy
+			network: input.network
+			subdomain: _subdomain
+			service: {
+				name: "appmanager"
+				port: name: _httpPortName
+			}
+		}
+	}
+
+	images: {
+		appmanager: {
+			repository: "giolekva"
+			name: "pcloud-installer"
+			tag: "latest"
+			pullPolicy: "Always"
+		}
+	}
+
+	charts: {
+		appmanager: {
+			kind: "GitRepository"
+			address: "https://code.v1.dodo.cloud/helm-charts"
+			branch: "main"
+			path: "charts/appmanager"
+		}
+	}
+
+	helm: {
+		appmanager: {
+			chart: charts.appmanager
+			values: {
+				repoAddr: input.repoAddr
+				sshPrivateKey: base64.Encode(null, input.sshPrivateKey)
+				headscaleAPIAddr: "http://headscale-api.\(global.namespacePrefix)app-headscale.svc.cluster.local"
+				ingress: {
+					className: input.network.ingressClass
+					domain: _domain
+					certificateIssuer: ""
+				}
+				clusterRoleName: "\(global.id)-appmanager"
+				portName: _httpPortName
+				image: {
+					repository: images.appmanager.fullName
+					tag: images.appmanager.tag
+					pullPolicy: images.appmanager.pullPolicy
+				}
 			}
 		}
 	}

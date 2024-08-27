@@ -2,8 +2,8 @@ image:
   repository: charmcli/soft-serve
   tag: latest
   pullPolicy: IfNotPresent
-storage:
-  size: 1Gi
+persistentVolumeClaimName: ""
+host: ""
 port: 22
 sshPublicPort: 22
 privateKey: ""
@@ -12,11 +12,3 @@ adminKey: ""
 serviceType: LoadBalancer
 reservedIP: ""
 addressPool: ""
-ingress:
-  enabled: false
-  domain: git.p.example.com
-  ingressClassName: example-ingress-private
-  certificateIssuer: ""
-  sourcePort: 0
-allowKeyless: false
-anonAccess: "no-access"

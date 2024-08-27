@@ -14,119 +14,121 @@ input: {
 name: "private-network"
 namespace: "ingress-private"
 
-images: {
-	"ingress-nginx": {
-		registry: "registry.k8s.io"
-		repository: "ingress-nginx"
-		name: "controller"
-		tag: "v1.8.0"
-		pullPolicy: "IfNotPresent"
+out: {
+	images: {
+		"ingress-nginx": {
+			registry: "registry.k8s.io"
+			repository: "ingress-nginx"
+			name: "controller"
+			tag: "v1.8.0"
+			pullPolicy: "IfNotPresent"
+		}
+		"tailscale-proxy": {
+			repository: "tailscale"
+			name: "tailscale"
+			tag: "v1.42.0"
+			pullPolicy: "IfNotPresent"
+		}
+		portAllocator: {
+			repository: "giolekva"
+			name: "port-allocator"
+			tag: "latest"
+			pullPolicy: "Always"
+		}
 	}
-	"tailscale-proxy": {
-		repository: "tailscale"
-		name: "tailscale"
-		tag: "v1.42.0"
-		pullPolicy: "IfNotPresent"
-	}
-	portAllocator: {
-		repository: "giolekva"
-		name: "port-allocator"
-		tag: "latest"
-		pullPolicy: "Always"
-	}
-}
 
-charts: {
-	"ingress-nginx": {
-		kind: "GitRepository"
-		address: "https://code.v1.dodo.cloud/helm-charts"
-		branch: "main"
-		path: "charts/ingress-nginx"
+	charts: {
+		"ingress-nginx": {
+			kind: "GitRepository"
+			address: "https://code.v1.dodo.cloud/helm-charts"
+			branch: "main"
+			path: "charts/ingress-nginx"
+		}
+		"tailscale-proxy": {
+			kind: "GitRepository"
+			address: "https://code.v1.dodo.cloud/helm-charts"
+			branch: "main"
+			path: "charts/tailscale-proxy"
+		}
+		portAllocator: {
+			kind: "GitRepository"
+			address: "https://code.v1.dodo.cloud/helm-charts"
+			branch: "main"
+			path: "charts/port-allocator"
+		}
 	}
-	"tailscale-proxy": {
-		kind: "GitRepository"
-		address: "https://code.v1.dodo.cloud/helm-charts"
-		branch: "main"
-		path: "charts/tailscale-proxy"
-	}
-	portAllocator: {
-		kind: "GitRepository"
-		address: "https://code.v1.dodo.cloud/helm-charts"
-		branch: "main"
-		path: "charts/port-allocator"
-	}
-}
 
-_ingressPrivate: "\(global.id)-ingress-private"
+	_ingressPrivate: "\(global.id)-ingress-private"
 
-helm: {
-	"ingress-nginx": {
-		chart: charts["ingress-nginx"]
-		values: {
-			fullnameOverride: "\(global.id)-nginx-private"
-			controller: {
-				service: {
-					enabled: true
-					type: "LoadBalancer"
-					annotations: {
-						"metallb.universe.tf/address-pool": _ingressPrivate
+	helm: {
+		"ingress-nginx": {
+			chart: charts["ingress-nginx"]
+			values: {
+				fullnameOverride: "\(global.id)-nginx-private"
+				controller: {
+					service: {
+						enabled: true
+						type: "LoadBalancer"
+						annotations: {
+							"metallb.universe.tf/address-pool": _ingressPrivate
+						}
+					}
+					ingressClassByName: true
+					ingressClassResource: {
+						name: _ingressPrivate
+						enabled: true
+						default: false
+						controllerValue: "k8s.io/\(_ingressPrivate)"
+					}
+					config: {
+						"proxy-body-size": "200M" // TODO(giolekva): configurable
+						"force-ssl-redirect": "true"
+						"server-snippet": """
+						more_clear_headers "X-Frame-Options";
+						"""
+					}
+					extraArgs: {
+						"default-ssl-certificate": "\(_ingressPrivate)/cert-wildcard.\(global.privateDomain)"
+					}
+					admissionWebhooks: {
+						enabled: false
+					}
+					image: {
+						registry: images["ingress-nginx"].registry
+						image: images["ingress-nginx"].imageName
+						tag: images["ingress-nginx"].tag
+						pullPolicy: images["ingress-nginx"].pullPolicy
 					}
 				}
-				ingressClassByName: true
-				ingressClassResource: {
-					name: _ingressPrivate
-					enabled: true
-					default: false
-					controllerValue: "k8s.io/\(_ingressPrivate)"
-				}
-				config: {
-					"proxy-body-size": "200M" // TODO(giolekva): configurable
-					"force-ssl-redirect": "true"
-					"server-snippet": """
-					more_clear_headers "X-Frame-Options";
-					"""
-				}
-				extraArgs: {
-					"default-ssl-certificate": "\(_ingressPrivate)/cert-wildcard.\(global.privateDomain)"
-				}
-				admissionWebhooks: {
-					enabled: false
-				}
+			}
+		}
+		"tailscale-proxy": {
+			chart: charts["tailscale-proxy"]
+			values: {
+				hostname: input.privateNetwork.hostname
+				apiServer: "http://headscale-api.\(global.namespacePrefix)app-headscale.svc.cluster.local"
+				loginServer: "https://headscale.\(networks.public.domain)" // TODO(gio): take headscale subdomain from configuration
+				ipSubnet: input.privateNetwork.ipSubnet
+				username: input.privateNetwork.username // TODO(gio): maybe install headscale-user chart separately?
+				preAuthKeySecret: "headscale-preauth-key"
 				image: {
-					registry: images["ingress-nginx"].registry
-					image: images["ingress-nginx"].imageName
-					tag: images["ingress-nginx"].tag
-					pullPolicy: images["ingress-nginx"].pullPolicy
+					repository: images["tailscale-proxy"].fullName
+					tag: images["tailscale-proxy"].tag
+					pullPolicy: images["tailscale-proxy"].pullPolicy
 				}
 			}
 		}
-	}
-	"tailscale-proxy": {
-		chart: charts["tailscale-proxy"]
-		values: {
-			hostname: input.privateNetwork.hostname
-			apiServer: "http://headscale-api.\(global.namespacePrefix)app-headscale.svc.cluster.local"
-			loginServer: "https://headscale.\(networks.public.domain)" // TODO(gio): take headscale subdomain from configuration
-			ipSubnet: input.privateNetwork.ipSubnet
-			username: input.privateNetwork.username // TODO(gio): maybe install headscale-user chart separately?
-			preAuthKeySecret: "headscale-preauth-key"
-			image: {
-				repository: images["tailscale-proxy"].fullName
-				tag: images["tailscale-proxy"].tag
-				pullPolicy: images["tailscale-proxy"].pullPolicy
-			}
-		}
-	}
-	"port-allocator": {
-		chart: charts.portAllocator
-		values: {
-			repoAddr: release.repoAddr
-			sshPrivateKey: base64.Encode(null, input.sshPrivateKey)
-			ingressNginxPath: "\(release.appDir)/resources/ingress-nginx.yaml"
-			image: {
-				repository: images.portAllocator.fullName
-				tag: images.portAllocator.tag
-				pullPolicy: images.portAllocator.pullPolicy
+		"port-allocator": {
+			chart: charts.portAllocator
+			values: {
+				repoAddr: release.repoAddr
+				sshPrivateKey: base64.Encode(null, input.sshPrivateKey)
+				ingressNginxPath: "\(release.appDir)/resources/ingress-nginx.yaml"
+				image: {
+					repository: images.portAllocator.fullName
+					tag: images.portAllocator.tag
+					pullPolicy: images.portAllocator.pullPolicy
+				}
 			}
 		}
 	}

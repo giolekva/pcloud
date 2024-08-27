@@ -17,7 +17,7 @@ spec:
       volumes:
       - name: data
         persistentVolumeClaim:
-          claimName: soft-serve
+          claimName: {{ .Values.persistentVolumeClaimName }}
       {{ if and .Values.privateKey .Values.publicKey }}
       - name: keys
         configMap:
@@ -31,7 +31,7 @@ spec:
         - name: SOFT_SERVE_SSH_LISTEN_ADDR
           value: ":{{ .Values.port }}"
         - name: SOFT_SERVE_SSH_PUBLIC_URL
-          value: "ssh://{{ .Values.ingress.domain }}:{{ .Values.sshPublicPort }}"
+          value: "ssh://{{ .Values.host }}:{{ .Values.sshPublicPort }}"
         - name: SOFT_SERVE_INITIAL_ADMIN_KEYS
           value: |-
 {{ indent 12 .Values.adminKey }}
@@ -44,11 +44,7 @@ spec:
         - name: SOFT_SERVE_HTTP_LISTEN_ADDR
           value: ":80"
         - name: SOFT_SERVE_HTTP_PUBLIC_URL
-          value: "http://{{ .Values.ingress.domain }}"
-        - name: SOFT_SERVE_ALLOW_KEYLESS
-          value: "{{ .Values.allowKeyless }}"
-        - name: SOFT_SERVE_ANON_ACCESS
-          value: "{{ .Values.anonAccess }}"
+          value: "http://{{ .Values.host }}"
         ports:
         - name: ssh
           containerPort: {{ .Values.port }}

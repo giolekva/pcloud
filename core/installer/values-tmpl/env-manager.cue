@@ -12,37 +12,39 @@ input: {
 name: "env-manager"
 namespace: "env-manager"
 
-images: {
-	envManager: {
-		repository: "giolekva"
-		name: "pcloud-installer"
-		tag: "latest"
-		pullPolicy: "Always"
+out: {
+	images: {
+		envManager: {
+			repository: "giolekva"
+			name: "pcloud-installer"
+			tag: "latest"
+			pullPolicy: "Always"
+		}
 	}
-}
 
-charts: {
-	envManager: {
-		kind: "GitRepository"
-		address: "https://code.v1.dodo.cloud/helm-charts"
-		branch: "main"
-		path: "charts/env-manager"
+	charts: {
+		envManager: {
+			kind: "GitRepository"
+			address: "https://code.v1.dodo.cloud/helm-charts"
+			branch: "main"
+			path: "charts/env-manager"
+		}
 	}
-}
 
-helm: {
-	"env-manager": {
-		chart: charts.envManager
-		values: {
-			repoIP: input.repoIP
-			repoPort: input.repoPort
-			repoName: input.repoName
-			sshPrivateKey: base64.Encode(null, input.sshPrivateKey)
-			clusterRoleName: "\(global.pcloudEnvName)-env-manager"
-			image: {
-				repository: images.envManager.fullName
-				tag: images.envManager.tag
-				pullPolicy: images.envManager.pullPolicy
+	helm: {
+		"env-manager": {
+			chart: charts.envManager
+			values: {
+				repoIP: input.repoIP
+				repoPort: input.repoPort
+				repoName: input.repoName
+				sshPrivateKey: base64.Encode(null, input.sshPrivateKey)
+				clusterRoleName: "\(global.pcloudEnvName)-env-manager"
+				image: {
+					repository: images.envManager.fullName
+					tag: images.envManager.tag
+					pullPolicy: images.envManager.pullPolicy
+				}
 			}
 		}
 	}

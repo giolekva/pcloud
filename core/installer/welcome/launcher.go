@@ -42,7 +42,7 @@ type AppManagerDirectory struct {
 }
 
 func (d *AppManagerDirectory) GetAllApps() ([]AppLauncherInfo, error) {
-	all, err := d.AppManager.FindAllInstances()
+	all, err := d.AppManager.GetAllInstances()
 	if err != nil {
 		return nil, err
 	}

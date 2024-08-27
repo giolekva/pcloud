@@ -12,6 +12,7 @@ import (
 	"io/fs"
 	"net/http"
 	"slices"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -23,6 +24,7 @@ import (
 	"github.com/giolekva/pcloud/core/installer/soft"
 	"github.com/giolekva/pcloud/core/installer/tasks"
 
+	"cuelang.org/go/cue"
 	"github.com/gorilla/mux"
 	"github.com/gorilla/securecookie"
 )
@@ -194,7 +196,21 @@ func NewDodoAppServer(
 	return s, nil
 }
 
+func (s *DodoAppServer) getAppConfig(app, branch string) appConfig {
+	return s.appConfigs[fmt.Sprintf("%s-%s", app, branch)]
+}
+
+func (s *DodoAppServer) setAppConfig(app, branch string, cfg appConfig) {
+	s.appConfigs[fmt.Sprintf("%s-%s", app, branch)] = cfg
+}
+
 func (s *DodoAppServer) Start() error {
+	// if err := s.client.DisableKeyless(); err != nil {
+	// 	return err
+	// }
+	// if err := s.client.DisableAnonAccess(); err != nil {
+	// 	return err
+	// }
 	e := make(chan error)
 	go func() {
 		r := mux.NewRouter()
@@ -207,6 +223,8 @@ func (s *DodoAppServer) Start() error {
 		r.HandleFunc("/{app-name}"+loginPath, s.handleLogin).Methods(http.MethodPost)
 		r.HandleFunc("/{app-name}/logs", s.handleAppLogs).Methods(http.MethodGet)
 		r.HandleFunc("/{app-name}/{hash}", s.handleAppCommit).Methods(http.MethodGet)
+		r.HandleFunc("/{app-name}/dev-branch/create", s.handleCreateDevBranch).Methods(http.MethodPost)
+		r.HandleFunc("/{app-name}/branch/{branch}", s.handleAppStatus).Methods(http.MethodGet)
 		r.HandleFunc("/{app-name}", s.handleAppStatus).Methods(http.MethodGet)
 		r.HandleFunc("/", s.handleStatus).Methods(http.MethodGet)
 		r.HandleFunc("/", s.handleCreateApp).Methods(http.MethodPost)
@@ -216,7 +234,7 @@ func (s *DodoAppServer) Start() error {
 		r := mux.NewRouter()
 		r.HandleFunc("/update", s.handleAPIUpdate)
 		r.HandleFunc("/api/apps/{app-name}/workers", s.handleAPIRegisterWorker).Methods(http.MethodPost)
-		r.HandleFunc("/api/add-admin-key", s.handleAPIAddAdminKey).Methods(http.MethodPost)
+		r.HandleFunc("/api/add-public-key", s.handleAPIAddPublicKey).Methods(http.MethodPost)
 		if !s.external {
 			r.HandleFunc("/api/sync-users", s.handleAPISyncUsers).Methods(http.MethodGet)
 		}
@@ -224,7 +242,6 @@ func (s *DodoAppServer) Start() error {
 	}()
 	if !s.external {
 		go func() {
-			rand.Seed(uint64(time.Now().UnixNano()))
 			s.syncUsers()
 			for {
 				delay := time.Duration(rand.Intn(60)+60) * time.Second
@@ -434,6 +451,7 @@ type appStatusData struct {
 	GitCloneCommand string
 	Commits         []CommitMeta
 	LastCommit      resourceData
+	Branches        []string
 }
 
 func (s *DodoAppServer) handleAppStatus(w http.ResponseWriter, r *http.Request) {
@@ -442,6 +460,10 @@ func (s *DodoAppServer) handleAppStatus(w http.ResponseWriter, r *http.Request) 
 	if !ok || appName == "" {
 		http.Error(w, "missing app-name", http.StatusBadRequest)
 		return
+	}
+	branch, ok := vars["branch"]
+	if !ok || branch == "" {
+		branch = "master"
 	}
 	u := r.Context().Value(userCtx)
 	if u == nil {
@@ -462,7 +484,7 @@ func (s *DodoAppServer) handleAppStatus(w http.ResponseWriter, r *http.Request) 
 		http.Error(w, "unauthorized", http.StatusUnauthorized)
 		return
 	}
-	commits, err := s.st.GetCommitHistory(appName)
+	commits, err := s.st.GetCommitHistory(appName, branch)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -481,6 +503,11 @@ func (s *DodoAppServer) handleAppStatus(w http.ResponseWriter, r *http.Request) 
 		}
 		lastCommitResources = r
 	}
+	branches, err := s.st.GetBranches(appName)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
 	data := appStatusData{
 		Navigation: []navItem{
 			navItem{"Home", "/"},
@@ -490,6 +517,10 @@ func (s *DodoAppServer) handleAppStatus(w http.ResponseWriter, r *http.Request) 
 		GitCloneCommand: fmt.Sprintf("git clone %s/%s\n\n\n", s.repoPublicAddr, appName),
 		Commits:         commits,
 		LastCommit:      lastCommitResources,
+		Branches:        branches,
+	}
+	if branch != "master" {
+		data.Navigation = append(data.Navigation, navItem{branch, fmt.Sprintf("/%s/branch/%s", appName, branch)})
 	}
 	if err := s.tmplts.appStatus.Execute(w, data); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -512,10 +543,18 @@ type ingress struct {
 	Host string
 }
 
+type vm struct {
+	Name     string
+	User     string
+	CPUCores int
+	Memory   string
+}
+
 type resourceData struct {
-	Volume     []volume
-	PostgreSQL []postgresql
-	Ingress    []ingress
+	Volume         []volume
+	PostgreSQL     []postgresql
+	Ingress        []ingress
+	VirtualMachine []vm
 }
 
 type commitStatusData struct {
@@ -659,7 +698,12 @@ func (s *DodoAppServer) handleAPIUpdate(w http.ResponseWriter, r *http.Request) 
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	if req.Ref != "refs/heads/master" || req.Repository.Name == ConfigRepoName {
+	if strings.HasPrefix(req.Ref, "refs/heads/dodo_") || req.Repository.Name == ConfigRepoName {
+		return
+	}
+	branch, ok := strings.CutPrefix(req.Ref, "refs/heads/")
+	if !ok {
+		http.Error(w, "invalid branch", http.StatusBadRequest)
 		return
 	}
 	// TODO(gio): Create commit record on app init as well
@@ -690,8 +734,10 @@ func (s *DodoAppServer) handleAPIUpdate(w http.ResponseWriter, r *http.Request) 
 			fmt.Printf("Error: could not find commit message")
 			return
 		}
-		resources, err := s.updateDodoApp(instanceAppStatus, req.Repository.Name, s.appConfigs[req.Repository.Name].Namespace, networks)
-		if err = s.createCommit(req.Repository.Name, req.After, commitMsg, err, resources); err != nil {
+		s.l.Lock()
+		defer s.l.Unlock()
+		resources, err := s.updateDodoApp(instanceAppStatus, req.Repository.Name, branch, s.getAppConfig(req.Repository.Name, branch).Namespace, networks, owner)
+		if err = s.createCommit(req.Repository.Name, branch, req.After, commitMsg, err, resources); err != nil {
 			fmt.Printf("Error: %s\n", err.Error())
 			return
 		}
@@ -710,6 +756,7 @@ type apiRegisterWorkerReq struct {
 }
 
 func (s *DodoAppServer) handleAPIRegisterWorker(w http.ResponseWriter, r *http.Request) {
+	// TODO(gio): lock
 	vars := mux.Vars(r)
 	appName, ok := vars["app-name"]
 	if !ok || appName == "" {
@@ -780,6 +827,35 @@ func (s *DodoAppServer) handleCreateApp(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 	http.Redirect(w, r, fmt.Sprintf("/%s", appName), http.StatusSeeOther)
+}
+
+func (s *DodoAppServer) handleCreateDevBranch(w http.ResponseWriter, r *http.Request) {
+	u := r.Context().Value(userCtx)
+	if u == nil {
+		http.Error(w, "unauthorized", http.StatusUnauthorized)
+		return
+	}
+	user, ok := u.(string)
+	if !ok {
+		http.Error(w, "could not get user", http.StatusInternalServerError)
+		return
+	}
+	vars := mux.Vars(r)
+	appName, ok := vars["app-name"]
+	if !ok || appName == "" {
+		http.Error(w, "missing app-name", http.StatusBadRequest)
+		return
+	}
+	branch := r.FormValue("branch")
+	if branch == "" {
+		http.Error(w, "missing network", http.StatusBadRequest)
+		return
+	}
+	if err := s.createDevBranch(appName, "master", branch, user); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	http.Redirect(w, r, fmt.Sprintf("/%s/branch/%s", appName, branch), http.StatusSeeOther)
 }
 
 type apiCreateAppReq struct {
@@ -889,7 +965,52 @@ func (s *DodoAppServer) createApp(user, appName, appType, network, subdomain str
 	if err != nil {
 		return err
 	}
-	commit, err := s.initRepo(appRepo, appType, n, subdomain)
+	files, err := s.renderAppConfigTemplate(appType, n, subdomain)
+	if err != nil {
+		return err
+	}
+	return s.createAppForBranch(appRepo, appName, "master", user, network, files)
+}
+
+func (s *DodoAppServer) createDevBranch(appName, fromBranch, toBranch, user string) error {
+	s.l.Lock()
+	defer s.l.Unlock()
+	fmt.Printf("Creating dev branch app: %s %s %s\n", appName, fromBranch, toBranch)
+	appRepo, err := s.client.GetRepoBranch(appName, fromBranch)
+	if err != nil {
+		return err
+	}
+	appCfg, err := soft.ReadFile(appRepo, "app.cue")
+	if err != nil {
+		return err
+	}
+	network, branchCfg, err := createDevBranchAppConfig(appCfg, toBranch, user)
+	if err != nil {
+		return err
+	}
+	return s.createAppForBranch(appRepo, appName, toBranch, user, network, map[string][]byte{"app.cue": branchCfg})
+}
+
+func (s *DodoAppServer) createAppForBranch(
+	repo soft.RepoIO,
+	appName string,
+	branch string,
+	user string,
+	network string,
+	files map[string][]byte,
+) error {
+	commit, err := repo.Do(func(fs soft.RepoFS) (string, error) {
+		for path, contents := range files {
+			if err := soft.WriteFile(fs, path, string(contents)); err != nil {
+				return "", err
+			}
+		}
+		return "init", nil
+	}, soft.WithCommitToBranch(branch))
+	if err != nil {
+		return err
+	}
+	networks, err := s.getNetworks(user)
 	if err != nil {
 		return err
 	}
@@ -908,12 +1029,13 @@ func (s *DodoAppServer) createApp(user, appName, appType, network, subdomain str
 		return err
 	}
 	namespace := fmt.Sprintf("%s%s%s", s.env.NamespacePrefix, instanceApp.Namespace(), suffix)
-	s.appConfigs[appName] = appConfig{namespace, network}
-	resources, err := s.updateDodoApp(instanceAppStatus, appName, namespace, networks)
+	s.setAppConfig(appName, branch, appConfig{namespace, network})
+	resources, err := s.updateDodoApp(instanceAppStatus, appName, branch, namespace, networks, user)
 	if err != nil {
+		fmt.Printf("Error: %s\n", err.Error())
 		return err
 	}
-	if err = s.createCommit(appName, commit, initCommitMsg, err, resources); err != nil {
+	if err = s.createCommit(appName, branch, commit, initCommitMsg, err, resources); err != nil {
 		fmt.Printf("Error: %s\n", err.Error())
 		return err
 	}
@@ -926,6 +1048,7 @@ func (s *DodoAppServer) createApp(user, appName, appType, network, subdomain str
 	if err != nil {
 		return err
 	}
+	appPath := fmt.Sprintf("/%s/%s", appName, branch)
 	_, err = configRepo.Do(func(fs soft.RepoFS) (string, error) {
 		w, err := fs.Writer(appConfigsFile)
 		if err != nil {
@@ -938,11 +1061,12 @@ func (s *DodoAppServer) createApp(user, appName, appType, network, subdomain str
 		if _, err := m.Install(
 			instanceApp,
 			appName,
-			"/"+appName,
+			appPath,
 			namespace,
 			map[string]any{
 				"repoAddr":         s.client.GetRepoAddress(appName),
 				"repoHost":         strings.Split(s.client.Address(), ":")[0],
+				"branch":           fmt.Sprintf("dodo_%s", branch),
 				"gitRepoPublicKey": s.gitRepoPublicKey,
 			},
 			installer.WithConfig(&s.env),
@@ -957,7 +1081,11 @@ func (s *DodoAppServer) createApp(user, appName, appType, network, subdomain str
 	if err != nil {
 		return err
 	}
-	cfg, err := m.FindInstance(appName)
+	return s.initAppACLs(m, appPath, appName, branch, user)
+}
+
+func (s *DodoAppServer) initAppACLs(m *installer.AppManager, path, appName, branch, user string) error {
+	cfg, err := m.GetInstance(path)
 	if err != nil {
 		return err
 	}
@@ -980,13 +1108,16 @@ func (s *DodoAppServer) createApp(user, appName, appType, network, subdomain str
 			return err
 		}
 	}
+	if branch != "master" {
+		return nil
+	}
 	if err := s.client.AddReadOnlyCollaborator(appName, "fluxcd"); err != nil {
 		return err
 	}
-	if err := s.client.AddWebhook(appName, fmt.Sprintf("http://%s/update", s.self), "--active=true", "--events=push", "--content-type=json"); err != nil {
+	if err := s.client.AddReadWriteCollaborator(appName, user); err != nil {
 		return err
 	}
-	if err := s.client.AddReadWriteCollaborator(appName, user); err != nil {
+	if err := s.client.AddWebhook(appName, fmt.Sprintf("http://%s/update", s.self), "--active=true", "--events=push", "--content-type=json"); err != nil {
 		return err
 	}
 	if !s.external {
@@ -1010,16 +1141,25 @@ func (s *DodoAppServer) createApp(user, appName, appType, network, subdomain str
 }
 
 type apiAddAdminKeyReq struct {
-	Public string `json:"public"`
+	User      string `json:"user"`
+	PublicKey string `json:"publicKey"`
 }
 
-func (s *DodoAppServer) handleAPIAddAdminKey(w http.ResponseWriter, r *http.Request) {
+func (s *DodoAppServer) handleAPIAddPublicKey(w http.ResponseWriter, r *http.Request) {
 	var req apiAddAdminKeyReq
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	if err := s.client.AddPublicKey("admin", req.Public); err != nil {
+	if req.User == "" {
+		http.Error(w, "invalid user", http.StatusBadRequest)
+		return
+	}
+	if req.PublicKey == "" {
+		http.Error(w, "invalid public key", http.StatusBadRequest)
+		return
+	}
+	if err := s.client.AddPublicKey(req.User, req.PublicKey); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -1037,12 +1177,16 @@ type dodoAppRendered struct {
 	} `json:"input"`
 }
 
+// TODO(gio): must not require owner, now we need it to bootstrap dev vm.
 func (s *DodoAppServer) updateDodoApp(
 	appStatus installer.EnvApp,
-	name, namespace string,
+	name string,
+	branch string,
+	namespace string,
 	networks []installer.Network,
+	owner string,
 ) (installer.ReleaseResources, error) {
-	repo, err := s.client.GetRepo(name)
+	repo, err := s.client.GetRepoBranch(name, branch)
 	if err != nil {
 		return installer.ReleaseResources{}, err
 	}
@@ -1068,10 +1212,13 @@ func (s *DodoAppServer) updateDodoApp(
 			"/.dodo/app",
 			namespace,
 			map[string]any{
-				"repoAddr":      repo.FullAddress(),
-				"managerAddr":   fmt.Sprintf("http://%s", s.self),
-				"appId":         name,
-				"sshPrivateKey": s.sshKey,
+				"repoAddr":       repo.FullAddress(),
+				"repoPublicAddr": s.repoPublicAddr,
+				"managerAddr":    fmt.Sprintf("http://%s", s.self),
+				"appId":          name,
+				"branch":         branch,
+				"sshPrivateKey":  s.sshKey,
+				"username":       owner,
 			},
 			installer.WithNoPull(),
 			installer.WithNoPublish(),
@@ -1108,7 +1255,7 @@ func (s *DodoAppServer) updateDodoApp(
 		}
 		return "install app", nil
 	},
-		soft.WithCommitToBranch("dodo"),
+		soft.WithCommitToBranch(fmt.Sprintf("dodo_%s", branch)),
 		soft.WithForce(),
 	); err != nil {
 		return installer.ReleaseResources{}, err
@@ -1118,18 +1265,13 @@ func (s *DodoAppServer) updateDodoApp(
 	return ret, nil
 }
 
-func (s *DodoAppServer) initRepo(repo soft.RepoIO, appType string, network installer.Network, subdomain string) (string, error) {
+func (s *DodoAppServer) renderAppConfigTemplate(appType string, network installer.Network, subdomain string) (map[string][]byte, error) {
 	appType = strings.Replace(appType, ":", "-", 1)
 	appTmpl, err := s.appTmpls.Find(appType)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
-	return repo.Do(func(fs soft.RepoFS) (string, error) {
-		if err := appTmpl.Render(network, subdomain, repo); err != nil {
-			return "", err
-		}
-		return initCommitMsg, nil
-	})
+	return appTmpl.Render(network, subdomain)
 }
 
 func generatePassword() string {
@@ -1183,10 +1325,10 @@ func (s *DodoAppServer) handleAPIPublicData(w http.ResponseWriter, r *http.Reque
 	}
 }
 
-func (s *DodoAppServer) createCommit(name, hash, message string, err error, resources installer.ReleaseResources) error {
+func (s *DodoAppServer) createCommit(name, branch, hash, message string, err error, resources installer.ReleaseResources) error {
 	if err != nil {
 		fmt.Printf("Error: %s\n", err.Error())
-		if err := s.st.CreateCommit(name, hash, message, "FAILED", err.Error(), nil); err != nil {
+		if err := s.st.CreateCommit(name, branch, hash, message, "FAILED", err.Error(), nil); err != nil {
 			fmt.Printf("Error: %s\n", err.Error())
 			return err
 		}
@@ -1194,13 +1336,13 @@ func (s *DodoAppServer) createCommit(name, hash, message string, err error, reso
 	}
 	var resB bytes.Buffer
 	if err := json.NewEncoder(&resB).Encode(resources); err != nil {
-		if err := s.st.CreateCommit(name, hash, message, "FAILED", err.Error(), nil); err != nil {
+		if err := s.st.CreateCommit(name, branch, hash, message, "FAILED", err.Error(), nil); err != nil {
 			fmt.Printf("Error: %s\n", err.Error())
 			return err
 		}
 		return err
 	}
-	if err := s.st.CreateCommit(name, hash, message, "OK", "", resB.Bytes()); err != nil {
+	if err := s.st.CreateCommit(name, branch, hash, message, "OK", "", resB.Bytes()); err != nil {
 		fmt.Printf("Error: %s\n", err.Error())
 		return err
 	}
@@ -1446,9 +1588,75 @@ func extractResourceData(resources []installer.Resource) (resourceData, error) {
 				return resourceData{}, fmt.Errorf("no host")
 			}
 			ret.Ingress = append(ret.Ingress, ingress{host})
+		case "virtual-machine":
+			name, ok := r.Annotations["dodo.cloud/resource.virtual-machine.name"]
+			if !ok {
+				return resourceData{}, fmt.Errorf("no name")
+			}
+			user, ok := r.Annotations["dodo.cloud/resource.virtual-machine.user"]
+			if !ok {
+				return resourceData{}, fmt.Errorf("no user")
+			}
+			cpuCoresS, ok := r.Annotations["dodo.cloud/resource.virtual-machine.cpu-cores"]
+			if !ok {
+				return resourceData{}, fmt.Errorf("no cpu cores")
+			}
+			cpuCores, err := strconv.Atoi(cpuCoresS)
+			if err != nil {
+				return resourceData{}, fmt.Errorf("invalid cpu cores: %s", cpuCoresS)
+			}
+			memory, ok := r.Annotations["dodo.cloud/resource.virtual-machine.memory"]
+			if !ok {
+				return resourceData{}, fmt.Errorf("no memory")
+			}
+			ret.VirtualMachine = append(ret.VirtualMachine, vm{name, user, cpuCores, memory})
 		default:
 			fmt.Printf("Unknown resource: %+v\n", r.Annotations)
 		}
 	}
 	return ret, nil
+}
+
+func createDevBranchAppConfig(from []byte, branch, username string) (string, []byte, error) {
+	cfg, err := installer.ParseCueAppConfig(installer.CueAppData{"app.cue": from})
+	if err != nil {
+		return "", nil, err
+	}
+	if err := cfg.Err(); err != nil {
+		return "", nil, err
+	}
+	if err := cfg.Validate(); err != nil {
+		return "", nil, err
+	}
+	subdomain := cfg.LookupPath(cue.ParsePath("app.ingress.subdomain"))
+	if err := subdomain.Err(); err != nil {
+		return "", nil, err
+	}
+	subdomainStr, err := subdomain.String()
+	network := cfg.LookupPath(cue.ParsePath("app.ingress.network"))
+	if err := network.Err(); err != nil {
+		return "", nil, err
+	}
+	networkStr, err := network.String()
+	if err != nil {
+		return "", nil, err
+	}
+	newCfg := map[string]any{}
+	if err := cfg.Decode(&newCfg); err != nil {
+		return "", nil, err
+	}
+	app, ok := newCfg["app"].(map[string]any)
+	if !ok {
+		return "", nil, fmt.Errorf("not a map")
+	}
+	app["ingress"].(map[string]any)["subdomain"] = fmt.Sprintf("%s-%s", branch, subdomainStr)
+	app["dev"] = map[string]any{
+		"enabled":  true,
+		"username": username,
+	}
+	buf, err := json.MarshalIndent(newCfg, "", "\t")
+	if err != nil {
+		return "", nil, err
+	}
+	return networkStr, buf, nil
 }

@@ -6,4 +6,6 @@ disk:
   size: 64Gi
 ports: []
 cloudInit:
-  userData: {}
+  userData: "" # base64 encoded
+  networkData: "" # base64 encoded
+ports: []

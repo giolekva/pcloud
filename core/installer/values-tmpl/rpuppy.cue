@@ -32,47 +32,49 @@ icon: """
 
 _httpPortName: "http"
 
-ingress: {
-	rpuppy: {
-		auth: input.auth
-		network: input.network
-		subdomain: input.subdomain
-		service: {
-			name: "rpuppy"
-			port: name: _httpPortName
+out: {
+	ingress: {
+		rpuppy: {
+			auth: input.auth
+			network: input.network
+			subdomain: input.subdomain
+			service: {
+				name: "rpuppy"
+				port: name: _httpPortName
+			}
 		}
 	}
-}
 
-images: {
-	rpuppy: {
-		repository: "giolekva"
-		name: "rpuppy"
-		tag: "latest"
-		pullPolicy: "Always"
+	images: {
+		rpuppy: {
+			repository: "giolekva"
+			name: "rpuppy"
+			tag: "latest"
+			pullPolicy: "Always"
+		}
 	}
-}
 
-charts: {
-	rpuppy: {
-		kind: "GitRepository"
-		address: "https://code.v1.dodo.cloud/helm-charts"
-		branch: "main"
-		path: "charts/rpuppy"
+	charts: {
+		rpuppy: {
+			kind: "GitRepository"
+			address: "https://code.v1.dodo.cloud/helm-charts"
+			branch: "main"
+			path: "charts/rpuppy"
+		}
 	}
-}
 
-helm: {
-	rpuppy: {
-		chart: charts.rpuppy
-		info: "Installing rPuppy server"
-		values: {
-			image: {
-				repository: images.rpuppy.fullName
-				tag: images.rpuppy.tag
-				pullPolicy: images.rpuppy.pullPolicy
+	helm: {
+		rpuppy: {
+			chart: charts.rpuppy
+			info: "Installing rPuppy server"
+			values: {
+				image: {
+					repository: images.rpuppy.fullName
+					tag: images.rpuppy.tag
+					pullPolicy: images.rpuppy.pullPolicy
+				}
+				portName: _httpPortName
 			}
-			portName: _httpPortName
 		}
 	}
 }

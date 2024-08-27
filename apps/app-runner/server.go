@@ -109,7 +109,7 @@ func (s *Server) run() error {
 			Dir:    *appDir,
 			Path:   c.Bin,
 			Args:   args,
-			Env:    c.Env,
+			Env:    append(os.Environ(), c.Env...),
 			Stdout: logM,
 			Stderr: logM,
 		}

@@ -32,114 +32,116 @@ icon: """
 
 _jenkinsServiceHTTPPortNumber: 80
 
-ingress: {
-	jenkins: {
-		auth: enabled: false
-		network: input.network
-		subdomain: input.subdomain
-		service: {
+out: {
+	ingress: {
+		jenkins: {
+			auth: enabled: false
+			network: input.network
+			subdomain: input.subdomain
+			service: {
+				name: "jenkins"
+				port: number: _jenkinsServiceHTTPPortNumber
+			}
+		}
+	}
+
+	images: {
+		jenkins: {
+			repository: "jenkins"
 			name: "jenkins"
-			port: number: _jenkinsServiceHTTPPortNumber
+			tag: "2.452-jdk17"
+			pullPolicy: "IfNotPresent"
+		}
+	}
+
+	charts: {
+		jenkins: {
+			kind: "GitRepository"
+			address: "https://code.v1.dodo.cloud/helm-charts"
+			branch: "main"
+			path: "charts/jenkins"
+		}
+		oauth2Client: {
+			kind: "GitRepository"
+			address: "https://code.v1.dodo.cloud/helm-charts"
+			branch: "main"
+			path: "charts/oauth2-client"
+		}
+	}
+
+	volumes: jenkins: size: "10Gi"
+
+	helm: {
+		"oauth2-client": {
+			chart: charts.oauth2Client
+			info: "Creating OAuth2 client"
+			values: {
+				name: "\(release.namespace)-jenkins"
+				secretName: _oauth2ClientCredentials
+				grantTypes: ["authorization_code"]
+				scope: "openid profile email offline offline_access"
+				hydraAdmin: "http://hydra-admin.\(global.id)-core-auth.svc.cluster.local"
+				redirectUris: ["https://\(_domain)/securityRealm/finishLogin"]
+				tokenEndpointAuthMethod: "client_secret_post"
+			}
+		}
+		jenkins: {
+			chart: charts.jenkins
+			info: "Installing Jenkins server"
+			values: {
+				fullnameOverride: "jenkins"
+				controller: {
+					image: {
+						repository: images.jenkins.imageName
+						tag: images.jenkins.tag
+						pullPolicy: images.jenkins.pullPolicy
+					}
+					jenkinsUrlProtocol: "https://"
+					jenkinsUrl: _domain
+					sidecars: configAutoReload: enabled: false
+					ingress: enabled: false
+					servicePort: _jenkinsServiceHTTPPortNumber
+					installPlugins: [
+						"kubernetes:4203.v1dd44f5b_1cf9",
+						"workflow-aggregator:596.v8c21c963d92d",
+						"git:5.2.1",
+						"configuration-as-code:1775.v810dc950b_514",
+						"gerrit-code-review:0.4.9",
+						"oic-auth:4.239.v325750a_96f3b_",
+					]
+					additionalExistingSecrets: [{
+						name: _oauth2ClientCredentials
+						keyName: _oauth2ClientId
+					}, {
+						name: _oauth2ClientCredentials
+						keyName: _oauth2ClientSecret
+					}]
+					JCasC: {
+						defaultConfig: true
+						overwriteConfiguration: false
+						securityRealm: """
+	oic:
+	  clientId: "${\(_oauth2ClientCredentials)-\(_oauth2ClientId)}"
+	  clientSecret: "${\(_oauth2ClientCredentials)-\(_oauth2ClientSecret)}"
+	  wellKnownOpenIDConfigurationUrl: "https://hydra.\(networks.public.domain)/.well-known/openid-configuration"
+	  userNameField: "email"
+	"""
+					}
+				}
+				agent: {
+					runAsUser: 1000
+					runAsGroup: 1000
+					jenkinsUrl: "http://jenkins.\(release.namespace).svc.cluster.local"
+				}
+				persistence: {
+					enabled: true
+					existingClaim: volumes.jenkins.name
+				}
+			}
 		}
 	}
 }
-
-images: {
-    jenkins: {
-        repository: "jenkins"
-        name: "jenkins"
-        tag: "2.452-jdk17"
-        pullPolicy: "IfNotPresent"
-    }
-}
-
-charts: {
-    jenkins: {
-		kind: "GitRepository"
-		address: "https://code.v1.dodo.cloud/helm-charts"
-		branch: "main"
-		path: "charts/jenkins"
-    }
-	oauth2Client: {
-		kind: "GitRepository"
-		address: "https://code.v1.dodo.cloud/helm-charts"
-		branch: "main"
-		path: "charts/oauth2-client"
-	}
-}
-
-volumes: jenkins: size: "10Gi"
 
 _oauth2ClientCredentials:  "oauth2-credentials"
 _oauth2ClientId: "client_id"
 _oauth2ClientSecret: "client_secret"
-
-helm: {
-	"oauth2-client": {
-		chart: charts.oauth2Client
-		info: "Creating OAuth2 client"
-		values: {
-			name: "\(release.namespace)-jenkins"
-			secretName: _oauth2ClientCredentials
-			grantTypes: ["authorization_code"]
-			scope: "openid profile email offline offline_access"
-			hydraAdmin: "http://hydra-admin.\(global.id)-core-auth.svc.cluster.local"
-			redirectUris: ["https://\(_domain)/securityRealm/finishLogin"]
-			tokenEndpointAuthMethod: "client_secret_post"
-		}
-	}
-    jenkins: {
-        chart: charts.jenkins
-		info: "Installing Jenkins server"
-        values: {
-			fullnameOverride: "jenkins"
-			controller: {
-				image: {
-					repository: images.jenkins.imageName
-					tag: images.jenkins.tag
-					pullPolicy: images.jenkins.pullPolicy
-				}
-				jenkinsUrlProtocol: "https://"
-				jenkinsUrl: _domain
-				sidecars: configAutoReload: enabled: false
-				ingress: enabled: false
-				servicePort: _jenkinsServiceHTTPPortNumber
-				installPlugins: [
-					"kubernetes:4203.v1dd44f5b_1cf9",
-					"workflow-aggregator:596.v8c21c963d92d",
-					"git:5.2.1",
-					"configuration-as-code:1775.v810dc950b_514",
-					"gerrit-code-review:0.4.9",
-					"oic-auth:4.239.v325750a_96f3b_",
-				]
-				additionalExistingSecrets: [{
-					name: _oauth2ClientCredentials
-					keyName: _oauth2ClientId
-				}, {
-					name: _oauth2ClientCredentials
-					keyName: _oauth2ClientSecret
-				}]
-				JCasC: {
-					defaultConfig: true
-					overwriteConfiguration: false
-					securityRealm: """
-oic:
-  clientId: "${\(_oauth2ClientCredentials)-\(_oauth2ClientId)}"
-  clientSecret: "${\(_oauth2ClientCredentials)-\(_oauth2ClientSecret)}"
-  wellKnownOpenIDConfigurationUrl: "https://hydra.\(networks.public.domain)/.well-known/openid-configuration"
-  userNameField: "email"
-"""
-				}
-			}
-			agent: {
-				runAsUser: 1000
-				runAsGroup: 1000
-				jenkinsUrl: "http://jenkins.\(release.namespace).svc.cluster.local"
-			}
-			persistence: {
-				enabled: true
-				existingClaim: volumes.jenkins.name
-			}
-        }
-    }
-}

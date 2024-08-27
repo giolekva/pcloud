@@ -15,6 +15,7 @@ import (
 
 	"golang.org/x/crypto/ssh"
 
+	"cuelang.org/go/cue/errors"
 	"github.com/go-git/go-billy/v5"
 	"github.com/go-git/go-billy/v5/memfs"
 	"github.com/go-git/go-billy/v5/util"
@@ -117,6 +118,10 @@ func (f fakeSoftServeClient) GetRepo(name string) (soft.RepoIO, error) {
 	return mockRepoIO{soft.NewBillyRepoFS(f.envFS), "foo.bar", f.t, &l}, nil
 }
 
+func (f fakeSoftServeClient) GetRepoBranch(name, branch string) (soft.RepoIO, error) {
+	return f.GetRepo(name)
+}
+
 func (f fakeSoftServeClient) GetAllRepos() ([]string, error) {
 	return []string{}, nil
 }
@@ -173,6 +178,14 @@ func (f fakeSoftServeClient) AddReadOnlyCollaborator(repo, user string) error {
 }
 
 func (f fakeSoftServeClient) AddWebhook(repo, url string, opts ...string) error {
+	return nil
+}
+
+func (f fakeSoftServeClient) DisableAnonAccess() error {
+	return nil
+}
+
+func (f fakeSoftServeClient) DisableKeyless() error {
 	return nil
 }
 
@@ -279,6 +292,9 @@ func TestCreateNewEnv(t *testing.T) {
 		if _, err := infraMgr.Install(app, "/infrastructure/dns-gateway", "dns-gateway", map[string]any{
 			"servers": []installer.EnvDNS{},
 		}); err != nil {
+			for _, e := range errors.Errors(err) {
+				t.Log(e)
+			}
 			t.Fatal(err)
 		}
 	}

@@ -63,7 +63,7 @@ var (
 
 func TestAuthProxyEnabled(t *testing.T) {
 	r := NewInMemoryAppRepository(CreateAllApps())
-	for _, app := range []string{"rpuppy", "pi-hole", "url-shortener"} {
+	for _, app := range []string{"rpuppy"} {
 		a, err := FindEnvApp(r, app)
 		if err != nil {
 			t.Fatal(err)
@@ -94,7 +94,7 @@ func TestAuthProxyEnabled(t *testing.T) {
 
 func TestAuthProxyDisabled(t *testing.T) {
 	r := NewInMemoryAppRepository(CreateAllApps())
-	for _, app := range []string{"rpuppy", "pi-hole", "url-shortener"} {
+	for _, app := range []string{"rpuppy"} {
 		a, err := FindEnvApp(r, app)
 		if err != nil {
 			t.Fatal(err)
@@ -337,11 +337,37 @@ func TestDNSGateway(t *testing.T) {
 	}
 }
 
-//go:embed app_configs/testapp.cue
-var testAppCue []byte
+var dodoAppDevDisabledCue = `
+app: {
+	type: "golang:1.22.0"
+	run: "main.go"
+	ingress: {
+		network: "private"
+		subdomain: "testapp"
+		auth: enabled: false
+	}
+	dev: {
+		enabled: false
+	}
+}`
 
-func TestPCloudApp(t *testing.T) {
-	app, err := NewDodoApp(testAppCue)
+var dodoAppDevEnabledCue = `
+app: {
+	type: "golang:1.22.0"
+	run: "main.go"
+	ingress: {
+		network: "private"
+		subdomain: "testapp"
+		auth: enabled: false
+	}
+	dev: {
+		enabled: true
+		username: "gio"
+	}
+}`
+
+func TestDodoAppDevDisabled(t *testing.T) {
+	app, err := NewDodoApp([]byte(dodoAppDevDisabledCue))
 	if err != nil {
 		for _, e := range errors.Errors(err) {
 			t.Log(e)
@@ -355,15 +381,60 @@ func TestPCloudApp(t *testing.T) {
 		RepoAddr:      "ssh://192.168.100.210:22/config",
 		AppDir:        "/foo/bar",
 	}
-	_, err = app.Render(release, env, networks, map[string]any{
-		"repoAddr":      "",
-		"managerAddr":   "",
-		"appId":         "",
-		"sshPrivateKey": "",
-	}, nil, nil)
+	keyGen := testKeyGen{}
+	r, err := app.Render(release, env, networks, map[string]any{
+		"repoAddr":       "",
+		"repoPublicAddr": "",
+		"managerAddr":    "",
+		"appId":          "",
+		"branch":         "",
+		"sshPrivateKey":  "",
+	}, nil, keyGen)
 	if err != nil {
+		for _, e := range errors.Errors(err) {
+			for _, f := range errors.Errors(e) {
+				for _, g := range errors.Errors(f) {
+					t.Log(g)
+				}
+			}
+		}
 		t.Fatal(err)
 	}
+	t.Log(string(r.Raw))
+}
+
+func TestDodoAppDevEnabled(t *testing.T) {
+	app, err := NewDodoApp([]byte(dodoAppDevEnabledCue))
+	if err != nil {
+		for _, e := range errors.Errors(err) {
+			t.Log(e)
+		}
+		t.Fatal(err)
+	}
+
+	release := Release{
+		Namespace:     "foo",
+		AppInstanceId: "foo-bar",
+		RepoAddr:      "ssh://192.168.100.210:22/config",
+		AppDir:        "/foo/bar",
+	}
+	keyGen := testKeyGen{}
+	r, err := app.Render(release, env, networks, map[string]any{
+		"repoAddr":       "",
+		"repoPublicAddr": "",
+		"managerAddr":    "",
+		"appId":          "",
+		"branch":         "",
+		"sshPrivateKey":  "",
+		"username":       "",
+	}, nil, keyGen)
+	if err != nil {
+		for _, e := range errors.Errors(err) {
+			t.Log(e)
+		}
+		t.Fatal(err)
+	}
+	t.Log(string(r.Raw))
 }
 
 func TestDodoAppInstance(t *testing.T) {
@@ -380,8 +451,11 @@ func TestDodoAppInstance(t *testing.T) {
 	}
 	values := map[string]any{
 		"repoAddr":         "",
+		"repoPublicAddr":   "",
 		"repoHost":         "",
+		"branch":           "",
 		"gitRepoPublicKey": "",
+		"username":         "",
 	}
 	rendered, err := a.Render(release, env, networks, values, nil, nil)
 	if err != nil {

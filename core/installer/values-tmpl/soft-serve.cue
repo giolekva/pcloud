@@ -36,36 +36,6 @@ icon: """
   </g>
 </svg>"""
 
-images: {
-	softserve: {
-		repository: "charmcli"
-		name: "soft-serve"
-		tag: "v0.7.1"
-		pullPolicy: "IfNotPresent"
-	}
-}
-
-charts: {
-	softserve: {
-		kind: "GitRepository"
-		address: "https://code.v1.dodo.cloud/helm-charts"
-		branch: "main"
-		path: "charts/soft-serve"
-	}
-}
-
-ingress: {
-	gerrit: { // TODO(gio): rename to soft-serve
-		auth: enabled: false
-		network: input.network
-		subdomain: input.subdomain
-		service: {
-			name: "soft-serve"
-			port: number: 80
-		}
-	}
-}
-
 portForward: [#PortForward & {
 	allocator: input.network.allocatePortAddr
 	reservator: input.network.reservePortAddr
@@ -75,22 +45,55 @@ portForward: [#PortForward & {
 	targetPort: 22
 }]
 
-helm: {
-	softserve: {
-		chart: charts.softserve
-		info: "Installing SoftServe server"
-		values: {
-			serviceType: "ClusterIP"
-			adminKey: input.adminKey
-			sshPublicPort: input.sshPort
-			ingress: {
-				enabled: false
-				domain: _domain
+
+out: {
+	images: {
+		softserve: {
+			repository: "charmcli"
+			name: "soft-serve"
+			tag: "v0.7.1"
+			pullPolicy: "IfNotPresent"
+		}
+	}
+
+	charts: {
+		softserve: {
+			kind: "GitRepository"
+			address: "https://code.v1.dodo.cloud/helm-charts"
+			branch: "main"
+			path: "charts/soft-serve"
+		}
+	}
+
+	ingress: {
+		softserve: {
+			auth: enabled: false
+			network: input.network
+			subdomain: input.subdomain
+			service: {
+				name: "soft-serve"
+				port: number: 80
 			}
-			image: {
-				repository: images.softserve.fullName
-				tag: images.softserve.tag
-				pullPolicy: images.softserve.pullPolicy
+		}
+	}
+
+	volumes: data: size: "1Gi"
+
+	helm: {
+		softserve: {
+			chart: charts.softserve
+			info: "Installing SoftServe server"
+			values: {
+				serviceType: "ClusterIP"
+				adminKey: input.adminKey
+				host: _domain
+				sshPublicPort: input.sshPort
+				persistentVolumeClaimName: volumes.data.name
+				image: {
+					repository: images.softserve.fullName
+					tag: images.softserve.tag
+					pullPolicy: images.softserve.pullPolicy
+				}
 			}
 		}
 	}

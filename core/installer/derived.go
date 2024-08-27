@@ -90,10 +90,17 @@ func deriveValues(
 				}
 			}
 			if def.Kind() == KindVPNAuthKey {
-				usernameField := def.Meta()["usernameField"]
-				// TODO(gio): Improve getField
-				username := getField(root, usernameField)
-				authKey, err := vpnKeyGen.Generate(username.(string))
+				var username string
+				if v, ok := def.Meta()["username"]; ok {
+					username = v
+				} else if v, ok := def.Meta()["usernameField"]; ok {
+					// TODO(gio): Improve getField
+					username, ok = getField(root, v).(string)
+					if !ok {
+						return nil, fmt.Errorf("could not resolve username: %+v %s %+v", def.Meta(), v, root)
+					}
+				}
+				authKey, err := vpnKeyGen.Generate(username)
 				if err != nil {
 					return nil, err
 				}
@@ -147,19 +154,19 @@ func deriveValues(
 			}
 			ret[k] = picked
 		case KindAuth:
-			r, err := deriveValues(v, v, AuthSchema, networks, vpnKeyGen)
+			r, err := deriveValues(root, v, AuthSchema, networks, vpnKeyGen)
 			if err != nil {
 				return nil, err
 			}
 			ret[k] = r
 		case KindSSHKey:
-			r, err := deriveValues(v, v, SSHKeySchema, networks, vpnKeyGen)
+			r, err := deriveValues(root, v, SSHKeySchema, networks, vpnKeyGen)
 			if err != nil {
 				return nil, err
 			}
 			ret[k] = r
 		case KindStruct:
-			r, err := deriveValues(v, v, def, networks, vpnKeyGen)
+			r, err := deriveValues(root, v, def, networks, vpnKeyGen)
 			if err != nil {
 				return nil, err
 			}

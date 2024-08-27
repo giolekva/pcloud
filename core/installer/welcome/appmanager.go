@@ -163,7 +163,7 @@ func (s *AppManagerServer) handleApp(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	instances, err := s.m.FindAllAppInstances(slug)
+	instances, err := s.m.GetAllAppInstances(slug)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -182,7 +182,7 @@ func (s *AppManagerServer) handleInstance(w http.ResponseWriter, r *http.Request
 		http.Error(w, "empty slug", http.StatusBadRequest)
 		return
 	}
-	instance, err := s.m.FindInstance(slug)
+	instance, err := s.m.GetInstance(slug)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -339,7 +339,7 @@ func (s *AppManagerServer) handleAppsList(w http.ResponseWriter, r *http.Request
 	}
 	resp := make([]app, 0)
 	for _, a := range apps {
-		instances, err := s.m.FindAllAppInstances(a.Slug())
+		instances, err := s.m.GetAllAppInstances(a.Slug())
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
@@ -393,7 +393,7 @@ func (s *AppManagerServer) handleAppUI(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	instances, err := s.m.FindAllAppInstances(slug)
+	instances, err := s.m.GetAllAppInstances(slug)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -427,7 +427,7 @@ func (s *AppManagerServer) handleInstanceUI(w http.ResponseWriter, r *http.Reque
 		return
 	}
 	t, ok := s.tasks[slug]
-	instance, err := s.m.FindInstance(slug)
+	instance, err := s.m.GetInstance(slug)
 	if err != nil && !ok {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -446,7 +446,7 @@ func (s *AppManagerServer) handleInstanceUI(w http.ResponseWriter, r *http.Reque
 			panic("MUST NOT REACH!")
 		}
 	}
-	instances, err := s.m.FindAllAppInstances(a.Slug())
+	instances, err := s.m.GetAllAppInstances(a.Slug())
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return

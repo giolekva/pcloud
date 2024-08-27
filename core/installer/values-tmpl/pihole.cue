@@ -2,6 +2,7 @@ input: {
 	network: #Network @name(Network)
 	subdomain: string @name(Subdomain)
 	auth: #Auth @name(Authentication)
+	storageSize: string
 }
 
 _domain: "\(input.subdomain).\(input.network.domain)"
@@ -33,83 +34,87 @@ icon: """
 
 _serviceWebPort: 80
 
-ingress: {
-	pihole: {
-		auth: input.auth
-		network: input.network
-		subdomain: input.subdomain
-		service: {
-			name: "pihole-web"
-			port: number: _serviceWebPort
+out: {
+	ingress: {
+		pihole: {
+			auth: input.auth
+			network: input.network
+			subdomain: input.subdomain
+			service: {
+				name: "pihole-web"
+				port: number: _serviceWebPort
+			}
 		}
 	}
-}
 
-images: {
-	pihole: {
-		repository: "pihole"
-		name: "pihole"
-		tag: "v5.8.1"
-		pullPolicy: "IfNotPresent"
+	images: {
+		pihole: {
+			repository: "pihole"
+			name: "pihole"
+			tag: "v5.8.1"
+			pullPolicy: "IfNotPresent"
+		}
 	}
-}
 
-charts: {
-	pihole: {
-		kind: "GitRepository"
-		address: "https://code.v1.dodo.cloud/helm-charts"
-		branch: "main"
-		path: "charts/pihole"
+	charts: {
+		pihole: {
+			kind: "GitRepository"
+			address: "https://code.v1.dodo.cloud/helm-charts"
+			branch: "main"
+			path: "charts/pihole"
+		}
 	}
-}
 
-helm: {
-	pihole: {
-		chart: charts.pihole
-		info: "Installing Pi-hole server"
-		values: {
-			fullnameOverride: "pihole"
-			persistentVolumeClaim: { // TODO(gio): create volume separately as a dependency
-				enabled: true
-				size: "5Gi"
-			}
-			admin: {
-				enabled: false
-			}
-			ingress: {
-				enabled: false
-			}
-			serviceDhcp: {
-				enabled: false
-			}
-			serviceDns: {
-				type: "ClusterIP"
-			}
-			serviceWeb: {
-				type: "ClusterIP"
-				http: {
+	volumes: data: size: input.storageSize
+
+	helm: {
+		pihole: {
+			chart: charts.pihole
+			info: "Installing Pi-hole server"
+			values: {
+				fullnameOverride: "pihole"
+				persistentVolumeClaim: {
 					enabled: true
-					port: _serviceWebPort
+					existingClaim: volumes.data.name
 				}
-				https: {
+				admin: {
 					enabled: false
 				}
-			}
-			virtualHost: _domain
-			resources: {
-				requests: {
-					cpu: "250m"
-					memory: "100M"
+				ingress: {
+					enabled: false
 				}
-				limits: {
-					cpu: "500m"
-					memory: "250M"
+				serviceDhcp: {
+					enabled: false
 				}
-			}
-			image: {
-				repository: images.pihole.fullName
-				tag: images.pihole.tag
-				pullPolicy: images.pihole.pullPolicy
+				serviceDns: {
+					type: "ClusterIP"
+				}
+				serviceWeb: {
+					type: "ClusterIP"
+					http: {
+						enabled: true
+						port: _serviceWebPort
+					}
+					https: {
+						enabled: false
+					}
+				}
+				virtualHost: _domain
+				resources: {
+					requests: {
+						cpu: "250m"
+						memory: "100M"
+					}
+					limits: {
+						cpu: "500m"
+						memory: "250M"
+					}
+				}
+				image: {
+					repository: images.pihole.fullName
+					tag: images.pihole.tag
+					pullPolicy: images.pihole.pullPolicy
+				}
 			}
 		}
 	}

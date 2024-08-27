@@ -19,51 +19,53 @@ icon: "<svg xmlns='http://www.w3.org/2000/svg' width='50' height='50' viewBox='0
 
 _httpPortName: "http"
 
-ingress: {
-	launcher: {
-		auth: enabled: true
-		network: input.network
-		subdomain: _subdomain
-		service: {
-			name: "launcher"
-			port: name: _httpPortName
+out: {
+	ingress: {
+		launcher: {
+			auth: enabled: true
+			network: input.network
+			subdomain: _subdomain
+			service: {
+				name: "launcher"
+				port: name: _httpPortName
+			}
 		}
 	}
-}
 
-images: {
-    launcher: {
-        repository: "giolekva"
-        name: "pcloud-installer"
-        tag: "latest"
-        pullPolicy: "Always"
-    }
-}
+	images: {
+		launcher: {
+			repository: "giolekva"
+			name: "pcloud-installer"
+			tag: "latest"
+			pullPolicy: "Always"
+		}
+	}
 
-charts: {
-    launcher: {
-		kind: "GitRepository"
-		address: "https://code.v1.dodo.cloud/helm-charts"
-		branch: "main"
-		path: "charts/launcher"
-    }
-}
+	charts: {
+		launcher: {
+			kind: "GitRepository"
+			address: "https://code.v1.dodo.cloud/helm-charts"
+			branch: "main"
+			path: "charts/launcher"
+		}
+	}
 
-helm: {
-    launcher: {
-        chart: charts.launcher
-        values: {
-            image: {
-                repository: images.launcher.fullName
-                tag: images.launcher.tag
-                pullPolicy: images.launcher.pullPolicy
-            }
-            portName: _httpPortName
-            repoAddr: input.repoAddr
-            sshPrivateKey: base64.Encode(null, input.sshPrivateKey)
-            logoutUrl: "https://accounts-ui.\(networks.public.domain)/logout"
-			repoAddr: input.repoAddr
-			sshPrivateKey: base64.Encode(null, input.sshPrivateKey)
-        }
-    }
+	helm: {
+		launcher: {
+			chart: charts.launcher
+			values: {
+				image: {
+					repository: images.launcher.fullName
+					tag: images.launcher.tag
+					pullPolicy: images.launcher.pullPolicy
+				}
+				portName: _httpPortName
+				repoAddr: input.repoAddr
+				sshPrivateKey: base64.Encode(null, input.sshPrivateKey)
+				logoutUrl: "https://accounts-ui.\(networks.public.domain)/logout"
+				repoAddr: input.repoAddr
+				sshPrivateKey: base64.Encode(null, input.sshPrivateKey)
+			}
+		}
+	}
 }

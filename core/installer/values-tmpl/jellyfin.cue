@@ -13,37 +13,39 @@ icon: "<svg xmlns='http://www.w3.org/2000/svg' width='50' height='50' viewBox='0
 
 readme: "jellyfin application will be installed on \(input.network.name) network and be accessible to any user on https://\(_domain)"
 
-images: {
-	jellyfin: {
-		repository: "jellyfin"
-		name: "jellyfin"
-		tag: "10.8.10"
-		pullPolicy: "IfNotPresent"
+out: {
+	images: {
+		jellyfin: {
+			repository: "jellyfin"
+			name: "jellyfin"
+			tag: "10.8.10"
+			pullPolicy: "IfNotPresent"
+		}
 	}
-}
 
-charts: {
-	jellyfin: {
-		kind: "GitRepository"
-		address: "https://code.v1.dodo.cloud/helm-charts"
-		branch: "main"
-		path: "charts/jellyfin"
+	charts: {
+		jellyfin: {
+			kind: "GitRepository"
+			address: "https://code.v1.dodo.cloud/helm-charts"
+			branch: "main"
+			path: "charts/jellyfin"
+		}
 	}
-}
 
-helm: {
-	jellyfin: {
-		chart: charts.jellyfin
-		values: {
-			pcloudInstanceId: global.id
-			ingress: {
-				className: input.network.ingressClass
-				domain: _domain
-			}
-			image: {
-				repository: images.jellyfin.fullName
-				tag: images.jellyfin.tag
-				pullPolicy: images.jellyfin.pullPolicy
+	helm: {
+		jellyfin: {
+			chart: charts.jellyfin
+			values: {
+				pcloudInstanceId: global.id
+				ingress: {
+					className: input.network.ingressClass
+					domain: _domain
+				}
+				image: {
+					repository: images.jellyfin.fullName
+					tag: images.jellyfin.tag
+					pullPolicy: images.jellyfin.pullPolicy
+				}
 			}
 		}
 	}

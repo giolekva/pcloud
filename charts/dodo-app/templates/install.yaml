@@ -130,6 +130,7 @@ spec:
         - --networks={{ .Values.allowedNetworks }}
         - --external={{ .Values.external }}
         - --fetch-users-addr={{ .Values.fetchUsersAddr }}
+        - --headscale-api-addr={{ .Values.headscaleAPIAddr }}
         volumeMounts:
         - name: ssh-key
           readOnly: true

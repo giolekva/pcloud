@@ -75,7 +75,7 @@ func rewriteCmdRun(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-	all, err := mgr.FindAllInstances()
+	all, err := mgr.GetAllInstances()
 	if err != nil {
 		return err
 	}

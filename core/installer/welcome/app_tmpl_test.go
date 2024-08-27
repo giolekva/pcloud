@@ -6,10 +6,7 @@ import (
 	"io/fs"
 	"testing"
 
-	"github.com/go-git/go-billy/v5/memfs"
-
 	"github.com/giolekva/pcloud/core/installer"
-	"github.com/giolekva/pcloud/core/installer/soft"
 )
 
 //go:embed app-tmpl
@@ -38,8 +35,7 @@ func TestAppTmplGolang1200(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	out := soft.NewBillyRepoFS(memfs.New())
-	if err := a.Render(network, "testapp", out); err != nil {
+	if _, err := a.Render(network, "testapp"); err != nil {
 		t.Fatal(err)
 	}
 }
@@ -57,8 +53,7 @@ func TestAppTmplHugoLatest(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	out := soft.NewBillyRepoFS(memfs.New())
-	if err := a.Render(network, "testapp", out); err != nil {
+	if _, err := a.Render(network, "testapp"); err != nil {
 		t.Fatal(err)
 	}
 }
@@ -76,8 +71,7 @@ func TestAppTmplPHP82(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	out := soft.NewBillyRepoFS(memfs.New())
-	if err := a.Render(network, "testapp", out); err != nil {
+	if _, err := a.Render(network, "testapp"); err != nil {
 		t.Fatal(err)
 	}
 }

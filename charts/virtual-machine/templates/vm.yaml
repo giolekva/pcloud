@@ -22,7 +22,8 @@ spec:
         devices:
           interfaces:
             - name: default
-              masquerade: {}
+              # masquerade: {}
+              bridge: {}
               ports:
                 {{- range .Values.ports }}
                 - port: {{ . }}
@@ -44,6 +45,7 @@ spec:
             claimName: dv-{{ .Values.name }}
         - name: cloudinitdisk
           cloudInitNoCloud:
-            userData: |
-              #cloud-config
-              {{- toYaml .Values.cloudInit.userData | nindent 14 }}
+            secretRef:
+              name: {{ .Values.name }}-user-data
+            networkDataSecretRef:
+              name: {{ .Values.name }}-network-data

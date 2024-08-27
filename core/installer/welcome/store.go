@@ -40,9 +40,10 @@ type Store interface {
 	GetUserApps(username string) ([]string, error)
 	CreateApp(name, username string) error
 	GetAppOwner(name string) (string, error)
-	CreateCommit(name, hash, message, status, error string, resources []byte) error
-	GetCommitHistory(name string) ([]CommitMeta, error)
+	CreateCommit(name, branch, hash, message, status, error string, resources []byte) error
+	GetCommitHistory(name, branch string) ([]CommitMeta, error)
 	GetCommit(hash string) (Commit, error)
+	GetBranches(name string) ([]string, error)
 }
 
 func NewStore(cf soft.RepoIO, db *sql.DB) (Store, error) {
@@ -71,6 +72,7 @@ func (s *storeImpl) init() error {
 		);
 		CREATE TABLE IF NOT EXISTS commits (
 			app_name TEXT,
+			branch TEXT,
             hash TEXT,
             message TEXT,
             status TEXT,
@@ -186,15 +188,15 @@ func (s *storeImpl) GetUserApps(username string) ([]string, error) {
 	return ret, nil
 }
 
-func (s *storeImpl) CreateCommit(name, hash, message, status, error string, resources []byte) error {
-	query := `INSERT INTO commits (app_name, hash, message, status, error, resources) VALUES (?, ?, ?, ?, ?, ?)`
-	_, err := s.db.Exec(query, name, hash, message, status, error, resources)
+func (s *storeImpl) CreateCommit(name, branch, hash, message, status, error string, resources []byte) error {
+	query := `INSERT INTO commits (app_name, branch, hash, message, status, error, resources) VALUES (?, ?, ?, ?, ?, ?, ?)`
+	_, err := s.db.Exec(query, name, branch, hash, message, status, error, resources)
 	return err
 }
 
-func (s *storeImpl) GetCommitHistory(name string) ([]CommitMeta, error) {
-	query := `SELECT hash, message, status, error FROM commits WHERE app_name = ?`
-	rows, err := s.db.Query(query, name)
+func (s *storeImpl) GetCommitHistory(name, branch string) ([]CommitMeta, error) {
+	query := `SELECT hash, message, status, error FROM commits WHERE app_name = ? AND branch = ?`
+	rows, err := s.db.Query(query, name, branch)
 	if err != nil {
 		return nil, err
 	}
@@ -228,6 +230,28 @@ func (s *storeImpl) GetCommit(hash string) (Commit, error) {
 	}
 	if err := json.NewDecoder(bytes.NewBuffer(res)).Decode(&ret.Resources); err != nil {
 		return Commit{}, err
+	}
+	return ret, nil
+}
+
+func (s *storeImpl) GetBranches(name string) ([]string, error) {
+	query := `SELECT DISTINCT branch FROM commits WHERE app_name = ?`
+	rows, err := s.db.Query(query, name)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	ret := []string{}
+	for rows.Next() {
+		if err := rows.Err(); err != nil {
+			return nil, err
+		}
+		var b string
+		if err := rows.Scan(&b); err != nil {
+			return nil, err
+		}
+		ret = append(ret, b)
+
 	}
 	return ret, nil
 }

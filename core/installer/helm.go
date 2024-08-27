@@ -42,6 +42,7 @@ func (f ActionConfigFactory) New(namespace string) (*action.Configuration, error
 }
 
 type HelmFetcher interface {
+	// TODO(gio): implement integrity check
 	Pull(chart HelmChartGitRepo, rfs soft.RepoFS, root string) error
 }
 
@@ -97,6 +98,9 @@ func (f *gitHelmFetcher) Pull(chart HelmChartGitRepo, rfs soft.RepoFS, root stri
 	}
 	wtFS, err := wt.Filesystem.Chroot(chart.Path)
 	if err != nil {
+		return err
+	}
+	if err := rfs.RemoveDir(root); err != nil {
 		return err
 	}
 	return util.Walk(wtFS, "/", func(path string, info fs.FileInfo, err error) error {

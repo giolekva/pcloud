@@ -346,7 +346,7 @@ func (a cueApp) render(values map[string]any) (rendered, error) {
 		return rendered{}, err
 	}
 	{
-		charts := res.LookupPath(cue.ParsePath("charts"))
+		charts := res.LookupPath(cue.ParsePath("output.charts"))
 		i, err := charts.Fields()
 		if err != nil {
 			return rendered{}, err
@@ -366,7 +366,7 @@ func (a cueApp) render(values map[string]any) (rendered, error) {
 		}
 	}
 	{
-		images := res.LookupPath(cue.ParsePath("images"))
+		images := res.LookupPath(cue.ParsePath("output.images"))
 		i, err := images.Fields()
 		if err != nil {
 			return rendered{}, err
@@ -380,8 +380,8 @@ func (a cueApp) render(values map[string]any) (rendered, error) {
 		}
 	}
 	{
-		output := res.LookupPath(cue.ParsePath("output"))
-		i, err := output.Fields()
+		helm := res.LookupPath(cue.ParsePath("output.helm"))
+		i, err := helm.Fields()
 		if err != nil {
 			return rendered{}, err
 		}

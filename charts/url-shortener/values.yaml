@@ -2,7 +2,6 @@ image:
   repository: giolekva/url-shortener
   tag: latest
   pullPolicy: Always
-storage:
-  size: 1Gi
+persistentVolumeClaimName: "data"
 portName: http
 requireAuth: false

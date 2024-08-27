@@ -20,11 +20,20 @@
 </body>
 </html>
 {{ define "resources" }}
-{{- if gt (len .Volume) 0 -}}
-<h3>Volumes</h3>
-{{- range $v := .Volume -}}
-Name: {{ $v.Name }}<br/>
-Size: {{ $v.Size }}<br/>
+{{- if gt (len .Ingress) 0 -}}
+<h3>Ingress</h3>
+{{- range $i := .Ingress -}}
+Host: <a href="{{ $i.Host }}">{{ $i.Host }}</a><br/>
+<br/>
+{{- end -}}
+{{- end -}}
+{{- if gt (len .VirtualMachine) 0 -}}
+<h3>Virtual Machine</h3>
+{{- range $i := .VirtualMachine -}}
+Name: {{ $i.Name }}<br/>
+User: {{ $i.User }}<br/>
+CPU Cores: {{ $i.CPUCores }}<br/>
+Memory: {{ $i.Memory }}<br/>
 <br/>
 {{- end -}}
 {{- end -}}
@@ -37,10 +46,11 @@ Volume: {{ $p.Volume }}<br/>
 <br/>
 {{- end -}}
 {{- end -}}
-{{- if gt (len .Ingress) 0 -}}
-<h3>Ingress</h3>
-{{- range $i := .Ingress -}}
-Host: {{ $i.Host }}<br/>
+{{- if gt (len .Volume) 0 -}}
+<h3>Volumes</h3>
+{{- range $v := .Volume -}}
+Name: {{ $v.Name }}<br/>
+Size: {{ $v.Size }}<br/>
 <br/>
 {{- end -}}
 {{- end -}}

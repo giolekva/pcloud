@@ -2,8 +2,6 @@ image:
   repository: vaultwarden/server
   tag: 1.28.1
   pullPolicy: IfNotPresent
-storage:
-  size: 1Gi
 domain: bitwarden.example.com
-certificateIssuer: private
-ingressClassName: ingress-private
+persistentVolumeClaimName: "data"
+httpPortName: "http"

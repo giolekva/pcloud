@@ -5,6 +5,7 @@ import (
 input: {
 	repoAddr: string
 	repoHost: string
+	branch: string
 	gitRepoPublicKey: string
 	// TODO(gio): auto generate
 	fluxKeys: #SSHKey
@@ -58,7 +59,7 @@ resources: {
 		}
 		spec: {
 			interval: "1m0s"
-			ref: branch: "dodo"
+			ref: branch: input.branch
 			secretRef: name: "app"
 			timeout: "60s"
 			url: input.repoAddr

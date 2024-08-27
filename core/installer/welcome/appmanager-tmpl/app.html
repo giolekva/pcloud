@@ -31,9 +31,9 @@
     {{ else if eq $schema.Kind 1 }}
       <label {{ if $schema.Advanced }}hidden{{ end }}>
           {{ $schema.Name }}
-	  <input type="text" name="{{ $name }}" oninput="valueChanged({{ $name }}, this.value)" {{ if $readonly }}disabled{{ end }} value="{{ index $data $name }}" />
+		  <input type="text" name="{{ $name }}" oninput="valueChanged({{ $name }}, this.value)" {{ if $readonly }}disabled{{ end }} value="{{ index $data $name }}" />
+	  </label>
     {{ else if eq $schema.Kind 4 }}
-      </label>
       <label {{ if $schema.Advanced }}hidden{{ end }}>
           {{ $schema.Name }}
 		  <input type="text" name="{{ $name }}" oninput="valueChanged({{ $name }}, this.value)" {{ if $readonly }}disabled{{ end }} value="{{ index $data $name }}" />

@@ -17,3 +17,4 @@ persistentVolumeClaimName: ""
 allowedNetworks: ""
 external: false
 fetchUsersAddr: ""
+headscaleAPIAddr: ""

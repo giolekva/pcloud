@@ -209,6 +209,7 @@ func (r *repoIO) CommitAndPush(message string, opts ...PushOption) (string, erro
 	if len(st) == 0 {
 		return "", nil // TODO(gio): maybe return ErrorNothingToCommit
 	}
+	fmt.Printf("@@@ %+v\n", st)
 	hash, err := wt.Commit(message, &git.CommitOptions{
 		Author: &object.Signature{
 			Name: "pcloud-installer",
@@ -223,11 +224,12 @@ func (r *repoIO) CommitAndPush(message string, opts ...PushOption) (string, erro
 		Auth:       auth(r.signer),
 	}
 	if o.ToBranch != "" {
-		gopts.RefSpecs = []config.RefSpec{config.RefSpec(fmt.Sprintf("refs/heads/master:refs/heads/%s", o.ToBranch))}
+		gopts.RefSpecs = []config.RefSpec{config.RefSpec(fmt.Sprintf("%s:refs/heads/%s", r.repo.Ref, o.ToBranch))}
 	}
 	if o.Force {
 		gopts.Force = true
 	}
+	fmt.Println(3333)
 	return hash.String(), r.repo.Push(gopts)
 }
 
@@ -259,6 +261,7 @@ func (r *repoIO) Do(op DoFn, opts ...DoOption) (string, error) {
 	if o.ToBranch != "" {
 		popts = append(popts, WithToBranch(o.ToBranch))
 	}
+	fmt.Println(2222)
 	return r.CommitAndPush(msg, popts...)
 }
 

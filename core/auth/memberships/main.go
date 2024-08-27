@@ -691,6 +691,8 @@ func (s *Server) Start() error {
 	go func() {
 		r := mux.NewRouter()
 		r.HandleFunc("/api/init", s.apiInitHandler)
+		// TODO(gio): change to /api/users/{username}
+		r.HandleFunc("/api/users/{username}/keys", s.apiAddUserKey).Methods(http.MethodPost)
 		r.HandleFunc("/api/user/{username}", s.apiMemberOfHandler)
 		r.HandleFunc("/api/users", s.apiGetAllUsers).Methods(http.MethodGet)
 		r.HandleFunc("/api/users", s.apiCreateUser).Methods(http.MethodPost)
@@ -1153,7 +1155,7 @@ func (s *Server) addSSHKeyForUserHandler(w http.ResponseWriter, r *http.Request)
 		http.Error(w, "SSH key not present", http.StatusBadRequest)
 		return
 	}
-	if err := s.store.AddSSHKeyForUser(username, sshKey); err != nil {
+	if err := s.store.AddSSHKeyForUser(strings.ToLower(username), sshKey); err != nil {
 		redirectURL := fmt.Sprintf("/user/%s?errorMessage=%s", loggedInUser, url.QueryEscape(err.Error()))
 		http.Redirect(w, r, redirectURL, http.StatusFound)
 		return
@@ -1238,11 +1240,7 @@ func (s *Server) apiMemberOfHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) apiGetAllUsers(w http.ResponseWriter, r *http.Request) {
-	defer s.pingAllSyncAddresses()
-	selfAddress := r.FormValue("selfAddress")
-	if selfAddress != "" {
-		s.addSyncAddress(selfAddress)
-	}
+	s.addSyncAddress(r.FormValue("selfAddress"))
 	var users []User
 	var err error
 	groups := r.FormValue("groups")
@@ -1316,23 +1314,58 @@ func (s *Server) apiCreateUser(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+type addUserKeyRequest struct {
+	User      string `json:"user"`
+	PublicKey string `json:"publicKey"`
+}
+
+func (s *Server) apiAddUserKey(w http.ResponseWriter, r *http.Request) {
+	var req addUserKeyRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+	if req.User == "" {
+		http.Error(w, "Username cannot be empty", http.StatusBadRequest)
+		return
+	}
+	if req.PublicKey == "" {
+		http.Error(w, "PublicKey cannot be empty", http.StatusBadRequest)
+		return
+	}
+	if err := s.store.AddSSHKeyForUser(strings.ToLower(req.User), req.PublicKey); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+}
+
+// TODO(gio): enque sync event instead of directly reaching out to clients.
+// This will allow to deduplicate sync events and save resources.
 func (s *Server) pingAllSyncAddresses() {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	for address := range s.syncAddresses {
-		resp, err := http.Get(address)
-		if err != nil {
-			log.Printf("Failed to ping %s: %v", address, err)
-			continue
-		}
-		resp.Body.Close()
-		if resp.StatusCode != http.StatusOK {
-			log.Printf("Ping to %s returned status %d", address, resp.StatusCode)
-		}
+		go func(address string) {
+			log.Printf("Pinging %s", address)
+			resp, err := http.Get(address)
+			if err != nil {
+				// TODO(gio): remove sync address after N number of failures.
+				log.Printf("Failed to ping %s: %v", address, err)
+				return
+			}
+			defer resp.Body.Close()
+			if resp.StatusCode != http.StatusOK {
+				log.Printf("Ping to %s returned status %d", address, resp.StatusCode)
+			}
+		}(address)
 	}
 }
 
 func (s *Server) addSyncAddress(address string) {
+	if address == "" {
+		return
+	}
+	fmt.Printf("Adding sync address: %s\n", address)
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.syncAddresses[address] = struct{}{}

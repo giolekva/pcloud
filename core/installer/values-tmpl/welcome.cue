@@ -11,43 +11,45 @@ input: {
 name: "welcome"
 namespace: "app-welcome"
 
-images: {
-	welcome: {
-		repository: "giolekva"
-		name: "pcloud-installer"
-		tag: "latest"
-		pullPolicy: "Always"
+out: {
+	images: {
+		welcome: {
+			repository: "giolekva"
+			name: "pcloud-installer"
+			tag: "latest"
+			pullPolicy: "Always"
+		}
 	}
-}
 
-charts: {
-	welcome: {
-		kind: "GitRepository"
-		address: "https://code.v1.dodo.cloud/helm-charts"
-		branch: "main"
-		path: "charts/welcome"
+	charts: {
+		welcome: {
+			kind: "GitRepository"
+			address: "https://code.v1.dodo.cloud/helm-charts"
+			branch: "main"
+			path: "charts/welcome"
+		}
 	}
-}
 
-helm: {
-	welcome: {
-		chart: charts.welcome
-		values: {
-			repoAddr: input.repoAddr
-			sshPrivateKey: base64.Encode(null, input.sshPrivateKey)
-			createAccountAddr: "http://api.\(global.namespacePrefix)core-auth.svc.cluster.local/identities"
-			loginAddr: "https://launcher.\(networks.public.domain)"
-			membershipsAddr: "http://memberships-api.\(global.namespacePrefix)core-auth-memberships.svc.cluster.local"
-			ingress: {
-				className: input.network.ingressClass
-				domain: "welcome.\(input.network.domain)"
-				certificateIssuer: input.network.certificateIssuer
-			}
-			clusterRoleName: "\(global.id)-welcome"
-			image: {
-				repository: images.welcome.fullName
-				tag: images.welcome.tag
-				pullPolicy: images.welcome.pullPolicy
+	helm: {
+		welcome: {
+			chart: charts.welcome
+			values: {
+				repoAddr: input.repoAddr
+				sshPrivateKey: base64.Encode(null, input.sshPrivateKey)
+				createAccountAddr: "http://api.\(global.namespacePrefix)core-auth.svc.cluster.local/identities"
+				loginAddr: "https://launcher.\(networks.public.domain)"
+				membershipsAddr: "http://memberships-api.\(global.namespacePrefix)core-auth-memberships.svc.cluster.local"
+				ingress: {
+					className: input.network.ingressClass
+					domain: "welcome.\(input.network.domain)"
+					certificateIssuer: input.network.certificateIssuer
+				}
+				clusterRoleName: "\(global.id)-welcome"
+				image: {
+					repository: images.welcome.fullName
+					tag: images.welcome.tag
+					pullPolicy: images.welcome.pullPolicy
+				}
 			}
 		}
 	}

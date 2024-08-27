@@ -15,52 +15,54 @@ icon: "<svg xmlns='http://www.w3.org/2000/svg' width='50' height='50' viewBox='0
 
 _httpPortName: "http"
 
-ingress: {
-	memberships: {
-		auth: {
-			enabled: true
-			groups: input.authGroups
-		}
-		network: input.network
-		subdomain: _subdomain
-		service: {
-			name: "memberships"
-			port: name: _httpPortName
+out: {
+	ingress: {
+		memberships: {
+			auth: {
+				enabled: true
+				groups: input.authGroups
+			}
+			network: input.network
+			subdomain: _subdomain
+			service: {
+				name: "memberships"
+				port: name: _httpPortName
+			}
 		}
 	}
-}
 
-images: {
-    memberships: {
-        repository: "giolekva"
-        name: "memberships"
-        tag: "latest"
-        pullPolicy: "Always"
-    }
-}
+	images: {
+		memberships: {
+			repository: "giolekva"
+			name: "memberships"
+			tag: "latest"
+			pullPolicy: "Always"
+		}
+	}
 
-charts: {
-    memberships: {
-		kind: "GitRepository"
-		address: "https://code.v1.dodo.cloud/helm-charts"
-		branch: "main"
-		path: "charts/memberships"
-    }
-}
+	charts: {
+		memberships: {
+			kind: "GitRepository"
+			address: "https://code.v1.dodo.cloud/helm-charts"
+			branch: "main"
+			path: "charts/memberships"
+		}
+	}
 
-helm: {
-    memberships: {
-        chart: charts.memberships
-        values: {
-            storage: {
-                size: "1Gi"
-            }
-            image: {
-                repository: images.memberships.fullName
-                tag: images.memberships.tag
-                pullPolicy: images.memberships.pullPolicy
-            }
-            portName: _httpPortName
-        }
-    }
+	helm: {
+		memberships: {
+			chart: charts.memberships
+			values: {
+				storage: {
+					size: "1Gi"
+				}
+				image: {
+					repository: images.memberships.fullName
+					tag: images.memberships.tag
+					pullPolicy: images.memberships.pullPolicy
+				}
+				portName: _httpPortName
+			}
+		}
+	}
 }

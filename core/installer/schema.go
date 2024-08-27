@@ -231,8 +231,17 @@ func NewCueSchema(name string, v cue.Value) (Schema, error) {
 	case cue.StringKind:
 		if role == "vpnauthkey" {
 			meta := map[string]string{}
-			usernameAttr := v.Attribute("usernameField")
-			meta["usernameField"] = strings.ToLower(usernameAttr.Contents())
+			usernameFieldAttr := v.Attribute("usernameField")
+			if usernameFieldAttr.Err() == nil {
+				meta["usernameField"] = strings.ToLower(usernameFieldAttr.Contents())
+			}
+			usernameAttr := v.Attribute("username")
+			if usernameAttr.Err() == nil {
+				meta["username"] = strings.ToLower(usernameAttr.Contents())
+			}
+			if len(meta) != 1 {
+				return nil, fmt.Errorf("invalid vpn auth key field meta: %+v", meta)
+			}
 			return basicSchema{name, KindVPNAuthKey, true, meta}, nil
 		} else {
 			return basicSchema{name, KindString, false, nil}, nil

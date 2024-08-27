@@ -16,6 +16,7 @@ import (
 	"github.com/cenkalti/backoff/v4"
 	"github.com/go-git/go-billy/v5/memfs"
 	"github.com/go-git/go-git/v5"
+	"github.com/go-git/go-git/v5/plumbing"
 	"github.com/go-git/go-git/v5/plumbing/transport"
 	gitssh "github.com/go-git/go-git/v5/plumbing/transport/ssh"
 	"github.com/go-git/go-git/v5/storage/memory"
@@ -29,6 +30,7 @@ type Client interface {
 	GetPublicKeys() ([]string, error)
 	RepoExists(name string) (bool, error)
 	GetRepo(name string) (RepoIO, error)
+	GetRepoBranch(name, branch string) (RepoIO, error)
 	GetAllRepos() ([]string, error)
 	GetRepoAddress(name string) string
 	AddRepository(name string) error
@@ -44,6 +46,8 @@ type Client interface {
 	AddReadWriteCollaborator(repo, user string) error
 	AddReadOnlyCollaborator(repo, user string) error
 	AddWebhook(repo, url string, opts ...string) error
+	DisableAnonAccess() error
+	DisableKeyless() error
 }
 
 type realClient struct {
@@ -265,13 +269,30 @@ func (ss *realClient) AddWebhook(repo, url string, opts ...string) error {
 	return err
 }
 
+func (ss *realClient) DisableAnonAccess() error {
+	log.Printf("Disabling anon access")
+	_, err := ss.RunCommand("settings", "anon-access", "no-access")
+	return err
+}
+
+func (ss *realClient) DisableKeyless() error {
+	log.Printf("Disabling anon access")
+	_, err := ss.RunCommand("settings", "allow-keyless", "false")
+	return err
+}
+
 type Repository struct {
 	*git.Repository
 	Addr RepositoryAddress
+	Ref  string
 }
 
 func (ss *realClient) GetRepo(name string) (RepoIO, error) {
-	r, err := CloneRepository(RepositoryAddress{ss.addr, name}, ss.signer)
+	return ss.GetRepoBranch(name, "master")
+}
+
+func (ss *realClient) GetRepoBranch(name, branch string) (RepoIO, error) {
+	r, err := CloneRepositoryBranch(RepositoryAddress{ss.addr, name}, branch, ss.signer)
 	if err != nil {
 		return nil, err
 	}
@@ -305,7 +326,12 @@ func (r RepositoryAddress) FullAddress() string {
 }
 
 func CloneRepository(addr RepositoryAddress, signer ssh.Signer) (*Repository, error) {
-	fmt.Printf("Cloning repository: %s %s\n", addr.Addr, addr.Name)
+	return CloneRepositoryBranch(addr, "master", signer)
+}
+
+func CloneRepositoryBranch(addr RepositoryAddress, branch string, signer ssh.Signer) (*Repository, error) {
+	fmt.Printf("Cloning repository: %s %s %s\n", addr.Addr, addr.Name, branch)
+	ref := fmt.Sprintf("refs/heads/%s", branch)
 	c, err := git.Clone(memory.NewStorage(), memfs.New(), &git.CloneOptions{
 		URL: addr.FullAddress(),
 		Auth: &gitssh.PublicKeys{
@@ -320,7 +346,7 @@ func CloneRepository(addr RepositoryAddress, signer ssh.Signer) (*Repository, er
 			},
 		},
 		RemoteName:      "origin",
-		ReferenceName:   "refs/heads/master",
+		ReferenceName:   plumbing.ReferenceName(ref),
 		SingleBranch:    true,
 		Depth:           1,
 		InsecureSkipTLS: true,
@@ -348,6 +374,7 @@ func CloneRepository(addr RepositoryAddress, signer ssh.Signer) (*Repository, er
 	return &Repository{
 		Repository: c,
 		Addr:       addr,
+		Ref:        ref,
 	}, nil
 }
 
