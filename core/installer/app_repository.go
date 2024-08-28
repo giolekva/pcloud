@@ -46,7 +46,6 @@ var envAppConfigs = []string{
 	"values-tmpl/certificate-issuer-public.cue",
 	"values-tmpl/appmanager.cue",
 	"values-tmpl/core-auth.cue",
-	"values-tmpl/headscale-user.cue",
 	"values-tmpl/metallb-ipaddresspool.cue",
 	"values-tmpl/private-network.cue",
 	"values-tmpl/welcome.cue",
