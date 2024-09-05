@@ -103,7 +103,7 @@ type DodoAppServer struct {
 	env               installer.EnvConfig
 	nsc               installer.NamespaceCreator
 	jc                installer.JobCreator
-	vpnKeyGen         installer.VPNAuthKeyGenerator
+	vpnKeyGen         installer.VPNAPIClient
 	workers           map[string]map[string]struct{}
 	appConfigs        map[string]appConfig
 	tmplts            dodoAppTmplts
@@ -135,7 +135,7 @@ func NewDodoAppServer(
 	envAppManagerAddr string,
 	nsc installer.NamespaceCreator,
 	jc installer.JobCreator,
-	vpnKeyGen installer.VPNAuthKeyGenerator,
+	vpnKeyGen installer.VPNAPIClient,
 	env installer.EnvConfig,
 	external bool,
 	fetchUsersAddr string,

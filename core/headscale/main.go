@@ -88,6 +88,9 @@ func (s *server) start() error {
 	r := mux.NewRouter()
 	r.HandleFunc("/sync-users", s.handleSyncUsers).Methods(http.MethodGet)
 	r.HandleFunc("/user/{user}/preauthkey", s.createReusablePreAuthKey).Methods(http.MethodPost)
+	r.HandleFunc("/user/{user}/preauthkey", s.expireReusablePreAuthKey).Methods(http.MethodDelete)
+	r.HandleFunc("/user/{user}/node/{node}/expire", s.expireUserNode).Methods(http.MethodPost)
+	r.HandleFunc("/user/{user}/node/{node}", s.removeUserNode).Methods(http.MethodDelete)
 	r.HandleFunc("/user", s.createUser).Methods(http.MethodPost)
 	r.HandleFunc("/routes/{id}/enable", s.enableRoute).Methods(http.MethodPost)
 	go func() {
@@ -129,6 +132,63 @@ func (s *server) createReusablePreAuthKey(w http.ResponseWriter, r *http.Request
 		return
 	} else {
 		fmt.Fprint(w, key)
+	}
+}
+
+type expirePreAuthKeyReq struct {
+	AuthKey string `json:"authKey"`
+}
+
+func (s *server) expireReusablePreAuthKey(w http.ResponseWriter, r *http.Request) {
+	user, ok := mux.Vars(r)["user"]
+	if !ok {
+		http.Error(w, "no user", http.StatusBadRequest)
+		return
+	}
+	var req expirePreAuthKeyReq
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	if err := s.client.expirePreAuthKey(user, req.AuthKey); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+}
+
+func (s *server) expireUserNode(w http.ResponseWriter, r *http.Request) {
+	fmt.Println("expire node")
+	user, ok := mux.Vars(r)["user"]
+	if !ok {
+		http.Error(w, "no user", http.StatusBadRequest)
+		return
+	}
+	node, ok := mux.Vars(r)["node"]
+	if !ok {
+		http.Error(w, "no user", http.StatusBadRequest)
+		return
+	}
+	if err := s.client.expireUserNode(user, node); err != nil {
+		fmt.Println(err)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+}
+
+func (s *server) removeUserNode(w http.ResponseWriter, r *http.Request) {
+	user, ok := mux.Vars(r)["user"]
+	if !ok {
+		http.Error(w, "no user", http.StatusBadRequest)
+		return
+	}
+	node, ok := mux.Vars(r)["node"]
+	if !ok {
+		http.Error(w, "no user", http.StatusBadRequest)
+		return
+	}
+	if err := s.client.removeUserNode(user, node); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
 	}
 }
 

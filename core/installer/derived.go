@@ -69,7 +69,7 @@ func deriveValues(
 	values any,
 	schema Schema,
 	networks []Network,
-	vpnKeyGen VPNAuthKeyGenerator,
+	vpnKeyGen VPNAPIClient,
 ) (map[string]any, error) {
 	ret := make(map[string]any)
 	for _, f := range schema.Fields() {
@@ -100,7 +100,7 @@ func deriveValues(
 						return nil, fmt.Errorf("could not resolve username: %+v %s %+v", def.Meta(), v, root)
 					}
 				}
-				authKey, err := vpnKeyGen.Generate(username)
+				authKey, err := vpnKeyGen.GenerateAuthKey(username)
 				if err != nil {
 					return nil, err
 				}

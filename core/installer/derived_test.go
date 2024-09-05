@@ -6,8 +6,20 @@ import (
 
 type testKeyGen struct{}
 
-func (g testKeyGen) Generate(username string) (string, error) {
+func (g testKeyGen) GenerateAuthKey(username string) (string, error) {
 	return username, nil
+}
+
+func (g testKeyGen) ExpireKey(username, key string) error {
+	return nil
+}
+
+func (g testKeyGen) ExpireNode(username, node string) error {
+	return nil
+}
+
+func (g testKeyGen) RemoveNode(username, node string) error {
+	return nil
 }
 
 func TestDeriveVPNAuthKey(t *testing.T) {

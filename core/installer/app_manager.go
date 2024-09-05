@@ -30,13 +30,13 @@ const (
 var ErrorNotFound = errors.New("not found")
 
 type AppManager struct {
-	l          sync.Locker
-	repoIO     soft.RepoIO
-	nsc        NamespaceCreator
-	jc         JobCreator
-	hf         HelmFetcher
-	vpnKeyGen  VPNAuthKeyGenerator
-	appDirRoot string
+	l            sync.Locker
+	repoIO       soft.RepoIO
+	nsc          NamespaceCreator
+	jc           JobCreator
+	hf           HelmFetcher
+	vpnAPIClient VPNAPIClient
+	appDirRoot   string
 }
 
 func NewAppManager(
@@ -44,7 +44,7 @@ func NewAppManager(
 	nsc NamespaceCreator,
 	jc JobCreator,
 	hf HelmFetcher,
-	vpnKeyGen VPNAuthKeyGenerator,
+	vpnKeyGen VPNAPIClient,
 	appDirRoot string,
 ) (*AppManager, error) {
 	return &AppManager{
@@ -468,7 +468,7 @@ func (m *AppManager) Install(
 		RepoAddr:      m.repoIO.FullAddress(),
 		AppDir:        appDir,
 	}
-	rendered, err := app.Render(release, env, networks, values, nil, m.vpnKeyGen)
+	rendered, err := app.Render(release, env, networks, values, nil, m.vpnAPIClient)
 	if err != nil {
 		return ReleaseResources{}, err
 	}
@@ -500,7 +500,7 @@ func (m *AppManager) Install(
 	if o.FetchContainerImages {
 		release.ImageRegistry = imageRegistry
 	}
-	rendered, err = app.Render(release, env, networks, values, localCharts, m.vpnKeyGen)
+	rendered, err = app.Render(release, env, networks, values, localCharts, m.vpnAPIClient)
 	if err != nil {
 		return ReleaseResources{}, err
 	}
@@ -593,7 +593,7 @@ func (m *AppManager) Update(
 	if err != nil {
 		return ReleaseResources{}, err
 	}
-	rendered, err := app.Render(config.Release, env, networks, values, renderedCfg.LocalCharts, m.vpnKeyGen)
+	rendered, err := app.Render(config.Release, env, networks, values, renderedCfg.LocalCharts, m.vpnAPIClient)
 	if err != nil {
 		return ReleaseResources{}, err
 	}
@@ -613,14 +613,14 @@ func (m *AppManager) Remove(instanceId string) error {
 	if err := m.repoIO.Pull(); err != nil {
 		return err
 	}
-	var portForward []PortForward
+	var cfg renderedInstance
 	if _, err := m.repoIO.Do(func(r soft.RepoFS) (string, error) {
 		instanceDir := filepath.Join(m.appDirRoot, instanceId)
 		renderedCfg, err := readRendered(m.repoIO, filepath.Join(instanceDir, "rendered.json"))
 		if err != nil {
 			return "", err
 		}
-		portForward = renderedCfg.PortForward
+		cfg = renderedCfg
 		r.RemoveDir(instanceDir)
 		kustPath := filepath.Join(m.appDirRoot, "kustomization.yaml")
 		kust, err := soft.ReadKustomization(r, kustPath)
@@ -633,8 +633,21 @@ func (m *AppManager) Remove(instanceId string) error {
 	}); err != nil {
 		return err
 	}
-	if err := closePorts(portForward); err != nil {
+	if err := closePorts(cfg.PortForward); err != nil {
 		return err
+	}
+	for vmName, vmCfg := range cfg.Out.VM {
+		if vmCfg.VPN.Enabled {
+			if err := m.vpnAPIClient.ExpireNode(vmCfg.Username, vmName); err != nil {
+				return err
+			}
+			if err := m.vpnAPIClient.ExpireKey(vmCfg.Username, vmCfg.VPN.AuthKey); err != nil {
+				return err
+			}
+			if err := m.vpnAPIClient.RemoveNode(vmCfg.Username, vmName); err != nil {
+				return err
+			}
+		}
 	}
 	return nil
 }
@@ -951,6 +964,19 @@ func pullContainerImages(appName string, imgs map[string]ContainerImage, registr
 type renderedInstance struct {
 	LocalCharts map[string]helmv2.HelmChartTemplateSpec `json:"localCharts"`
 	PortForward []PortForward                           `json:"portForward"`
+	Out         outRendered                             `json:"out"`
+}
+
+type outRendered struct {
+	VM map[string]vmRendered `json:"vm"`
+}
+
+type vmRendered struct {
+	Username string `json:"username"`
+	VPN      struct {
+		Enabled bool   `json:"enabled"`
+		AuthKey string `json:"authKey"`
+	} `json:"vpn"`
 }
 
 func readRendered(fs soft.RepoFS, path string) (renderedInstance, error) {
