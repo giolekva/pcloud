@@ -35,21 +35,26 @@ if app.dev.enabled {
 		cpuCores: 1
 		memory: "1Gi"
 		cloudInit: {
+			_loadEnvFile: "/home/\(username)/.dodo_env.sh"
+			writeFiles: [{
+				path: _loadEnvFile
+				content: "source <(curl -fsSL \(input.managerAddr)/api/apps/\(input.appId)/branch/\(input.branch)/env-profile)"
+				owner: "\(username):\(username)"
+				permissions: "0700"
+			},
+			{
+				path: "/home/\(username)/.bash_profile"
+				content: "source \(_loadEnvFile)"
+				owner: "\(username):\(username)"
+				permissions: "0700"
+			}]
 			runCmd: list.Concat([[
 				["sh", "-c", "chown \(username):\(username) /home/\(username)/.cache"],
 				["sh", "-c", "GIT_SSH_COMMAND='ssh -i /home/\(username)/.ssh/id_ed25519 -o IdentitiesOnly=yes -o StrictHostKeyChecking=accept-new' git clone --branch \(input.branch) \(input.repoPublicAddr)/\(input.appId) /home/\(username)/code"],
 				["sh", "-c", "chown -R \(username):\(username) /home/\(username)/code"],
-				["sh", "-c", "chown \(username):\(username) /home/\(username)/.gitconfig"],
+				["sh", "-c", "chown -R \(username):\(username) /home/\(username)"],
 	        ], app.vm.cloudInit.runCmd])
 		}
-	}
-}
-
-_vmName: "\(input.appId)-\(input.branch)"
-
-out: {
-	vm: {
-		"\(_vmName)": _devVM
 	}
 }
 
@@ -60,31 +65,6 @@ out: {
 
 	_network: networks[strings.ToLower(network)]
 	baseURL: "https://\(subdomain).\(_network.domain)"
-}
-
-#Volumes: {
-	...
-}
-
-#PostgreSQLs: {
-	...
-}
-
-app: {
-	volumes: {
-		for key, value in volumes {
-			"\(key)": #volume & value & {
-				name: key
-			}
-		}
-	}
-	postgresql: {
-		for key, value in postgresql {
-			"\(key)": #PostgreSQL & value & {
-				name: key
-			}
-		}
-	}
 }
 
 #Command: {
@@ -106,19 +86,58 @@ app: {
 
 #VMCustomization: {
 	cloudInit: #CloudInit
+	env: [...string] | *[]
 }
 
 #AppTmpl: {
 	type: string
 	ingress: #AppIngress
-	volumes: #Volumes
-	postgresql: #PostgreSQLs
+	volumes: {
+		for k, v in volumes {
+			"\(k)": #volume & v & {
+				name: k
+			}
+		}
+		...
+	}
+	postgresql: {
+		for k, v in postgresql {
+			"\(k)": #PostgreSQL & v & {
+				name: k
+			}
+		}
+		...
+	}
 	rootDir: string
 	runConfiguration: [...#Command]
 	dev: #Dev | *{ enabled: false }
 	vm: #VMCustomization
+
+	lastCmdEnv: [
+		for k, v in volumes {
+			"DODO_VOLUME_\(strings.ToUpper(k))=/dodo-volume/\(v.name)"
+		}
+		for k, v in postgresql {
+			"DODO_POSTGRESQL_\(strings.ToUpper(k))_ADDRESS=postgres-\(v.name).\(release.namespace).svc.cluster.local"
+		}
+		for k, v in postgresql {
+			"DODO_POSTGRESQL_\(strings.ToUpper(k))_USERNAME=postgres"
+		}
+		for k, v in postgresql {
+			"DODO_POSTGRESQL_\(strings.ToUpper(k))_PASSWORD=postgres"
+		}
+		for k, v in postgresql {
+			"DODO_POSTGRESQL_\(strings.ToUpper(k))_DATABASE=postgres"
+		}
+    ]
+
 	...
 }
+
+envProfile: strings.Join(list.Concat([
+	app.vm.env,
+	[for e in app.lastCmdEnv { "export \(e)" }]
+]), "\n")
 
 // Go app
 
@@ -128,11 +147,12 @@ _goVer1200: "golang:1.20.0"
 #GoAppTmpl: #AppTmpl & {
 	type: _goVer1220 | _goVer1200
 	run: string | *"main.go"
-	ingress: #AppIngress
-	volumes: #Volumes
-	postgresql: #PostgreSQLs
 	port: int | *8080
 	rootDir: _appDir
+
+	volumes: {...}
+	postgresql: {...}
+	lastCmdEnv: [...string]
 
 	runConfiguration: [{
 		bin: "/usr/local/go/bin/go",
@@ -142,34 +162,22 @@ _goVer1200: "golang:1.20.0"
 		args: ["build", "-o", ".app", run]
 	}, {
 		bin: ".app",
-		env: [
-			for k, v in volumes {
-				"DODO_VOLUME_\(strings.ToUpper(k))=/dodo-volume/\(v.name)"
-			}
-			for k, v in postgresql {
-				"DODO_POSTGRESQL_\(strings.ToUpper(k))_ADDRESS=postgres-\(v.name).\(release.namespace).svc.cluster.local"
-			}
-			for k, v in postgresql {
-				"DODO_POSTGRESQL_\(strings.ToUpper(k))_USERNAME=postgres"
-			}
-			for k, v in postgresql {
-				"DODO_POSTGRESQL_\(strings.ToUpper(k))_PASSWORD=postgres"
-			}
-			for k, v in postgresql {
-				"DODO_POSTGRESQL_\(strings.ToUpper(k))_DATABASE=postgres"
-			}
-	    ]
+		env: lastCmdEnv
 	}]
 }
 
 #GoApp1200: #GoAppTmpl & {
 	type: _goVer1200
-	vm: cloudInit: runCmd: [
-		["sh", "-c", "wget https://go.dev/dl/go1.20.linux-amd64.tar.gz -O /tmp/go.tar.gz"],
-		["sh", "-c", "rm -rf /usr/local/go && tar -C /usr/local -xzf /tmp/go.tar.gz"],
-		["sh", "-c", "echo \"export PATH=$PATH:/usr/local/go/bin\\n\" > /etc/environment"],
-		["sh", "-c", "rm /tmp/go.tar.gz"],
-    ]
+	vm: {
+		env: [
+			"export PATH=$PATH:/usr/local/go/bin"
+	    ]
+		cloudInit: runCmd: [
+			["sh", "-c", "wget https://go.dev/dl/go1.20.linux-amd64.tar.gz -O /tmp/go.tar.gz"],
+			["sh", "-c", "rm -rf /usr/local/go && tar -C /usr/local -xzf /tmp/go.tar.gz"],
+			["sh", "-c", "rm /tmp/go.tar.gz"],
+        ]
+	}
 }
 
 #GoApp1220: #GoAppTmpl & {
@@ -185,10 +193,12 @@ _hugoLatest: "hugo:latest"
 #HugoAppTmpl: #AppTmpl & {
 	type: _hugoLatest
 	ingress: #AppIngress
-	volumes: {}
-	postgresql: {}
 	port: int | *8080
 	rootDir: _appDir
+
+	volumes: {...}
+	postgresql: {...}
+	lastCmdEnv: [...string]
 
 	runConfiguration: [{
 		bin: "/usr/bin/hugo",
@@ -201,7 +211,8 @@ _hugoLatest: "hugo:latest"
 			"--port=\(port)",
 			"--baseURL=\(ingress.baseURL)",
 			"--appendPort=false",
-    	]
+        ]
+		env: lastCmdEnv
 	}]
 }
 
@@ -211,19 +222,16 @@ _hugoLatest: "hugo:latest"
 
 #PHPAppTmpl: #AppTmpl & {
 	type: "php:8.2-apache"
-	ingress: #AppIngress
-	volumes: {}
-	postgresql: {}
 	port: int | *80
 	rootDir: "/var/www/html"
 
+	volumes: {...}
+	postgresql: {...}
+	lastCmdEnv: [...string]
+
 	runConfiguration: [{
 		bin: "/usr/local/bin/apache2-foreground",
-		env: [
-			for k, v in volumes {
-				"DODO_VOLUME_\(strings.ToUpper(k))=/dodo-volume/\(v.name)"
-			}
-	    ]
+		env: lastCmdEnv
 	}]
 }
 
@@ -232,67 +240,66 @@ _hugoLatest: "hugo:latest"
 #App: #GoApp | #HugoApp | #PHPApp
 
 app: #App
-
 _app: app
 
 if !_app.dev.enabled {
 	{
-	out: {
-		ingress: {
-			app: {
-				network: networks[strings.ToLower(_app.ingress.network)]
-				subdomain: _app.ingress.subdomain
-				auth: _app.ingress.auth
-				service: {
-					name: "app-app"
-					port: name: "app"
+		out: {
+			ingress: {
+				app: {
+					network: networks[strings.ToLower(_app.ingress.network)]
+					subdomain: _app.ingress.subdomain
+					auth: _app.ingress.auth
+					service: {
+						name: "app-app"
+						port: name: "app"
+					}
 				}
 			}
-		}
-		images: {
-			app: {
-				repository: "giolekva"
-				name: "app-runner"
-				tag: strings.Replace(_app.type, ":", "-", -1)
-				pullPolicy: "Always"
+			images: {
+				app: {
+					repository: "giolekva"
+					name: "app-runner"
+					tag: strings.Replace(_app.type, ":", "-", -1)
+					pullPolicy: "Always"
+				}
 			}
-		}
-		charts: {
-			app: {
-				kind: "GitRepository"
-				address: "https://code.v1.dodo.cloud/helm-charts"
-				branch: "main"
-				path: "charts/app-runner"
+			charts: {
+				app: {
+					kind: "GitRepository"
+					address: "https://code.v1.dodo.cloud/helm-charts"
+					branch: "main"
+					path: "charts/app-runner"
+				}
 			}
-		}
-		helm: {
-			app: {
-				chart: charts.app
-				values: {
-					image: {
-						repository: images.app.fullName
-						tag: images.app.tag
-						pullPolicy: images.app.pullPolicy
-					}
-					runtimeClassName: "untrusted-external" // TODO(gio): make this part of the infra config
-					appPort: _app.port
-					appDir: _app.rootDir
-					appId: input.appId
-					repoAddr: input.repoAddr
-					sshPrivateKey: base64.Encode(null, input.sshPrivateKey)
-					runCfg: base64.Encode(null, json.Marshal(_app.runConfiguration))
-					managerAddr: input.managerAddr
-					volumes: [
-						for key, value in _app.volumes {
-							name: value.name
-							mountPath: "/dodo-volume/\(key)"
+			helm: {
+				app: {
+					chart: charts.app
+					values: {
+						image: {
+							repository: images.app.fullName
+							tag: images.app.tag
+							pullPolicy: images.app.pullPolicy
 						}
-                ]
+						runtimeClassName: "untrusted-external" // TODO(gio): make this part of the infra config
+						appPort: _app.port
+						appDir: _app.rootDir
+						appId: input.appId
+						repoAddr: input.repoAddr
+						sshPrivateKey: base64.Encode(null, input.sshPrivateKey)
+						runCfg: base64.Encode(null, json.Marshal(_app.runConfiguration))
+						managerAddr: input.managerAddr
+						volumes: [
+							for key, value in _app.volumes {
+								name: value.name
+								mountPath: "/dodo-volume/\(key)"
+							}
+					    ]
+					}
 				}
 			}
 		}
 	}
-		}
 }
 
 if _app.dev.enabled {
@@ -319,6 +326,16 @@ if _app.dev.enabled {
 				}
 			}
 		}
+	}
+}
+
+_vmName: "\(input.appId)-\(input.branch)"
+
+out: {
+	volumes: app.volumes
+	postgresql: app.postgresql
+	vm: {
+		"\(_vmName)": _devVM
 	}
 }
 

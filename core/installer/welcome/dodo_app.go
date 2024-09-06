@@ -235,6 +235,7 @@ func (s *DodoAppServer) Start() error {
 		r.HandleFunc("/update", s.handleAPIUpdate)
 		r.HandleFunc("/api/apps/{app-name}/workers", s.handleAPIRegisterWorker).Methods(http.MethodPost)
 		r.HandleFunc("/api/add-public-key", s.handleAPIAddPublicKey).Methods(http.MethodPost)
+		r.HandleFunc("/api/apps/{app-name}/branch/{branch}/env-profile", s.handleBranchEnvProfile).Methods(http.MethodGet)
 		if !s.external {
 			r.HandleFunc("/api/sync-users", s.handleAPISyncUsers).Methods(http.MethodGet)
 		}
@@ -526,6 +527,34 @@ func (s *DodoAppServer) handleAppStatus(w http.ResponseWriter, r *http.Request) 
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
+}
+
+type appEnv struct {
+	Profile string `json:"envProfile"`
+}
+
+func (s *DodoAppServer) handleBranchEnvProfile(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	appName, ok := vars["app-name"]
+	if !ok || appName == "" {
+		http.Error(w, "missing app-name", http.StatusBadRequest)
+		return
+	}
+	branch, ok := vars["branch"]
+	if !ok || branch == "" {
+		branch = "master"
+	}
+	info, err := s.st.GetLastCommitInfo(appName, branch)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	var e appEnv
+	if err := json.NewDecoder(bytes.NewReader(info.Resources.RenderedRaw)).Decode(&e); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	fmt.Fprintln(w, e.Profile)
 }
 
 type volume struct {

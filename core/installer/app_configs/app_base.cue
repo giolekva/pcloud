@@ -106,6 +106,7 @@ release: #Release
 	content: string
 	owner: string
 	permissions: string
+	defer: bool | *true
 }
 
 #CloudInit: {
@@ -234,7 +235,7 @@ release: #Release
 					content: """
 					[user]
 						name = \(username)
-						email = \(username)@.\(domain)
+						email = \(username)@\(domain)
 
 					"""
 					owner: "\(username):\(username)"

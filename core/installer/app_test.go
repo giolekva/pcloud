@@ -353,7 +353,7 @@ app: {
 
 var dodoAppDevEnabledCue = `
 app: {
-	type: "golang:1.22.0"
+	type: "golang:1.20.0"
 	run: "main.go"
 	ingress: {
 		network: "private"
@@ -364,6 +364,12 @@ app: {
 		enabled: true
 		username: "gio"
 	}
+    volumes: {
+      data: size: "5Gi"
+    }
+    postgresql: {
+      db: size: "10Gi"
+    }
 }`
 
 func TestDodoAppDevDisabled(t *testing.T) {

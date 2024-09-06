@@ -32,6 +32,11 @@ type Commit struct {
 	Resources installer.ReleaseResources
 }
 
+type LastCommitInfo struct {
+	Hash      string
+	Resources installer.ReleaseResources
+}
+
 type Store interface {
 	CreateUser(username string, password []byte, network string) error
 	GetUserPassword(username string) ([]byte, error)
@@ -43,6 +48,7 @@ type Store interface {
 	CreateCommit(name, branch, hash, message, status, error string, resources []byte) error
 	GetCommitHistory(name, branch string) ([]CommitMeta, error)
 	GetCommit(hash string) (Commit, error)
+	GetLastCommitInfo(name, branch string) (LastCommitInfo, error)
 	GetBranches(name string) ([]string, error)
 }
 
@@ -77,6 +83,12 @@ func (s *storeImpl) init() error {
             message TEXT,
             status TEXT,
             error TEXT,
+            resources JSONB
+		);
+		CREATE TABLE IF NOT EXISTS branches (
+			app_name TEXT,
+			branch TEXT,
+            hash TEXT,
             resources JSONB
 		);
 	`)
@@ -189,9 +201,38 @@ func (s *storeImpl) GetUserApps(username string) ([]string, error) {
 }
 
 func (s *storeImpl) CreateCommit(name, branch, hash, message, status, error string, resources []byte) error {
+	tx, err := s.db.Begin()
+	if err != nil {
+		return err
+	}
 	query := `INSERT INTO commits (app_name, branch, hash, message, status, error, resources) VALUES (?, ?, ?, ?, ?, ?, ?)`
-	_, err := s.db.Exec(query, name, branch, hash, message, status, error, resources)
-	return err
+	_, err = tx.Exec(query, name, branch, hash, message, status, error, resources)
+	if err != nil {
+		tx.Rollback()
+		return err
+	}
+	branchQuery := `UPDATE branches SET hash = ?, resources = ? WHERE app_name = ? AND branch = ?`
+	r, err := tx.Exec(branchQuery, hash, resources, name, branch)
+	if err != nil {
+		tx.Rollback()
+		return err
+	}
+	if cnt, err := r.RowsAffected(); err != nil {
+		tx.Rollback()
+		return err
+	} else if cnt == 0 {
+		branchQuery := `INSERT INTO branches (app_name, branch, hash, resources) VALUES (?, ?, ?, ?)`
+		_, err := tx.Exec(branchQuery, name, branch, hash, resources)
+		if err != nil {
+			tx.Rollback()
+			return err
+		}
+	}
+	if err := tx.Commit(); err != nil {
+		tx.Rollback()
+		return err
+	}
+	return nil
 }
 
 func (s *storeImpl) GetCommitHistory(name, branch string) ([]CommitMeta, error) {
@@ -230,6 +271,23 @@ func (s *storeImpl) GetCommit(hash string) (Commit, error) {
 	}
 	if err := json.NewDecoder(bytes.NewBuffer(res)).Decode(&ret.Resources); err != nil {
 		return Commit{}, err
+	}
+	return ret, nil
+}
+
+func (s *storeImpl) GetLastCommitInfo(name, branch string) (LastCommitInfo, error) {
+	query := `SELECT hash, resources FROM branches WHERE app_name = ? AND branch = ?`
+	row := s.db.QueryRow(query, name, branch)
+	if err := row.Err(); err != nil {
+		return LastCommitInfo{}, err
+	}
+	var ret LastCommitInfo
+	var res []byte
+	if err := row.Scan(&ret.Hash, &res); err != nil {
+		return LastCommitInfo{}, err
+	}
+	if err := json.NewDecoder(bytes.NewBuffer(res)).Decode(&ret.Resources); err != nil {
+		return LastCommitInfo{}, err
 	}
 	return ret, nil
 }
