@@ -242,6 +242,10 @@ func NewCueSchema(name string, v cue.Value) (Schema, error) {
 			if len(meta) != 1 {
 				return nil, fmt.Errorf("invalid vpn auth key field meta: %+v", meta)
 			}
+			enabledFieldAttr := v.Attribute("enabledField")
+			if enabledFieldAttr.Err() == nil {
+				meta["enabledField"] = strings.ToLower(enabledFieldAttr.Contents())
+			}
 			return basicSchema{name, KindVPNAuthKey, true, meta}, nil
 		} else {
 			return basicSchema{name, KindString, false, nil}, nil

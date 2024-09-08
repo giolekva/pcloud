@@ -44,3 +44,55 @@ func TestDeriveVPNAuthKey(t *testing.T) {
 		t.Fatal(v)
 	}
 }
+
+func TestDeriveVPNAuthKeyDisabled(t *testing.T) {
+	schema := structSchema{
+		"input",
+		[]Field{
+			Field{"username", basicSchema{"username", KindString, false, nil}},
+			Field{"enabled", basicSchema{"enabled", KindBoolean, false, nil}},
+			Field{"authKey", basicSchema{"authKey", KindVPNAuthKey, false, map[string]string{
+				"usernameField": "username",
+				"enabledField":  "enabled",
+			}}},
+		},
+		false,
+	}
+	input := map[string]any{
+		"username": "foo",
+		"enabled":  false,
+	}
+	v, err := deriveValues(input, input, schema, nil, testKeyGen{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, ok := v["authKey"].(string); ok {
+		t.Fatal(v)
+	}
+}
+
+func TestDeriveVPNAuthKeyEnabledExplicitly(t *testing.T) {
+	schema := structSchema{
+		"input",
+		[]Field{
+			Field{"username", basicSchema{"username", KindString, false, nil}},
+			Field{"enabled", basicSchema{"enabled", KindBoolean, false, nil}},
+			Field{"authKey", basicSchema{"authKey", KindVPNAuthKey, false, map[string]string{
+				"usernameField": "username",
+				"enabledField":  "enabled",
+			}}},
+		},
+		false,
+	}
+	input := map[string]any{
+		"username": "foo",
+		"enabled":  true,
+	}
+	v, err := deriveValues(input, input, schema, nil, testKeyGen{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if key, ok := v["authKey"].(string); !ok || key != "foo" {
+		t.Fatal(v)
+	}
+}

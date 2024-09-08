@@ -1,9 +1,10 @@
 input: {
 	name: string @name(Hostname)
 	username: string @name(Username)
-	authKey: string @name(Auth Key) @role(VPNAuthKey) @usernameField(username)
+	authKey?: string @name(Auth Key) @role(VPNAuthKey) @usernameField(username) @enabledField(vpnEnabled)
 	cpuCores: int | *1 @name(CPU Cores)
 	memory: string | *"2Gi" @name(Memory)
+	vpnEnabled: bool @name(Enable VPN)
 }
 
 name: "Virutal Machine"
@@ -20,10 +21,15 @@ out: {
 			domain: global.domain
 			cpuCores: input.cpuCores
 			memory: input.memory
-			vpn: {
-				enabled: true
-				loginServer: "https://headscale.\(global.domain)"
-				authKey: input.authKey
+			if !input.vpnEnabled {
+				vpn: enabled: false
+			}
+			if input.vpnEnabled {
+				vpn: {
+					enabled: true
+					loginServer: "https://headscale.\(global.domain)"
+					authKey: input.authKey
+				}
 			}
 		}
 	}

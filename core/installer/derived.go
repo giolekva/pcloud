@@ -90,6 +90,17 @@ func deriveValues(
 				}
 			}
 			if def.Kind() == KindVPNAuthKey {
+				enabled := true
+				if v, ok := def.Meta()["enabledField"]; ok {
+					// TODO(gio): Improve getField
+					enabled, ok = getField(root, v).(bool)
+					if !ok {
+						return nil, fmt.Errorf("could not resolve enabled: %+v %s %+v", def.Meta(), v, root)
+					}
+				}
+				if !enabled {
+					continue
+				}
 				var username string
 				if v, ok := def.Meta()["username"]; ok {
 					username = v
