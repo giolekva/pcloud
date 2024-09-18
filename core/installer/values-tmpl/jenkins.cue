@@ -105,7 +105,7 @@ out: {
 						"kubernetes:4203.v1dd44f5b_1cf9",
 						"workflow-aggregator:596.v8c21c963d92d",
 						"git:5.2.1",
-						"configuration-as-code:1775.v810dc950b_514",
+						"configuration-as-code:1836.vccda_4a_122a_a_e",
 						"gerrit-code-review:0.4.9",
 						"oic-auth:4.239.v325750a_96f3b_",
 					]
@@ -120,12 +120,17 @@ out: {
 						defaultConfig: true
 						overwriteConfiguration: false
 						securityRealm: """
-	oic:
-	  clientId: "${\(_oauth2ClientCredentials)-\(_oauth2ClientId)}"
-	  clientSecret: "${\(_oauth2ClientCredentials)-\(_oauth2ClientSecret)}"
-	  wellKnownOpenIDConfigurationUrl: "https://hydra.\(networks.public.domain)/.well-known/openid-configuration"
-	  userNameField: "email"
-	"""
+oic:
+  clientId: "${\(_oauth2ClientCredentials)-\(_oauth2ClientId)}"
+  clientSecret: "${\(_oauth2ClientCredentials)-\(_oauth2ClientSecret)}"
+  wellKnownOpenIDConfigurationUrl: "https://hydra.\(networks.public.domain)/.well-known/openid-configuration"
+  userNameField: "email"
+"""
+						configScripts: disableAutoUpdates: """
+jenkins:
+  updateCenter:
+    sites: []
+"""
 					}
 				}
 				agent: {
