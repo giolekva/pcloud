@@ -748,6 +748,11 @@ func (s *DodoAppServer) handleAPIUpdate(w http.ResponseWriter, r *http.Request) 
 		if err != nil {
 			return
 		}
+		// TODO(gio): get only available ones by owner
+		clusters, err := s.getClusters()
+		if err != nil {
+			return
+		}
 		apps := installer.NewInMemoryAppRepository(installer.CreateAllApps())
 		instanceAppStatus, err := installer.FindEnvApp(apps, "dodo-app-instance-status")
 		if err != nil {
@@ -768,7 +773,7 @@ func (s *DodoAppServer) handleAPIUpdate(w http.ResponseWriter, r *http.Request) 
 		}
 		s.l.Lock()
 		defer s.l.Unlock()
-		resources, err := s.updateDodoApp(instanceAppStatus, req.Repository.Name, branch, s.getAppConfig(req.Repository.Name, branch).Namespace, networks, owner)
+		resources, err := s.updateDodoApp(instanceAppStatus, req.Repository.Name, branch, s.getAppConfig(req.Repository.Name, branch).Namespace, networks, clusters, owner)
 		if err = s.createCommit(req.Repository.Name, branch, req.After, commitMsg, err, resources); err != nil {
 			fmt.Printf("Error: %s\n", err.Error())
 			return
@@ -1046,6 +1051,11 @@ func (s *DodoAppServer) createAppForBranch(
 	if err != nil {
 		return err
 	}
+	// TODO(gio): get only available ones by owner
+	clusters, err := s.getClusters()
+	if err != nil {
+		return err
+	}
 	apps := installer.NewInMemoryAppRepository(installer.CreateAllApps())
 	instanceApp, err := installer.FindEnvApp(apps, "dodo-app-instance")
 	if err != nil {
@@ -1062,7 +1072,7 @@ func (s *DodoAppServer) createAppForBranch(
 	}
 	namespace := fmt.Sprintf("%s%s%s", s.env.NamespacePrefix, instanceApp.Namespace(), suffix)
 	s.setAppConfig(appName, branch, appConfig{namespace, network})
-	resources, err := s.updateDodoApp(instanceAppStatus, appName, branch, namespace, networks, user)
+	resources, err := s.updateDodoApp(instanceAppStatus, appName, branch, namespace, networks, clusters, user)
 	if err != nil {
 		fmt.Printf("Error: %s\n", err.Error())
 		return err
@@ -1216,6 +1226,7 @@ func (s *DodoAppServer) updateDodoApp(
 	branch string,
 	namespace string,
 	networks []installer.Network,
+	clusters []installer.Cluster,
 	owner string,
 ) (installer.ReleaseResources, error) {
 	repo, err := s.client.GetRepoBranch(name, branch)
@@ -1256,6 +1267,7 @@ func (s *DodoAppServer) updateDodoApp(
 			installer.WithNoPublish(),
 			installer.WithConfig(&s.env),
 			installer.WithNetworks(networks),
+			installer.WithClusters(clusters),
 			installer.WithLocalChartGenerator(lg),
 			installer.WithNoLock(),
 		)
@@ -1280,6 +1292,7 @@ func (s *DodoAppServer) updateDodoApp(
 			installer.WithNoPublish(),
 			installer.WithConfig(&s.env),
 			installer.WithNetworks(networks),
+			installer.WithClusters(clusters),
 			installer.WithLocalChartGenerator(lg),
 			installer.WithNoLock(),
 		); err != nil {
@@ -1321,6 +1334,20 @@ func (s *DodoAppServer) getNetworks(user string) ([]installer.Network, error) {
 		return nil, err
 	}
 	return s.nf.Filter(user, networks)
+}
+
+func (s *DodoAppServer) getClusters() ([]installer.Cluster, error) {
+	addr := fmt.Sprintf("%s/api/clusters", s.envAppManagerAddr)
+	resp, err := http.Get(addr)
+	if err != nil {
+		return nil, err
+	}
+	clusters := []installer.Cluster{}
+	if json.NewDecoder(resp.Body).Decode(&clusters); err != nil {
+		return nil, err
+	}
+	fmt.Printf("CLUSTERS %+v\n", clusters)
+	return clusters, nil
 }
 
 type publicNetworkData struct {

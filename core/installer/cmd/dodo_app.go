@@ -1,9 +1,14 @@
 package main
 
 import (
+	"bytes"
 	"database/sql"
 	"encoding/json"
+	"fmt"
+	"io"
 	"log"
+	"net"
+	"net/http"
 	"os"
 
 	"github.com/giolekva/pcloud/core/installer"
@@ -201,8 +206,7 @@ func dodoAppCmdRun(cmd *cobra.Command, args []string) error {
 		},
 	}
 	vpnKeyGen := installer.NewHeadscaleAPIClient(dodoAppFlags.headscaleAPIAddr)
-	// TOOD(gio): implement
-	var cnc installer.ClusterNetworkConfigurator
+	cnc := &proxyConfigurator{dodoAppFlags.envAppManagerAddr}
 	s, err := welcome.NewDodoAppServer(
 		st,
 		nf,
@@ -229,4 +233,55 @@ func dodoAppCmdRun(cmd *cobra.Command, args []string) error {
 		return err
 	}
 	return s.Start()
+}
+
+type proxyConfigurator struct {
+	apiAddr string
+}
+
+func (pc *proxyConfigurator) AddCluster(name string, ingressIP net.IP) error {
+	return fmt.Errorf("NOT IMPLEMENTED")
+}
+
+func (pc *proxyConfigurator) RemoveCluster(name string, ingressIP net.IP) error {
+	return fmt.Errorf("NOT IMPLEMENTED")
+}
+
+type proxyPair struct {
+	From string `json:"from"`
+	To   string `json:"to"`
+}
+
+func (pc *proxyConfigurator) AddProxy(src, dst string) error {
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(proxyPair{src, dst}); err != nil {
+		return err
+	}
+	resp, err := http.Post(fmt.Sprintf("%s/api/proxy/add", pc.apiAddr), "application/json", &buf)
+	if err != nil {
+		return err
+	}
+	if resp.StatusCode != http.StatusOK {
+		var buf bytes.Buffer
+		io.Copy(&buf, resp.Body)
+		return fmt.Errorf(buf.String())
+	}
+	return nil
+}
+
+func (pc *proxyConfigurator) RemoveProxy(src, dst string) error {
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(proxyPair{src, dst}); err != nil {
+		return err
+	}
+	resp, err := http.Post(fmt.Sprintf("%s/api/proxy/remove", pc.apiAddr), "application/json", &buf)
+	if err != nil {
+		return err
+	}
+	if resp.StatusCode != http.StatusOK {
+		var buf bytes.Buffer
+		io.Copy(&buf, resp.Body)
+		return fmt.Errorf(buf.String())
+	}
+	return nil
 }

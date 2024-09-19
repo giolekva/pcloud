@@ -6,6 +6,7 @@ import (
 
 	"cuelang.org/go/cue"
 	"cuelang.org/go/cue/cuecontext"
+	"cuelang.org/go/cue/format"
 )
 
 type Kind int
@@ -64,6 +65,7 @@ const clusterSchema = `
     ingressClassName: string
 }
 
+value: #Cluster
 value: { %s }
 `
 
@@ -71,18 +73,23 @@ func isCluster(v cue.Value) bool {
 	if v.Value().Kind() != cue.StructKind {
 		return false
 	}
-	s := fmt.Sprintf(clusterSchema, fmt.Sprintf("%#v", v))
+	vb, err := format.Node(v.Syntax(cue.All()), format.TabIndent(true))
+	if err != nil {
+		return false
+	}
+	s := fmt.Sprintf(clusterSchema, string(vb))
 	c := cuecontext.New()
 	u := c.CompileString(s)
+	if err := u.Err(); err != nil {
+		return false
+	}
 	if err := u.Validate(); err != nil {
 		return false
 	}
-	cluster := u.LookupPath(cue.ParsePath("#Cluster"))
-	vv := u.LookupPath(cue.ParsePath("value"))
-	if err := cluster.Subsume(vv); err == nil {
-		return true
+	if err := u.Eval().Err(); err != nil {
+		return false
 	}
-	return false
+	return true
 }
 
 const networkSchema = `
@@ -96,6 +103,7 @@ const networkSchema = `
 	deallocatePortAddr: string
 }
 
+value: #Network
 value: { %s }
 `
 
@@ -103,15 +111,23 @@ func isNetwork(v cue.Value) bool {
 	if v.Value().Kind() != cue.StructKind {
 		return false
 	}
-	s := fmt.Sprintf(networkSchema, fmt.Sprintf("%#v", v))
+	vb, err := format.Node(v.Syntax(cue.All()), format.TabIndent(true))
+	if err != nil {
+		return false
+	}
+	s := fmt.Sprintf(networkSchema, string(vb))
 	c := cuecontext.New()
 	u := c.CompileString(s)
-	network := u.LookupPath(cue.ParsePath("#Network"))
-	vv := u.LookupPath(cue.ParsePath("value"))
-	if err := network.Subsume(vv); err == nil {
-		return true
+	if err := u.Err(); err != nil {
+		return false
 	}
-	return false
+	if err := u.Validate(); err != nil {
+		return false
+	}
+	if err := u.Eval().Err(); err != nil {
+		return false
+	}
+	return true
 }
 
 const multiNetworkSchema = `
@@ -127,6 +143,7 @@ const multiNetworkSchema = `
 
 #Networks: [...#Network]
 
+value: #Networks
 value: %s
 `
 
@@ -134,15 +151,23 @@ func isMultiNetwork(v cue.Value) bool {
 	if v.Value().IncompleteKind() != cue.ListKind {
 		return false
 	}
-	s := fmt.Sprintf(multiNetworkSchema, fmt.Sprintf("%#v", v))
+	vb, err := format.Node(v.Syntax(cue.All()), format.TabIndent(true))
+	if err != nil {
+		return false
+	}
+	s := fmt.Sprintf(multiNetworkSchema, string(vb))
 	c := cuecontext.New()
 	u := c.CompileString(s)
-	networks := u.LookupPath(cue.ParsePath("#Networks"))
-	vv := u.LookupPath(cue.ParsePath("value"))
-	if err := networks.Subsume(vv); err == nil {
-		return true
+	if err := u.Err(); err != nil {
+		return false
 	}
-	return false
+	if err := u.Validate(); err != nil {
+		return false
+	}
+	if err := u.Eval().Err(); err != nil {
+		return false
+	}
+	return true
 }
 
 const authSchema = `
@@ -151,6 +176,7 @@ const authSchema = `
     groups: string | *""
 }
 
+value: #Auth
 value: { %s }
 `
 
@@ -158,15 +184,23 @@ func isAuth(v cue.Value) bool {
 	if v.Value().Kind() != cue.StructKind {
 		return false
 	}
-	s := fmt.Sprintf(authSchema, fmt.Sprintf("%#v", v))
+	vb, err := format.Node(v.Syntax(cue.All()), format.TabIndent(true))
+	if err != nil {
+		return false
+	}
+	s := fmt.Sprintf(authSchema, string(vb))
 	c := cuecontext.New()
 	u := c.CompileString(s)
-	auth := u.LookupPath(cue.ParsePath("#Auth"))
-	vv := u.LookupPath(cue.ParsePath("value"))
-	if err := auth.Subsume(vv); err == nil {
-		return true
+	if err := u.Err(); err != nil {
+		return false
 	}
-	return false
+	if err := u.Validate(); err != nil {
+		return false
+	}
+	if err := u.Eval().Err(); err != nil {
+		return false
+	}
+	return true
 }
 
 const sshKeySchema = `
@@ -175,6 +209,7 @@ const sshKeySchema = `
     private: string
 }
 
+value: #SSHKey
 value: { %s }
 `
 
@@ -182,15 +217,23 @@ func isSSHKey(v cue.Value) bool {
 	if v.Value().Kind() != cue.StructKind {
 		return false
 	}
-	s := fmt.Sprintf(sshKeySchema, fmt.Sprintf("%#v", v))
+	vb, err := format.Node(v.Syntax(cue.All()), format.TabIndent(true))
+	if err != nil {
+		return false
+	}
+	s := fmt.Sprintf(sshKeySchema, string(vb))
 	c := cuecontext.New()
 	u := c.CompileString(s)
-	sshKey := u.LookupPath(cue.ParsePath("#SSHKey"))
-	vv := u.LookupPath(cue.ParsePath("value"))
-	if err := sshKey.Subsume(vv); err == nil {
-		return true
+	if err := u.Err(); err != nil {
+		return false
 	}
-	return false
+	if err := u.Validate(); err != nil {
+		return false
+	}
+	if err := u.Eval().Err(); err != nil {
+		return false
+	}
+	return true
 }
 
 type basicSchema struct {
@@ -318,7 +361,7 @@ func NewCueSchema(name string, v cue.Value) (Schema, error) {
 		}
 		return s, nil
 	default:
-		return nil, fmt.Errorf("SHOULD NOT REACH!")
+		return nil, fmt.Errorf("SHOULD NOT REACH! field: %s, value: %s", name, v)
 	}
 }
 

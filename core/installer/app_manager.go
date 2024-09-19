@@ -449,9 +449,15 @@ func (m *AppManager) Install(
 			return ReleaseResources{}, err
 		}
 	}
-	clusters, err := m.GetClusters()
-	if err != nil {
-		return ReleaseResources{}, err
+	var clusters []Cluster
+	if o.Clusters != nil {
+		clusters = o.Clusters
+	} else {
+		if cls, err := m.GetClusters(); err != nil {
+			return ReleaseResources{}, err
+		} else {
+			clusters = ToAccessConfigs(cls)
+		}
 	}
 	var lg LocalChartGenerator
 	if o.LG != nil {
@@ -465,7 +471,7 @@ func (m *AppManager) Install(
 		RepoAddr:      m.repo.FullAddress(),
 		AppDir:        appDir,
 	}
-	rendered, err := app.Render(release, env, networks, ToAccessConfigs(clusters), values, nil, m.vpnAPIClient)
+	rendered, err := app.Render(release, env, networks, clusters, values, nil, m.vpnAPIClient)
 	if err != nil {
 		return ReleaseResources{}, err
 	}
@@ -497,7 +503,7 @@ func (m *AppManager) Install(
 	if o.FetchContainerImages {
 		release.ImageRegistry = imageRegistry
 	}
-	rendered, err = app.Render(release, env, networks, ToAccessConfigs(clusters), values, localCharts, m.vpnAPIClient)
+	rendered, err = app.Render(release, env, networks, clusters, values, localCharts, m.vpnAPIClient)
 	if err != nil {
 		return ReleaseResources{}, err
 	}
@@ -796,6 +802,7 @@ type installOptions struct {
 	NoPublish            bool
 	Env                  *EnvConfig
 	Networks             []Network
+	Clusters             []Cluster
 	Branch               string
 	LG                   LocalChartGenerator
 	FetchContainerImages bool
@@ -819,6 +826,12 @@ func WithNetworks(networks []Network) InstallOption {
 
 func WithNoNetworks() InstallOption {
 	return WithNetworks([]Network{})
+}
+
+func WithClusters(clusters []Cluster) InstallOption {
+	return func(o *installOptions) {
+		o.Clusters = clusters
+	}
 }
 
 func WithBranch(branch string) InstallOption {

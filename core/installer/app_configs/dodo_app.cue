@@ -21,9 +21,8 @@ _devVM: {}
 if app.dev.enabled {
 	input: {
 		username?: string | *app.dev.username
-		vpnAuthKey: string @role(VPNAuthKey) @usernameField(username)
+		vpnAuthKey: string  @role(VPNAuthKey) @usernameField(username)
 	}
-
 	_devVM: {
 		username: app.dev.username
 		domain: global.domain
@@ -92,6 +91,7 @@ if app.dev.enabled {
 
 #AppTmpl: {
 	type: string
+	cluster?: string
 	ingress: #AppIngress
 	volumes: {
 		for k, v in volumes {
@@ -245,6 +245,11 @@ _app: app
 
 if !_app.dev.enabled {
 	{
+		if _app.cluster != _|_ {
+			input: {
+				appVPNAuthKey: string  @role(VPNAuthKey) @username(private-network-proxy)
+			}
+		}
 		out: {
 			ingress: {
 				app: {
@@ -264,8 +269,20 @@ if !_app.dev.enabled {
 					tag: strings.Replace(_app.type, ":", "-", -1)
 					pullPolicy: "Always"
 				}
+				"tailscale-proxy": {
+					repository: "tailscale"
+					name: "tailscale"
+					tag: "v1.42.0"
+					pullPolicy: "IfNotPresent"
+				}
 			}
 			charts: {
+				"access-secrets": {
+					kind: "GitRepository"
+					address: "https://code.v1.dodo.cloud/helm-charts"
+					branch: "main"
+					path: "charts/access-secrets"
+				}
 				app: {
 					kind: "GitRepository"
 					address: "https://code.v1.dodo.cloud/helm-charts"
@@ -274,6 +291,16 @@ if !_app.dev.enabled {
 				}
 			}
 			helm: {
+				if _app.cluster != _|_ {
+					{
+					"access-secrets": {
+						chart: charts["access-secrets"]
+						values: {
+							serviceAccountName: "default"
+						}
+					}
+					}
+				}
 				app: {
 					chart: charts.app
 					values: {
@@ -282,11 +309,30 @@ if !_app.dev.enabled {
 							tag: images.app.tag
 							pullPolicy: images.app.pullPolicy
 						}
-						runtimeClassName: "untrusted-external" // TODO(gio): make this part of the infra config
+						// TODO(gio): install gvisor runtime during new remote cluster init
+						if _app.cluster == _|_ {
+							runtimeClassName: "untrusted-external" // TODO(gio): make this part of the infra config
+						}
+						if _app.cluster != _|_ {
+							extraContainers: [{
+								name: "proxy"
+								image: images["tailscale-proxy"].fullNameWithTag
+								env: [{
+									name: "TS_AUTHKEY"
+									value: input.appVPNAuthKey
+								}, {
+									name: "TS_HOSTNAME"
+									value: "dodo-app-\(input.appId)"
+								}, {
+									name: "TS_EXTRA_ARGS"
+									value: "--login-server=https://headscale.\(global.domain)"
+								}]
+						    }]
+						}
 						appPort: _app.port
 						appDir: _app.rootDir
 						appId: input.appId
-						repoAddr: input.repoAddr
+						repoAddr: "\(input.repoPublicAddr)/\(input.appId)"
 						sshPrivateKey: base64.Encode(null, input.sshPrivateKey)
 						runCfg: base64.Encode(null, json.Marshal(_app.runConfiguration))
 						managerAddr: input.managerAddr
@@ -333,6 +379,9 @@ if _app.dev.enabled {
 _vmName: "\(input.appId)-\(input.branch)"
 
 out: {
+	if app.cluster != _|_ {
+		cluster: clusterMap[strings.ToLower(app.cluster)]
+	}
 	volumes: app.volumes
 	postgresql: app.postgresql
 	vm: {

@@ -93,8 +93,8 @@ func (c *NginxProxyConfigurator) AddProxy(src, dst string) error {
 		if err != nil {
 			return "", err
 		}
-		if v, ok := cfg.Proxies[src]; ok {
-			return "", fmt.Errorf("mapping from %s already exists (%s)", src, v)
+		if v, ok := cfg.Proxies[src]; ok && v != dst {
+			return "", fmt.Errorf("wrong mapping %s already exists (%s)", src, v)
 		}
 		cfg.Proxies[src] = dst
 		w, err := fs.Writer(c.NginxConfigPath)
@@ -167,8 +167,8 @@ func (c *NginxProxyConfigurator) RemoveProxy(src, dst string) error {
 		if err != nil {
 			return "", err
 		}
-		if v, ok := cfg.Proxies[src]; !ok || v != dst {
-			return "", fmt.Errorf("mapping does not exist: %s %s", src, dst)
+		if v, ok := cfg.Proxies[src]; ok || v != dst {
+			return "", fmt.Errorf("wrong mapping %s already exists (%s)", src, v)
 		}
 		delete(cfg.Proxies, src)
 		w, err := fs.Writer(c.NginxConfigPath)

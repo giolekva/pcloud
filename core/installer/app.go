@@ -491,12 +491,16 @@ func (a cueEnvApp) Render(
 	if charts == nil {
 		charts = make(map[string]helmv2.HelmChartTemplateSpec)
 	}
+	if clusters == nil {
+		clusters = []Cluster{}
+	}
 	ret, err := a.cueApp.render(map[string]any{
 		"global":      env,
 		"release":     release,
 		"input":       derived,
 		"localCharts": charts,
 		"networks":    NetworkMap(networks),
+		"clusters":    clusters,
 	})
 	if err != nil {
 		return EnvAppRendered{}, err

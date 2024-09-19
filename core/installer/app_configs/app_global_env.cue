@@ -31,6 +31,13 @@ import (
 
 networks: #Networks
 
+clusters: [...#Cluster] | *[]
+clusterMap: {
+	for c in clusters {
+		"\(strings.ToLower(c.name))": c
+	}
+}
+
 #Ingress: #WithOut & {
 	name: string
 	auth: #Auth
@@ -41,6 +48,8 @@ networks: #Networks
 		name: string
 		port: close({ name: string }) | close({ number: int & > 0 })
 	})
+	cluster?: #Cluster
+	_cluster: cluster
 	g?: #Global
 
 	_domain: "\(subdomain).\(network.domain)"
@@ -48,12 +57,12 @@ networks: #Networks
 	_authProxyName: "\(name)-auth-proxy"
     _authProxyHTTPPortName: "http"
 
-	if input.cluster != _|_ {
+	if _cluster != _|_ {
 		clusterProxy: {
 			"\(name)": {
 				from: _domain
 				_sanitizedDomain: strings.Replace(_domain, ".", "-", -1)
-				to: "\(_sanitizedDomain).\(input.cluster.name).cluster.\(global.privateDomain)"
+				to: "\(_sanitizedDomain).\(_cluster.name).cluster.\(global.privateDomain)"
 			}
 		}
 	}
@@ -109,14 +118,14 @@ networks: #Networks
 				}
 			}
 		}
-		if input.cluster != _|_ {
-			"\(name)-ingress-\(input.cluster.name)": {
+		if _cluster != _|_ {
+			"\(name)-ingress-\(_cluster.name)": {
 				chart: charts.ingress
-				cluster: input.cluster
+				cluster: _cluster
 				_service: service
 				_sanitizedDomain: strings.Replace(_domain, ".", "-", -1)
-				_clusterDomain: "\(_sanitizedDomain).\(input.cluster.name).cluster.\(global.privateDomain)"
-				info: "Configuring secure route to \(input.cluster.name) cluster"
+				_clusterDomain: "\(_sanitizedDomain).\(cluster.name).cluster.\(global.privateDomain)"
+				info: "Configuring secure route to \(cluster.name) cluster"
 				annotations: {
 					// TODO(gio): Change type to cluster-gateway or sth similar.
 					"dodo.cloud/resource-type": "ingress"
@@ -124,7 +133,7 @@ networks: #Networks
 				}
 				values: {
 					domain: _clusterDomain
-					ingressClassName: input.cluster.ingressClassName
+					ingressClassName: cluster.ingressClassName
 					certificateIssuer: ""
 					annotations: {
 						"nginx.ingress.kubernetes.io/force-ssl-redirect": "false"
@@ -172,7 +181,7 @@ networks: #Networks
 				}
 			}
 		}
-		if input.cluster == _|_ {
+		if _cluster == _|_ {
 			"\(name)-ingress": {
 				chart: charts.ingress
 				// NOTE(gio): Force to install in default cluster.
@@ -210,12 +219,17 @@ networks: #Networks
 }
 
 #WithOut: {
+	cluster?: #Cluster
+	_cluster: cluster
 	ingress: {...}
 	ingress: {
 		for k, v in ingress {
 			"\(k)": #Ingress & v & {
 				name: k
 				g: global
+				if _cluster != _|_ {
+					cluster: _cluster
+				}
 			}
 		}
 		...

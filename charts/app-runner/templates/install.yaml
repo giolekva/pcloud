@@ -114,3 +114,6 @@ spec:
         - name: volume-{{ .name }}
           mountPath: {{ .mountPath }}
         {{- end }}
+      {{- if .Values.extraContainers }}
+        {{ toYaml .Values.extraContainers | nindent 6 }}
+      {{- end }}

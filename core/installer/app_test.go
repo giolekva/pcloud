@@ -59,6 +59,17 @@ var (
 			DeallocatePortAddr: fmt.Sprintf("http://port-allocator.%s-ingress-private.svc.cluster.local/api/remove", env.Id),
 		},
 	}
+
+	clusters = []Cluster{
+		{
+			Name: "default",
+		},
+		{
+			Name:             "io",
+			IngressClassName: "io",
+			Kubeconfig:       "kubeconfig",
+		},
+	}
 )
 
 func TestAuthProxyEnabled(t *testing.T) {
@@ -297,6 +308,42 @@ func TestAppPackages(t *testing.T) {
 	}
 }
 
+func TestAppPackagesRemoteCluster(t *testing.T) {
+	contents, err := valuesTmpls.ReadFile("values-tmpl/rpuppy.cue")
+	if err != nil {
+		t.Fatal(err)
+	}
+	app, err := NewCueEnvApp(CueAppData{
+		"base.cue":   []byte(cueBaseConfig),
+		"app.cue":    []byte(contents),
+		"global.cue": []byte(cueEnvAppGlobal),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	release := Release{
+		Namespace: "foo",
+	}
+	values := map[string]any{
+		"network":   "Public",
+		"subdomain": "woof",
+		"auth": map[string]any{
+			"enabled": false,
+		},
+		"cluster": "io",
+	}
+	rendered, err := app.Render(release, env, networks, clusters, values, nil, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, r := range rendered.Resources {
+		t.Log(string(r))
+	}
+	for _, r := range rendered.Data {
+		t.Log(string(r))
+	}
+}
+
 func TestDNSGateway(t *testing.T) {
 	contents, err := valuesTmpls.ReadFile("values-tmpl/dns-gateway.cue")
 	if err != nil {
@@ -335,6 +382,58 @@ func TestDNSGateway(t *testing.T) {
 	for _, r := range rendered.Data {
 		t.Log(string(r))
 	}
+}
+
+var dodoAppRemoteClusterCue = `
+app: {
+	type: "golang:1.22.0"
+	run: "main.go"
+	ingress: {
+		network: "private"
+		subdomain: "testapp"
+		auth: enabled: false
+	}
+	dev: {
+		enabled: false
+	}
+    cluster: "io"
+}`
+
+func TestDodoAppRemoteCluster(t *testing.T) {
+	app, err := NewDodoApp([]byte(dodoAppRemoteClusterCue))
+	if err != nil {
+		for _, e := range errors.Errors(err) {
+			t.Log(e)
+		}
+		t.Fatal(err)
+	}
+
+	release := Release{
+		Namespace:     "foo",
+		AppInstanceId: "foo-bar",
+		RepoAddr:      "ssh://192.168.100.210:22/config",
+		AppDir:        "/foo/bar",
+	}
+	keyGen := testKeyGen{}
+	r, err := app.Render(release, env, networks, clusters, map[string]any{
+		"repoAddr":       "1",
+		"repoPublicAddr": "2",
+		"managerAddr":    "3",
+		"appId":          "4",
+		"branch":         "5",
+		"sshPrivateKey":  "6",
+	}, nil, keyGen)
+	if err != nil {
+		for _, e := range errors.Errors(err) {
+			for _, f := range errors.Errors(e) {
+				for _, g := range errors.Errors(f) {
+					t.Log(g)
+				}
+			}
+		}
+		t.Fatal(err)
+	}
+	t.Log(string(r.Raw))
 }
 
 var dodoAppDevDisabledCue = `

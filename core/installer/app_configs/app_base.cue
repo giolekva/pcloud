@@ -449,31 +449,33 @@ _localCharts: localCharts
 }
 
 output: {
-	images: out.images
-	charts: out.charts
-	clusterProxy: out.clusterProxy
-	_lc: _localCharts & {
-		for k, v in out.charts {
-			"\(k)": {
-				...
+	for _, out in outs {
+		images: out.images
+		charts: out.charts
+		clusterProxy: out.clusterProxy
+		_lc: _localCharts & {
+			for k, v in out.charts {
+				"\(k)": {
+					...
+				}
 			}
 		}
-	}
-	helm: {
-		for name, r in out.helmR {
-			"\(name)": #HelmRelease & {
-				_name: name
-				_chart: _lc[r.chart.name]
-				_values: r.values
-				_dependencies: r.dependsOn
-				_info: r.info
-				_annotations: r.annotations
-				_namespace: release.namespace
-				if r.cluster != _|_ {
-					_cluster: r.cluster
-				}
-				if r.targetNamespace != _|_ {
-					_targetNamespace: r.targetNamespace
+		helm: {
+			for name, r in out.helmR {
+				"\(name)": #HelmRelease & {
+					_name: name
+					_chart: _lc[r.chart.name]
+					_values: r.values
+					_dependencies: r.dependsOn
+					_info: r.info
+					_annotations: r.annotations
+					_namespace: release.namespace
+					if r.cluster != _|_ {
+						_cluster: r.cluster
+					}
+					if r.targetNamespace != _|_ {
+						_targetNamespace: r.targetNamespace
+					}
 				}
 			}
 		}
@@ -496,6 +498,11 @@ help: [...#HelpDocument] | *[]
 url: string | *""
 
 #WithOut: {
+	cluster?: #Cluster
+	if input.cluster != _|_ {
+		cluster: #Cluster | *input.cluster
+	}
+	_cluster: cluster
 	images: {...}
 	charts: {...}
 	helm: {...}
@@ -527,14 +534,47 @@ url: string | *""
 	helmR: {
 		for k, v in helm {
 			"\(k)": v & {
-				if v.cluster == _|_ && input.cluster != _|_ {
-					cluster: input.cluster
+				if v.cluster == _|_ && _cluster != _|_ {
+					cluster: _cluster
 				}
 			}
 		}
 		...
 	}
 	...
+}
+
+outs: {
+	"out": out
+}
+if out.cluster != _|_ {
+	outs: kout: #WithOut & {
+		cluster: out.cluster
+		clusterName: cluster.name
+		clusterKubeconfig: cluster.kubeconfig
+		charts: {
+			secret: {
+				name: "secret"
+				kind: "GitRepository"
+				address: "https://code.v1.dodo.cloud/helm-charts"
+				branch: "main"
+				path: "charts/secret"
+			}
+ 		}
+		helm: {
+			"cluster-kubeconfig": {
+				chart: charts.secret
+				cluster: null
+				info: "Connecting to \(clusterName) cluster"
+				values: {
+					name: "cluster-kubeconfig"
+					key: "kubeconfig"
+					value: base64.Encode(null, clusterKubeconfig)
+					keep: true
+				}
+			}
+		}
+	}
 }
 
 #WithOut: {
@@ -658,35 +698,10 @@ resources: { ... }
 	to: string
 }
 
-if input.cluster != _|_ {
-	{
-		out: {
-			charts: {
-				secret: {
-					kind: "GitRepository"
-					address: "https://code.v1.dodo.cloud/helm-charts"
-					branch: "main"
-					path: "charts/secret"
-				}
- 			}
-			helm: {
-				"cluster-kubeconfig": {
-					chart: charts.secret
-					cluster: null
-					info: "Connecting to \(input.cluster.name) cluster"
-					values: {
-						name: "cluster-kubeconfig"
-						key: "kubeconfig"
-						value: base64.Encode(null, input.cluster.kubeconfig)
-						keep: true
-					}
-				}
-			}
-		}
-	}
-
+// TODO(gio): Move this inside #WithOut definition
+if out.cluster != _|_ {
 	namespaces: [{
 		name: release.namespace
-		kubeconfig: input.cluster.kubeconfig
+		kubeconfig: out.cluster.kubeconfig
 	}]
 }

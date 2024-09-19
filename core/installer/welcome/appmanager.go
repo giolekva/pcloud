@@ -137,6 +137,9 @@ func (s *AppManagerServer) Start() error {
 	r := mux.NewRouter()
 	r.PathPrefix("/stat/").Handler(cachingHandler{http.FileServer(http.FS(statAssets))})
 	r.HandleFunc("/api/networks", s.handleNetworks).Methods(http.MethodGet)
+	r.HandleFunc("/api/clusters", s.handleClusters).Methods(http.MethodGet)
+	r.HandleFunc("/api/proxy/add", s.handleProxyAdd).Methods(http.MethodPost)
+	r.HandleFunc("/api/proxy/remove", s.handleProxyRemove).Methods(http.MethodPost)
 	r.HandleFunc("/api/app-repo", s.handleAppRepo)
 	r.HandleFunc("/api/app/{slug}/install", s.handleAppInstall).Methods(http.MethodPost)
 	r.HandleFunc("/api/app/{slug}", s.handleApp).Methods(http.MethodGet)
@@ -158,14 +161,6 @@ func (s *AppManagerServer) Start() error {
 	return http.ListenAndServe(fmt.Sprintf(":%d", s.port), r)
 }
 
-type app struct {
-	Name             string                        `json:"name"`
-	Icon             template.HTML                 `json:"icon"`
-	ShortDescription string                        `json:"shortDescription"`
-	Slug             string                        `json:"slug"`
-	Instances        []installer.AppInstanceConfig `json:"instances,omitempty"`
-}
-
 func (s *AppManagerServer) handleNetworks(w http.ResponseWriter, r *http.Request) {
 	env, err := s.m.Config()
 	if err != nil {
@@ -181,6 +176,55 @@ func (s *AppManagerServer) handleNetworks(w http.ResponseWriter, r *http.Request
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
+}
+
+func (s *AppManagerServer) handleClusters(w http.ResponseWriter, r *http.Request) {
+	clusters, err := s.m.GetClusters()
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	if err := json.NewEncoder(w).Encode(installer.ToAccessConfigs(clusters)); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+}
+
+type proxyPair struct {
+	From string `json:"from"`
+	To   string `json:"to"`
+}
+
+func (s *AppManagerServer) handleProxyAdd(w http.ResponseWriter, r *http.Request) {
+	var req proxyPair
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	if err := s.cnc.AddProxy(req.From, req.To); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+}
+
+func (s *AppManagerServer) handleProxyRemove(w http.ResponseWriter, r *http.Request) {
+	var req proxyPair
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	if err := s.cnc.RemoveProxy(req.From, req.To); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+}
+
+type app struct {
+	Name             string                        `json:"name"`
+	Icon             template.HTML                 `json:"icon"`
+	ShortDescription string                        `json:"shortDescription"`
+	Slug             string                        `json:"slug"`
+	Instances        []installer.AppInstanceConfig `json:"instances,omitempty"`
 }
 
 func (s *AppManagerServer) handleAppRepo(w http.ResponseWriter, r *http.Request) {
