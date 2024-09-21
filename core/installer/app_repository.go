@@ -55,6 +55,7 @@ var envAppConfigs = []string{
 	"values-tmpl/env-dns.cue",
 	"values-tmpl/launcher.cue",
 	"values-tmpl/cluster-network.cue",
+	"values-tmpl/longhorn.cue",
 }
 
 var infraAppConfigs = []string{

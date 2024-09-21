@@ -30,14 +30,17 @@ type State struct {
 	Kubeconfig       string   `json:"kubeconfig"`
 	Controllers      []Server `json:"controllers"`
 	Workers          []Server `json:"workers"`
+	StorageEnabled   bool     `json:"storageEnabled"`
 }
 
-type ClusterSetupFunc func(name, kubeconfig, ingressClassName string) (net.IP, error)
+type ClusterIngressSetupFunc func(name, kubeconfig, ingressClassName string) (net.IP, error)
+type ClusterSetupFunc func(m Manager) error
 
 type Manager interface {
-	Init(s Server, setupFn ClusterSetupFunc) (net.IP, error)
+	Init(s Server, setupFn ClusterIngressSetupFunc) (net.IP, error)
 	JoinController(s Server) error
 	JoinWorker(s Server) error
 	RemoveServer(name string) error
 	State() State
+	EnableStorage()
 }

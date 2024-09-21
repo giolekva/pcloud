@@ -64,9 +64,10 @@ const clusterSchema = `
 	kubeconfig: string
     ingressClassName: string
 }
-
 value: #Cluster
-value: { %s }
+
+#Schema: %s
+value: #Schema
 `
 
 func isCluster(v cue.Value) bool {
@@ -94,7 +95,7 @@ func isCluster(v cue.Value) bool {
 
 const networkSchema = `
 #Network: {
-    name: string
+	name: string
 	ingressClass: string
 	certificateIssuer: string | *""
 	domain: string
@@ -102,9 +103,10 @@ const networkSchema = `
 	reservePortAddr: string
 	deallocatePortAddr: string
 }
-
 value: #Network
-value: { %s }
+
+#Schema: %s
+value: #Schema
 `
 
 func isNetwork(v cue.Value) bool {
@@ -140,11 +142,11 @@ const multiNetworkSchema = `
 	reservePortAddr: string
 	deallocatePortAddr: string
 }
-
 #Networks: [...#Network]
-
 value: #Networks
-value: %s
+
+#Schema: %s
+value: #Schema
 `
 
 func isMultiNetwork(v cue.Value) bool {
@@ -175,9 +177,10 @@ const authSchema = `
     enabled: bool | false
     groups: string | *""
 }
-
 value: #Auth
-value: { %s }
+
+#Schema: %s
+value: #Schema
 `
 
 func isAuth(v cue.Value) bool {
@@ -208,9 +211,10 @@ const sshKeySchema = `
     public: string
     private: string
 }
-
 value: #SSHKey
-value: { %s }
+
+#Schema: %s
+value: #Schema
 `
 
 func isSSHKey(v cue.Value) bool {

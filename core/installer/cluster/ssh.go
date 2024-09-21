@@ -109,7 +109,8 @@ func UninstallK3sAgent(c *SSHClient) error {
 
 func GetTailscaleIP(c *SSHClient) (string, error) {
 	fmt.Println("Getting Tailscale IP")
-	if _, err := c.Exec("sudo apt-get install net-tools -y"); err != nil {
+	// TODO(gio): install all necessary packages beforehand
+	if _, err := c.Exec("sudo apt-get install net-tools open-iscsi -y"); err != nil {
 		return "", err
 	}
 	ip, err := c.Exec("sudo ifconfig | grep 10.42")

@@ -149,6 +149,7 @@ func (s *AppManagerServer) Start() error {
 	r.HandleFunc("/clusters/{cluster}/servers/{server}/remove", s.handleClusterRemoveServer).Methods(http.MethodPost)
 	r.HandleFunc("/clusters/{cluster}/servers", s.handleClusterAddServer).Methods(http.MethodPost)
 	r.HandleFunc("/clusters/{name}", s.handleCluster).Methods(http.MethodGet)
+	r.HandleFunc("/clusters/{name}/setup-storage", s.handleClusterSetupStorage).Methods(http.MethodPost)
 	r.HandleFunc("/clusters/{name}/remove", s.handleRemoveCluster).Methods(http.MethodPost)
 	r.HandleFunc("/clusters", s.handleAllClusters).Methods(http.MethodGet)
 	r.HandleFunc("/clusters", s.handleCreateCluster).Methods(http.MethodPost)
@@ -679,6 +680,39 @@ func (s *AppManagerServer) handleCluster(w http.ResponseWriter, r *http.Request)
 	}
 }
 
+func (s *AppManagerServer) handleClusterSetupStorage(w http.ResponseWriter, r *http.Request) {
+	cName, ok := mux.Vars(r)["name"]
+	if !ok {
+		http.Error(w, "empty name", http.StatusBadRequest)
+		return
+	}
+	if _, ok := s.tasks[cName]; ok {
+		http.Error(w, "cluster task in progress", http.StatusLocked)
+		return
+	}
+	m, err := s.getClusterManager(cName)
+	if err != nil {
+		if errors.Is(err, installer.ErrorNotFound) {
+			http.Error(w, "not found", http.StatusNotFound)
+		} else {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+		}
+		return
+	}
+	task := tasks.NewClusterSetupTask(m, s.setupRemoteClusterStorage(), s.repo, fmt.Sprintf("cluster %s: setting up storage", m.State().Name))
+	task.OnDone(func(err error) {
+		go func() {
+			time.Sleep(30 * time.Second)
+			s.l.Lock()
+			defer s.l.Unlock()
+			delete(s.tasks, cName)
+		}()
+	})
+	go task.Start()
+	s.tasks[cName] = taskForward{task, fmt.Sprintf("/clusters/%s", cName)}
+	http.Redirect(w, r, fmt.Sprintf("/tasks/%s", cName), http.StatusSeeOther)
+}
+
 func (s *AppManagerServer) handleClusterRemoveServer(w http.ResponseWriter, r *http.Request) {
 	s.l.Lock()
 	defer s.l.Unlock()
@@ -759,7 +793,7 @@ func (s *AppManagerServer) handleClusterAddServer(w http.ResponseWriter, r *http
 		return
 	}
 	t := r.PostFormValue("type")
-	ip := net.ParseIP(r.PostFormValue("ip"))
+	ip := net.ParseIP(strings.TrimSpace(r.PostFormValue("ip")))
 	if ip == nil {
 		http.Error(w, "invalid ip", http.StatusBadRequest)
 		return
@@ -857,7 +891,7 @@ func (s *AppManagerServer) handleRemoveCluster(w http.ResponseWriter, r *http.Re
 	http.Redirect(w, r, fmt.Sprintf("/tasks/%s", cName), http.StatusSeeOther)
 }
 
-func (s *AppManagerServer) setupRemoteCluster() cluster.ClusterSetupFunc {
+func (s *AppManagerServer) setupRemoteCluster() cluster.ClusterIngressSetupFunc {
 	const vpnUser = "private-network-proxy"
 	return func(name, kubeconfig, ingressClassName string) (net.IP, error) {
 		hostname := fmt.Sprintf("cluster-%s", name)
@@ -872,7 +906,7 @@ func (s *AppManagerServer) setupRemoteCluster() cluster.ClusterSetupFunc {
 			}
 			instanceId := fmt.Sprintf("%s-%s", app.Slug(), name)
 			appDir := fmt.Sprintf("/clusters/%s/ingress", name)
-			namespace := fmt.Sprintf("%scluster-network-%s", env.NamespacePrefix, name)
+			namespace := fmt.Sprintf("%scluster-%s-network", env.NamespacePrefix, name)
 			rr, err := s.m.Install(app, instanceId, appDir, namespace, map[string]any{
 				"cluster": map[string]any{
 					"name":             name,
@@ -908,5 +942,44 @@ func (s *AppManagerServer) setupRemoteCluster() cluster.ClusterSetupFunc {
 				time.Sleep(5 * time.Second)
 			}
 		}
+	}
+}
+
+func (s *AppManagerServer) setupRemoteClusterStorage() cluster.ClusterSetupFunc {
+	return func(cm cluster.Manager) error {
+		name := cm.State().Name
+		t := tasks.NewInstallTask(s.h, func() (installer.ReleaseResources, error) {
+			app, err := installer.FindEnvApp(s.fr, "longhorn")
+			if err != nil {
+				return installer.ReleaseResources{}, err
+			}
+			env, err := s.m.Config()
+			if err != nil {
+				return installer.ReleaseResources{}, err
+			}
+			instanceId := fmt.Sprintf("%s-%s", app.Slug(), name)
+			appDir := fmt.Sprintf("/clusters/%s/storage", name)
+			namespace := fmt.Sprintf("%scluster-%s-storage", env.NamespacePrefix, name)
+			rr, err := s.m.Install(app, instanceId, appDir, namespace, map[string]any{
+				"cluster": name,
+			})
+			if err != nil {
+				return installer.ReleaseResources{}, err
+			}
+			ctx, _ := context.WithTimeout(context.Background(), 5*time.Second)
+			go s.reconciler.Reconcile(ctx)
+			return rr, err
+		})
+		ch := make(chan error)
+		t.OnDone(func(err error) {
+			ch <- err
+		})
+		go t.Start()
+		err := <-ch
+		if err != nil {
+			return err
+		}
+		cm.EnableStorage()
+		return nil
 	}
 }

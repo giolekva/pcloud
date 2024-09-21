@@ -7,7 +7,6 @@ import (
 
 input: {
 	cluster?: #Cluster @name(Cluster)
-	...
 }
 
 name: string | *""
@@ -53,6 +52,7 @@ appType: #AppType | *"env"
 }
 
 #Volume: {
+	cluster?: #Cluster
 	size: string
 	accessMode: "ReadWriteOnce" | "ReadOnlyMany" | "ReadWriteMany" | "ReadWriteOncePod" | *"ReadWriteOnce"
 }
@@ -305,6 +305,8 @@ release: #Release
 }
 
 #PostgreSQL: #WithOut & {
+	cluster?: #Cluster
+	_cluster: cluster
 	name: string
 	version: "15.3"
 	initSQL: string | *""
@@ -330,11 +332,19 @@ release: #Release
 		}
 	}
 	volumes: {
-		"\(_volumeClaimName)": size: _size
+		"\(_volumeClaimName)": {
+			size: _size
+			if _cluster != _|_ {
+				cluster: _cluster
+			}
+		}
 	}
 	helm: {
 		postgres: {
 			chart: charts.postgres
+			if _cluster != _|_ {
+				cluster: _cluster
+			}
 			annotations: {
 				"dodo.cloud/resource-type": "postgresql"
 				"dodo.cloud/resource.postgresql.name": name
@@ -578,6 +588,8 @@ if out.cluster != _|_ {
 }
 
 #WithOut: {
+	cluster?: #Cluster
+	_cluster: cluster
 	charts: {
 		volume: {
 			kind: "GitRepository"
@@ -598,31 +610,42 @@ if out.cluster != _|_ {
 		for k, v in volumes {
 			"\(k)": #volume & v & {
 				name: k
+				if _cluster != _|_ {
+					cluster: _cluster
+				}
 			}
 		}
 	}
-	helmR: {
-		for key, value in volumes {
-			"\(key)-volume": #Helm & {
-				name: key
+	helm: {
+		for k, v in volumes {
+			"\(k)-volume": {
 				chart: charts.volume
-				info: "Creating disk for \(key)"
+				info: "Creating disk for \(k)"
 				annotations: {
 					"dodo.cloud/resource-type": "volume"
-					"dodo.cloud/resource.volume.name": value.name
-					"dodo.cloud/resource.volume.size": value.size
+					"dodo.cloud/resource.volume.name": v.name
+					"dodo.cloud/resource.volume.size": v.size
 				}
-				values: value
+				values: v
+				if v.cluster != _|_ {
+					cluster: v.cluster
+				}
 			}
 		}
 	}
 }
 
 #WithOut: {
+	cluster?: #Cluster
+	_cluster: cluster
 	postgresql: {...}
 	postgresql: {
 		for k, v in postgresql {
-			"\(k)": #PostgreSQL & v
+			"\(k)": #PostgreSQL & v & {
+				if _cluster != _|_ {
+					cluster: _cluster
+				}
+			}
 		}
 		...
 	}

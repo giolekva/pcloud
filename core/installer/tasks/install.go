@@ -56,7 +56,7 @@ func NewInstallTask(mon installer.HelmReleaseMonitor, fn InstallFunc) Task {
 	return &t
 }
 
-func NewClusterInitTask(m cluster.Manager, server cluster.Server, cnc installer.ClusterNetworkConfigurator, repo soft.RepoIO, setupFn cluster.ClusterSetupFunc) Task {
+func NewClusterInitTask(m cluster.Manager, server cluster.Server, cnc installer.ClusterNetworkConfigurator, repo soft.RepoIO, setupFn cluster.ClusterIngressSetupFunc) Task {
 	d := &dynamicTaskSlice{t: []Task{}}
 	done := make(chan error)
 	setupTask := newLeafTask(fmt.Sprintf("Installing dodo on %s", server.IP.String()), func() error {
@@ -89,8 +89,7 @@ func NewClusterInitTask(m cluster.Manager, server cluster.Server, cnc installer.
 	return &t
 }
 
-func NewRemoveClusterTask(m cluster.Manager, cnc installer.ClusterNetworkConfigurator,
-	repo soft.RepoIO) Task {
+func NewRemoveClusterTask(m cluster.Manager, cnc installer.ClusterNetworkConfigurator, repo soft.RepoIO) Task {
 	t := newLeafTask(fmt.Sprintf("Removing %s cluster", m.State().Name), func() error {
 		if err := cnc.RemoveCluster(m.State().Name, m.State().IngressIP); err != nil {
 			return err
@@ -186,6 +185,34 @@ func NewClusterRemoveServerTask(m cluster.Manager, server string, repo soft.Repo
 				return "", err
 			}
 			return fmt.Sprintf("remove %s from cluster: %s", server, m.State().Name), nil
+		})
+		done <- err
+	})
+	start := func() error {
+		setupTask.Start()
+		return <-done
+	}
+	t := newParentTask("Installing application", true, start, d)
+	return &t
+}
+
+func NewClusterSetupTask(m cluster.Manager, setupFn cluster.ClusterSetupFunc, repo soft.RepoIO, msg string) Task {
+	d := &dynamicTaskSlice{t: []Task{}}
+	done := make(chan error)
+	setupTask := newLeafTask(msg, func() error {
+		return setupFn(m)
+	})
+	d.Append(&setupTask)
+	setupTask.OnDone(func(err error) {
+		if err != nil {
+			done <- err
+			return
+		}
+		_, err = repo.Do(func(fs soft.RepoFS) (string, error) {
+			if err := soft.WriteJson(fs, fmt.Sprintf("/clusters/%s/config.json", m.State().Name), m.State()); err != nil {
+				return "", err
+			}
+			return msg, nil
 		})
 		done <- err
 	})

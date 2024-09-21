@@ -344,6 +344,22 @@ func TestAppPackagesRemoteCluster(t *testing.T) {
 	}
 }
 
+func TestLonghorn(t *testing.T) {
+	contents, err := valuesTmpls.ReadFile("values-tmpl/longhorn.cue")
+	if err != nil {
+		t.Fatal(err)
+	}
+	app, err := NewCueEnvApp(CueAppData{
+		"base.cue":   []byte(cueBaseConfig),
+		"app.cue":    []byte(contents),
+		"global.cue": []byte(cueEnvAppGlobal),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Logf("%+v\n", app.Schema())
+}
+
 func TestDNSGateway(t *testing.T) {
 	contents, err := valuesTmpls.ReadFile("values-tmpl/dns-gateway.cue")
 	if err != nil {

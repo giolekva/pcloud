@@ -25,6 +25,7 @@ type KubeManager struct {
 	serverToken      string
 	controllers      []Server
 	workers          []Server
+	storageEnabled   bool
 }
 
 func NewKubeManager() *KubeManager {
@@ -42,6 +43,7 @@ func RestoreKubeManager(st State) (*KubeManager, error) {
 		serverToken:      st.ServerToken,
 		controllers:      st.Controllers,
 		workers:          st.Workers,
+		storageEnabled:   st.StorageEnabled,
 	}, nil
 }
 
@@ -57,10 +59,15 @@ func (m *KubeManager) State() State {
 		m.kubeCfg,
 		m.controllers,
 		m.workers,
+		m.storageEnabled,
 	}
 }
 
-func (m *KubeManager) Init(s Server, setupFn ClusterSetupFunc) (net.IP, error) {
+func (m *KubeManager) EnableStorage() {
+	m.storageEnabled = true
+}
+
+func (m *KubeManager) Init(s Server, setupFn ClusterIngressSetupFunc) (net.IP, error) {
 	m.l.Lock()
 	defer m.l.Unlock()
 	if m.kubeCfg != "" {

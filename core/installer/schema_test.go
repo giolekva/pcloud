@@ -89,3 +89,15 @@ func TestIsNetwork(t *testing.T) {
 		t.Fatal("is network")
 	}
 }
+
+const emptyInput = "input: {}"
+
+func TestIsNotNetworkEmptyInput(t *testing.T) {
+	v, err := ParseCueAppConfig(CueAppData{"/test.cue": []byte(emptyInput)})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if isNetwork(v.LookupPath(cue.ParsePath("input"))) {
+		t.Fatal("not really network")
+	}
+}

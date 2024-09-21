@@ -3,10 +3,11 @@
 {{ end }}
 
 {{ define "content" }}
-<form action="/clusters/{{ .Cluster.Name }}/remove" method="POST">
+{{ $c := .Cluster }}
+<form action="/clusters/{{ $c.Name }}/remove" method="POST">
 	<button type="submit" name="remove-cluster">remove cluster</button>
 </form>
-<form action="/clusters/{{ .Cluster.Name }}/servers" method="POST" autocomplete="off">
+<form action="/clusters/{{ $c.Name }}/servers" method="POST" autocomplete="off">
 	<details class="dropdown">
 		<summary id="type">worker</summary>
 		<ul>
@@ -30,7 +31,13 @@
 	<input type="password" name="password" placeholder="password" />
 	<button type="submit" name="add-server">add server</button>
 </form>
-{{ $c := .Cluster }}
+{{- if $c.StorageEnabled }}
+Supports persistent storage<br/>
+{{- else }}
+<form action="/clusters/{{ $c.Name }}/setup-storage" method="POST">
+	<button type="submit" name="remove-cluster">setup persistent storage</button>
+</form>
+{{- end }}
 <table class="striped">
 	<thead>
 		<tr>
@@ -41,7 +48,7 @@
 		</tr>
 	</thead>
 	<tbody>
-		{{ range $s := .Cluster.Controllers }}
+		{{ range $s := $c.Controllers }}
 		<tr>
 			<th>controller</th>
 			<th scope="row">{{ $s.Name }}</th>
@@ -53,7 +60,7 @@
 			</td>
 		</tr>
 		{{ end }}
-		{{ range $s := .Cluster.Workers }}
+		{{ range $s := $c.Workers }}
 		<tr>
 			<th>worker</th>
 			<th scope="row">{{ $s.Name }}</th>
