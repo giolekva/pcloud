@@ -114,6 +114,7 @@ clusterMap: {
 						membershipPublicAddr: "https://memberships.\(g.privateDomain)"
 					}
 					groups: auth.groups
+					noAuthPathPrefixes: strings.Join(auth.noAuthPathPrefixes, ",")
 					portName: _authProxyHTTPPortName
 				}
 			}

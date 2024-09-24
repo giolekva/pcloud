@@ -68,7 +68,7 @@ func (s *appTmplStoreFS) Find(appType string) (AppTmpl, error) {
 }
 
 type AppTmpl interface {
-	Render(network installer.Network, subdomain string) (map[string][]byte, error)
+	Render(schemaAddr string, network installer.Network, subdomain string) (map[string][]byte, error)
 }
 
 type appTmplFS struct {
@@ -108,7 +108,7 @@ func NewAppTmplFS(fsys fs.FS, root string) (AppTmpl, error) {
 	return &appTmplFS{files, tmpls}, nil
 }
 
-func (a *appTmplFS) Render(network installer.Network, subdomain string) (map[string][]byte, error) {
+func (a *appTmplFS) Render(schemaAddr string, network installer.Network, subdomain string) (map[string][]byte, error) {
 	ret := map[string][]byte{}
 	for path, contents := range a.files {
 		ret[path] = contents
@@ -116,8 +116,9 @@ func (a *appTmplFS) Render(network installer.Network, subdomain string) (map[str
 	for path, tmpl := range a.tmpls {
 		var buf bytes.Buffer
 		if err := tmpl.Execute(&buf, map[string]any{
-			"Network":   network,
-			"Subdomain": subdomain,
+			"SchemaAddr": schemaAddr,
+			"Network":    network,
+			"Subdomain":  subdomain,
 		}); err != nil {
 			return nil, err
 		}

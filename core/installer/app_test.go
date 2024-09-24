@@ -479,12 +479,14 @@ app: {
 		enabled: true
 		username: "gio"
 	}
-    volumes: {
-      data: size: "5Gi"
-    }
-    postgresql: {
-      db: size: "10Gi"
-    }
+    volumes: [{
+      name: "data"
+      size: "5Gi"
+    }]
+    postgresql: [{
+      name: "db"
+      size: "10Gi"
+    }]
 }`
 
 func TestDodoAppDevDisabled(t *testing.T) {

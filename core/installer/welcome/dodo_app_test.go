@@ -5,14 +5,17 @@ import (
 )
 
 func TestCreateDevBranch(t *testing.T) {
-	cfg := []byte(`
-app: {
-	type: "golang:1.22.0"
-	run: "main.go"
-	ingress: {
-		network: "private"
-		subdomain: "testapp"
-		auth: enabled: false
+	cfg := []byte(`{
+	"app": {
+		"type": "golang:1.22.0",
+		"run": "main.go",
+		"ingress": {
+			"network": "private",
+			"subdomain": "testapp",
+			"auth": {
+				"enabled": false
+			}
+		}
 	}
 }`)
 	network, newCfg, err := createDevBranchAppConfig(cfg, "foo", "bar")

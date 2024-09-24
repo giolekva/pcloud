@@ -255,8 +255,8 @@ func ParseCueAppConfig(data CueAppData) (cue.Value, error) {
 		return cue.Value{}, fmt.Errorf("invalid")
 	}
 	ret := ctx.BuildInstance(instances[0])
-	if ret.Err() != nil {
-		return cue.Value{}, ret.Err()
+	if err := ret.Err(); err != nil {
+		return cue.Value{}, err
 	}
 	if err := ret.Validate(); err != nil {
 		return cue.Value{}, err

@@ -36,8 +36,9 @@ namespaces: [...#Namespace] | *[]
 appType: #AppType | *"env"
 
 #Auth: {
-  enabled: bool | *false // TODO(gio): enabled by default?
-  groups: string | *"" // TODO(gio): []string
+	enabled: bool | *false // TODO(gio): enabled by default?
+	groups: string | *"" // TODO(gio): []string
+	noAuthPathPrefixes: [...string] | *[]
 }
 
 #Image: {

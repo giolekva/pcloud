@@ -29,6 +29,7 @@ var dodoAppFlags struct {
 	sshKey            string
 	repoAddr          string
 	self              string
+	selfPublic        string
 	repoPublicAddr    string
 	namespace         string
 	envAppManagerAddr string
@@ -84,6 +85,12 @@ func dodoAppCmd() *cobra.Command {
 	cmd.Flags().StringVar(
 		&dodoAppFlags.self,
 		"self",
+		"",
+		"",
+	)
+	cmd.Flags().StringVar(
+		&dodoAppFlags.selfPublic,
+		"self-public",
 		"",
 		"",
 	)
@@ -214,6 +221,7 @@ func dodoAppCmdRun(cmd *cobra.Command, args []string) error {
 		dodoAppFlags.port,
 		dodoAppFlags.apiPort,
 		dodoAppFlags.self,
+		dodoAppFlags.selfPublic,
 		dodoAppFlags.repoPublicAddr,
 		string(sshKey),
 		dodoAppFlags.gitRepoPublicKey,

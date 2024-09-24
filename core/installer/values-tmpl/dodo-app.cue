@@ -105,6 +105,11 @@ out: {
 				}
 				if !input.external {
 					enabled: true
+					noAuthPathPrefixes: [
+						"/static/",
+						"/schemas/",
+						"/api/public-data",
+				    ]
 				}
 			}
 			network: input.network
@@ -150,6 +155,7 @@ out: {
 				repoAddr: "soft-serve.\(release.namespace).svc.cluster.local:22"
 				sshPrivateKey: base64.Encode(null, input.dAppKeys.private)
 				self: "api.\(release.namespace).svc.cluster.local"
+				selfPublic: url
 				repoPublicAddr: "ssh://\(_domain):\(input.sshPort)"
 				namespace: release.namespace
 				envAppManagerAddr: "http://appmanager.\(global.namespacePrefix)appmanager.svc.cluster.local"

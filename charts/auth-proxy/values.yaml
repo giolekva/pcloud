@@ -10,3 +10,4 @@ membershipAddr: https://memberships.p.example.com/api/user
 membershipPublicAddr: https://memberships.p.example.com
 groups: ""
 portName: http
+noAuthPathPrefixes: ""

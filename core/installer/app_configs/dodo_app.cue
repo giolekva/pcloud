@@ -93,42 +93,28 @@ if app.dev.enabled {
 	type: string
 	cluster?: string
 	ingress: #AppIngress
-	volumes: {
-		for k, v in volumes {
-			"\(k)": #volume & v & {
-				name: k
-			}
-		}
-		...
-	}
-	postgresql: {
-		for k, v in postgresql {
-			"\(k)": #PostgreSQL & v & {
-				name: k
-			}
-		}
-		...
-	}
+	volumes: [...#volume]
+	postgresql: [...#PostgreSQL]
 	rootDir: string
 	runConfiguration: [...#Command]
 	dev: #Dev | *{ enabled: false }
 	vm: #VMCustomization
 
 	lastCmdEnv: [
-		for k, v in volumes {
-			"DODO_VOLUME_\(strings.ToUpper(k))=/dodo-volume/\(v.name)"
+		for v in volumes {
+			"DODO_VOLUME_\(strings.ToUpper(v.name))=/dodo-volume/\(v.name)"
 		}
-		for k, v in postgresql {
-			"DODO_POSTGRESQL_\(strings.ToUpper(k))_ADDRESS=postgres-\(v.name).\(release.namespace).svc.cluster.local"
+		for v in postgresql {
+			"DODO_POSTGRESQL_\(strings.ToUpper(v.name))_ADDRESS=postgres-\(v.name).\(release.namespace).svc.cluster.local"
 		}
-		for k, v in postgresql {
-			"DODO_POSTGRESQL_\(strings.ToUpper(k))_USERNAME=postgres"
+		for v in postgresql {
+			"DODO_POSTGRESQL_\(strings.ToUpper(v.name))_USERNAME=postgres"
 		}
-		for k, v in postgresql {
-			"DODO_POSTGRESQL_\(strings.ToUpper(k))_PASSWORD=postgres"
+		for v in postgresql {
+			"DODO_POSTGRESQL_\(strings.ToUpper(v.name))_PASSWORD=postgres"
 		}
-		for k, v in postgresql {
-			"DODO_POSTGRESQL_\(strings.ToUpper(k))_DATABASE=postgres"
+		for v in postgresql {
+			"DODO_POSTGRESQL_\(strings.ToUpper(v.name))_DATABASE=postgres"
 		}
     ]
 
@@ -151,8 +137,6 @@ _goVer1200: "golang:1.20.0"
 	port: int | *8080
 	rootDir: _appDir
 
-	volumes: {...}
-	postgresql: {...}
 	lastCmdEnv: [...string]
 
 	runConfiguration: [{
@@ -197,8 +181,6 @@ _hugoLatest: "hugo:latest"
 	port: int | *8080
 	rootDir: _appDir
 
-	volumes: {...}
-	postgresql: {...}
 	lastCmdEnv: [...string]
 
 	runConfiguration: [{
@@ -226,8 +208,6 @@ _hugoLatest: "hugo:latest"
 	port: int | *80
 	rootDir: "/var/www/html"
 
-	volumes: {...}
-	postgresql: {...}
 	lastCmdEnv: [...string]
 
 	runConfiguration: [{
@@ -337,9 +317,9 @@ if !_app.dev.enabled {
 						runCfg: base64.Encode(null, json.Marshal(_app.runConfiguration))
 						managerAddr: input.managerAddr
 						volumes: [
-							for key, value in _app.volumes {
-								name: value.name
-								mountPath: "/dodo-volume/\(key)"
+							for v in _app.volumes {
+								name: v.name
+								mountPath: "/dodo-volume/\(v.name)"
 							}
 					    ]
 					}
@@ -382,8 +362,16 @@ out: {
 	if app.cluster != _|_ {
 		cluster: clusterMap[strings.ToLower(app.cluster)]
 	}
-	volumes: app.volumes
-	postgresql: app.postgresql
+	volumes: {
+		for v in app.volumes {
+			"\(v.name)": v
+		}
+	}
+	postgresql: {
+		for v in app.postgresql {
+			"\(v.name)": v
+		}
+	}
 	vm: {
 		"\(_vmName)": _devVM
 	}

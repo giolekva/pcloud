@@ -1,0 +1,210 @@
+{
+  "$id": "https://dodo.cloud/schemas/app.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "app": {
+      "type": "object",
+      "oneOf": [
+        {
+          "$ref": "#/definitions/golang"
+        },
+        {
+          "$ref": "#/definitions/hugo"
+        },
+        {
+          "$ref": "#/definitions/php"
+        }
+      ]
+    }
+  },
+  "definitions": {
+    "golang": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string",
+          "oneOf": [
+            {
+              "const": "golang:1.22.0"
+            },
+            {
+              "const": "golang:1.20.0"
+            }
+          ]
+        },
+        "run": {
+          "type": "string"
+        },
+        "ingress": {
+          "$ref": "#/definitions/ingress"
+        },
+        "volumes": {
+          "$ref": "#/definitions/volumes"
+        },
+        "postgresql": {
+          "$ref": "#/definitions/postgresql"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "type"
+      ]
+    },
+    "hugo": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string",
+          "oneOf": [
+            {
+              "const": "hugo:latest"
+            }
+          ]
+        },
+        "ingress": {
+          "$ref": "#/definitions/ingress"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "type"
+      ]
+    },
+    "php": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string",
+          "oneOf": [
+            {
+              "const": "php:8.2-apache"
+            }
+          ]
+        },
+        "ingress": {
+          "$ref": "#/definitions/ingress"
+        },
+        "volumes": {
+          "$ref": "#/definitions/volumes"
+        },
+        "postgresql": {
+          "$ref": "#/definitions/postgresql"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "type"
+      ]
+    },
+    "volume": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "size": {
+          "$ref": "#/definitions/size"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "size"
+      ]
+    },
+    "volumes": {
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/volume"
+      }
+    },
+    "postgre": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "size": {
+          "$ref": "#/definitions/size"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "size"
+      ]
+    },
+    "postgresql": {
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/postgre"
+      }
+    },
+    "size": {
+      "type": "string",
+      "pattern": "[1-9][0-9]*(Mi|Gi)"
+    },
+    "ingress": {
+      "type": "object",
+      "properties": {
+        "network": {
+          "type": "string",
+          "minLength": 1
+        },
+        "subdomain": {
+          "type": "string",
+          "minLength": 1
+        },
+        "auth": {
+          "type": "object",
+          "oneOf": [
+            {
+              "type": "object",
+              "properties": {
+                "enabled": {
+                  "enum": [
+                    false
+                  ]
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "enabled"
+              ]
+            },
+            {
+              "type": "object",
+              "properties": {
+                "enabled": {
+                  "enum": [
+                    true
+                  ]
+                },
+                "groups": {
+                  "type": "string"
+                },
+                "noAuthPathPrefixes": {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+					"pattern": "^/.*"
+                  }
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "enabled"
+              ]
+            }
+          ]
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "network",
+        "subdomain"
+      ]
+    }
+  }
+}

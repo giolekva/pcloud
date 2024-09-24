@@ -35,7 +35,7 @@ func TestAppTmplGolang1200(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := a.Render(network, "testapp"); err != nil {
+	if _, err := a.Render("schema.json", network, "testapp"); err != nil {
 		t.Fatal(err)
 	}
 }
@@ -53,7 +53,7 @@ func TestAppTmplHugoLatest(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := a.Render(network, "testapp"); err != nil {
+	if _, err := a.Render("schema.json", network, "testapp"); err != nil {
 		t.Fatal(err)
 	}
 }
@@ -71,7 +71,7 @@ func TestAppTmplPHP82(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := a.Render(network, "testapp"); err != nil {
+	if _, err := a.Render("schema.json", network, "testapp"); err != nil {
 		t.Fatal(err)
 	}
 }

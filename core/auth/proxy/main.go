@@ -25,6 +25,7 @@ var membershipAddr = flag.String("membership-addr", "", "Group membership API en
 var membershipPublicAddr = flag.String("membership-public-addr", "", "Public address of membership service")
 var groups = flag.String("groups", "", "Comma separated list of groups. User must be part of at least one of them. If empty group membership will not be checked.")
 var upstream = flag.String("upstream", "", "Upstream service address")
+var noAuthPathPrefixes = flag.String("no-auth-path-prefixes", "", "Path prefixes to disable authentication for")
 
 //go:embed unauthorized.html
 var unauthorizedHTML embed.FS
@@ -92,46 +93,60 @@ func renderUnauthorizedPage(w http.ResponseWriter, groups []string) {
 }
 
 func handle(w http.ResponseWriter, r *http.Request) {
-	user, err := queryWhoAmI(r.Cookies())
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-	if user == nil {
-		if r.Method != http.MethodGet {
-			http.Error(w, "Unauthorized", http.StatusUnauthorized)
-			return
+	reqAuth := true
+	for _, p := range strings.Split(*noAuthPathPrefixes, ",") {
+		if strings.HasPrefix(r.URL.Path, p) {
+			reqAuth = false
+			break
 		}
-		curr, err := getAddr(r)
+	}
+	var user *user
+	if reqAuth {
+		var err error
+		user, err = queryWhoAmI(r.Cookies())
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
-		addr := fmt.Sprintf("%s?return_to=%s", *loginAddr, curr.String())
-		http.Redirect(w, r, addr, http.StatusSeeOther)
-		return
-	}
-	if *groups != "" {
-		hasPermission := false
-		tg, err := getTransitiveGroups(user.Identity.Traits.Username)
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
-		for _, i := range strings.Split(*groups, ",") {
-			if slices.Contains(tg, strings.TrimSpace(i)) {
-				hasPermission = true
-				break
+		if user == nil {
+			if r.Method != http.MethodGet {
+				http.Error(w, "Unauthorized", http.StatusUnauthorized)
+				return
 			}
-		}
-		if !hasPermission {
-			groupList := strings.Split(*groups, ",")
-			renderUnauthorizedPage(w, groupList)
+			curr, err := getAddr(r)
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
+			addr := fmt.Sprintf("%s?return_to=%s", *loginAddr, curr.String())
+			http.Redirect(w, r, addr, http.StatusSeeOther)
 			return
+		}
+		if *groups != "" {
+			hasPermission := false
+			tg, err := getTransitiveGroups(user.Identity.Traits.Username)
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
+			for _, i := range strings.Split(*groups, ",") {
+				if slices.Contains(tg, strings.TrimSpace(i)) {
+					hasPermission = true
+					break
+				}
+			}
+			if !hasPermission {
+				groupList := strings.Split(*groups, ",")
+				renderUnauthorizedPage(w, groupList)
+				return
+			}
 		}
 	}
 	rc := r.Clone(context.Background())
-	rc.Header.Add("X-User", user.Identity.Traits.Username)
+	if user != nil {
+		// TODO(gio): Rename to X-Forwarded-User
+		rc.Header.Add("X-User", user.Identity.Traits.Username)
+	}
 	ru, err := url.Parse(fmt.Sprintf("http://%s%s", *upstream, r.URL.RequestURI()))
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -237,7 +252,7 @@ func main() {
 	if *groups != "" && (*membershipAddr == "" || *membershipPublicAddr == "") {
 		log.Fatal("membership-addr and membership-public-addr flags are required when groups are provided")
 	}
-	http.Handle("/static/", cachingHandler{http.FileServer(http.FS(f))})
+	http.Handle("/.auth/static/", http.StripPrefix("/.auth", cachingHandler{http.FileServer(http.FS(f))}))
 	http.HandleFunc("/", handle)
 	fmt.Printf("Starting HTTP server on port: %d\n", *port)
 	log.Fatal(http.ListenAndServe(fmt.Sprintf(":%d", *port), nil))

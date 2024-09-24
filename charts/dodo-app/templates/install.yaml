@@ -121,6 +121,7 @@ spec:
         - --port={{ .Values.port }}
         - --api-port={{ .Values.apiPort }}
         - --self={{ .Values.self }}
+        - --self-public={{ .Values.selfPublic }}
         - --repo-public-addr={{ .Values.repoPublicAddr }}
         - --namespace={{ .Values.namespace }} # TODO(gio): maybe use .Release.Namespace ?
         - --env-app-manager-addr={{ .Values.envAppManagerAddr }}

@@ -35,12 +35,16 @@ var dodoAppTmplFS embed.FS
 //go:embed all:app-tmpl
 var appTmplsFS embed.FS
 
+//go:embed stat/schemas/app.schema.json
+var dodoAppJsonSchema []byte
+
 const (
 	ConfigRepoName = "config"
 	appConfigsFile = "/apps.json"
 	loginPath      = "/login"
 	logoutPath     = "/logout"
 	staticPath     = "/stat/"
+	schemasPath    = "/schemas/"
 	apiPublicData  = "/api/public-data"
 	apiCreateApp   = "/api/apps"
 	sessionCookie  = "dodo-app-session"
@@ -94,6 +98,7 @@ type DodoAppServer struct {
 	port              int
 	apiPort           int
 	self              string
+	selfPublic        string
 	repoPublicAddr    string
 	sshKey            string
 	gitRepoPublicKey  string
@@ -128,6 +133,7 @@ func NewDodoAppServer(
 	port int,
 	apiPort int,
 	self string,
+	selfPublic string,
 	repoPublicAddr string,
 	sshKey string,
 	gitRepoPublicKey string,
@@ -163,6 +169,7 @@ func NewDodoAppServer(
 		port,
 		apiPort,
 		self,
+		selfPublic,
 		repoPublicAddr,
 		sshKey,
 		gitRepoPublicKey,
@@ -218,6 +225,7 @@ func (s *DodoAppServer) Start() error {
 	go func() {
 		r := mux.NewRouter()
 		r.Use(s.mwAuth)
+		r.HandleFunc(schemasPath+"app.schema.json", s.handleSchema).Methods(http.MethodGet)
 		r.PathPrefix(staticPath).Handler(cachingHandler{http.FileServer(http.FS(statAssets))})
 		r.HandleFunc(logoutPath, s.handleLogout).Methods(http.MethodGet)
 		r.HandleFunc(apiPublicData, s.handleAPIPublicData)
@@ -320,6 +328,7 @@ func (s *DodoAppServer) mwAuth(next http.Handler) http.Handler {
 		if strings.HasSuffix(r.URL.Path, loginPath) ||
 			strings.HasPrefix(r.URL.Path, logoutPath) ||
 			strings.HasPrefix(r.URL.Path, staticPath) ||
+			strings.HasPrefix(r.URL.Path, schemasPath) ||
 			strings.HasPrefix(r.URL.Path, apiPublicData) ||
 			strings.HasPrefix(r.URL.Path, apiCreateApp) {
 			next.ServeHTTP(w, r)
@@ -338,6 +347,11 @@ func (s *DodoAppServer) mwAuth(next http.Handler) http.Handler {
 		}
 		next.ServeHTTP(w, r.WithContext(context.WithValue(r.Context(), userCtx, user)))
 	})
+}
+
+func (s *DodoAppServer) handleSchema(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/schema+json")
+	w.Write(dodoAppJsonSchema)
 }
 
 func (s *DodoAppServer) handleLogout(w http.ResponseWriter, r *http.Request) {
@@ -1017,7 +1031,7 @@ func (s *DodoAppServer) createDevBranch(appName, fromBranch, toBranch, user stri
 	if err != nil {
 		return err
 	}
-	appCfg, err := soft.ReadFile(appRepo, "app.cue")
+	appCfg, err := soft.ReadFile(appRepo, "app.json")
 	if err != nil {
 		return err
 	}
@@ -1025,7 +1039,7 @@ func (s *DodoAppServer) createDevBranch(appName, fromBranch, toBranch, user stri
 	if err != nil {
 		return err
 	}
-	return s.createAppForBranch(appRepo, appName, toBranch, user, network, map[string][]byte{"app.cue": branchCfg})
+	return s.createAppForBranch(appRepo, appName, toBranch, user, network, map[string][]byte{"app.json": branchCfg})
 }
 
 func (s *DodoAppServer) createAppForBranch(
@@ -1238,7 +1252,7 @@ func (s *DodoAppServer) updateDodoApp(
 	if err != nil {
 		return installer.ReleaseResources{}, err
 	}
-	appCfg, err := soft.ReadFile(repo, "app.cue")
+	appCfg, err := soft.ReadFile(repo, "app.json")
 	if err != nil {
 		return installer.ReleaseResources{}, err
 	}
@@ -1316,7 +1330,7 @@ func (s *DodoAppServer) renderAppConfigTemplate(appType string, network installe
 	if err != nil {
 		return nil, err
 	}
-	return appTmpl.Render(network, subdomain)
+	return appTmpl.Render(fmt.Sprintf("%s/stat/schemas/dodo_app.jsonschema", s.selfPublic), network, subdomain)
 }
 
 func generatePassword() string {
@@ -1677,7 +1691,9 @@ func extractResourceData(resources []installer.Resource) (resourceData, error) {
 }
 
 func createDevBranchAppConfig(from []byte, branch, username string) (string, []byte, error) {
-	cfg, err := installer.ParseCueAppConfig(installer.CueAppData{"app.cue": from})
+	cfg, err := installer.ParseCueAppConfig(installer.CueAppData{
+		"app.cue": from,
+	})
 	if err != nil {
 		return "", nil, err
 	}

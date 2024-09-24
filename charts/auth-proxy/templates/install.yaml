@@ -45,3 +45,4 @@ spec:
         - --membership-public-addr={{ .Values.membershipPublicAddr }}
         - --groups={{ .Values.groups }}
         - --upstream={{ .Values.upstream }}
+        - --no-auth-path-prefixes={{ .Values.noAuthPathPrefixes }}

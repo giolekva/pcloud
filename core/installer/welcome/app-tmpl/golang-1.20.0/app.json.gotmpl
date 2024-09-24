@@ -1,7 +1,8 @@
 {
 	"$schema": "{{ .SchemaAddr }}",
 	"app": {
-		"type": "php:8.2-apache",
+		"type": "golang:1.20.0",
+		"run": "main.go",
 		"ingress": {
 			"network": "{{ .Network.Name }}",
 			"subdomain": "{{ .Subdomain }}",
