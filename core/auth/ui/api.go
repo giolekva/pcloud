@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strings"
+	"unicode"
 
 	"github.com/gorilla/mux"
 )
@@ -37,22 +39,20 @@ func (s *APIServer) Start() error {
 	return s.serv.ListenAndServe()
 }
 
-const identityCreateTmpl = `
-{
-  "credentials": {
-    "password": {
-      "config": {
-        "password": "%s"
-      }
-    }
-  },
-  "schema_id": "user",
-  "state": "active",
-  "traits": {
-    "username": "%s"
-  }
+type kratosIdentityCreateReq struct {
+	Credentials struct {
+		Password struct {
+			Config struct {
+				Password string `json:"password"`
+			} `json:"config"`
+		} `json:"password"`
+	} `json:"credentials"`
+	SchemaID string `json:"schema_id"`
+	State    string `json:"state"`
+	Traits   struct {
+		Username string `json:"username"`
+	} `json:"traits"`
 }
-`
 
 type identityCreateReq struct {
 	Username string `json:"username,omitempty"`
@@ -92,8 +92,26 @@ func validateUsername(username string) []ValidationError {
 
 func validatePassword(password string) []ValidationError {
 	var errors []ValidationError
-	if len(password) < 6 {
-		errors = append(errors, ValidationError{"password", "Password must be at least 6 characters long."})
+	if len(password) < 20 {
+		errors = append(errors, ValidationError{"password", "Password must be at least 20 characters long."})
+	}
+	digit := false
+	lowerCase := false
+	upperCase := false
+	special := false
+	for _, c := range password {
+		if unicode.IsDigit(c) {
+			digit = true
+		} else if unicode.IsLower(c) {
+			lowerCase = true
+		} else if unicode.IsUpper(c) {
+			upperCase = true
+		} else if strings.Contains(" !\"#$%&'()*+,-./:;<=>?@[\\]^_{|}~", string(c)) {
+			special = true
+		}
+	}
+	if !digit || !lowerCase || !upperCase || !special {
+		errors = append(errors, ValidationError{"password", "Password must contain at least one ditig, lower/upper and special character"})
 	}
 	// TODO other validations
 	return errors
@@ -122,8 +140,16 @@ func (s *APIServer) identityCreate(w http.ResponseWriter, r *http.Request) {
 		replyWithErrors(w, allErrors)
 		return
 	}
+	var kreq kratosIdentityCreateReq
+	kreq.Credentials.Password.Config.Password = req.Password
+	kreq.SchemaID = "user"
+	kreq.State = "active"
+	kreq.Traits.Username = req.Username
 	var buf bytes.Buffer
-	fmt.Fprintf(&buf, identityCreateTmpl, req.Password, req.Username)
+	if err := json.NewEncoder(&buf).Encode(kreq); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
 	resp, err := http.Post(s.identitiesEndpoint(), "application/json", &buf)
 	if err != nil {
 		http.Error(w, "failed", http.StatusInternalServerError)
