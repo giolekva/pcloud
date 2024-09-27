@@ -654,7 +654,7 @@ func (s *SQLiteStore) CreateUser(user, email string) error {
 }
 
 func getLoggedInUser(r *http.Request) (string, error) {
-	if user := r.Header.Get("X-User"); user != "" {
+	if user := r.Header.Get("X-Forwarded-User"); user != "" {
 		return user, nil
 	} else {
 		return "", fmt.Errorf("unauthenticated")

@@ -18,17 +18,42 @@ import (
 	"github.com/giolekva/pcloud/core/installer/soft"
 )
 
-//go:embed create-account.html
-var indexHtml []byte
-
-//go:embed create-account-success.html
-var successHtml []byte
+//go:embed welcome-tmpl/*
+var welcomeTmpls embed.FS
 
 //go:embed static/*
 var staticAssets embed.FS
 
 //go:embed stat/*
 var statAssets embed.FS
+
+type welcomeTmplts struct {
+	createAccount        *template.Template
+	createAccountSuccess *template.Template
+}
+
+func parseTemplatesWelcome(fs embed.FS) (welcomeTmplts, error) {
+	base, err := template.New("base.html").ParseFS(fs, "welcome-tmpl/base.html")
+	if err != nil {
+		return welcomeTmplts{}, err
+	}
+	parse := func(path string) (*template.Template, error) {
+		if b, err := base.Clone(); err != nil {
+			return nil, err
+		} else {
+			return b.ParseFS(fs, path)
+		}
+	}
+	createAccount, err := parse("welcome-tmpl/create-account.html")
+	if err != nil {
+		return welcomeTmplts{}, err
+	}
+	createAccountSuccess, err := parse("welcome-tmpl/create-account-success.html")
+	if err != nil {
+		return welcomeTmplts{}, err
+	}
+	return welcomeTmplts{createAccount, createAccountSuccess}, nil
+}
 
 type Server struct {
 	port              int
@@ -38,6 +63,7 @@ type Server struct {
 	createAccountAddr string
 	loginAddr         string
 	membershipsAddr   string
+	tmpl              welcomeTmplts
 }
 
 func NewServer(
@@ -48,7 +74,11 @@ func NewServer(
 	createAccountAddr string,
 	loginAddr string,
 	membershipsAddr string,
-) *Server {
+) (*Server, error) {
+	tmplts, err := parseTemplatesWelcome(welcomeTmpls)
+	if err != nil {
+		return nil, err
+	}
 	return &Server{
 		port,
 		repo,
@@ -57,7 +87,8 @@ func NewServer(
 		createAccountAddr,
 		loginAddr,
 		membershipsAddr,
-	}
+		tmplts,
+	}, nil
 }
 
 func (s *Server) Start() {
@@ -70,13 +101,19 @@ func (s *Server) Start() {
 }
 
 func (s *Server) createAccountForm(w http.ResponseWriter, r *http.Request) {
-	renderRegistrationForm(w, formData{})
+	s.renderRegistrationForm(w, formData{})
 }
 
 type formData struct {
 	UsernameErrors []string
 	PasswordErrors []string
 	Data           createAccountReq
+}
+
+type cpFormData struct {
+	UsernameErrors []string
+	PasswordErrors []string
+	Password       string
 }
 
 type createAccountReq struct {
@@ -132,30 +169,20 @@ func extractReq(r *http.Request) (createAccountReq, error) {
 	return req, nil
 }
 
-func renderRegistrationForm(w http.ResponseWriter, data formData) {
-	tmpl, err := template.New("create-account").Parse(string(indexHtml))
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-	if err := tmpl.Execute(w, data); err != nil {
+func (s *Server) renderRegistrationForm(w http.ResponseWriter, data formData) {
+	if err := s.tmpl.createAccount.Execute(w, data); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 }
 
-func renderRegistrationSuccess(w http.ResponseWriter, loginAddr string) {
+func (s *Server) renderRegistrationSuccess(w http.ResponseWriter, loginAddr string) {
 	data := struct {
 		LoginAddr string
 	}{
 		LoginAddr: loginAddr,
 	}
-	tmpl, err := template.New("create-account-success").Parse(string(successHtml))
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-	if err := tmpl.Execute(w, data); err != nil {
+	if err := s.tmpl.createAccountSuccess.Execute(w, data); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -200,7 +227,7 @@ func (s *Server) createAccount(w http.ResponseWriter, r *http.Request) {
 					passwordErrors = append(passwordErrors, err.Message)
 				}
 			}
-			renderRegistrationForm(w, formData{
+			s.renderRegistrationForm(w, formData{
 				usernameErrors,
 				passwordErrors,
 				req,
@@ -212,7 +239,7 @@ func (s *Server) createAccount(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	renderRegistrationSuccess(w, s.loginAddr)
+	s.renderRegistrationSuccess(w, s.loginAddr)
 }
 
 type firstAccount struct {

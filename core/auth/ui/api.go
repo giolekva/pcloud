@@ -4,7 +4,9 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
+	"net/url"
 	"strings"
 	"unicode"
 
@@ -111,7 +113,7 @@ func validatePassword(password string) []ValidationError {
 		}
 	}
 	if !digit || !lowerCase || !upperCase || !special {
-		errors = append(errors, ValidationError{"password", "Password must contain at least one ditig, lower/upper and special character"})
+		errors = append(errors, ValidationError{"password", "Password must contain at least one digit, lower&upper case and special characters"})
 	}
 	// TODO other validations
 	return errors
@@ -167,6 +169,74 @@ func (s *APIServer) identityCreate(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+type changePasswordReq struct {
+	Id       string `json:"id,omitempty"`
+	Username string `json:"username,omitempty"`
+	Password string `json:"password,omitempty"`
+}
+
+func (s *APIServer) apiPasswordChange(id, username, password string) ([]ValidationError, error) {
+	var usernameErrors []ValidationError
+	passwordErrors := validatePassword(password)
+	allErrors := append(usernameErrors, passwordErrors...)
+	if len(allErrors) > 0 {
+		return allErrors, nil
+	}
+	var kreq kratosIdentityCreateReq
+	kreq.Credentials.Password.Config.Password = password
+	kreq.SchemaID = "user"
+	kreq.State = "active"
+	kreq.Traits.Username = username
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(kreq); err != nil {
+		return nil, err
+	}
+	c := http.Client{}
+	addr, err := url.Parse(s.identityEndpoint(id))
+	if err != nil {
+		return nil, err
+	}
+	hreq := &http.Request{
+		Method: http.MethodPut,
+		URL:    addr,
+		Header: http.Header{"Content-Type": []string{"application/json"}},
+		Body:   io.NopCloser(&buf),
+	}
+	resp, err := c.Do(hreq)
+	if err != nil {
+		return nil, err
+	}
+	if resp.StatusCode != http.StatusOK {
+		var buf bytes.Buffer
+		io.Copy(&buf, resp.Body)
+		respS := buf.String()
+		fmt.Printf("PASSWORD CHANGE ERROR: %s\n", respS)
+		var e ErrorResponse
+		if err := json.NewDecoder(bytes.NewReader([]byte(respS))).Decode(&e); err != nil {
+			return nil, err
+		}
+		return extractKratosErrorMessage(e), nil
+	}
+	return nil, nil
+}
+
+func (s *APIServer) passwordChange(w http.ResponseWriter, r *http.Request) {
+	var req changePasswordReq
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	if verr, err := s.apiPasswordChange(req.Id, req.Username, req.Password); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	} else if len(verr) > 0 {
+		replyWithErrors(w, verr)
+	}
+}
+
 func (s *APIServer) identitiesEndpoint() string {
 	return fmt.Sprintf("%s/admin/identities", s.kratosAddr)
+}
+
+func (s *APIServer) identityEndpoint(id string) string {
+	return fmt.Sprintf("%s/admin/identities/%s", s.kratosAddr, id)
 }

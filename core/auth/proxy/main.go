@@ -44,6 +44,7 @@ func (h cachingHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 type user struct {
 	Identity struct {
+		Id     string `json:"id"`
 		Traits struct {
 			Username string `json:"username"`
 		} `json:"traits"`
@@ -95,7 +96,8 @@ func renderUnauthorizedPage(w http.ResponseWriter, groups []string) {
 func handle(w http.ResponseWriter, r *http.Request) {
 	reqAuth := true
 	for _, p := range strings.Split(*noAuthPathPrefixes, ",") {
-		if strings.HasPrefix(r.URL.Path, p) {
+		t := strings.TrimSpace(p)
+		if len(t) > 0 && strings.HasPrefix(r.URL.Path, t) {
 			reqAuth = false
 			break
 		}
@@ -104,6 +106,7 @@ func handle(w http.ResponseWriter, r *http.Request) {
 	if reqAuth {
 		var err error
 		user, err = queryWhoAmI(r.Cookies())
+		fmt.Printf("--- %+v\n", user)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
@@ -142,11 +145,10 @@ func handle(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 	}
+	fmt.Printf("%+v\n", user)
 	rc := r.Clone(context.Background())
-	if user != nil {
-		// TODO(gio): Rename to X-Forwarded-User
-		rc.Header.Add("X-User", user.Identity.Traits.Username)
-	}
+	rc.Header.Add("X-Forwarded-User", user.Identity.Traits.Username)
+	rc.Header.Add("X-Forwarded-UserId", user.Identity.Id)
 	ru, err := url.Parse(fmt.Sprintf("http://%s%s", *upstream, r.URL.RequestURI()))
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)

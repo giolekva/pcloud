@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>dodo: Launcher</title>
     <link rel="stylesheet" type="text/css" href="/stat/pico.2.0.6.min.css">
-    <link rel="stylesheet" type="text/css" href="/stat/launcher.css?v=0.0.20">
+    <link rel="stylesheet" type="text/css" href="/stat/launcher.css?v=0.0.21">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/hack-font/3.3.0/web/hack.min.css">
 </head>
 <body class="container-fluid">
@@ -15,7 +15,8 @@
                 <p id="user-initial">{{ GetUserInitials .LoggedInUsername }}</p>
                 <div class="tooltip-user" id="tooltip-user">
                     <p>{{ .LoggedInUsername }}</p>
-                    <a href="{{ .LogoutURL }}" role="button" id="logout-button">Log Out</a>
+					<a href="{{ .AuthBaseAddr }}/change-password" role="button" class="profile-button" target="_blank">change password</a>
+                    <a href="{{ .AuthBaseAddr }}/logout" role="button" class="profile-button">log out</a>
                 </div>
             </div>
         </div>

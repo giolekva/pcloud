@@ -214,7 +214,7 @@ func TestRemoveChildGroupHandler(t *testing.T) {
 	router := mux.NewRouter()
 	router.HandleFunc("/group/{parent-group}/remove-child-group/{child-group}", server.removeChildGroupHandler).Methods(http.MethodPost)
 	req, err := http.NewRequest("POST", "/group/bb/remove-child-group/aa", nil)
-	req.Header.Set("X-User", "testuser")
+	req.Header.Set("X-Forwarded-User", "testuser")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -328,7 +328,7 @@ func TestFilterUsersByGroupHandler(t *testing.T) {
 	// case when group present or exist
 	router.HandleFunc("/api/users", server.apiGetAllUsers).Methods(http.MethodGet)
 	req, err := http.NewRequest("GET", "/api/users?groups=b,e,t", nil)
-	req.Header.Set("X-User", "testuser1")
+	req.Header.Set("X-Forwarded-User", "testuser1")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -353,7 +353,7 @@ func TestFilterUsersByGroupHandler(t *testing.T) {
 
 	// case when no group present
 	req, err = http.NewRequest("GET", "/api/users?groups=", nil)
-	req.Header.Set("X-User", "testuser1")
+	req.Header.Set("X-Forwarded-User", "testuser1")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -380,7 +380,7 @@ func TestFilterUsersByGroupHandler(t *testing.T) {
 
 	// case when wrong groups
 	req, err = http.NewRequest("GET", "/api/users?groups=x,y", nil)
-	req.Header.Set("X-User", "testuser1")
+	req.Header.Set("X-Forwarded-User", "testuser1")
 	if err != nil {
 		t.Fatal(err)
 	}

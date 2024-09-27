@@ -316,7 +316,7 @@ func NewInternalUserGetter() UserGetter {
 }
 
 func (ug internalUserGetter) Get(r *http.Request) string {
-	return r.Header.Get("X-User")
+	return r.Header.Get("X-Forwarded-User")
 }
 
 func (ug internalUserGetter) Encode(w http.ResponseWriter, user string) error {

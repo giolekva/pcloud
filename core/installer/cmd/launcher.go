@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"log"
+	"net/url"
 	"os"
 
 	"github.com/giolekva/pcloud/core/installer"
@@ -14,6 +15,7 @@ import (
 )
 
 var launcherFlags struct {
+	// TODO(gio): rename to auth-base-addr
 	logoutURL string
 	port      int
 	repoAddr  string
@@ -78,9 +80,13 @@ func launcherCmdRun(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
+	authBaseAddr, err := url.Parse(launcherFlags.logoutURL)
+	if err != nil {
+		return err
+	}
 	s, err := welcome.NewLauncherServer(
 		launcherFlags.port,
-		launcherFlags.logoutURL,
+		fmt.Sprintf("https://%s", authBaseAddr.Host),
 		&welcome.AppManagerDirectory{AppManager: appManager},
 	)
 	if err != nil {

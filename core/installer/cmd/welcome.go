@@ -88,7 +88,7 @@ func welcomeCmdRun(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-	s := welcome.NewServer(
+	s, err := welcome.NewServer(
 		welcomeFlags.port,
 		repoIO,
 		nsCreator,
@@ -97,6 +97,9 @@ func welcomeCmdRun(cmd *cobra.Command, args []string) error {
 		welcomeFlags.loginAddr,
 		welcomeFlags.membershipsAddr,
 	)
+	if err != nil {
+		return err
+	}
 	s.Start()
 	return nil
 }

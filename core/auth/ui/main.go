@@ -24,11 +24,10 @@ var port = flag.Int("port", 8080, "Port to listen on")
 var kratos = flag.String("kratos", "https://accounts.lekva.me", "Kratos URL")
 var hydra = flag.String("hydra", "hydra.pcloud", "Hydra admin server address")
 var emailDomain = flag.String("email-domain", "lekva.me", "Email domain")
-
 var apiPort = flag.Int("api-port", 8081, "API Port to listen on")
 var kratosAPI = flag.String("kratos-api", "", "Kratos API address")
-
 var enableRegistration = flag.Bool("enable-registration", false, "If true account registration will be enabled")
+var defaultReturnTo = flag.String("default-return-to", "", "Default redirect address after login")
 
 var ErrNotLoggedIn = errors.New("Not logged in")
 
@@ -39,10 +38,12 @@ var tmpls embed.FS
 var static embed.FS
 
 type Templates struct {
-	WhoAmI   *template.Template
-	Register *template.Template
-	Login    *template.Template
-	Consent  *template.Template
+	WhoAmI                *template.Template
+	Register              *template.Template
+	Login                 *template.Template
+	Consent               *template.Template
+	ChangePassword        *template.Template
+	ChangePasswordSuccess *template.Template
 }
 
 func ParseTemplates(fs embed.FS) (*Templates, error) {
@@ -73,7 +74,15 @@ func ParseTemplates(fs embed.FS) (*Templates, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &Templates{whoami, register, login, consent}, nil
+	changePassword, err := parse("templates/change-password.html")
+	if err != nil {
+		return nil, err
+	}
+	changePasswordSuccess, err := parse("templates/change-password-success.html")
+	if err != nil {
+		return nil, err
+	}
+	return &Templates{whoami, register, login, consent, changePassword, changePasswordSuccess}, nil
 }
 
 type Server struct {
@@ -83,15 +92,25 @@ type Server struct {
 	hydra              *HydraClient
 	tmpls              *Templates
 	enableRegistration bool
+	api                *APIServer
+	defaultReturnTo    string
 }
 
-func NewServer(port int, kratos string, hydra *HydraClient, tmpls *Templates, enableRegistration bool) *Server {
+func NewServer(
+	port int,
+	kratos string,
+	hydra *HydraClient,
+	tmpls *Templates,
+	enableRegistration bool,
+	api *APIServer,
+	defaultReturnTo string,
+) *Server {
 	r := mux.NewRouter()
 	serv := &http.Server{
 		Addr:    fmt.Sprintf(":%d", port),
 		Handler: r,
 	}
-	return &Server{r, serv, kratos, hydra, tmpls, enableRegistration}
+	return &Server{r, serv, kratos, hydra, tmpls, enableRegistration, api, defaultReturnTo}
 }
 
 func cacheControlWrapper(h http.Handler) http.Handler {
@@ -115,6 +134,8 @@ func (s *Server) Start() error {
 	s.r.Path("/consent").Methods(http.MethodGet).HandlerFunc(s.consent)
 	s.r.Path("/consent").Methods(http.MethodPost).HandlerFunc(s.processConsent)
 	s.r.Path("/logout").Methods(http.MethodGet).HandlerFunc(s.logout)
+	s.r.Path("/change-password").Methods("POST").HandlerFunc(s.changePassword)
+	s.r.Path("/change-password").Methods("GET").HandlerFunc(s.changePasswordForm)
 	s.r.Path("/").HandlerFunc(s.whoami)
 	return s.serv.ListenAndServe()
 }
@@ -225,7 +246,7 @@ func (s *Server) loginInitiate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if challenge, ok := r.Form["login_challenge"]; ok {
-		username, err := getWhoAmIFromKratos(r.Cookies())
+		_, username, err := getWhoAmIFromKratos(r.Cookies())
 		if err != nil && err != ErrNotLoggedIn {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
@@ -246,7 +267,10 @@ func (s *Server) loginInitiate(w http.ResponseWriter, r *http.Request) {
 			HttpOnly: true,
 		})
 	}
-	returnTo := r.Form.Get("return_to")
+	returnTo := r.FormValue("return_to")
+	if returnTo == "" && s.defaultReturnTo != "" {
+		returnTo = s.defaultReturnTo
+	}
 	flow, ok := r.Form["flow"]
 	if !ok {
 		addr := s.kratos + "/self-service/login/browser"
@@ -358,10 +382,10 @@ func getLogoutURLFromKratos(cookies []*http.Cookie) (string, error) {
 	return lr.LogoutURL, nil
 }
 
-func getWhoAmIFromKratos(cookies []*http.Cookie) (string, error) {
+func getWhoAmIFromKratos(cookies []*http.Cookie) (string, string, error) {
 	jar, err := cookiejar.New(nil)
 	if err != nil {
-		return "", err
+		return "", "", err
 	}
 	client := &http.Client{
 		Jar: jar,
@@ -371,25 +395,32 @@ func getWhoAmIFromKratos(cookies []*http.Cookie) (string, error) {
 	}
 	b, err := url.Parse(*kratos + "/sessions/whoami")
 	if err != nil {
-		return "", err
+		return "", "", err
 	}
 	client.Jar.SetCookies(b, cookies)
 	resp, err := client.Get(*kratos + "/sessions/whoami")
 	if err != nil {
-		return "", err
+		return "", "", err
 	}
 	respBody, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		return "", err
+		return "", "", err
 	}
 	username, err := regogo.Get(string(respBody), "input.identity.traits.username")
 	if err != nil {
-		return "", err
+		return "", "", err
 	}
 	if username.String() == "" {
-		return "", ErrNotLoggedIn
+		return "", "", ErrNotLoggedIn
 	}
-	return username.String(), nil
+	id, err := regogo.Get(string(respBody), "input.identity.id")
+	if err != nil {
+		return "", "", err
+	}
+	if id.String() == "" {
+		return "", "", ErrNotLoggedIn
+	}
+	return id.String(), username.String(), nil
 
 }
 
@@ -430,7 +461,6 @@ func (s *Server) login(w http.ResponseWriter, r *http.Request) {
 		"identifier": []string{r.FormValue("username")},
 	}
 	resp, err := postFormToKratos("login", flow[0], r.Cookies(), req)
-	fmt.Printf("--- %d\n", resp.StatusCode)
 	var vv bytes.Buffer
 	io.Copy(&vv, resp.Body)
 	fmt.Println(vv.String())
@@ -451,7 +481,7 @@ func (s *Server) login(w http.ResponseWriter, r *http.Request) {
 		http.SetCookie(w, c)
 	}
 	if challenge, _ := r.Cookie("login_challenge"); challenge != nil {
-		username, err := getWhoAmIFromKratos(resp.Cookies())
+		_, username, err := getWhoAmIFromKratos(resp.Cookies())
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
@@ -481,7 +511,7 @@ func (s *Server) logout(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) whoami(w http.ResponseWriter, r *http.Request) {
-	if username, err := getWhoAmIFromKratos(r.Cookies()); err != nil {
+	if _, username, err := getWhoAmIFromKratos(r.Cookies()); err != nil {
 		if errors.Is(err, ErrNotLoggedIn) {
 			http.Redirect(w, r, "/login", http.StatusSeeOther)
 			return
@@ -510,7 +540,7 @@ func (s *Server) consent(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	username, err := getWhoAmIFromKratos(r.Cookies())
+	_, username, err := getWhoAmIFromKratos(r.Cookies())
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -538,7 +568,7 @@ func (s *Server) processConsent(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	username, err := getWhoAmIFromKratos(r.Cookies())
+	_, username, err := getWhoAmIFromKratos(r.Cookies())
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -560,15 +590,67 @@ func (s *Server) processConsent(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+type changePasswordData struct {
+	Username       string
+	Password       string
+	PasswordErrors []ValidationError
+}
+
+func (s *Server) changePasswordForm(w http.ResponseWriter, r *http.Request) {
+	_, username, err := getWhoAmIFromKratos(r.Cookies())
+	if err != nil {
+		if errors.Is(err, ErrNotLoggedIn) {
+			http.Redirect(w, r, "/", http.StatusSeeOther)
+		} else {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+		}
+		return
+	}
+	if err := s.tmpls.ChangePassword.Execute(w, changePasswordData{Username: username}); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+}
+
+func (s *Server) changePassword(w http.ResponseWriter, r *http.Request) {
+	if err := r.ParseForm(); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	password := r.FormValue("password")
+	id, username, err := getWhoAmIFromKratos(r.Cookies())
+	if err != nil {
+		if errors.Is(err, ErrNotLoggedIn) {
+			http.Redirect(w, r, "/", http.StatusSeeOther)
+		} else {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+		}
+		return
+	}
+	if verr, err := s.api.apiPasswordChange(id, username, password); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	} else if len(verr) > 0 {
+		if err := s.tmpls.ChangePassword.Execute(w, changePasswordData{username, password, verr}); err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+	} else {
+		if err := s.tmpls.ChangePasswordSuccess.Execute(w, nil); err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+	}
+}
+
 func main() {
 	flag.Parse()
 	t, err := ParseTemplates(tmpls)
 	if err != nil {
 		log.Fatal(err)
 	}
+	api := NewAPIServer(*apiPort, *kratosAPI)
 	go func() {
-		s := NewAPIServer(*apiPort, *kratosAPI)
-		log.Fatal(s.Start())
+		log.Fatal(api.Start())
 	}()
 	func() {
 		s := NewServer(
@@ -577,6 +659,8 @@ func main() {
 			NewHydraClient(*hydra),
 			t,
 			*enableRegistration,
+			api,
+			*defaultReturnTo,
 		)
 		log.Fatal(s.Start())
 	}()

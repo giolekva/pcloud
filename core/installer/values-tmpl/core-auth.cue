@@ -428,6 +428,7 @@ out: {
 					domain: input.network.domain
 					hydra: "hydra-admin.\(global.namespacePrefix)core-auth.svc.cluster.local"
 					enableRegistration: false
+					defaultReturnTo: "https://launcher.\(global.domain)"
 					image: {
 						repository: images.ui.fullName
 						tag: images.ui.tag

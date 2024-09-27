@@ -92,3 +92,4 @@ spec:
         - --api-port=8081
         - --kratos-api=http://kratos-admin.{{ .Release.Namespace }}.svc.cluster.local
         - --enable-registration={{ .Values.ui.enableRegistration }}
+        - --default-return-to={{ .Values.ui.defaultReturnTo }}

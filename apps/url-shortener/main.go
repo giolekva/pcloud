@@ -163,7 +163,7 @@ func getLoggedInUser(r *http.Request) (string, error) {
 	if !*requireAuth {
 		return anyUser, nil
 	}
-	if user := r.Header.Get("X-User"); user != "" {
+	if user := r.Header.Get("X-Forwarded-User"); user != "" {
 		return user, nil
 	} else {
 		return "", fmt.Errorf("unauthenticated")

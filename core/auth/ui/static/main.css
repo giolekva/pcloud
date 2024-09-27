@@ -83,3 +83,7 @@ p {
 label {
   color: white;
 }
+
+.error-message {
+  color: var(--pico-primary-hover);
+}

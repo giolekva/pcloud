@@ -80,14 +80,14 @@ func (d *AppManagerDirectory) GetAllApps() ([]AppLauncherInfo, error) {
 
 type LauncherServer struct {
 	port         int
-	logoutURL    string
+	authBaseAddr string
 	appDirectory AppDirectory
 	homeTmpl     *template.Template
 }
 
 func NewLauncherServer(
 	port int,
-	logoutURL string,
+	authBaseAddr string,
 	appDirectory AppDirectory,
 ) (*LauncherServer, error) {
 	tmpl, err := indexHTML.ReadFile("launcher-tmpl/launcher.html")
@@ -104,7 +104,7 @@ func NewLauncherServer(
 	}
 	return &LauncherServer{
 		port,
-		logoutURL,
+		authBaseAddr,
 		appDirectory,
 		t,
 	}, nil
@@ -128,7 +128,7 @@ func shortenURL(url, domain string) string {
 }
 
 func getLoggedInUser(r *http.Request) (string, error) {
-	if user := r.Header.Get("X-User"); user != "" {
+	if user := r.Header.Get("X-Forwarded-User"); user != "" {
 		return user, nil
 	} else {
 		return "", fmt.Errorf("unauthenticated")
@@ -145,7 +145,7 @@ func (s *LauncherServer) Start() {
 type homeHandlerData struct {
 	LoggedInUsername string
 	AllAppsInfo      []AppLauncherInfo
-	LogoutURL        string
+	AuthBaseAddr     string
 }
 
 func (s *LauncherServer) homeHandler(w http.ResponseWriter, r *http.Request) {
@@ -161,7 +161,7 @@ func (s *LauncherServer) homeHandler(w http.ResponseWriter, r *http.Request) {
 	data := homeHandlerData{
 		LoggedInUsername: loggedInUsername,
 		AllAppsInfo:      allAppsInfo,
-		LogoutURL:        s.logoutURL,
+		AuthBaseAddr:     s.authBaseAddr,
 	}
 	if err := s.homeTmpl.Execute(w, data); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)

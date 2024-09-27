@@ -338,9 +338,8 @@ header h4 {
 
 .tooltip-user {
   position: absolute;
-  top: 38.7px;
+  top: 0px;
   left: 80px;
-  transform: translateY(-50%);
   width: 234px;
   background-color: var(--bodyBg);
   padding: 5px;
@@ -354,7 +353,7 @@ header h4 {
   box-shadow: 2px 2px 5px var(--bodyBg);
 }
 
-#logout-button {
+.profile-button {
   margin-top: 5px !important;
   padding: 0 !important;
   border: 0 !important;
