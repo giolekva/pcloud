@@ -31,6 +31,9 @@
           {{ $schema.Name }}
 		  <details class="dropdown">
 			  {{ $selectedCluster := index $data $name }}
+			  {{ if not $selectedCluster }}
+ 			    {{ $selectedCluster = "default" }}
+			  {{ end }}
 			  <summary id="{{ $name }}">{{ $selectedCluster }}</summary>
 			  <ul>
 				  {{ range $clusters }}

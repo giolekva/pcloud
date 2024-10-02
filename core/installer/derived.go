@@ -218,6 +218,9 @@ func derivedToConfig(derived map[string]any, schema Schema) (map[string]any, err
 		v, ok := derived[k]
 		// TODO(gio): if missing use default value
 		if !ok {
+			if def.Kind() == KindCluster {
+				ret[k] = "default"
+			}
 			continue
 		}
 		switch def.Kind() {
