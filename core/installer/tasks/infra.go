@@ -260,8 +260,10 @@ func SetupGroupMemberships(env installer.EnvConfig, st *state) Task {
 			network = "Private"
 		}
 		if _, err := st.appManager.Install(app, instanceId, appDir, namespace, map[string]any{
-			"network":    network,
-			"authGroups": strings.Join(initGroups, ","),
+			"network": network,
+			// NOTE(gio): Everyone has access to memberships service, so that
+			// they can edit their own profile, request memberships, ...
+			"authGroups": "",
 		}); err != nil {
 			return err
 		}
