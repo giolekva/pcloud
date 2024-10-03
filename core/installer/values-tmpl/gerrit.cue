@@ -126,74 +126,76 @@ out: {
 				name: "config-renderer"
 				secretName: _oauth2ClientCredentials
 				resourceTemplate: """
-				apiVersion: v1
-				kind: ConfigMap
-				metadata:
-				  name: \(_gerritConfigMapName)
-				  namespace: \(release.namespace)
-				data:
-				  replication.config: |
-					[gerrit]
-					  autoReload = false
-					  replicateOnStartup = true
-					  defaultForceUpdate = true
-				  gerrit.config: |
-					[gerrit]
-					  basePath = git # FIXED
-					  serverId = gerrit-1
-					  # The canonical web URL has to be set to the Ingress host, if an Ingress
-					  # is used. If a LoadBalancer-service is used, this should be set to the
-					  # LoadBalancer's external IP. This can only be done manually after installing
-					  # the chart, when you know the external IP the LoadBalancer got from the
-					  # cluster.
-					  canonicalWebUrl = https://\(_domain)
-					  disableReverseDnsLookup = true
-					[index]
-					  type = LUCENE
-					[auth]
-					  type = OAUTH
-					  gitBasicAuthPolicy = HTTP
-					  userNameToLowerCase = true
-					  userNameCaseInsensitive = true
-					[plugin "gerrit-oauth-provider-pcloud-oauth"]
-					  root-url = https://hydra.\(networks.public.domain)
-					  client-id = "{{ .client_id }}"
-					  client-secret = "{{ .client_secret }}"
-					  link-to-existing-openid-accounts = true
-					[download]
-					  command = branch
-					  command = checkout
-					  command = cherry_pick
-					  command = pull
-					  command = format_patch
-					  command = reset
-					  scheme = http
-					  scheme = anon_http
-					[httpd]
-					  # If using an ingress use proxy-http or proxy-https
-					  listenUrl = proxy-http://*:8080/
-					  requestLog = true
-					  gracefulStopTimeout = 1m
-					[sshd]
-					  listenAddress = 0.0.0.0:29418
-					  advertisedAddress = \(_domain):\(input.sshPort)
-					[transfer]
-					  timeout = 120 s
-					[user]
-					  name = Gerrit Code Review
-					  email = gerrit@\(networks.public.domain)
-					  anonymousCoward = Unnamed User
-					[cache]
-					  directory = cache
-					[container]
-					  user = gerrit # FIXED
-					  javaHome = /usr/lib/jvm/java-11-openjdk # FIXED
-					  javaOptions = -Djavax.net.ssl.trustStore=/var/gerrit/etc/keystore # FIXED
-					  javaOptions = -Xms200m
-					  # Has to be lower than 'gerrit.resources.limits.memory'. Also
-					  # consider memories used by other applications in the container.
-					  javaOptions = -Xmx4g
-				"""
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: \(_gerritConfigMapName)
+  namespace: \(release.namespace)
+data:
+  replication.config: |
+    [gerrit]
+      autoReload = false
+      replicateOnStartup = true
+      defaultForceUpdate = true
+  gerrit.config: |
+    [gerrit]
+      basePath = git # FIXED
+      serverId = gerrit-1
+      # The canonical web URL has to be set to the Ingress host, if an Ingress
+      # is used. If a LoadBalancer-service is used, this should be set to the
+      # LoadBalancer's external IP. This can only be done manually after installing
+      # the chart, when you know the external IP the LoadBalancer got from the
+      # cluster.
+      canonicalWebUrl = https://\(_domain)
+      disableReverseDnsLookup = true
+    [index]
+      type = LUCENE
+    [auth]
+      type = OAUTH
+      gitBasicAuthPolicy = HTTP
+      userNameToLowerCase = true
+      userNameCaseInsensitive = true
+    [plugin "gerrit-oauth-provider-pcloud-oauth"]
+      root-url = https://hydra.\(networks.public.domain)
+      client-id = "{{ .client_id }}"
+      client-secret = "{{ .client_secret }}"
+      link-to-existing-openid-accounts = true
+    [download]
+      command = branch
+      command = checkout
+      command = cherry_pick
+      command = pull
+      command = format_patch
+      command = reset
+      scheme = http
+      scheme = anon_http
+    [httpd]
+      # If using an ingress use proxy-http or proxy-https
+      listenUrl = proxy-http://*:8080/
+      requestLog = true
+      gracefulStopTimeout = 1m
+    [sshd]
+      listenAddress = 0.0.0.0:29418
+      advertisedAddress = \(_domain):\(input.sshPort)
+    [transfer]
+      timeout = 120 s
+    [user]
+      name = Gerrit Code Review
+      email = gerrit@\(networks.public.domain)
+      anonymousCoward = Unnamed User
+    [cache]
+      directory = cache
+    [container]
+      user = gerrit # FIXED
+      javaHome = /usr/lib/jvm/java-11-openjdk # FIXED
+      javaOptions = -Djavax.net.ssl.trustStore=/var/gerrit/etc/keystore # FIXED
+      javaOptions = -Xms200m
+      # Has to be lower than 'gerrit.resources.limits.memory'. Also
+      # consider memories used by other applications in the container.
+      javaOptions = -Xmx4g
+    [plugin "serviceuser"]
+      group = Service Users
+"""
 			}
 		}
 		gerrit: {
@@ -284,6 +286,10 @@ out: {
 							sha1: "cbdc5228a18b051a6e048a8e783e556394cc5db1"
 						}, {
 							name: "webhooks"
+						}, {
+							name: "serviceuser"
+							url: "https://drive.google.com/uc?export=download&id=110opG25oyvzODzYWXBK2zQV-444Ut2cA"
+							sha1: "c8946747d9dac322e1cd2acf49c899e87355ebb3"
 						}]
 						libs: []
 						cache: enabled: false
@@ -302,7 +308,7 @@ out: {
 }
 
 _dockerIO: "docker.io"
-_version: "v0.1-598-g769d7ce4-3.9.1"
+_version: "v0.1-728-g77fe419cb2-3.10.0"
 
 _longhorn: "longhorn"
 
