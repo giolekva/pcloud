@@ -236,7 +236,9 @@ func (s *DodoAppServer) Start() error {
 		r.HandleFunc("/{app-name}/{hash}", s.handleAppCommit).Methods(http.MethodGet)
 		r.HandleFunc("/{app-name}/dev-branch/create", s.handleCreateDevBranch).Methods(http.MethodPost)
 		r.HandleFunc("/{app-name}/branch/{branch}", s.handleAppStatus).Methods(http.MethodGet)
+		r.HandleFunc("/{app-name}/branch/{branch}/delete", s.handleBranchDelete).Methods(http.MethodPost)
 		r.HandleFunc("/{app-name}", s.handleAppStatus).Methods(http.MethodGet)
+		r.HandleFunc("/{app-name}/delete", s.handleAppDelete).Methods(http.MethodPost)
 		r.HandleFunc("/", s.handleStatus).Methods(http.MethodGet)
 		r.HandleFunc("/", s.handleCreateApp).Methods(http.MethodPost)
 		e <- http.ListenAndServe(fmt.Sprintf(":%d", s.port), r)
@@ -466,6 +468,7 @@ func (s *DodoAppServer) handleStatus(w http.ResponseWriter, r *http.Request) {
 type appStatusData struct {
 	Navigation      []navItem
 	Name            string
+	Branch          string
 	GitCloneCommand string
 	Commits         []CommitMeta
 	LastCommit      resourceData
@@ -532,6 +535,7 @@ func (s *DodoAppServer) handleAppStatus(w http.ResponseWriter, r *http.Request) 
 			navItem{appName, "/" + appName},
 		},
 		Name:            appName,
+		Branch:          branch,
 		GitCloneCommand: fmt.Sprintf("git clone %s/%s\n\n\n", s.repoPublicAddr, appName),
 		Commits:         commits,
 		LastCommit:      lastCommitResources,
@@ -899,7 +903,7 @@ func (s *DodoAppServer) handleCreateDevBranch(w http.ResponseWriter, r *http.Req
 	}
 	branch := r.FormValue("branch")
 	if branch == "" {
-		http.Error(w, "missing network", http.StatusBadRequest)
+		http.Error(w, "missing branch", http.StatusBadRequest)
 		return
 	}
 	if err := s.createDevBranch(appName, "master", branch, user); err != nil {
@@ -907,6 +911,49 @@ func (s *DodoAppServer) handleCreateDevBranch(w http.ResponseWriter, r *http.Req
 		return
 	}
 	http.Redirect(w, r, fmt.Sprintf("/%s/branch/%s", appName, branch), http.StatusSeeOther)
+}
+
+func (s *DodoAppServer) handleBranchDelete(w http.ResponseWriter, r *http.Request) {
+	u := r.Context().Value(userCtx)
+	if u == nil {
+		http.Error(w, "unauthorized", http.StatusUnauthorized)
+		return
+	}
+	vars := mux.Vars(r)
+	appName, ok := vars["app-name"]
+	if !ok || appName == "" {
+		http.Error(w, "missing app-name", http.StatusBadRequest)
+		return
+	}
+	branch, ok := vars["branch"]
+	if !ok || branch == "" {
+		http.Error(w, "missing branch", http.StatusBadRequest)
+		return
+	}
+	if err := s.deleteBranch(appName, branch); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	http.Redirect(w, r, fmt.Sprintf("/%s", appName), http.StatusSeeOther)
+}
+
+func (s *DodoAppServer) handleAppDelete(w http.ResponseWriter, r *http.Request) {
+	u := r.Context().Value(userCtx)
+	if u == nil {
+		http.Error(w, "unauthorized", http.StatusUnauthorized)
+		return
+	}
+	vars := mux.Vars(r)
+	appName, ok := vars["app-name"]
+	if !ok || appName == "" {
+		http.Error(w, "missing app-name", http.StatusBadRequest)
+		return
+	}
+	if err := s.deleteApp(appName); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	http.Redirect(w, r, fmt.Sprintf("/%s", appName), http.StatusSeeOther)
 }
 
 type apiCreateAppReq struct {
@@ -1040,6 +1087,68 @@ func (s *DodoAppServer) createDevBranch(appName, fromBranch, toBranch, user stri
 		return err
 	}
 	return s.createAppForBranch(appRepo, appName, toBranch, user, network, map[string][]byte{"app.json": branchCfg})
+}
+
+func (s *DodoAppServer) deleteBranch(appName string, branch string) error {
+	appBranch := fmt.Sprintf("dodo_%s", branch)
+	hf := installer.NewGitHelmFetcher()
+	if err := func() error {
+		repo, err := s.client.GetRepoBranch(appName, appBranch)
+		if err != nil {
+			return err
+		}
+		m, err := installer.NewAppManager(repo, s.nsc, s.jc, hf, s.vpnKeyGen, s.cnc, "/.dodo")
+		if err != nil {
+			return err
+		}
+		return m.Remove("app")
+	}(); err != nil {
+		return err
+	}
+	configRepo, err := s.client.GetRepo(ConfigRepoName)
+	if err != nil {
+		return err
+	}
+	m, err := installer.NewAppManager(configRepo, s.nsc, s.jc, hf, s.vpnKeyGen, s.cnc, "/")
+	if err != nil {
+		return err
+	}
+	appPath := fmt.Sprintf("%s/%s", appName, branch)
+	if _, err := configRepo.Do(func(fs soft.RepoFS) (string, error) {
+		if err := m.Remove(appPath); err != nil {
+			return "", err
+		}
+		return fmt.Sprintf("Uninstalled app branch: %s %s", appName, branch), nil
+	}); err != nil {
+		return err
+	}
+	if err := s.client.DeleteRepoBranch(appName, appBranch); err != nil {
+		return err
+	}
+	if branch != "master" {
+		return s.client.DeleteRepoBranch(appName, branch)
+	}
+	return nil
+}
+
+func (s *DodoAppServer) deleteApp(appName string) error {
+	configRepo, err := s.client.GetRepo(ConfigRepoName)
+	if err != nil {
+		return err
+	}
+	branches, err := configRepo.ListDir(fmt.Sprintf("/%s", appName))
+	if err != nil {
+		return err
+	}
+	for _, b := range branches {
+		if !b.IsDir() || strings.HasPrefix(b.Name(), "dodo_") {
+			continue
+		}
+		if err := s.deleteBranch(appName, b.Name()); err != nil {
+			return err
+		}
+	}
+	return s.client.DeleteRepo(appName)
 }
 
 func (s *DodoAppServer) createAppForBranch(

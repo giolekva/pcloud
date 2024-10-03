@@ -692,13 +692,21 @@ func (m *AppManager) Remove(instanceId string) error {
 		}
 		cfg = renderedCfg
 		r.RemoveAll(instanceDir)
-		kustPath := filepath.Join(m.appDirRoot, "kustomization.yaml")
-		kust, err := soft.ReadKustomization(r, kustPath)
-		if err != nil {
-			return "", err
+		prev := ""
+		curr := instanceDir
+		for prev != curr {
+			p := filepath.Dir(curr)
+			n := filepath.Base(curr)
+			kustPath := filepath.Join(p, "kustomization.yaml")
+			kust, err := soft.ReadKustomization(r, kustPath)
+			if err != nil {
+				return "", err
+			}
+			kust.RemoveResources(n)
+			soft.WriteYaml(r, kustPath, kust)
+			prev = curr
+			curr = p
 		}
-		kust.RemoveResources(instanceId)
-		soft.WriteYaml(r, kustPath, kust)
 		return fmt.Sprintf("uninstall: %s", instanceId), nil
 	}); err != nil {
 		return err

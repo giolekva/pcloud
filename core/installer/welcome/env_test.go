@@ -190,6 +190,14 @@ func (f fakeSoftServeClient) DisableKeyless() error {
 	return nil
 }
 
+func (f fakeSoftServeClient) DeleteRepoBranch(_, _ string) error {
+	return nil
+}
+
+func (f fakeSoftServeClient) DeleteRepo(_ string) error {
+	return nil
+}
+
 type fakeClientGetter struct {
 	t     *testing.T
 	envFS billy.Filesystem

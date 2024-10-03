@@ -31,6 +31,8 @@ type Client interface {
 	RepoExists(name string) (bool, error)
 	GetRepo(name string) (RepoIO, error)
 	GetRepoBranch(name, branch string) (RepoIO, error)
+	DeleteRepoBranch(name, branch string) error
+	DeleteRepo(name string) error
 	GetAllRepos() ([]string, error)
 	GetRepoAddress(name string) string
 	AddRepository(name string) error
@@ -278,6 +280,18 @@ func (ss *realClient) DisableAnonAccess() error {
 func (ss *realClient) DisableKeyless() error {
 	log.Printf("Disabling anon access")
 	_, err := ss.RunCommand("settings", "allow-keyless", "false")
+	return err
+}
+
+func (ss *realClient) DeleteRepoBranch(name, branch string) error {
+	log.Printf("Deleting branch %s %s", name, branch)
+	_, err := ss.RunCommand("repo", "branch", "delete", name, branch)
+	return err
+}
+
+func (ss *realClient) DeleteRepo(name string) error {
+	log.Printf("Deleting repo %s", name)
+	_, err := ss.RunCommand("repo", "delete", name)
 	return err
 }
 

@@ -22,4 +22,12 @@ dodo app: {{ .Name }}
 {{- range .Branches -}}
 <a href="/{{ $.Name }}/branch/{{ . }}">{{ . }}</a><br/>
 {{- end -}}
+{{- if ne .Branch "master" -}}
+<form action="/{{ .Name }}/branch/{{ .Branch }}/delete" method="POST">
+	<button aria-busy="false" type="submit" name="delete">delete branch</button>
+</form>
+{{- end -}}
+<form action="/{{ .Name }}/delete" method="POST">
+	<button aria-busy="false" type="submit" name="delete">delete app</button>
+</form>
 {{- end -}}
